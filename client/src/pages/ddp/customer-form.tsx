@@ -1,0 +1,442 @@
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useLocation } from "wouter";
+import { Loader2, ArrowLeft, Sun } from "lucide-react";
+import { customerFormSchema, indianStates, roofTypes } from "@shared/schema";
+import type { z } from "zod";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+
+type CustomerFormValues = z.infer<typeof customerFormSchema>;
+
+export default function CustomerForm() {
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const form = useForm<CustomerFormValues>({
+    resolver: zodResolver(customerFormSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      phone: "",
+      address: "",
+      district: "",
+      state: "",
+      pincode: "",
+      electricityBoard: "",
+      consumerNumber: "",
+      sanctionedLoad: "",
+      avgMonthlyBill: undefined,
+      roofType: "",
+      roofArea: undefined,
+      proposedCapacity: "",
+      status: "pending",
+      documents: [],
+    },
+  });
+
+  async function onSubmit(data: CustomerFormValues) {
+    setIsLoading(true);
+    try {
+      await apiRequest("POST", "/api/ddp/customers", data);
+      toast({
+        title: "Customer registered successfully",
+        description: `${data.name} has been added for solar installation under PM Surya Ghar Yojana.`,
+      });
+      setLocation("/ddp/customers");
+    } catch (error: any) {
+      toast({
+        title: "Failed to register customer",
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-6">
+      {/* Page Header */}
+      <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setLocation("/ddp/customers")}
+          data-testid="button-back"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </Button>
+        <div>
+          <h1 className="text-3xl font-semibold" data-testid="text-page-title">Add Customer</h1>
+          <p className="text-muted-foreground">Register a new customer for PM Surya Ghar Yojana</p>
+        </div>
+      </div>
+
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          {/* Personal Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sun className="w-5 h-5 text-primary" />
+                Personal Information
+              </CardTitle>
+              <CardDescription>
+                Customer's basic details for the application
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Full Name *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Enter customer's full name" 
+                          data-testid="input-name"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone Number *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="10-digit mobile number" 
+                          data-testid="input-phone"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="email"
+                          placeholder="customer@example.com" 
+                          data-testid="input-email"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <Separator />
+
+              <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Complete Address *</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="House no., Street, Locality" 
+                        data-testid="input-address"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormField
+                  control={form.control}
+                  name="state"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>State *</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-state">
+                            <SelectValue placeholder="Select state" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {indianStates.map((state) => (
+                            <SelectItem key={state} value={state}>
+                              {state}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="district"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>District *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="District name" 
+                          data-testid="input-district"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="pincode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Pincode *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="6-digit pincode" 
+                          maxLength={6}
+                          data-testid="input-pincode"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Electricity Details */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Electricity Details</CardTitle>
+              <CardDescription>
+                Information about the customer's current electricity connection
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="electricityBoard"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Electricity Board/DISCOM</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g., BSES, MSEDCL, KSEB" 
+                          data-testid="input-electricity-board"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="consumerNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Consumer/K Number</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Electricity consumer number" 
+                          data-testid="input-consumer-number"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="sanctionedLoad"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Sanctioned Load (kW)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g., 3, 5, 10" 
+                          data-testid="input-sanctioned-load"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="avgMonthlyBill"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Average Monthly Bill (₹)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number"
+                          placeholder="e.g., 2500" 
+                          data-testid="input-avg-bill"
+                          {...field}
+                          onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Average of last 6 months electricity bill
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Roof & Capacity Details */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Roof & Capacity Details</CardTitle>
+              <CardDescription>
+                Information about the rooftop for solar panel installation
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="roofType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Roof Type</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-roof-type">
+                            <SelectValue placeholder="Select roof type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {roofTypes.map((type) => (
+                            <SelectItem key={type} value={type}>
+                              {type}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="roofArea"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Available Roof Area (sq ft)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number"
+                          placeholder="e.g., 300" 
+                          data-testid="input-roof-area"
+                          {...field}
+                          onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Shadow-free area available for panels
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="proposedCapacity"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Proposed Capacity (kW)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g., 3, 5, 10" 
+                          data-testid="input-proposed-capacity"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Recommended: 1 kW per ₹1,000 monthly bill
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Submit Buttons */}
+          <div className="flex gap-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setLocation("/ddp/customers")}
+              data-testid="button-cancel"
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={isLoading}
+              data-testid="button-submit"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Registering...
+                </>
+              ) : (
+                "Register Customer"
+              )}
+            </Button>
+          </div>
+        </form>
+      </Form>
+    </div>
+  );
+}
