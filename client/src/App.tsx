@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -48,26 +49,39 @@ function LoadingScreen() {
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
+  const [shouldRedirect, setShouldRedirect] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isLoading) return;
+    
+    if (!user) {
+      setShouldRedirect("/login");
+      return;
+    }
+
+    if (allowedRoles && !allowedRoles.includes(user.role)) {
+      if (user.role === "admin") {
+        setShouldRedirect("/admin/dashboard");
+      } else if (user.role === "bdp") {
+        setShouldRedirect("/bdp/dashboard");
+      } else {
+        setShouldRedirect("/ddp/dashboard");
+      }
+    }
+  }, [user, isLoading, allowedRoles]);
+
+  useEffect(() => {
+    if (shouldRedirect) {
+      setLocation(shouldRedirect);
+    }
+  }, [shouldRedirect, setLocation]);
 
   if (isLoading) {
     return <LoadingScreen />;
   }
 
-  if (!user) {
-    setLocation("/login");
-    return null;
-  }
-
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
-    // Redirect to their proper dashboard
-    if (user.role === "admin") {
-      setLocation("/admin/dashboard");
-    } else if (user.role === "bdp") {
-      setLocation("/bdp/dashboard");
-    } else {
-      setLocation("/ddp/dashboard");
-    }
-    return null;
+  if (!user || (allowedRoles && !allowedRoles.includes(user.role))) {
+    return <LoadingScreen />;
   }
 
   return <>{children}</>;
