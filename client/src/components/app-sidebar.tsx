@@ -11,6 +11,8 @@ import {
   Calculator,
   Wallet,
   Shield,
+  Package,
+  ShoppingCart,
 } from "lucide-react";
 import {
   Sidebar,
@@ -35,6 +37,8 @@ const adminMenuItems = [
   { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
   { title: "Partners", url: "/admin/partners", icon: Building2 },
   { title: "All Customers", url: "/admin/customers", icon: Users },
+  { title: "Products", url: "/admin/products", icon: Package },
+  { title: "Orders", url: "/admin/orders", icon: ShoppingCart },
   { title: "Commission Payouts", url: "/admin/payouts", icon: Wallet },
   { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },
 ];
