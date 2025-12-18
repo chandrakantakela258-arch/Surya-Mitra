@@ -10,6 +10,9 @@ import { ThemeProvider } from "@/lib/theme";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { NotificationBell } from "@/components/notification-bell";
+import { ChatbotAssistant } from "@/components/chatbot-assistant";
+import { OnboardingTutorial } from "@/components/onboarding-tutorial";
 
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
@@ -90,6 +93,7 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
 }
 
 function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const sidebarStyle = {
     "--sidebar-width": "18rem",
     "--sidebar-width-icon": "3.5rem",
@@ -102,12 +106,19 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col flex-1 min-w-0">
           <header className="flex items-center justify-between gap-4 p-4 border-b sticky top-0 bg-background z-50">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
-            <ThemeToggle />
+            <div className="flex items-center gap-2">
+              <NotificationBell />
+              <ThemeToggle />
+            </div>
           </header>
           <main className="flex-1 p-6 overflow-auto">
             {children}
           </main>
         </div>
+        <ChatbotAssistant />
+        {user && (user.role === "bdp" || user.role === "ddp") && (
+          <OnboardingTutorial userRole={user.role} />
+        )}
       </div>
     </SidebarProvider>
   );

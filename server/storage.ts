@@ -10,6 +10,10 @@ import {
   orderItems,
   payments,
   feedback,
+  notifications,
+  userPreferences,
+  partnerOfMonth,
+  chatbotFaq,
   type User, 
   type InsertUser, 
   type Customer, 
@@ -32,6 +36,14 @@ import {
   type InsertPayment,
   type Feedback,
   type InsertFeedback,
+  type Notification,
+  type InsertNotification,
+  type UserPreferences,
+  type InsertUserPreferences,
+  type PartnerOfMonth,
+  type InsertPartnerOfMonth,
+  type ChatbotFaq,
+  type InsertChatbotFaq,
   installationMilestones,
   calculateCommission,
   calculateBdpCommission
@@ -149,6 +161,30 @@ export interface IStorage {
   getFeedbackByUserId(userId: string): Promise<Feedback[]>;
   createFeedback(feedback: InsertFeedback): Promise<Feedback>;
   updateFeedbackStatus(id: string, status: string, adminNotes?: string): Promise<Feedback | undefined>;
+  
+  // Notification operations
+  getNotificationsByUserId(userId: string): Promise<Notification[]>;
+  getUnreadNotificationCount(userId: string): Promise<number>;
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  markNotificationRead(id: string): Promise<Notification | undefined>;
+  markAllNotificationsRead(userId: string): Promise<void>;
+  
+  // User Preferences operations
+  getUserPreferences(userId: string): Promise<UserPreferences | undefined>;
+  createOrUpdateUserPreferences(userId: string, data: Partial<InsertUserPreferences>): Promise<UserPreferences>;
+  
+  // Partner of the Month operations
+  getCurrentPartnerOfMonth(): Promise<(PartnerOfMonth & { partner?: User }) | undefined>;
+  getAllPartnersOfMonth(): Promise<(PartnerOfMonth & { partner?: User })[]>;
+  createPartnerOfMonth(data: InsertPartnerOfMonth): Promise<PartnerOfMonth>;
+  
+  // Chatbot FAQ operations
+  getActiveFaqs(): Promise<ChatbotFaq[]>;
+  getAllFaqs(): Promise<ChatbotFaq[]>;
+  createFaq(faq: InsertChatbotFaq): Promise<ChatbotFaq>;
+  updateFaq(id: string, data: Partial<ChatbotFaq>): Promise<ChatbotFaq | undefined>;
+  deleteFaq(id: string): Promise<boolean>;
+  searchFaqs(query: string): Promise<ChatbotFaq[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -797,6 +833,158 @@ export class DatabaseStorage implements IStorage {
       .where(eq(feedback.id, id))
       .returning();
     return updated || undefined;
+  }
+
+  // Notification operations
+  async getNotificationsByUserId(userId: string): Promise<Notification[]> {
+    return db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt));
+  }
+
+  async getUnreadNotificationCount(userId: string): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(notifications)
+      .where(and(eq(notifications.userId, userId), eq(notifications.isRead, "false")));
+    return Number(result[0]?.count || 0);
+  }
+
+  async createNotification(insertNotification: InsertNotification): Promise<Notification> {
+    const [notification] = await db
+      .insert(notifications)
+      .values(insertNotification)
+      .returning();
+    return notification;
+  }
+
+  async markNotificationRead(id: string): Promise<Notification | undefined> {
+    const [notification] = await db
+      .update(notifications)
+      .set({ isRead: "true" })
+      .where(eq(notifications.id, id))
+      .returning();
+    return notification || undefined;
+  }
+
+  async markAllNotificationsRead(userId: string): Promise<void> {
+    await db
+      .update(notifications)
+      .set({ isRead: "true" })
+      .where(eq(notifications.userId, userId));
+  }
+
+  // User Preferences operations
+  async getUserPreferences(userId: string): Promise<UserPreferences | undefined> {
+    const [prefs] = await db.select().from(userPreferences).where(eq(userPreferences.userId, userId));
+    return prefs || undefined;
+  }
+
+  async createOrUpdateUserPreferences(userId: string, data: Partial<InsertUserPreferences>): Promise<UserPreferences> {
+    const existing = await this.getUserPreferences(userId);
+    if (existing) {
+      const [updated] = await db
+        .update(userPreferences)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(userPreferences.userId, userId))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db
+        .insert(userPreferences)
+        .values({ userId, ...data })
+        .returning();
+      return created;
+    }
+  }
+
+  // Partner of the Month operations
+  async getCurrentPartnerOfMonth(): Promise<(PartnerOfMonth & { partner?: User }) | undefined> {
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+    
+    const [pom] = await db
+      .select()
+      .from(partnerOfMonth)
+      .where(and(eq(partnerOfMonth.month, currentMonth), eq(partnerOfMonth.year, currentYear)));
+    
+    if (!pom) return undefined;
+    
+    const partner = await this.getUser(pom.partnerId);
+    return { ...pom, partner };
+  }
+
+  async getAllPartnersOfMonth(): Promise<(PartnerOfMonth & { partner?: User })[]> {
+    const poms = await db
+      .select()
+      .from(partnerOfMonth)
+      .orderBy(desc(partnerOfMonth.year), desc(partnerOfMonth.month));
+    
+    const result = [];
+    for (const pom of poms) {
+      const partner = await this.getUser(pom.partnerId);
+      result.push({ ...pom, partner });
+    }
+    return result;
+  }
+
+  async createPartnerOfMonth(data: InsertPartnerOfMonth): Promise<PartnerOfMonth> {
+    const [pom] = await db
+      .insert(partnerOfMonth)
+      .values(data)
+      .returning();
+    return pom;
+  }
+
+  // Chatbot FAQ operations
+  async getActiveFaqs(): Promise<ChatbotFaq[]> {
+    return db
+      .select()
+      .from(chatbotFaq)
+      .where(eq(chatbotFaq.isActive, "active"))
+      .orderBy(chatbotFaq.sortOrder, chatbotFaq.category);
+  }
+
+  async getAllFaqs(): Promise<ChatbotFaq[]> {
+    return db
+      .select()
+      .from(chatbotFaq)
+      .orderBy(chatbotFaq.sortOrder, chatbotFaq.category);
+  }
+
+  async createFaq(insertFaq: InsertChatbotFaq): Promise<ChatbotFaq> {
+    const [faq] = await db
+      .insert(chatbotFaq)
+      .values(insertFaq)
+      .returning();
+    return faq;
+  }
+
+  async updateFaq(id: string, data: Partial<ChatbotFaq>): Promise<ChatbotFaq | undefined> {
+    const [faq] = await db
+      .update(chatbotFaq)
+      .set(data)
+      .where(eq(chatbotFaq.id, id))
+      .returning();
+    return faq || undefined;
+  }
+
+  async deleteFaq(id: string): Promise<boolean> {
+    const result = await db.delete(chatbotFaq).where(eq(chatbotFaq.id, id));
+    return true;
+  }
+
+  async searchFaqs(query: string): Promise<ChatbotFaq[]> {
+    const lowerQuery = query.toLowerCase();
+    const allFaqs = await this.getActiveFaqs();
+    return allFaqs.filter(faq => 
+      faq.question.toLowerCase().includes(lowerQuery) ||
+      faq.answer.toLowerCase().includes(lowerQuery) ||
+      faq.keywords?.some(k => k.toLowerCase().includes(lowerQuery))
+    );
   }
 }
 

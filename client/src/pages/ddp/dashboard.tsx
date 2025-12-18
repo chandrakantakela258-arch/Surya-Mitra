@@ -8,6 +8,8 @@ import { StatCard } from "@/components/stat-card";
 import { StatusBadge } from "@/components/status-badge";
 import { DashboardSkeleton, TableSkeleton } from "@/components/loading-skeleton";
 import { EmptyState } from "@/components/empty-state";
+import { PartnerOfMonthCard } from "@/components/partner-of-month";
+import { DashboardCustomizer, useDashboardWidgets } from "@/components/dashboard-widgets";
 import type { Customer } from "@shared/schema";
 
 interface DDPStats {
@@ -18,6 +20,8 @@ interface DDPStats {
 }
 
 export default function DDPDashboard() {
+  const { widgets, setWidgets, isWidgetVisible } = useDashboardWidgets("ddp");
+
   const { data: stats, isLoading: statsLoading } = useQuery<DDPStats>({
     queryKey: ["/api/ddp/stats"],
   });
@@ -38,13 +42,19 @@ export default function DDPDashboard() {
           <h1 className="text-3xl font-semibold" data-testid="text-page-title">Dashboard</h1>
           <p className="text-muted-foreground">Manage your customer registrations for PM Surya Ghar Yojana</p>
         </div>
-        <Button asChild data-testid="button-add-customer">
-          <Link href="/ddp/customers/new">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Customer
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <DashboardCustomizer role="ddp" widgets={widgets} onWidgetsChange={setWidgets} />
+          <Button asChild data-testid="button-add-customer">
+            <Link href="/ddp/customers/new">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Customer
+            </Link>
+          </Button>
+        </div>
       </div>
+
+      {/* Partner of the Month */}
+      {isWidgetVisible("partner-of-month") && <PartnerOfMonthCard />}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

@@ -299,6 +299,24 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Customer not found" });
       }
       
+      // Create notification for the DDP about status change
+      const statusLabels: Record<string, string> = {
+        verified: "Documents Verified",
+        approved: "Application Approved",
+        installation_scheduled: "Installation Scheduled",
+        completed: "Installation Completed",
+      };
+      
+      if (statusLabels[status]) {
+        await storage.createNotification({
+          userId: customer.ddpId,
+          customerId: customer.id,
+          type: "status_update",
+          title: `Customer Status: ${statusLabels[status]}`,
+          message: `${customer.name}'s application status has been updated to "${statusLabels[status]}".`,
+        });
+      }
+      
       res.json(customer);
     } catch (error) {
       console.error("Update customer status error:", error);
@@ -355,11 +373,44 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Milestone not found" });
       }
       
-      // If installation is complete, create commission for the DDP
-      if (milestone.milestone === "installation_complete") {
-        const customer = await storage.getCustomer(milestone.customerId);
-        if (customer) {
-          await storage.createCommissionForCustomer(customer.id, customer.ddpId);
+      const customer = await storage.getCustomer(milestone.customerId);
+      
+      // Create notification for milestone completion
+      if (customer) {
+        const milestoneLabels: Record<string, string> = {
+          application_submitted: "Application Submitted",
+          documents_verified: "Documents Verified",
+          site_survey: "Site Survey Complete",
+          approval_received: "Approval Received",
+          installation_scheduled: "Installation Scheduled",
+          installation_complete: "Installation Complete",
+          grid_connected: "Grid Connected",
+          subsidy_applied: "Subsidy Applied",
+          subsidy_received: "Subsidy Received",
+        };
+        
+        await storage.createNotification({
+          userId: customer.ddpId,
+          customerId: customer.id,
+          type: "milestone_complete",
+          title: `Milestone: ${milestoneLabels[milestone.milestone] || milestone.milestone}`,
+          message: `${customer.name}'s milestone "${milestoneLabels[milestone.milestone] || milestone.milestone}" has been completed.`,
+        });
+        
+        // If installation is complete, create commission for the DDP
+        if (milestone.milestone === "installation_complete") {
+          const commissions = await storage.createCommissionForCustomer(customer.id, customer.ddpId);
+          
+          // Notify about commission earned
+          if (commissions.ddpCommission) {
+            await storage.createNotification({
+              userId: customer.ddpId,
+              customerId: customer.id,
+              type: "commission_earned",
+              title: "Commission Earned",
+              message: `You earned Rs ${(commissions.ddpCommission.commissionAmount || 0).toLocaleString()} commission for ${customer.name}'s installation.`,
+            });
+          }
         }
       }
       
@@ -1248,6 +1299,204 @@ export async function registerRoutes(
       }
       console.error("Update feedback error:", error);
       res.status(500).json({ message: "Failed to update feedback" });
+    }
+  });
+
+  // ============ NOTIFICATION ROUTES ============
+  
+  // Get user's notifications
+  app.get("/api/notifications", requireAuth, async (req, res) => {
+    try {
+      const notifications = await storage.getNotificationsByUserId(req.session.userId!);
+      res.json(notifications);
+    } catch (error) {
+      console.error("Get notifications error:", error);
+      res.status(500).json({ message: "Failed to get notifications" });
+    }
+  });
+
+  // Get unread notification count
+  app.get("/api/notifications/unread-count", requireAuth, async (req, res) => {
+    try {
+      const count = await storage.getUnreadNotificationCount(req.session.userId!);
+      res.json({ count });
+    } catch (error) {
+      console.error("Get unread count error:", error);
+      res.status(500).json({ message: "Failed to get unread count" });
+    }
+  });
+
+  // Mark notification as read
+  app.patch("/api/notifications/:id/read", requireAuth, async (req, res) => {
+    try {
+      const notification = await storage.markNotificationRead(req.params.id);
+      if (!notification) {
+        return res.status(404).json({ message: "Notification not found" });
+      }
+      res.json(notification);
+    } catch (error) {
+      console.error("Mark notification read error:", error);
+      res.status(500).json({ message: "Failed to mark notification as read" });
+    }
+  });
+
+  // Mark all notifications as read
+  app.post("/api/notifications/mark-all-read", requireAuth, async (req, res) => {
+    try {
+      await storage.markAllNotificationsRead(req.session.userId!);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Mark all read error:", error);
+      res.status(500).json({ message: "Failed to mark all as read" });
+    }
+  });
+
+  // ============ USER PREFERENCES ROUTES ============
+  
+  // Get user preferences
+  app.get("/api/preferences", requireAuth, async (req, res) => {
+    try {
+      let prefs = await storage.getUserPreferences(req.session.userId!);
+      if (!prefs) {
+        prefs = await storage.createOrUpdateUserPreferences(req.session.userId!, {});
+      }
+      res.json(prefs);
+    } catch (error) {
+      console.error("Get preferences error:", error);
+      res.status(500).json({ message: "Failed to get preferences" });
+    }
+  });
+
+  // Update user preferences
+  app.patch("/api/preferences", requireAuth, async (req, res) => {
+    try {
+      const prefs = await storage.createOrUpdateUserPreferences(req.session.userId!, req.body);
+      res.json(prefs);
+    } catch (error) {
+      console.error("Update preferences error:", error);
+      res.status(500).json({ message: "Failed to update preferences" });
+    }
+  });
+
+  // ============ PARTNER OF THE MONTH ROUTES ============
+  
+  // Get current partner of the month
+  app.get("/api/partner-of-month", async (req, res) => {
+    try {
+      const pom = await storage.getCurrentPartnerOfMonth();
+      res.json(pom || null);
+    } catch (error) {
+      console.error("Get partner of month error:", error);
+      res.status(500).json({ message: "Failed to get partner of month" });
+    }
+  });
+
+  // Get all partners of the month (history)
+  app.get("/api/partner-of-month/history", requireAuth, async (req, res) => {
+    try {
+      const poms = await storage.getAllPartnersOfMonth();
+      res.json(poms);
+    } catch (error) {
+      console.error("Get partner of month history error:", error);
+      res.status(500).json({ message: "Failed to get history" });
+    }
+  });
+
+  // Admin: Create partner of the month
+  app.post("/api/admin/partner-of-month", requireAdmin, async (req, res) => {
+    try {
+      const { partnerId, month, year, achievement, customersCount, totalCommission } = req.body;
+      const pom = await storage.createPartnerOfMonth({
+        partnerId,
+        month,
+        year,
+        achievement,
+        customersCount: customersCount || 0,
+        totalCommission: totalCommission || 0,
+      });
+      res.status(201).json(pom);
+    } catch (error) {
+      console.error("Create partner of month error:", error);
+      res.status(500).json({ message: "Failed to create partner of month" });
+    }
+  });
+
+  // ============ CHATBOT FAQ ROUTES ============
+  
+  // Get active FAQs (public)
+  app.get("/api/faqs", async (req, res) => {
+    try {
+      const faqs = await storage.getActiveFaqs();
+      res.json(faqs);
+    } catch (error) {
+      console.error("Get FAQs error:", error);
+      res.status(500).json({ message: "Failed to get FAQs" });
+    }
+  });
+
+  // Search FAQs
+  app.get("/api/faqs/search", async (req, res) => {
+    try {
+      const query = req.query.q as string || "";
+      const faqs = await storage.searchFaqs(query);
+      res.json(faqs);
+    } catch (error) {
+      console.error("Search FAQs error:", error);
+      res.status(500).json({ message: "Failed to search FAQs" });
+    }
+  });
+
+  // Admin: Get all FAQs
+  app.get("/api/admin/faqs", requireAdmin, async (req, res) => {
+    try {
+      const faqs = await storage.getAllFaqs();
+      res.json(faqs);
+    } catch (error) {
+      console.error("Get all FAQs error:", error);
+      res.status(500).json({ message: "Failed to get FAQs" });
+    }
+  });
+
+  // Admin: Create FAQ
+  app.post("/api/admin/faqs", requireAdmin, async (req, res) => {
+    try {
+      const { question, answer, category, keywords, sortOrder } = req.body;
+      const faq = await storage.createFaq({
+        question,
+        answer,
+        category,
+        keywords: keywords || [],
+        sortOrder: sortOrder || 0,
+      });
+      res.status(201).json(faq);
+    } catch (error) {
+      console.error("Create FAQ error:", error);
+      res.status(500).json({ message: "Failed to create FAQ" });
+    }
+  });
+
+  // Admin: Update FAQ
+  app.patch("/api/admin/faqs/:id", requireAdmin, async (req, res) => {
+    try {
+      const faq = await storage.updateFaq(req.params.id, req.body);
+      if (!faq) {
+        return res.status(404).json({ message: "FAQ not found" });
+      }
+      res.json(faq);
+    } catch (error) {
+      console.error("Update FAQ error:", error);
+      res.status(500).json({ message: "Failed to update FAQ" });
+    }
+  });
+
+  // Admin: Delete FAQ
+  app.delete("/api/admin/faqs/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteFaq(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete FAQ error:", error);
+      res.status(500).json({ message: "Failed to delete FAQ" });
     }
   });
 

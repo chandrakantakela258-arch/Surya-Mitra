@@ -264,6 +264,81 @@ export const commissionsRelations = relations(commissions, ({ one }) => ({
   }),
 }));
 
+// Notifications for application status updates
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  customerId: varchar("customer_id"),
+  type: text("type").notNull(), // status_update, milestone_complete, commission_earned, general
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  isRead: text("is_read").default("false"), // true, false
+  channel: text("channel").default("in_app"), // in_app, email, sms
+  sentAt: timestamp("sent_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, {
+    fields: [notifications.userId],
+    references: [users.id],
+  }),
+  customer: one(customers, {
+    fields: [notifications.customerId],
+    references: [customers.id],
+  }),
+}));
+
+// User Preferences for dashboard customization and onboarding
+export const userPreferences = pgTable("user_preferences", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  tutorialCompleted: text("tutorial_completed").default("false"),
+  dashboardLayout: text("dashboard_layout"), // JSON string of widget order
+  emailNotifications: text("email_notifications").default("true"),
+  smsNotifications: text("sms_notifications").default("true"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const userPreferencesRelations = relations(userPreferences, ({ one }) => ({
+  user: one(users, {
+    fields: [userPreferences.userId],
+    references: [users.id],
+  }),
+}));
+
+// Partner of the Month
+export const partnerOfMonth = pgTable("partner_of_month", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  partnerId: varchar("partner_id").notNull(),
+  month: integer("month").notNull(), // 1-12
+  year: integer("year").notNull(),
+  achievement: text("achievement").notNull(), // Description of why selected
+  customersCount: integer("customers_count").default(0),
+  totalCommission: integer("total_commission").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const partnerOfMonthRelations = relations(partnerOfMonth, ({ one }) => ({
+  partner: one(users, {
+    fields: [partnerOfMonth.partnerId],
+    references: [users.id],
+  }),
+}));
+
+// Chatbot FAQ entries
+export const chatbotFaq = pgTable("chatbot_faq", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  question: text("question").notNull(),
+  answer: text("answer").notNull(),
+  category: text("category").notNull(), // general, subsidy, installation, payment, partner
+  keywords: text("keywords").array(),
+  isActive: text("is_active").default("active"),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // User Feedback
 export const feedback = pgTable("feedback", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -336,6 +411,27 @@ export const insertOrderItemSchema = createInsertSchema(orderItems).omit({
 });
 
 export const insertPaymentSchema = createInsertSchema(payments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertUserPreferencesSchema = createInsertSchema(userPreferences).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPartnerOfMonthSchema = createInsertSchema(partnerOfMonth).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertChatbotFaqSchema = createInsertSchema(chatbotFaq).omit({
   id: true,
   createdAt: true,
 });
@@ -414,6 +510,14 @@ export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type Payment = typeof payments.$inferSelect;
 export type InsertFeedback = z.infer<typeof insertFeedbackSchema>;
 export type Feedback = typeof feedback.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;
+export type InsertUserPreferences = z.infer<typeof insertUserPreferencesSchema>;
+export type UserPreferences = typeof userPreferences.$inferSelect;
+export type InsertPartnerOfMonth = z.infer<typeof insertPartnerOfMonthSchema>;
+export type PartnerOfMonth = typeof partnerOfMonth.$inferSelect;
+export type InsertChatbotFaq = z.infer<typeof insertChatbotFaqSchema>;
+export type ChatbotFaq = typeof chatbotFaq.$inferSelect;
 
 // Product categories
 export const productCategories = [

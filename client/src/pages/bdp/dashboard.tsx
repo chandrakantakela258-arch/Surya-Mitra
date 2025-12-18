@@ -8,6 +8,8 @@ import { StatCard } from "@/components/stat-card";
 import { StatusBadge, RoleBadge } from "@/components/status-badge";
 import { DashboardSkeleton, TableSkeleton } from "@/components/loading-skeleton";
 import { EmptyState } from "@/components/empty-state";
+import { PartnerOfMonthCard } from "@/components/partner-of-month";
+import { DashboardCustomizer, useDashboardWidgets } from "@/components/dashboard-widgets";
 import type { User, Customer } from "@shared/schema";
 
 interface DashboardStats {
@@ -18,6 +20,8 @@ interface DashboardStats {
 }
 
 export default function BDPDashboard() {
+  const { widgets, setWidgets, isWidgetVisible } = useDashboardWidgets("bdp");
+
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
     queryKey: ["/api/bdp/stats"],
   });
@@ -42,13 +46,19 @@ export default function BDPDashboard() {
           <h1 className="text-3xl font-semibold" data-testid="text-page-title">Dashboard</h1>
           <p className="text-muted-foreground">Overview of your partner network and customers</p>
         </div>
-        <Button asChild data-testid="button-add-partner">
-          <Link href="/bdp/partners/new">
-            <Plus className="w-4 h-4 mr-2" />
-            Add District Partner
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <DashboardCustomizer role="bdp" widgets={widgets} onWidgetsChange={setWidgets} />
+          <Button asChild data-testid="button-add-partner">
+            <Link href="/bdp/partners/new">
+              <Plus className="w-4 h-4 mr-2" />
+              Add District Partner
+            </Link>
+          </Button>
+        </div>
       </div>
+
+      {/* Partner of the Month */}
+      {isWidgetVisible("partner-of-month") && <PartnerOfMonthCard />}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

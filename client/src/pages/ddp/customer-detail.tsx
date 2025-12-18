@@ -376,7 +376,7 @@ export default function CustomerDetail() {
                     <div>
                       <p className="text-sm text-green-600 dark:text-green-400">Subsidy</p>
                       <p className="font-semibold font-mono text-green-600 dark:text-green-400">
-                        -{formatINR(subsidyInfo.subsidyAmount)}
+                        -{formatINR(subsidyInfo.totalSubsidy)}
                       </p>
                     </div>
                     <div>
