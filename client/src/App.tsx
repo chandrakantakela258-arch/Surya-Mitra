@@ -194,6 +194,13 @@ function AuthenticatedRoutes() {
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
+      <Route path="/bdp/store">
+        <ProtectedRoute allowedRoles={["bdp", "admin"]}>
+          <DashboardLayout>
+            <DDPStore />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
 
       {/* DDP Routes */}
       <Route path="/ddp/dashboard">
