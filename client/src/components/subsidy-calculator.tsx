@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Slider } from "@/components/ui/slider";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -117,14 +117,24 @@ export function SubsidyCalculator({
           </Badge>
         </div>
         
-        <Slider
-          value={[capacity]}
-          onValueChange={handleCapacityChange}
-          min={1}
-          max={10}
-          step={0.5}
-          data-testid="slider-capacity"
-        />
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant={capacity === 3 ? "default" : "outline"}
+            onClick={() => handleCapacityChange([3])}
+            data-testid="button-capacity-3kw"
+          >
+            3 kW
+          </Button>
+          <Button
+            type="button"
+            variant={capacity === 5 ? "default" : "outline"}
+            onClick={() => handleCapacityChange([5])}
+            data-testid="button-capacity-5kw"
+          >
+            5 kW
+          </Button>
+        </div>
         
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
@@ -155,25 +165,34 @@ export function SubsidyCalculator({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-4 flex-wrap">
-              <Label htmlFor="capacity-slider">Solar Plant Capacity</Label>
+              <Label>Solar Plant Capacity</Label>
               <Badge variant="outline" className="font-mono text-lg">
                 {capacity} kW
               </Badge>
             </div>
-            <Slider
-              id="capacity-slider"
-              value={[capacity]}
-              onValueChange={handleCapacityChange}
-              min={1}
-              max={10}
-              step={0.5}
-              data-testid="slider-capacity-full"
-            />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>1 kW</span>
-              <span>5 kW</span>
-              <span>10 kW</span>
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant={capacity === 3 ? "default" : "outline"}
+                className="flex-1"
+                onClick={() => handleCapacityChange([3])}
+                data-testid="button-capacity-3kw-full"
+              >
+                3 kW
+              </Button>
+              <Button
+                type="button"
+                variant={capacity === 5 ? "default" : "outline"}
+                className="flex-1"
+                onClick={() => handleCapacityChange([5])}
+                data-testid="button-capacity-5kw-full"
+              >
+                5 kW
+              </Button>
             </div>
+            <p className="text-xs text-muted-foreground text-center">
+              Select 3 kW or 5 kW capacity for your solar installation
+            </p>
           </div>
           
           <div className="space-y-4">

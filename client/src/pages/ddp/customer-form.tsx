@@ -454,16 +454,19 @@ export default function CustomerForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Proposed Capacity (kW)</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="e.g., 3, 5, 10" 
-                          data-testid="input-proposed-capacity"
-                          {...field}
-                          value={field.value || ""}
-                        />
-                      </FormControl>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-proposed-capacity">
+                            <SelectValue placeholder="Select capacity" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="3">3 kW</SelectItem>
+                          <SelectItem value="5">5 kW</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormDescription>
-                        Recommended: 1 kW per ₹1,000 monthly bill
+                        Choose 3 kW or 5 kW based on roof area and consumption
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

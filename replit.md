@@ -13,6 +13,12 @@ The application follows a multi-role hierarchy:
 
 Preferred communication style: Simple, everyday language.
 
+## Business Rules
+
+- **Capacity Options**: The platform only supports 3 kW and 5 kW solar installations (no other capacities)
+- **State Subsidies**: Odisha (+Rs 20,000/kW) and Uttar Pradesh (+Rs 10,000/kW) offer additional subsidies on top of central subsidy
+- **Commission Structure**: DDPs earn capacity-based commissions; BDPs earn 15% of their DDPs' commission earnings
+
 ## System Architecture
 
 ### Frontend Architecture
