@@ -62,6 +62,13 @@ export const customers = pgTable("customers", {
   // Documents
   documents: text("documents").array(),
   
+  // Customer Bank Details for Razorpay Payouts
+  accountHolderName: text("account_holder_name"),
+  accountNumber: text("account_number"),
+  ifscCode: text("ifsc_code"),
+  bankName: text("bank_name"),
+  upiId: text("upi_id"),
+  
   // Timestamps
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

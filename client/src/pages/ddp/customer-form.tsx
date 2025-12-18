@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation } from "wouter";
-import { Loader2, ArrowLeft, Sun, IndianRupee, TrendingDown, Zap, BatteryCharging } from "lucide-react";
+import { Loader2, ArrowLeft, Sun, IndianRupee, TrendingDown, Zap, BatteryCharging, CreditCard } from "lucide-react";
 import { customerFormSchema, indianStates, roofTypes, panelTypes } from "@shared/schema";
 import { calculateSubsidy, formatINR } from "@/components/subsidy-calculator";
 import type { z } from "zod";
@@ -243,6 +243,11 @@ export default function CustomerForm() {
       proposedCapacity: "",
       status: "pending",
       documents: [],
+      accountHolderName: "",
+      accountNumber: "",
+      ifscCode: "",
+      bankName: "",
+      upiId: "",
     },
   });
 
@@ -672,6 +677,121 @@ export default function CustomerForm() {
 
           {/* Subsidy Estimate */}
           <SubsidyEstimateCard capacity={form.watch("proposedCapacity")} panelType={form.watch("panelType") || "dcr"} />
+
+          {/* Bank Account Details */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-primary" />
+                Payment Details
+              </CardTitle>
+              <CardDescription>
+                Customer's bank account or UPI for receiving any payouts via Razorpay
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="accountHolderName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Account Holder Name</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Name as per bank account" 
+                          data-testid="input-account-holder"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="bankName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Bank Name</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g., State Bank of India" 
+                          data-testid="input-bank-name"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="accountNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Account Number</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Bank account number" 
+                          data-testid="input-account-number"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="ifscCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>IFSC Code</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g., SBIN0001234" 
+                          data-testid="input-ifsc-code"
+                          {...field}
+                          value={field.value || ""}
+                          onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="upiId"
+                  render={({ field }) => (
+                    <FormItem className="md:col-span-2">
+                      <FormLabel>UPI ID (Optional)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g., customer@upi or 9876543210@paytm" 
+                          data-testid="input-upi-id"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Provide either bank details or UPI ID for payments
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Submit Buttons */}
           <div className="flex gap-4">
