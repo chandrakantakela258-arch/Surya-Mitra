@@ -50,6 +50,7 @@ const bdpMenuItems = [
   { title: "All Customers", url: "/bdp/customers", icon: Users },
   { title: "Store", url: "/bdp/store", icon: ShoppingCart },
   { title: "Commission Wallet", url: "/bdp/wallet", icon: Wallet },
+  { title: "My Profile", url: "/profile", icon: User },
   { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },
 ];
 
@@ -60,6 +61,7 @@ const ddpMenuItems = [
   { title: "Applications", url: "/ddp/applications", icon: FileText },
   { title: "Store", url: "/ddp/store", icon: ShoppingCart },
   { title: "Earnings", url: "/ddp/earnings", icon: Wallet },
+  { title: "My Profile", url: "/profile", icon: User },
   { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },
 ];
 

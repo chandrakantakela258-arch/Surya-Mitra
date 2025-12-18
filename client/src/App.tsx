@@ -33,6 +33,7 @@ import AdminCustomers from "@/pages/admin/customers";
 import AdminPayouts from "@/pages/admin/payouts";
 import AdminProducts from "@/pages/admin/products";
 import AdminOrders from "@/pages/admin/orders";
+import ProfilePage from "@/pages/profile";
 
 function LoadingScreen() {
   return (
@@ -258,6 +259,13 @@ function AuthenticatedRoutes() {
         <ProtectedRoute>
           <DashboardLayout>
             <CalculatorPage />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/profile">
+        <ProtectedRoute allowedRoles={["bdp", "ddp"]}>
+          <DashboardLayout>
+            <ProfilePage />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
