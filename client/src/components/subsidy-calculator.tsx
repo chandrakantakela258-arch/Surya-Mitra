@@ -3,8 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sun, IndianRupee, Zap, TrendingDown, MapPin, BatteryCharging, Power, Check } from "lucide-react";
+import { Sun, IndianRupee, Zap, TrendingDown, MapPin, BatteryCharging, Power, Check, Users } from "lucide-react";
 import { indianStates } from "@shared/schema";
 
 const stateSubsidies: Record<string, { ratePerKw: number; maxSubsidy: number; label: string }> = {
@@ -12,12 +13,8 @@ const stateSubsidies: Record<string, { ratePerKw: number; maxSubsidy: number; la
   "Uttar Pradesh": { ratePerKw: 10000, maxSubsidy: 30000, label: "UP State Subsidy" },
 };
 
-const systemPricing: Record<number, number> = {
-  3: 225000,
-  5: 350000,
-};
-
-const nonDcrPricePerKw = 55000;
+const CUSTOMER_RATE_PER_WATT = 55;
+const CUSTOMER_RATE_PER_KW = CUSTOMER_RATE_PER_WATT * 1000;
 
 interface SubsidyResult {
   capacity: number;
@@ -34,10 +31,15 @@ interface SubsidyResult {
   state: string;
   emiMonthly: number;
   emiTenure: number;
+  panelType: string;
 }
 
-// EMI Calculation: P * r * (1+r)^n / ((1+r)^n - 1)
-// Where P = principal, r = monthly interest rate, n = tenure in months
+interface CommissionResult {
+  ddpCommission: number;
+  bdpCommission: number;
+  totalCommission: number;
+}
+
 function calculateEMI(principal: number, annualRate: number = 10, tenureMonths: number = 60): number {
   if (principal <= 0) return 0;
   const monthlyRate = annualRate / 12 / 100;
@@ -46,34 +48,54 @@ function calculateEMI(principal: number, annualRate: number = 10, tenureMonths: 
   return Math.round(emi);
 }
 
-function calculateSubsidy(capacityKW: number, state: string = "", panelType: string = "dcr"): SubsidyResult {
-  let totalCost: number;
-  if (panelType === "non_dcr") {
-    totalCost = capacityKW * nonDcrPricePerKw;
+function calculateCommission(capacityKW: number, panelType: string): CommissionResult {
+  let ddpCommission = 0;
+  let bdpCommission = 0;
+
+  if (panelType === "dcr") {
+    if (capacityKW === 3) {
+      ddpCommission = 20000;
+      bdpCommission = 10000;
+    } else if (capacityKW === 5) {
+      ddpCommission = 35000;
+      bdpCommission = 15000;
+    } else if (capacityKW >= 6 && capacityKW <= 10) {
+      ddpCommission = capacityKW * 6000;
+      bdpCommission = capacityKW * 3000;
+    } else if (capacityKW > 10) {
+      ddpCommission = capacityKW * 6000;
+      bdpCommission = capacityKW * 3000;
+    } else {
+      ddpCommission = capacityKW * 6000;
+      bdpCommission = capacityKW * 3000;
+    }
   } else {
-    totalCost = systemPricing[capacityKW] || capacityKW * 75000;
+    ddpCommission = capacityKW * 4000;
+    bdpCommission = capacityKW * 2000;
   }
+
+  return {
+    ddpCommission,
+    bdpCommission,
+    totalCommission: ddpCommission + bdpCommission,
+  };
+}
+
+function calculateSubsidy(capacityKW: number, state: string = "", panelType: string = "dcr"): SubsidyResult {
+  const totalCost = capacityKW * CUSTOMER_RATE_PER_KW;
   
-  // No subsidy for Non-DCR panels
   let centralSubsidy = 0;
   let stateSubsidy = 0;
   
-  if (panelType !== "non_dcr") {
-    // PM Surya Ghar Yojana Central Subsidy Rules:
-    // Up to 2 kW: Rs 30,000/kW (max Rs 60,000)
-    // 2-3 kW: Rs 18,000/kW for capacity above 2 kW
-    // Above 3 kW: No additional central subsidy
-    // Maximum central subsidy: Rs 78,000
+  if (panelType === "dcr") {
     if (capacityKW <= 2) {
       centralSubsidy = capacityKW * 30000;
     } else if (capacityKW <= 3) {
       centralSubsidy = 2 * 30000 + (capacityKW - 2) * 18000;
     } else {
-      // For 3 kW and above, subsidy is capped at Rs 78,000
       centralSubsidy = 78000;
     }
     
-    // State subsidies with maximum caps
     if (state && stateSubsidies[state]) {
       const calculatedStateSubsidy = capacityKW * stateSubsidies[state].ratePerKw;
       stateSubsidy = Math.min(calculatedStateSubsidy, stateSubsidies[state].maxSubsidy);
@@ -83,19 +105,15 @@ function calculateSubsidy(capacityKW: number, state: string = "", panelType: str
   const totalSubsidy = centralSubsidy + stateSubsidy;
   const netCost = Math.max(0, totalCost - totalSubsidy);
   
-  // Power generation: 1 kW produces 4 units daily
   const dailyGeneration = capacityKW * 4;
   const monthlyGeneration = dailyGeneration * 30;
   
-  // Power savings: Rs 7 per unit
   const unitCost = 7;
   const monthlySavings = monthlyGeneration * unitCost;
   const annualSavings = monthlySavings * 12;
   
-  // Payback period
   const paybackYears = netCost > 0 ? netCost / annualSavings : 0;
   
-  // EMI calculation at 10% interest for 5 years (60 months)
   const emiTenure = 60;
   const emiMonthly = calculateEMI(netCost, 10, emiTenure);
   
@@ -114,6 +132,7 @@ function calculateSubsidy(capacityKW: number, state: string = "", panelType: str
     state,
     emiMonthly,
     emiTenure,
+    panelType,
   };
 }
 
@@ -136,19 +155,32 @@ interface SubsidyCalculatorProps {
 export function SubsidyCalculator({ 
   onCapacityChange, 
   onStateChange,
-  initialCapacity = 3,
+  initialCapacity = 5,
   initialState = "",
   compact = false 
 }: SubsidyCalculatorProps) {
   const [capacity, setCapacity] = useState(initialCapacity);
   const [selectedState, setSelectedState] = useState(initialState);
+  const [panelType, setPanelType] = useState<"dcr" | "non_dcr">("dcr");
+  const [customCapacity, setCustomCapacity] = useState(initialCapacity.toString());
   
-  const result = useMemo(() => calculateSubsidy(capacity, selectedState), [capacity, selectedState]);
+  const result = useMemo(() => calculateSubsidy(capacity, selectedState, panelType), [capacity, selectedState, panelType]);
+  const commission = useMemo(() => calculateCommission(capacity, panelType), [capacity, panelType]);
   
-  function handleCapacityChange(value: number[]) {
-    const newCapacity = value[0];
-    setCapacity(newCapacity);
-    onCapacityChange?.(newCapacity);
+  function handleCapacityChange(value: number) {
+    const clampedValue = Math.max(1, Math.min(100, value));
+    setCapacity(clampedValue);
+    setCustomCapacity(clampedValue.toString());
+    onCapacityChange?.(clampedValue);
+  }
+  
+  function handleCustomCapacityChange(value: string) {
+    setCustomCapacity(value);
+    const numValue = parseFloat(value);
+    if (!isNaN(numValue) && numValue >= 1 && numValue <= 100) {
+      setCapacity(numValue);
+      onCapacityChange?.(numValue);
+    }
   }
   
   function handleStateChange(state: string) {
@@ -169,23 +201,19 @@ export function SubsidyCalculator({
           </Badge>
         </div>
         
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant={capacity === 3 ? "default" : "outline"}
-            onClick={() => handleCapacityChange([3])}
-            data-testid="button-capacity-3kw"
-          >
-            3 kW
-          </Button>
-          <Button
-            type="button"
-            variant={capacity === 5 ? "default" : "outline"}
-            onClick={() => handleCapacityChange([5])}
-            data-testid="button-capacity-5kw"
-          >
-            5 kW
-          </Button>
+        <div className="flex gap-2 flex-wrap">
+          {[3, 5, 10, 25, 50, 100].map((kw) => (
+            <Button
+              key={kw}
+              type="button"
+              variant={capacity === kw ? "default" : "outline"}
+              size="sm"
+              onClick={() => handleCapacityChange(kw)}
+              data-testid={`button-capacity-${kw}kw`}
+            >
+              {kw} kW
+            </Button>
+          ))}
         </div>
         
         <div className="grid grid-cols-2 gap-4 text-sm">
@@ -210,11 +238,40 @@ export function SubsidyCalculator({
           <CardTitle>PM Surya Ghar Yojana Subsidy Calculator</CardTitle>
         </div>
         <CardDescription>
-          Calculate your subsidy amount and estimated savings under the government scheme
+          Calculate your subsidy amount, estimated savings, and partner commission under the government scheme
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="space-y-4">
+            <Label>Panel Type</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={panelType === "dcr" ? "default" : "outline"}
+                className="flex-1"
+                onClick={() => setPanelType("dcr")}
+                data-testid="button-panel-dcr"
+              >
+                DCR
+              </Button>
+              <Button
+                type="button"
+                variant={panelType === "non_dcr" ? "default" : "outline"}
+                className="flex-1"
+                onClick={() => setPanelType("non_dcr")}
+                data-testid="button-panel-non-dcr"
+              >
+                Non-DCR
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {panelType === "dcr" 
+                ? "DCR panels are eligible for government subsidy" 
+                : "Non-DCR panels have no subsidy but higher capacity options"}
+            </p>
+          </div>
+          
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <Label>Solar Plant Capacity</Label>
@@ -222,28 +279,35 @@ export function SubsidyCalculator({
                 {capacity} kW
               </Badge>
             </div>
-            <div className="flex gap-3">
-              <Button
-                type="button"
-                variant={capacity === 3 ? "default" : "outline"}
-                className="flex-1"
-                onClick={() => handleCapacityChange([3])}
-                data-testid="button-capacity-3kw-full"
-              >
-                3 kW
-              </Button>
-              <Button
-                type="button"
-                variant={capacity === 5 ? "default" : "outline"}
-                className="flex-1"
-                onClick={() => handleCapacityChange([5])}
-                data-testid="button-capacity-5kw-full"
-              >
-                5 kW
-              </Button>
+            <div className="flex gap-2 flex-wrap">
+              {[3, 5, 10, 25, 50, 100].map((kw) => (
+                <Button
+                  key={kw}
+                  type="button"
+                  variant={capacity === kw ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleCapacityChange(kw)}
+                  data-testid={`button-capacity-${kw}kw-full`}
+                >
+                  {kw} kW
+                </Button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min="1"
+                max="100"
+                value={customCapacity}
+                onChange={(e) => handleCustomCapacityChange(e.target.value)}
+                placeholder="Custom kW"
+                className="w-full"
+                data-testid="input-custom-capacity"
+              />
+              <span className="text-sm text-muted-foreground whitespace-nowrap">kW</span>
             </div>
             <p className="text-xs text-muted-foreground text-center">
-              Select 3 kW or 5 kW capacity for your solar installation
+              Enter capacity from 1 kW to 100 kW (Rs {CUSTOMER_RATE_PER_WATT}/Watt)
             </p>
           </div>
           
@@ -264,9 +328,9 @@ export function SubsidyCalculator({
                 ))}
               </SelectContent>
             </Select>
-            {selectedState && stateSubsidies[selectedState] && (
+            {selectedState && stateSubsidies[selectedState] && panelType === "dcr" && (
               <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
-                {stateSubsidies[selectedState].label}: {formatINR(stateSubsidies[selectedState].ratePerKw)}/kW
+                {stateSubsidies[selectedState].label}: {formatINR(stateSubsidies[selectedState].ratePerKw)}/kW (Max {formatINR(stateSubsidies[selectedState].maxSubsidy)})
               </Badge>
             )}
           </div>
@@ -279,19 +343,25 @@ export function SubsidyCalculator({
               <span className="text-sm">System Cost</span>
             </div>
             <p className="text-xl font-semibold font-mono">{formatINR(result.totalCost)}</p>
+            <p className="text-xs text-muted-foreground">Rs {CUSTOMER_RATE_PER_WATT}/Watt</p>
           </div>
           
-          <div className="p-4 bg-green-50 dark:bg-green-950/30 rounded-lg space-y-1">
-            <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
-              <TrendingDown className="h-4 w-4" />
-              <span className="text-sm">Central Subsidy</span>
+          {panelType === "dcr" && (
+            <div className="p-4 bg-green-50 dark:bg-green-950/30 rounded-lg space-y-1">
+              <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+                <TrendingDown className="h-4 w-4" />
+                <span className="text-sm">Central Subsidy</span>
+              </div>
+              <p className="text-xl font-semibold font-mono text-green-600 dark:text-green-400">
+                - {formatINR(result.centralSubsidy)}
+              </p>
+              {capacity > 3 && (
+                <p className="text-xs text-muted-foreground">Capped at Rs 78,000</p>
+              )}
             </div>
-            <p className="text-xl font-semibold font-mono text-green-600 dark:text-green-400">
-              - {formatINR(result.centralSubsidy)}
-            </p>
-          </div>
+          )}
           
-          {result.stateSubsidy > 0 && (
+          {panelType === "dcr" && result.stateSubsidy > 0 && (
             <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg space-y-1">
               <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
                 <MapPin className="h-4 w-4" />
@@ -322,7 +392,7 @@ export function SubsidyCalculator({
           </div>
         </div>
         
-        {result.stateSubsidy > 0 && (
+        {panelType === "dcr" && result.totalSubsidy > 0 && (
           <div className="p-4 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/30 dark:to-blue-950/30 rounded-lg">
             <div className="text-center">
               <p className="text-sm text-muted-foreground">Total Subsidy (Central + State)</p>
@@ -332,8 +402,51 @@ export function SubsidyCalculator({
             </div>
           </div>
         )}
+
+        <Card className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30 border-purple-200 dark:border-purple-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg text-purple-700 dark:text-purple-300">
+              <Users className="w-5 h-5" />
+              Partner Commission Structure
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+              <div className="p-4 bg-background rounded-lg">
+                <p className="text-sm text-muted-foreground mb-1">DDP Commission</p>
+                <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{formatINR(commission.ddpCommission)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {panelType === "dcr" 
+                    ? (capacity === 3 ? "Rs 20,000 fixed" : capacity === 5 ? "Rs 35,000 fixed" : "Rs 6,000/kW")
+                    : "Rs 4,000/kW"}
+                </p>
+              </div>
+              <div className="p-4 bg-background rounded-lg">
+                <p className="text-sm text-muted-foreground mb-1">BDP Commission</p>
+                <p className="text-2xl font-bold text-pink-600 dark:text-pink-400">{formatINR(commission.bdpCommission)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {panelType === "dcr" 
+                    ? (capacity === 3 ? "Rs 10,000 fixed" : capacity === 5 ? "Rs 15,000 fixed" : "Rs 3,000/kW")
+                    : "Rs 2,000/kW"}
+                </p>
+              </div>
+              <div className="p-4 bg-purple-100 dark:bg-purple-900/50 rounded-lg">
+                <p className="text-sm font-medium text-purple-700 dark:text-purple-300 mb-1">Total Commission</p>
+                <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">{formatINR(commission.totalCommission)}</p>
+                <p className="text-xs text-muted-foreground">DDP + BDP</p>
+              </div>
+            </div>
+            <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+              <p className="text-xs text-muted-foreground text-center">
+                <strong>{panelType === "dcr" ? "DCR Commission:" : "Non-DCR Commission:"}</strong>{" "}
+                {panelType === "dcr" 
+                  ? "3 kW (DDP Rs 20k, BDP Rs 10k) | 5 kW (DDP Rs 35k, BDP Rs 15k) | 6+ kW (DDP Rs 6k/kW, BDP Rs 3k/kW)"
+                  : "All capacities: DDP Rs 4,000/kW | BDP Rs 2,000/kW"}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
         
-        {/* Power Generation & Savings */}
         <Card className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-green-200 dark:border-green-800">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg text-green-700 dark:text-green-300">
@@ -366,7 +479,6 @@ export function SubsidyCalculator({
           </CardContent>
         </Card>
 
-        {/* EMI Calculator with Power Saving Adjustment */}
         <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200 dark:border-blue-800">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg text-blue-700 dark:text-blue-300">
@@ -480,8 +592,11 @@ export function SubsidyCalculator({
         </Card>
         
         <div className="text-xs text-muted-foreground space-y-1">
-          <p>* Central Subsidy: Up to 2 kW - Rs 30,000/kW | 2-3 kW - Rs 18,000/kW | Above 3 kW - Capped at Rs 78,000</p>
-          <p>* State Subsidies: Odisha - Rs 20,000/kW (Max Rs 60,000) | Uttar Pradesh - Rs 10,000/kW (Max Rs 30,000)</p>
+          <p>* Customer Rate: Rs {CUSTOMER_RATE_PER_WATT}/Watt (Rs {formatINR(CUSTOMER_RATE_PER_KW)}/kW) for all capacities</p>
+          <p>* Central Subsidy (DCR only): Up to 2 kW - Rs 30,000/kW | 2-3 kW - Rs 18,000/kW | Above 3 kW - Capped at Rs 78,000</p>
+          <p>* State Subsidies (DCR only): Odisha - Rs 20,000/kW (Max Rs 60,000) | UP - Rs 10,000/kW (Max Rs 30,000)</p>
+          <p>* DCR Commission: 3kW (DDP Rs 20k, BDP Rs 10k) | 5kW (DDP Rs 35k, BDP Rs 15k) | 6+ kW (DDP Rs 6k/kW, BDP Rs 3k/kW)</p>
+          <p>* Non-DCR Commission: DDP Rs 4,000/kW | BDP Rs 2,000/kW</p>
           <p>* Calculations based on average solar generation of 4 kWh/kW/day and Rs 7/kWh electricity tariff</p>
         </div>
       </CardContent>
@@ -489,5 +604,5 @@ export function SubsidyCalculator({
   );
 }
 
-export { calculateSubsidy, formatINR, stateSubsidies };
-export type { SubsidyResult };
+export { calculateSubsidy, calculateCommission, formatINR, stateSubsidies, CUSTOMER_RATE_PER_KW, CUSTOMER_RATE_PER_WATT };
+export type { SubsidyResult, CommissionResult };
