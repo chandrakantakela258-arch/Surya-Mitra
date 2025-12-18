@@ -5,6 +5,10 @@ import {
   commissions,
   bankAccounts,
   payouts,
+  products,
+  orders,
+  orderItems,
+  payments,
   type User, 
   type InsertUser, 
   type Customer, 
@@ -17,6 +21,14 @@ import {
   type InsertBankAccount,
   type Payout,
   type InsertPayout,
+  type Product,
+  type InsertProduct,
+  type Order,
+  type InsertOrder,
+  type OrderItem,
+  type InsertOrderItem,
+  type Payment,
+  type InsertPayment,
   installationMilestones,
   calculateCommission,
   calculateBdpCommission
@@ -86,6 +98,33 @@ export interface IStorage {
   updatePayout(id: string, data: Partial<Payout>): Promise<Payout | undefined>;
   getAllCommissions(): Promise<Commission[]>;
   getApprovedCommissions(): Promise<Commission[]>;
+  
+  // Product operations
+  getAllProducts(): Promise<Product[]>;
+  getActiveProducts(): Promise<Product[]>;
+  getProduct(id: string): Promise<Product | undefined>;
+  createProduct(product: InsertProduct): Promise<Product>;
+  updateProduct(id: string, data: Partial<Product>): Promise<Product | undefined>;
+  deleteProduct(id: string): Promise<boolean>;
+  
+  // Order operations
+  getAllOrders(): Promise<Order[]>;
+  getOrder(id: string): Promise<Order | undefined>;
+  getOrderByRazorpayId(razorpayOrderId: string): Promise<Order | undefined>;
+  getOrdersByDdpId(ddpId: string): Promise<Order[]>;
+  createOrder(order: InsertOrder): Promise<Order>;
+  updateOrder(id: string, data: Partial<Order>): Promise<Order | undefined>;
+  
+  // Order Item operations
+  getOrderItems(orderId: string): Promise<OrderItem[]>;
+  createOrderItem(item: InsertOrderItem): Promise<OrderItem>;
+  
+  // Payment operations
+  getAllPayments(): Promise<Payment[]>;
+  getPaymentsByOrderId(orderId: string): Promise<Payment[]>;
+  createPayment(payment: InsertPayment): Promise<Payment>;
+  updatePayment(id: string, data: Partial<Payment>): Promise<Payment | undefined>;
+  getPaymentByRazorpayId(razorpayPaymentId: string): Promise<Payment | undefined>;
 
   // Admin operations
   getAdminStats(): Promise<{
@@ -576,6 +615,146 @@ export class DatabaseStorage implements IStorage {
       .from(commissions)
       .where(eq(commissions.status, "approved"))
       .orderBy(desc(commissions.createdAt));
+  }
+
+  // Product operations
+  async getAllProducts(): Promise<Product[]> {
+    return db
+      .select()
+      .from(products)
+      .orderBy(desc(products.createdAt));
+  }
+
+  async getActiveProducts(): Promise<Product[]> {
+    return db
+      .select()
+      .from(products)
+      .where(eq(products.isActive, "active"))
+      .orderBy(desc(products.createdAt));
+  }
+
+  async getProduct(id: string): Promise<Product | undefined> {
+    const [product] = await db.select().from(products).where(eq(products.id, id));
+    return product || undefined;
+  }
+
+  async createProduct(insertProduct: InsertProduct): Promise<Product> {
+    const [product] = await db
+      .insert(products)
+      .values(insertProduct)
+      .returning();
+    return product;
+  }
+
+  async updateProduct(id: string, data: Partial<Product>): Promise<Product | undefined> {
+    const [product] = await db
+      .update(products)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(products.id, id))
+      .returning();
+    return product || undefined;
+  }
+
+  async deleteProduct(id: string): Promise<boolean> {
+    const result = await db.delete(products).where(eq(products.id, id));
+    return true;
+  }
+
+  // Order operations
+  async getAllOrders(): Promise<Order[]> {
+    return db
+      .select()
+      .from(orders)
+      .orderBy(desc(orders.createdAt));
+  }
+
+  async getOrder(id: string): Promise<Order | undefined> {
+    const [order] = await db.select().from(orders).where(eq(orders.id, id));
+    return order || undefined;
+  }
+
+  async getOrderByRazorpayId(razorpayOrderId: string): Promise<Order | undefined> {
+    const [order] = await db.select().from(orders).where(eq(orders.razorpayOrderId, razorpayOrderId));
+    return order || undefined;
+  }
+
+  async getOrdersByDdpId(ddpId: string): Promise<Order[]> {
+    return db
+      .select()
+      .from(orders)
+      .where(eq(orders.ddpId, ddpId))
+      .orderBy(desc(orders.createdAt));
+  }
+
+  async createOrder(insertOrder: InsertOrder): Promise<Order> {
+    const [order] = await db
+      .insert(orders)
+      .values(insertOrder)
+      .returning();
+    return order;
+  }
+
+  async updateOrder(id: string, data: Partial<Order>): Promise<Order | undefined> {
+    const [order] = await db
+      .update(orders)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(orders.id, id))
+      .returning();
+    return order || undefined;
+  }
+
+  // Order Item operations
+  async getOrderItems(orderId: string): Promise<OrderItem[]> {
+    return db
+      .select()
+      .from(orderItems)
+      .where(eq(orderItems.orderId, orderId));
+  }
+
+  async createOrderItem(insertItem: InsertOrderItem): Promise<OrderItem> {
+    const [item] = await db
+      .insert(orderItems)
+      .values(insertItem)
+      .returning();
+    return item;
+  }
+
+  // Payment operations
+  async getAllPayments(): Promise<Payment[]> {
+    return db
+      .select()
+      .from(payments)
+      .orderBy(desc(payments.createdAt));
+  }
+
+  async getPaymentsByOrderId(orderId: string): Promise<Payment[]> {
+    return db
+      .select()
+      .from(payments)
+      .where(eq(payments.orderId, orderId))
+      .orderBy(desc(payments.createdAt));
+  }
+
+  async createPayment(insertPayment: InsertPayment): Promise<Payment> {
+    const [payment] = await db
+      .insert(payments)
+      .values(insertPayment)
+      .returning();
+    return payment;
+  }
+
+  async updatePayment(id: string, data: Partial<Payment>): Promise<Payment | undefined> {
+    const [payment] = await db
+      .update(payments)
+      .set(data)
+      .where(eq(payments.id, id))
+      .returning();
+    return payment || undefined;
+  }
+
+  async getPaymentByRazorpayId(razorpayPaymentId: string): Promise<Payment | undefined> {
+    const [payment] = await db.select().from(payments).where(eq(payments.razorpayPaymentId, razorpayPaymentId));
+    return payment || undefined;
   }
 }
 
