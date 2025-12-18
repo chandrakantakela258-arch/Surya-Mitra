@@ -2,8 +2,34 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { storage } from "./storage";
 
 const app = express();
+
+// Seed admin user if it doesn't exist
+async function seedAdminUser() {
+  try {
+    const existingAdmin = await storage.getUserByUsername("admin");
+    if (!existingAdmin) {
+      await storage.createUser({
+        username: "admin",
+        password: "admin123",
+        name: "System Admin",
+        email: "admin@divyanshisolar.com",
+        phone: "9999999999",
+        role: "admin",
+        district: "All India",
+        state: "All India",
+        address: "DivyanshiSolar HQ",
+        status: "approved",
+        parentId: null,
+      });
+      console.log("Admin user created successfully");
+    }
+  } catch (error) {
+    console.error("Error seeding admin user:", error);
+  }
+}
 const httpServer = createServer(app);
 
 declare module "http" {
@@ -60,6 +86,9 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Seed admin user on startup
+  await seedAdminUser();
+  
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
