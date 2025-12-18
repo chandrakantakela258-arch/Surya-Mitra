@@ -14,7 +14,7 @@ const stateSubsidies: Record<string, { ratePerKw: number; label: string }> = {
 
 const systemPricing: Record<number, number> = {
   3: 225000,
-  5: 375000,
+  5: 350000,
 };
 
 interface SubsidyResult {
