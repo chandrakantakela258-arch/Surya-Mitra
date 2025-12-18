@@ -3,46 +3,65 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Sun, IndianRupee, Zap, TrendingDown } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sun, IndianRupee, Zap, TrendingDown, MapPin } from "lucide-react";
+import { indianStates } from "@shared/schema";
+
+const stateSubsidies: Record<string, { ratePerKw: number; label: string }> = {
+  "Odisha": { ratePerKw: 20000, label: "Odisha State Subsidy" },
+  "Uttar Pradesh": { ratePerKw: 10000, label: "UP State Subsidy" },
+};
 
 interface SubsidyResult {
   capacity: number;
   totalCost: number;
-  subsidyAmount: number;
+  centralSubsidy: number;
+  stateSubsidy: number;
+  totalSubsidy: number;
   netCost: number;
   monthlyGeneration: number;
   annualSavings: number;
   paybackYears: number;
+  state: string;
 }
 
-function calculateSubsidy(capacityKW: number): SubsidyResult {
+function calculateSubsidy(capacityKW: number, state: string = ""): SubsidyResult {
   const costPerKW = 60000;
   const totalCost = capacityKW * costPerKW;
   
-  let subsidyAmount = 0;
+  let centralSubsidy = 0;
   if (capacityKW <= 3) {
-    subsidyAmount = capacityKW * 30000;
+    centralSubsidy = capacityKW * 30000;
   } else if (capacityKW <= 10) {
-    subsidyAmount = 3 * 30000 + (capacityKW - 3) * 18000;
+    centralSubsidy = 3 * 30000 + (capacityKW - 3) * 18000;
   } else {
-    subsidyAmount = 3 * 30000 + 7 * 18000;
+    centralSubsidy = 3 * 30000 + 7 * 18000;
   }
-  subsidyAmount = Math.min(subsidyAmount, 78000);
+  centralSubsidy = Math.min(centralSubsidy, 78000);
   
-  const netCost = totalCost - subsidyAmount;
+  let stateSubsidy = 0;
+  if (state && stateSubsidies[state]) {
+    stateSubsidy = capacityKW * stateSubsidies[state].ratePerKw;
+  }
+  
+  const totalSubsidy = centralSubsidy + stateSubsidy;
+  const netCost = Math.max(0, totalCost - totalSubsidy);
   const monthlyGeneration = capacityKW * 120;
   const avgTariff = 7;
   const annualSavings = monthlyGeneration * 12 * avgTariff;
-  const paybackYears = netCost / annualSavings;
+  const paybackYears = netCost > 0 ? netCost / annualSavings : 0;
   
   return {
     capacity: capacityKW,
     totalCost,
-    subsidyAmount,
+    centralSubsidy,
+    stateSubsidy,
+    totalSubsidy,
     netCost,
     monthlyGeneration,
     annualSavings,
     paybackYears: Math.round(paybackYears * 10) / 10,
+    state,
   };
 }
 
@@ -56,23 +75,33 @@ function formatINR(amount: number): string {
 
 interface SubsidyCalculatorProps {
   onCapacityChange?: (capacity: number) => void;
+  onStateChange?: (state: string) => void;
   initialCapacity?: number;
+  initialState?: string;
   compact?: boolean;
 }
 
 export function SubsidyCalculator({ 
   onCapacityChange, 
+  onStateChange,
   initialCapacity = 3,
+  initialState = "",
   compact = false 
 }: SubsidyCalculatorProps) {
   const [capacity, setCapacity] = useState(initialCapacity);
+  const [selectedState, setSelectedState] = useState(initialState);
   
-  const result = useMemo(() => calculateSubsidy(capacity), [capacity]);
+  const result = useMemo(() => calculateSubsidy(capacity, selectedState), [capacity, selectedState]);
   
   function handleCapacityChange(value: number[]) {
     const newCapacity = value[0];
     setCapacity(newCapacity);
     onCapacityChange?.(newCapacity);
+  }
+  
+  function handleStateChange(state: string) {
+    setSelectedState(state);
+    onStateChange?.(state);
   }
   
   if (compact) {
@@ -84,7 +113,7 @@ export function SubsidyCalculator({
             <span className="font-medium">Capacity: {capacity} kW</span>
           </div>
           <Badge variant="secondary" className="text-green-600 dark:text-green-400">
-            Subsidy: {formatINR(result.subsidyAmount)}
+            Subsidy: {formatINR(result.totalSubsidy)}
           </Badge>
         </div>
         
@@ -123,30 +152,56 @@ export function SubsidyCalculator({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <Label htmlFor="capacity-slider">Solar Plant Capacity</Label>
-            <Badge variant="outline" className="font-mono text-lg">
-              {capacity} kW
-            </Badge>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <Label htmlFor="capacity-slider">Solar Plant Capacity</Label>
+              <Badge variant="outline" className="font-mono text-lg">
+                {capacity} kW
+              </Badge>
+            </div>
+            <Slider
+              id="capacity-slider"
+              value={[capacity]}
+              onValueChange={handleCapacityChange}
+              min={1}
+              max={10}
+              step={0.5}
+              data-testid="slider-capacity-full"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>1 kW</span>
+              <span>5 kW</span>
+              <span>10 kW</span>
+            </div>
           </div>
-          <Slider
-            id="capacity-slider"
-            value={[capacity]}
-            onValueChange={handleCapacityChange}
-            min={1}
-            max={10}
-            step={0.5}
-            data-testid="slider-capacity-full"
-          />
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>1 kW</span>
-            <span>5 kW</span>
-            <span>10 kW</span>
+          
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-muted-foreground" />
+              <Label htmlFor="state-select">Select State</Label>
+            </div>
+            <Select value={selectedState} onValueChange={handleStateChange}>
+              <SelectTrigger id="state-select" data-testid="select-state">
+                <SelectValue placeholder="Select your state for additional subsidies" />
+              </SelectTrigger>
+              <SelectContent>
+                {indianStates.map((state) => (
+                  <SelectItem key={state} value={state}>
+                    {state} {stateSubsidies[state] ? `(+${formatINR(stateSubsidies[state].ratePerKw)}/kW)` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedState && stateSubsidies[selectedState] && (
+              <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
+                {stateSubsidies[selectedState].label}: {formatINR(stateSubsidies[selectedState].ratePerKw)}/kW
+              </Badge>
+            )}
           </div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="p-4 bg-muted/50 rounded-lg space-y-1">
             <div className="flex items-center gap-2 text-muted-foreground">
               <IndianRupee className="h-4 w-4" />
@@ -158,12 +213,24 @@ export function SubsidyCalculator({
           <div className="p-4 bg-green-50 dark:bg-green-950/30 rounded-lg space-y-1">
             <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
               <TrendingDown className="h-4 w-4" />
-              <span className="text-sm">Government Subsidy</span>
+              <span className="text-sm">Central Subsidy</span>
             </div>
             <p className="text-xl font-semibold font-mono text-green-600 dark:text-green-400">
-              - {formatINR(result.subsidyAmount)}
+              - {formatINR(result.centralSubsidy)}
             </p>
           </div>
+          
+          {result.stateSubsidy > 0 && (
+            <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg space-y-1">
+              <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                <MapPin className="h-4 w-4" />
+                <span className="text-sm">State Subsidy</span>
+              </div>
+              <p className="text-xl font-semibold font-mono text-blue-600 dark:text-blue-400">
+                - {formatINR(result.stateSubsidy)}
+              </p>
+            </div>
+          )}
           
           <div className="p-4 bg-primary/10 rounded-lg space-y-1">
             <div className="flex items-center gap-2 text-primary">
@@ -184,6 +251,17 @@ export function SubsidyCalculator({
           </div>
         </div>
         
+        {result.stateSubsidy > 0 && (
+          <div className="p-4 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/30 dark:to-blue-950/30 rounded-lg">
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">Total Subsidy (Central + State)</p>
+              <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+                {formatINR(result.totalSubsidy)}
+              </p>
+            </div>
+          </div>
+        )}
+        
         <div className="p-4 bg-muted/30 rounded-lg">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
             <div>
@@ -202,7 +280,8 @@ export function SubsidyCalculator({
         </div>
         
         <div className="text-xs text-muted-foreground space-y-1">
-          <p>* Subsidy rates: Up to 3 kW - Rs 30,000/kW | 3-10 kW - Rs 18,000/kW (above 3 kW) | Maximum subsidy - Rs 78,000</p>
+          <p>* Central Subsidy: Up to 3 kW - Rs 30,000/kW | 3-10 kW - Rs 18,000/kW (above 3 kW) | Maximum - Rs 78,000</p>
+          <p>* State Subsidies: Odisha - Rs 20,000/kW | Uttar Pradesh - Rs 10,000/kW</p>
           <p>* Calculations based on average solar generation of 4 kWh/kW/day and Rs 7/kWh electricity tariff</p>
         </div>
       </CardContent>
@@ -210,5 +289,5 @@ export function SubsidyCalculator({
   );
 }
 
-export { calculateSubsidy, formatINR };
+export { calculateSubsidy, formatINR, stateSubsidies };
 export type { SubsidyResult };
