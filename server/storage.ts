@@ -66,6 +66,21 @@ export interface IStorage {
     approvedApplications: number;
     completedInstallations: number;
   }>;
+  
+  // Admin operations
+  getAdminStats(): Promise<{
+    totalBDPs: number;
+    totalDDPs: number;
+    totalCustomers: number;
+    pendingPartners: number;
+    completedInstallations: number;
+    totalCommissions: number;
+    pendingCommissions: number;
+  }>;
+  getAllPartners(): Promise<User[]>;
+  getRecentPartners(limit: number): Promise<User[]>;
+  getAllCustomers(): Promise<Customer[]>;
+  getRecentCustomers(limit: number): Promise<Customer[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -370,6 +385,95 @@ export class DatabaseStorage implements IStorage {
     }
     
     return { ddpCommission, bdpCommission };
+  }
+
+  // Admin operations
+  async getAdminStats(): Promise<{
+    totalBDPs: number;
+    totalDDPs: number;
+    totalCustomers: number;
+    pendingPartners: number;
+    completedInstallations: number;
+    totalCommissions: number;
+    pendingCommissions: number;
+  }> {
+    const [bdpCount] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(users)
+      .where(eq(users.role, "bdp"));
+    
+    const [ddpCount] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(users)
+      .where(eq(users.role, "ddp"));
+    
+    const [customerCount] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(customers);
+    
+    const [pendingCount] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(users)
+      .where(and(
+        eq(users.status, "pending"),
+        sql`${users.role} IN ('bdp', 'ddp')`
+      ));
+    
+    const [completedCount] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(customers)
+      .where(eq(customers.status, "completed"));
+    
+    const [totalCommissionsResult] = await db
+      .select({ sum: sql<number>`COALESCE(SUM(commission_amount), 0)::int` })
+      .from(commissions);
+    
+    const [pendingCommissionsResult] = await db
+      .select({ sum: sql<number>`COALESCE(SUM(commission_amount), 0)::int` })
+      .from(commissions)
+      .where(eq(commissions.status, "pending"));
+    
+    return {
+      totalBDPs: bdpCount?.count || 0,
+      totalDDPs: ddpCount?.count || 0,
+      totalCustomers: customerCount?.count || 0,
+      pendingPartners: pendingCount?.count || 0,
+      completedInstallations: completedCount?.count || 0,
+      totalCommissions: totalCommissionsResult?.sum || 0,
+      pendingCommissions: pendingCommissionsResult?.sum || 0,
+    };
+  }
+
+  async getAllPartners(): Promise<User[]> {
+    return db
+      .select()
+      .from(users)
+      .where(sql`${users.role} IN ('bdp', 'ddp')`)
+      .orderBy(desc(users.createdAt));
+  }
+
+  async getRecentPartners(limit: number): Promise<User[]> {
+    return db
+      .select()
+      .from(users)
+      .where(sql`${users.role} IN ('bdp', 'ddp')`)
+      .orderBy(desc(users.createdAt))
+      .limit(limit);
+  }
+
+  async getAllCustomers(): Promise<Customer[]> {
+    return db
+      .select()
+      .from(customers)
+      .orderBy(desc(customers.createdAt));
+  }
+
+  async getRecentCustomers(limit: number): Promise<Customer[]> {
+    return db
+      .select()
+      .from(customers)
+      .orderBy(desc(customers.createdAt))
+      .limit(limit);
   }
 }
 

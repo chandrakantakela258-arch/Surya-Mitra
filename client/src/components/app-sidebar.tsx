@@ -10,6 +10,7 @@ import {
   User,
   Calculator,
   Wallet,
+  Shield,
 } from "lucide-react";
 import {
   Sidebar,
@@ -29,6 +30,13 @@ import { RoleBadge } from "@/components/status-badge";
 import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+
+const adminMenuItems = [
+  { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
+  { title: "Partners", url: "/admin/partners", icon: Building2 },
+  { title: "All Customers", url: "/admin/customers", icon: Users },
+  { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },
+];
 
 const bdpMenuItems = [
   { title: "Dashboard", url: "/bdp/dashboard", icon: LayoutDashboard },
@@ -53,7 +61,11 @@ export function AppSidebar() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
 
-  const menuItems = user?.role === "bdp" ? bdpMenuItems : ddpMenuItems;
+  const menuItems = user?.role === "admin" 
+    ? adminMenuItems 
+    : user?.role === "bdp" 
+    ? bdpMenuItems 
+    : ddpMenuItems;
 
   async function handleLogout() {
     try {

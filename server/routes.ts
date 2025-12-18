@@ -44,6 +44,18 @@ async function requireDDP(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+async function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  if (!req.session.userId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+  const user = await storage.getUser(req.session.userId);
+  if (!user || user.role !== "admin") {
+    return res.status(403).json({ message: "Forbidden: Admin access required" });
+  }
+  (req as any).user = user;
+  next();
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -427,6 +439,85 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Update commission status error:", error);
       res.status(500).json({ message: "Failed to update commission status" });
+    }
+  });
+
+  // ==================== ADMIN ROUTES ====================
+
+  // Get admin stats
+  app.get("/api/admin/stats", requireAdmin, async (req, res) => {
+    try {
+      const stats = await storage.getAdminStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Admin stats error:", error);
+      res.status(500).json({ message: "Failed to get admin stats" });
+    }
+  });
+
+  // Get all partners (BDPs and DDPs)
+  app.get("/api/admin/partners", requireAdmin, async (req, res) => {
+    try {
+      const partners = await storage.getAllPartners();
+      res.json(partners.map((p) => ({ ...p, password: undefined })));
+    } catch (error) {
+      console.error("Get all partners error:", error);
+      res.status(500).json({ message: "Failed to get partners" });
+    }
+  });
+
+  // Get recent partners
+  app.get("/api/admin/partners/recent", requireAdmin, async (req, res) => {
+    try {
+      const partners = await storage.getRecentPartners(5);
+      res.json(partners.map((p) => ({ ...p, password: undefined })));
+    } catch (error) {
+      console.error("Get recent partners error:", error);
+      res.status(500).json({ message: "Failed to get recent partners" });
+    }
+  });
+
+  // Update partner status
+  app.patch("/api/admin/partners/:id/status", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      
+      if (!["pending", "approved", "rejected"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+      
+      const partner = await storage.updateUserStatus(id, status);
+      if (!partner) {
+        return res.status(404).json({ message: "Partner not found" });
+      }
+      
+      res.json({ ...partner, password: undefined });
+    } catch (error) {
+      console.error("Update partner status error:", error);
+      res.status(500).json({ message: "Failed to update partner status" });
+    }
+  });
+
+  // Get all customers
+  app.get("/api/admin/customers", requireAdmin, async (req, res) => {
+    try {
+      const customers = await storage.getAllCustomers();
+      res.json(customers);
+    } catch (error) {
+      console.error("Get all customers error:", error);
+      res.status(500).json({ message: "Failed to get customers" });
+    }
+  });
+
+  // Get recent customers
+  app.get("/api/admin/customers/recent", requireAdmin, async (req, res) => {
+    try {
+      const customers = await storage.getRecentCustomers(5);
+      res.json(customers);
+    } catch (error) {
+      console.error("Get recent customers error:", error);
+      res.status(500).json({ message: "Failed to get recent customers" });
     }
   });
 

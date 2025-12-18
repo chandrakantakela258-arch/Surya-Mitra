@@ -25,6 +25,9 @@ import CustomerDetail from "@/pages/ddp/customer-detail";
 import DDPEarnings from "@/pages/ddp/earnings";
 import BDPWallet from "@/pages/bdp/wallet";
 import CalculatorPage from "@/pages/calculator";
+import AdminDashboard from "@/pages/admin/dashboard";
+import AdminPartners from "@/pages/admin/partners";
+import AdminCustomers from "@/pages/admin/customers";
 
 function LoadingScreen() {
   return (
@@ -53,7 +56,9 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     // Redirect to their proper dashboard
-    if (user.role === "bdp") {
+    if (user.role === "admin") {
+      setLocation("/admin/dashboard");
+    } else if (user.role === "bdp") {
       setLocation("/bdp/dashboard");
     } else {
       setLocation("/ddp/dashboard");
@@ -91,6 +96,29 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
 function AuthenticatedRoutes() {
   return (
     <Switch>
+      {/* Admin Routes */}
+      <Route path="/admin/dashboard">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminDashboard />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/partners">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminPartners />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/customers">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminCustomers />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+
       {/* BDP Routes */}
       <Route path="/bdp/dashboard">
         <ProtectedRoute allowedRoles={["bdp", "admin"]}>
@@ -198,21 +226,21 @@ function PublicRouter() {
     <Switch>
       <Route path="/login">
         {user ? (
-          <Redirect to={user.role === "bdp" ? "/bdp/dashboard" : "/ddp/dashboard"} />
+          <Redirect to={user.role === "admin" ? "/admin/dashboard" : user.role === "bdp" ? "/bdp/dashboard" : "/ddp/dashboard"} />
         ) : (
           <LoginPage />
         )}
       </Route>
       <Route path="/register">
         {user ? (
-          <Redirect to={user.role === "bdp" ? "/bdp/dashboard" : "/ddp/dashboard"} />
+          <Redirect to={user.role === "admin" ? "/admin/dashboard" : user.role === "bdp" ? "/bdp/dashboard" : "/ddp/dashboard"} />
         ) : (
           <RegisterPage />
         )}
       </Route>
       <Route path="/">
         {user ? (
-          <Redirect to={user.role === "bdp" ? "/bdp/dashboard" : "/ddp/dashboard"} />
+          <Redirect to={user.role === "admin" ? "/admin/dashboard" : user.role === "bdp" ? "/bdp/dashboard" : "/ddp/dashboard"} />
         ) : (
           <Redirect to="/login" />
         )}
