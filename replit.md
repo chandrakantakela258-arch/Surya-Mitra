@@ -16,12 +16,13 @@ Preferred communication style: Simple, everyday language.
 ## Business Rules
 
 ### Panel Types & Capacity Options
-- **DCR Panels (Domestic Content Requirement)**: 3 kW and 5 kW (government subsidy eligible)
-- **Non-DCR Panels**: 6-10 kW capacity options
+- **DCR Panels (Domestic Content Requirement)**: 1-100 kW (government subsidy eligible up to 3 kW)
+- **Non-DCR Panels**: 1-100 kW capacity options (no subsidy)
 
 ### System Pricing
-- **DCR Panels**: 3 kW = Rs 2,25,000 | 5 kW = Rs 3,50,000 (includes 3-in-1 Hybrid Inverter)
-- **Non-DCR Panels**: Rs 55,000 per kW
+- **DCR Panels with 3-in-1 Hybrid Inverter**: Rs 75/Watt (Rs 75,000/kW)
+- **DCR Panels with Ongrid Inverter**: Rs 66/Watt (Rs 66,000/kW)
+- **Non-DCR Panels**: Rs 55/Watt (Rs 55,000/kW)
 
 ### State Subsidies
 - Odisha: +Rs 20,000/kW additional subsidy

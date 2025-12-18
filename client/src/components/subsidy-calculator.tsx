@@ -13,8 +13,14 @@ const stateSubsidies: Record<string, { ratePerKw: number; maxSubsidy: number; la
   "Uttar Pradesh": { ratePerKw: 10000, maxSubsidy: 30000, label: "UP State Subsidy" },
 };
 
-const CUSTOMER_RATE_PER_WATT = 55;
-const CUSTOMER_RATE_PER_KW = CUSTOMER_RATE_PER_WATT * 1000;
+// DCR Panel Pricing
+const DCR_HYBRID_RATE_PER_WATT = 75;  // With 3-in-1 Hybrid Inverter
+const DCR_ONGRID_RATE_PER_WATT = 66;  // With Ongrid Inverter
+
+// Non-DCR Panel Pricing
+const NON_DCR_RATE_PER_WATT = 55;
+
+type InverterType = "hybrid" | "ongrid";
 
 interface SubsidyResult {
   capacity: number;
@@ -32,6 +38,8 @@ interface SubsidyResult {
   emiMonthly: number;
   emiTenure: number;
   panelType: string;
+  inverterType: InverterType;
+  ratePerWatt: number;
 }
 
 interface CommissionResult {
@@ -81,8 +89,16 @@ function calculateCommission(capacityKW: number, panelType: string): CommissionR
   };
 }
 
-function calculateSubsidy(capacityKW: number, state: string = "", panelType: string = "dcr"): SubsidyResult {
-  const totalCost = capacityKW * CUSTOMER_RATE_PER_KW;
+function calculateSubsidy(capacityKW: number, state: string = "", panelType: string = "dcr", inverterType: InverterType = "hybrid"): SubsidyResult {
+  // Calculate rate per watt based on panel type and inverter type
+  let ratePerWatt: number;
+  if (panelType === "dcr") {
+    ratePerWatt = inverterType === "hybrid" ? DCR_HYBRID_RATE_PER_WATT : DCR_ONGRID_RATE_PER_WATT;
+  } else {
+    ratePerWatt = NON_DCR_RATE_PER_WATT;
+  }
+  
+  const totalCost = capacityKW * ratePerWatt * 1000;
   
   let centralSubsidy = 0;
   let stateSubsidy = 0;
@@ -133,6 +149,8 @@ function calculateSubsidy(capacityKW: number, state: string = "", panelType: str
     emiMonthly,
     emiTenure,
     panelType,
+    inverterType,
+    ratePerWatt,
   };
 }
 
@@ -162,9 +180,10 @@ export function SubsidyCalculator({
   const [capacity, setCapacity] = useState(initialCapacity);
   const [selectedState, setSelectedState] = useState(initialState);
   const [panelType, setPanelType] = useState<"dcr" | "non_dcr">("dcr");
+  const [inverterType, setInverterType] = useState<InverterType>("hybrid");
   const [customCapacity, setCustomCapacity] = useState(initialCapacity.toString());
   
-  const result = useMemo(() => calculateSubsidy(capacity, selectedState, panelType), [capacity, selectedState, panelType]);
+  const result = useMemo(() => calculateSubsidy(capacity, selectedState, panelType, inverterType), [capacity, selectedState, panelType, inverterType]);
   const commission = useMemo(() => calculateCommission(capacity, panelType), [capacity, panelType]);
   
   function handleCapacityChange(value: number) {
@@ -242,7 +261,7 @@ export function SubsidyCalculator({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="space-y-4">
             <Label>Panel Type</Label>
             <div className="flex gap-2">
@@ -268,9 +287,40 @@ export function SubsidyCalculator({
             <p className="text-xs text-muted-foreground">
               {panelType === "dcr" 
                 ? "DCR panels are eligible for government subsidy" 
-                : "Non-DCR panels have no subsidy but higher capacity options"}
+                : "Non-DCR panels have no subsidy (Rs 55/W)"}
             </p>
           </div>
+          
+          {panelType === "dcr" && (
+            <div className="space-y-4">
+              <Label>Inverter Type</Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={inverterType === "hybrid" ? "default" : "outline"}
+                  className="flex-1"
+                  onClick={() => setInverterType("hybrid")}
+                  data-testid="button-inverter-hybrid"
+                >
+                  3-in-1 Hybrid
+                </Button>
+                <Button
+                  type="button"
+                  variant={inverterType === "ongrid" ? "default" : "outline"}
+                  className="flex-1"
+                  onClick={() => setInverterType("ongrid")}
+                  data-testid="button-inverter-ongrid"
+                >
+                  Ongrid
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {inverterType === "hybrid" 
+                  ? `3-in-1 Hybrid Inverter @ Rs ${DCR_HYBRID_RATE_PER_WATT}/W` 
+                  : `Ongrid Inverter @ Rs ${DCR_ONGRID_RATE_PER_WATT}/W`}
+              </p>
+            </div>
+          )}
           
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -307,7 +357,7 @@ export function SubsidyCalculator({
               <span className="text-sm text-muted-foreground whitespace-nowrap">kW</span>
             </div>
             <p className="text-xs text-muted-foreground text-center">
-              Enter capacity from 1 kW to 100 kW (Rs {CUSTOMER_RATE_PER_WATT}/Watt)
+              Enter capacity from 1 kW to 100 kW (Rs {result.ratePerWatt}/Watt)
             </p>
           </div>
           
@@ -343,7 +393,7 @@ export function SubsidyCalculator({
               <span className="text-sm">System Cost</span>
             </div>
             <p className="text-xl font-semibold font-mono">{formatINR(result.totalCost)}</p>
-            <p className="text-xs text-muted-foreground">Rs {CUSTOMER_RATE_PER_WATT}/Watt</p>
+            <p className="text-xs text-muted-foreground">Rs {result.ratePerWatt}/Watt</p>
           </div>
           
           {panelType === "dcr" && (
@@ -592,7 +642,8 @@ export function SubsidyCalculator({
         </Card>
         
         <div className="text-xs text-muted-foreground space-y-1">
-          <p>* Customer Rate: Rs {CUSTOMER_RATE_PER_WATT}/Watt (Rs {formatINR(CUSTOMER_RATE_PER_KW)}/kW) for all capacities</p>
+          <p>* DCR Panel Rate: Rs {DCR_HYBRID_RATE_PER_WATT}/W (Hybrid Inverter) | Rs {DCR_ONGRID_RATE_PER_WATT}/W (Ongrid Inverter)</p>
+          <p>* Non-DCR Panel Rate: Rs {NON_DCR_RATE_PER_WATT}/W (No Subsidy)</p>
           <p>* Central Subsidy (DCR only): Up to 2 kW - Rs 30,000/kW | 2-3 kW - Rs 18,000/kW | Above 3 kW - Capped at Rs 78,000</p>
           <p>* State Subsidies (DCR only): Odisha - Rs 20,000/kW (Max Rs 60,000) | UP - Rs 10,000/kW (Max Rs 30,000)</p>
           <p>* DCR Commission: 3kW (DDP Rs 20k, BDP Rs 10k) | 5kW (DDP Rs 35k, BDP Rs 15k) | 6+ kW (DDP Rs 6k/kW, BDP Rs 3k/kW)</p>
@@ -604,5 +655,5 @@ export function SubsidyCalculator({
   );
 }
 
-export { calculateSubsidy, calculateCommission, formatINR, stateSubsidies, CUSTOMER_RATE_PER_KW, CUSTOMER_RATE_PER_WATT };
-export type { SubsidyResult, CommissionResult };
+export { calculateSubsidy, calculateCommission, formatINR, stateSubsidies, DCR_HYBRID_RATE_PER_WATT, DCR_ONGRID_RATE_PER_WATT, NON_DCR_RATE_PER_WATT };
+export type { SubsidyResult, CommissionResult, InverterType };
