@@ -67,7 +67,7 @@ export default function LoginPage() {
           <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
             <Sun className="w-6 h-6 text-primary-foreground" />
           </div>
-          <span className="text-xl font-semibold">HarGharSolar</span>
+          <span className="text-xl font-semibold">DivyanshiSolar</span>
         </div>
         <ThemeToggle />
       </header>

@@ -1,8 +1,8 @@
-# HarGharSolar - Partner Management Platform
+# DivyanshiSolar - Partner Management Platform
 
 ## Overview
 
-HarGharSolar is a partner management platform for PM Surya Ghar Yojana, India's rooftop solar installation program. The platform enables Business Development Partners (BDPs) to onboard and manage District Development Partners (DDPs), who in turn manage customer applications for solar panel installations.
+DivyanshiSolar is a partner management platform for PM Surya Ghar Yojana, India's rooftop solar installation program. The platform enables Business Development Partners (BDPs) to onboard and manage District Development Partners (DDPs), who in turn manage customer applications for solar panel installations.
 
 The application follows a multi-role hierarchy:
 - **Admin** - System administrators

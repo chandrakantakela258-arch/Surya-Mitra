@@ -97,7 +97,7 @@ export function AppSidebar() {
             <Sun className="w-5 h-5 text-primary-foreground" />
           </div>
           <div className="flex flex-col">
-            <span className="font-semibold text-lg">HarGharSolar</span>
+            <span className="font-semibold text-lg">DivyanshiSolar</span>
             <span className="text-xs text-muted-foreground">Solar Partner Portal</span>
           </div>
         </Link>

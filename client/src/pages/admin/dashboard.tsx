@@ -54,7 +54,7 @@ export default function AdminDashboard() {
         </div>
         <div>
           <h1 className="text-2xl font-bold" data-testid="text-page-title">Admin Dashboard</h1>
-          <p className="text-muted-foreground">HarGharSolar Platform Overview</p>
+          <p className="text-muted-foreground">DivyanshiSolar Platform Overview</p>
         </div>
       </div>
 
