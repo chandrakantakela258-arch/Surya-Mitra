@@ -41,32 +41,77 @@ function SubsidyEstimateCard({ capacity, panelType }: { capacity: string | null 
   
   if (isNonDcr) {
     return (
-      <Card className="bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg text-orange-700 dark:text-orange-300">
-            <IndianRupee className="w-5 h-5" />
-            Cost Estimate for {capacityNum} kW Non-DCR System
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
-            <div className="p-3 bg-background rounded-lg">
-              <p className="text-sm text-muted-foreground">System Cost</p>
-              <p className="text-xl font-semibold font-mono">{formatINR(result.totalCost)}</p>
-              <p className="text-xs text-muted-foreground">Rs 55,000 per kW</p>
+      <div className="space-y-4">
+        <Card className="bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg text-orange-700 dark:text-orange-300">
+              <IndianRupee className="w-5 h-5" />
+              Cost Estimate for {capacityNum} kW Non-DCR System
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
+              <div className="p-3 bg-background rounded-lg">
+                <p className="text-sm text-muted-foreground">System Cost</p>
+                <p className="text-xl font-semibold font-mono">{formatINR(result.totalCost)}</p>
+                <p className="text-xs text-muted-foreground">Rs 55,000 per kW</p>
+              </div>
+              <div className="p-3 bg-background rounded-lg">
+                <p className="text-sm text-muted-foreground">Customer Pays</p>
+                <p className="text-xl font-semibold font-mono text-primary">{formatINR(result.totalCost)}</p>
+                <p className="text-xs text-muted-foreground">No government subsidy</p>
+              </div>
             </div>
-            <div className="p-3 bg-background rounded-lg">
-              <p className="text-sm text-muted-foreground">Customer Pays</p>
-              <p className="text-xl font-semibold font-mono text-primary">{formatINR(result.totalCost)}</p>
-              <p className="text-xs text-muted-foreground">No government subsidy</p>
+          </CardContent>
+        </Card>
+        
+        {/* Power Savings */}
+        <Card className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
+          <CardContent className="pt-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+              <div className="p-2 bg-background rounded-lg">
+                <p className="text-lg font-bold text-green-600">{result.dailyGeneration}</p>
+                <p className="text-xs text-muted-foreground">Units/Day</p>
+              </div>
+              <div className="p-2 bg-background rounded-lg">
+                <p className="text-lg font-bold text-green-600">{result.monthlyGeneration}</p>
+                <p className="text-xs text-muted-foreground">Units/Month</p>
+              </div>
+              <div className="p-2 bg-background rounded-lg">
+                <p className="text-lg font-bold text-orange-600">{formatINR(result.monthlySavings)}</p>
+                <p className="text-xs text-muted-foreground">Monthly Savings</p>
+              </div>
+              <div className="p-2 bg-background rounded-lg">
+                <p className="text-lg font-bold text-orange-600">{formatINR(result.annualSavings)}</p>
+                <p className="text-xs text-muted-foreground">Annual Savings</p>
+              </div>
             </div>
-          </div>
-          <div className="mt-4 text-center text-sm text-muted-foreground">
-            Estimated annual savings: <span className="font-medium text-orange-600 dark:text-orange-400">{formatINR(result.annualSavings)}</span>
-            {" | "}Payback period: <span className="font-medium">{result.paybackYears} years</span>
-          </div>
-        </CardContent>
-      </Card>
+            <p className="text-xs text-muted-foreground text-center mt-2">4 units/kW/day at Rs 7/unit</p>
+          </CardContent>
+        </Card>
+        
+        {/* EMI */}
+        <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
+          <CardContent className="pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-center">
+              <div className="p-2 bg-background rounded-lg">
+                <p className="text-sm text-muted-foreground">Monthly EMI</p>
+                <p className="text-lg font-bold text-blue-600">{formatINR(result.emiMonthly)}</p>
+                <p className="text-xs text-muted-foreground">10% for 5 years</p>
+              </div>
+              <div className="p-2 bg-background rounded-lg">
+                <p className="text-sm text-muted-foreground">Net Monthly Benefit</p>
+                <p className="text-lg font-bold text-green-600">{formatINR(Math.max(0, result.monthlySavings - result.emiMonthly))}</p>
+                <p className="text-xs text-muted-foreground">Savings - EMI</p>
+              </div>
+              <div className="p-2 bg-background rounded-lg">
+                <p className="text-sm text-muted-foreground">Payback Period</p>
+                <p className="text-lg font-bold">{result.paybackYears} years</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -97,9 +142,52 @@ function SubsidyEstimateCard({ capacity, panelType }: { capacity: string | null 
               <p className="text-xl font-semibold font-mono text-primary">{formatINR(result.netCost)}</p>
             </div>
           </div>
-          <div className="mt-4 text-center text-sm text-muted-foreground">
-            Estimated annual savings: <span className="font-medium text-orange-600 dark:text-orange-400">{formatINR(result.annualSavings)}</span>
-            {" | "}Payback period: <span className="font-medium">{result.paybackYears} years</span>
+        </CardContent>
+      </Card>
+      
+      {/* Power Savings */}
+      <Card className="bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800">
+        <CardContent className="pt-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+            <div className="p-2 bg-background rounded-lg">
+              <p className="text-lg font-bold text-green-600">{result.dailyGeneration}</p>
+              <p className="text-xs text-muted-foreground">Units/Day</p>
+            </div>
+            <div className="p-2 bg-background rounded-lg">
+              <p className="text-lg font-bold text-green-600">{result.monthlyGeneration}</p>
+              <p className="text-xs text-muted-foreground">Units/Month</p>
+            </div>
+            <div className="p-2 bg-background rounded-lg">
+              <p className="text-lg font-bold text-orange-600">{formatINR(result.monthlySavings)}</p>
+              <p className="text-xs text-muted-foreground">Monthly Savings</p>
+            </div>
+            <div className="p-2 bg-background rounded-lg">
+              <p className="text-lg font-bold text-orange-600">{formatINR(result.annualSavings)}</p>
+              <p className="text-xs text-muted-foreground">Annual Savings</p>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground text-center mt-2">4 units/kW/day at Rs 7/unit</p>
+        </CardContent>
+      </Card>
+      
+      {/* EMI */}
+      <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
+        <CardContent className="pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-center">
+            <div className="p-2 bg-background rounded-lg">
+              <p className="text-sm text-muted-foreground">Monthly EMI</p>
+              <p className="text-lg font-bold text-blue-600">{formatINR(result.emiMonthly)}</p>
+              <p className="text-xs text-muted-foreground">10% for 5 years</p>
+            </div>
+            <div className="p-2 bg-background rounded-lg">
+              <p className="text-sm text-muted-foreground">Net Monthly Benefit</p>
+              <p className="text-lg font-bold text-green-600">{formatINR(Math.max(0, result.monthlySavings - result.emiMonthly))}</p>
+              <p className="text-xs text-muted-foreground">Savings - EMI</p>
+            </div>
+            <div className="p-2 bg-background rounded-lg">
+              <p className="text-sm text-muted-foreground">Payback Period</p>
+              <p className="text-lg font-bold">{result.paybackYears} years</p>
+            </div>
           </div>
         </CardContent>
       </Card>

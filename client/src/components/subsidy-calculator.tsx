@@ -27,9 +27,23 @@ interface SubsidyResult {
   totalSubsidy: number;
   netCost: number;
   monthlyGeneration: number;
+  dailyGeneration: number;
   annualSavings: number;
+  monthlySavings: number;
   paybackYears: number;
   state: string;
+  emiMonthly: number;
+  emiTenure: number;
+}
+
+// EMI Calculation: P * r * (1+r)^n / ((1+r)^n - 1)
+// Where P = principal, r = monthly interest rate, n = tenure in months
+function calculateEMI(principal: number, annualRate: number = 10, tenureMonths: number = 60): number {
+  if (principal <= 0) return 0;
+  const monthlyRate = annualRate / 12 / 100;
+  const emi = principal * monthlyRate * Math.pow(1 + monthlyRate, tenureMonths) / 
+              (Math.pow(1 + monthlyRate, tenureMonths) - 1);
+  return Math.round(emi);
 }
 
 function calculateSubsidy(capacityKW: number, state: string = "", panelType: string = "dcr"): SubsidyResult {
@@ -61,10 +75,22 @@ function calculateSubsidy(capacityKW: number, state: string = "", panelType: str
   
   const totalSubsidy = centralSubsidy + stateSubsidy;
   const netCost = Math.max(0, totalCost - totalSubsidy);
-  const monthlyGeneration = capacityKW * 120;
-  const avgTariff = 7;
-  const annualSavings = monthlyGeneration * 12 * avgTariff;
+  
+  // Power generation: 1 kW produces 4 units daily
+  const dailyGeneration = capacityKW * 4;
+  const monthlyGeneration = dailyGeneration * 30;
+  
+  // Power savings: Rs 7 per unit
+  const unitCost = 7;
+  const monthlySavings = monthlyGeneration * unitCost;
+  const annualSavings = monthlySavings * 12;
+  
+  // Payback period
   const paybackYears = netCost > 0 ? netCost / annualSavings : 0;
+  
+  // EMI calculation at 10% interest for 5 years (60 months)
+  const emiTenure = 60;
+  const emiMonthly = calculateEMI(netCost, 10, emiTenure);
   
   return {
     capacity: capacityKW,
@@ -73,10 +99,14 @@ function calculateSubsidy(capacityKW: number, state: string = "", panelType: str
     stateSubsidy,
     totalSubsidy,
     netCost,
+    dailyGeneration,
     monthlyGeneration,
+    monthlySavings,
     annualSavings,
     paybackYears: Math.round(paybackYears * 10) / 10,
     state,
+    emiMonthly,
+    emiTenure,
   };
 }
 
@@ -296,19 +326,85 @@ export function SubsidyCalculator({
           </div>
         )}
         
+        {/* Power Generation & Savings */}
+        <Card className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-green-200 dark:border-green-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg text-green-700 dark:text-green-300">
+              <Zap className="w-5 h-5" />
+              Power Generation & Savings
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+              <div className="p-3 bg-background rounded-lg">
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{result.dailyGeneration}</p>
+                <p className="text-xs text-muted-foreground">Units/Day</p>
+              </div>
+              <div className="p-3 bg-background rounded-lg">
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{result.monthlyGeneration}</p>
+                <p className="text-xs text-muted-foreground">Units/Month</p>
+              </div>
+              <div className="p-3 bg-background rounded-lg">
+                <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatINR(result.monthlySavings)}</p>
+                <p className="text-xs text-muted-foreground">Monthly Savings</p>
+              </div>
+              <div className="p-3 bg-background rounded-lg">
+                <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatINR(result.annualSavings)}</p>
+                <p className="text-xs text-muted-foreground">Annual Savings</p>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground text-center mt-3">
+              Based on 4 units/kW/day generation and Rs 7 per unit electricity cost
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* EMI Calculator */}
+        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200 dark:border-blue-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg text-blue-700 dark:text-blue-300">
+              <IndianRupee className="w-5 h-5" />
+              EMI Calculator (10% Interest)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+              <div className="p-4 bg-background rounded-lg">
+                <p className="text-sm text-muted-foreground mb-1">Loan Amount</p>
+                <p className="text-2xl font-bold font-mono text-primary">{formatINR(result.netCost)}</p>
+              </div>
+              <div className="p-4 bg-background rounded-lg">
+                <p className="text-sm text-muted-foreground mb-1">Monthly EMI</p>
+                <p className="text-2xl font-bold font-mono text-blue-600 dark:text-blue-400">{formatINR(result.emiMonthly)}</p>
+                <p className="text-xs text-muted-foreground">for {result.emiTenure} months</p>
+              </div>
+              <div className="p-4 bg-background rounded-lg">
+                <p className="text-sm text-muted-foreground mb-1">Net Monthly Benefit</p>
+                <p className="text-2xl font-bold font-mono text-green-600 dark:text-green-400">
+                  {formatINR(Math.max(0, result.monthlySavings - result.emiMonthly))}
+                </p>
+                <p className="text-xs text-muted-foreground">Savings - EMI</p>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground text-center mt-3">
+              EMI calculated at 10% annual interest rate for 5 years (60 months)
+            </p>
+          </CardContent>
+        </Card>
+
         <div className="p-4 bg-muted/30 rounded-lg">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
             <div>
-              <p className="text-2xl font-bold">{result.monthlyGeneration}</p>
-              <p className="text-sm text-muted-foreground">kWh/month generation</p>
-            </div>
-            <div>
               <p className="text-2xl font-bold text-green-600 dark:text-green-400">{result.paybackYears}</p>
-              <p className="text-sm text-muted-foreground">years payback period</p>
+              <p className="text-sm text-muted-foreground">Years Payback Period</p>
             </div>
             <div>
               <p className="text-2xl font-bold">25+</p>
-              <p className="text-sm text-muted-foreground">years panel lifespan</p>
+              <p className="text-sm text-muted-foreground">Years Panel Lifespan</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatINR(result.annualSavings * 25)}</p>
+              <p className="text-sm text-muted-foreground">Lifetime Savings</p>
             </div>
           </div>
         </div>
