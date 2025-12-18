@@ -42,7 +42,9 @@ export default function LoginPage() {
       });
       
       // Redirect based on role
-      if (result.user.role === "bdp") {
+      if (result.user.role === "admin") {
+        setLocation("/admin/dashboard");
+      } else if (result.user.role === "bdp") {
         setLocation("/bdp/dashboard");
       } else if (result.user.role === "ddp") {
         setLocation("/ddp/dashboard");
