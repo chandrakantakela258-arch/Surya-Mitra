@@ -28,6 +28,7 @@ import CalculatorPage from "@/pages/calculator";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminPartners from "@/pages/admin/partners";
 import AdminCustomers from "@/pages/admin/customers";
+import AdminPayouts from "@/pages/admin/payouts";
 
 function LoadingScreen() {
   return (
@@ -115,6 +116,13 @@ function AuthenticatedRoutes() {
         <ProtectedRoute allowedRoles={["admin"]}>
           <DashboardLayout>
             <AdminCustomers />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/payouts">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminPayouts />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>

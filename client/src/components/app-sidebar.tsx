@@ -35,6 +35,7 @@ const adminMenuItems = [
   { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
   { title: "Partners", url: "/admin/partners", icon: Building2 },
   { title: "All Customers", url: "/admin/customers", icon: Users },
+  { title: "Commission Payouts", url: "/admin/payouts", icon: Wallet },
   { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },
 ];
 

@@ -3,6 +3,8 @@ import {
   customers, 
   milestones,
   commissions,
+  bankAccounts,
+  payouts,
   type User, 
   type InsertUser, 
   type Customer, 
@@ -11,6 +13,10 @@ import {
   type InsertMilestone,
   type Commission,
   type InsertCommission,
+  type BankAccount,
+  type InsertBankAccount,
+  type Payout,
+  type InsertPayout,
   installationMilestones,
   calculateCommission,
   calculateBdpCommission
@@ -67,6 +73,20 @@ export interface IStorage {
     completedInstallations: number;
   }>;
   
+  // Bank Account operations
+  getBankAccountByPartnerId(partnerId: string): Promise<BankAccount | undefined>;
+  createBankAccount(bankAccount: InsertBankAccount): Promise<BankAccount>;
+  updateBankAccount(partnerId: string, data: Partial<BankAccount>): Promise<BankAccount | undefined>;
+  
+  // Payout operations
+  getPayoutsByPartnerId(partnerId: string): Promise<Payout[]>;
+  getAllPayouts(): Promise<Payout[]>;
+  getPendingPayouts(): Promise<Payout[]>;
+  createPayout(payout: InsertPayout): Promise<Payout>;
+  updatePayout(id: string, data: Partial<Payout>): Promise<Payout | undefined>;
+  getAllCommissions(): Promise<Commission[]>;
+  getApprovedCommissions(): Promise<Commission[]>;
+
   // Admin operations
   getAdminStats(): Promise<{
     totalBDPs: number;
@@ -474,6 +494,88 @@ export class DatabaseStorage implements IStorage {
       .from(customers)
       .orderBy(desc(customers.createdAt))
       .limit(limit);
+  }
+
+  // Bank Account operations
+  async getBankAccountByPartnerId(partnerId: string): Promise<BankAccount | undefined> {
+    const [account] = await db
+      .select()
+      .from(bankAccounts)
+      .where(eq(bankAccounts.partnerId, partnerId));
+    return account || undefined;
+  }
+
+  async createBankAccount(insertBankAccount: InsertBankAccount): Promise<BankAccount> {
+    const [account] = await db
+      .insert(bankAccounts)
+      .values(insertBankAccount)
+      .returning();
+    return account;
+  }
+
+  async updateBankAccount(partnerId: string, data: Partial<BankAccount>): Promise<BankAccount | undefined> {
+    const [account] = await db
+      .update(bankAccounts)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(bankAccounts.partnerId, partnerId))
+      .returning();
+    return account || undefined;
+  }
+
+  // Payout operations
+  async getPayoutsByPartnerId(partnerId: string): Promise<Payout[]> {
+    return db
+      .select()
+      .from(payouts)
+      .where(eq(payouts.partnerId, partnerId))
+      .orderBy(desc(payouts.createdAt));
+  }
+
+  async getAllPayouts(): Promise<Payout[]> {
+    return db
+      .select()
+      .from(payouts)
+      .orderBy(desc(payouts.createdAt));
+  }
+
+  async getPendingPayouts(): Promise<Payout[]> {
+    return db
+      .select()
+      .from(payouts)
+      .where(eq(payouts.status, "pending"))
+      .orderBy(desc(payouts.createdAt));
+  }
+
+  async createPayout(insertPayout: InsertPayout): Promise<Payout> {
+    const [payout] = await db
+      .insert(payouts)
+      .values(insertPayout)
+      .returning();
+    return payout;
+  }
+
+  async updatePayout(id: string, data: Partial<Payout>): Promise<Payout | undefined> {
+    const [payout] = await db
+      .update(payouts)
+      .set(data)
+      .where(eq(payouts.id, id))
+      .returning();
+    return payout || undefined;
+  }
+
+  async getAllCommissions(): Promise<Commission[]> {
+    return db
+      .select()
+      .from(commissions)
+      .orderBy(desc(commissions.createdAt));
+  }
+
+  async getApprovedCommissions(): Promise<Commission[]> {
+    return db
+      .select()
+      .from(commissions)
+      .where(eq(commissions.status, "approved"))
+      .orderBy(desc(commissions.createdAt));
   }
 }
 

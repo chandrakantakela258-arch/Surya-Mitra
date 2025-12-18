@@ -1,14 +1,19 @@
-import { useQuery } from "@tanstack/react-query";
-import { IndianRupee, TrendingUp, Clock, CheckCircle, Download, Wallet, Users } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { IndianRupee, TrendingUp, Clock, CheckCircle, Download, Wallet, Users, CreditCard, Save } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { StatCard } from "@/components/stat-card";
 import { TableSkeleton } from "@/components/loading-skeleton";
 import { EmptyState } from "@/components/empty-state";
-import { dcrFixedCommission, dcrPerKwRates, nonDcrPerKwRates, type Commission } from "@shared/schema";
+import { dcrFixedCommission, dcrPerKwRates, nonDcrPerKwRates, type Commission, type BankAccount } from "@shared/schema";
 import { formatINR } from "@/components/subsidy-calculator";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { useState, useEffect } from "react";
 
 function CommissionStatusBadge({ status }: { status: string }) {
   switch (status) {
@@ -22,6 +27,14 @@ function CommissionStatusBadge({ status }: { status: string }) {
 }
 
 export default function BDPWallet() {
+  const { toast } = useToast();
+  const [bankForm, setBankForm] = useState({
+    accountHolderName: "",
+    accountNumber: "",
+    ifscCode: "",
+    bankName: "",
+  });
+
   const { data: summary, isLoading: summaryLoading } = useQuery<{
     totalEarned: number;
     totalPending: number;
@@ -33,6 +46,41 @@ export default function BDPWallet() {
   
   const { data: commissions, isLoading: commissionsLoading } = useQuery<Commission[]>({
     queryKey: ["/api/bdp/commissions"],
+  });
+
+  const { data: bankAccount } = useQuery<BankAccount | null>({
+    queryKey: ["/api/bank-account"],
+  });
+
+  useEffect(() => {
+    if (bankAccount) {
+      setBankForm({
+        accountHolderName: bankAccount.accountHolderName || "",
+        accountNumber: bankAccount.accountNumber || "",
+        ifscCode: bankAccount.ifscCode || "",
+        bankName: bankAccount.bankName || "",
+      });
+    }
+  }, [bankAccount]);
+
+  const saveBankMutation = useMutation({
+    mutationFn: async (data: typeof bankForm) => {
+      return apiRequest("POST", "/api/bank-account", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bank-account"] });
+      toast({
+        title: "Bank Details Saved",
+        description: "Your bank account details have been saved successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save bank details",
+        variant: "destructive",
+      });
+    },
   });
   
   function exportToCSV() {
@@ -257,6 +305,92 @@ export default function BDPWallet() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="w-5 h-5 text-primary" />
+            Bank Account Details
+          </CardTitle>
+          <CardDescription>
+            Add your bank account for receiving commission payouts via Razorpay
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="accountHolderName">Account Holder Name</Label>
+              <Input
+                id="accountHolderName"
+                placeholder="Enter name as per bank account"
+                value={bankForm.accountHolderName}
+                onChange={(e) => setBankForm({ ...bankForm, accountHolderName: e.target.value })}
+                data-testid="input-account-holder"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bankName">Bank Name</Label>
+              <Input
+                id="bankName"
+                placeholder="e.g., State Bank of India"
+                value={bankForm.bankName}
+                onChange={(e) => setBankForm({ ...bankForm, bankName: e.target.value })}
+                data-testid="input-bank-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="accountNumber">Account Number</Label>
+              <Input
+                id="accountNumber"
+                placeholder="Enter your bank account number"
+                value={bankForm.accountNumber}
+                onChange={(e) => setBankForm({ ...bankForm, accountNumber: e.target.value })}
+                data-testid="input-account-number"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ifscCode">IFSC Code</Label>
+              <Input
+                id="ifscCode"
+                placeholder="e.g., SBIN0001234"
+                value={bankForm.ifscCode}
+                onChange={(e) => setBankForm({ ...bankForm, ifscCode: e.target.value.toUpperCase() })}
+                data-testid="input-ifsc-code"
+              />
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-4 mt-6 flex-wrap">
+            {bankAccount && (
+              <div className="flex items-center gap-2">
+                <Badge variant={bankAccount.verified === "verified" ? "default" : "secondary"}>
+                  {bankAccount.verified === "verified" ? (
+                    <><CheckCircle className="w-3 h-3 mr-1" />Verified</>
+                  ) : (
+                    <><Clock className="w-3 h-3 mr-1" />Pending Verification</>
+                  )}
+                </Badge>
+              </div>
+            )}
+            <Button
+              onClick={() => saveBankMutation.mutate(bankForm)}
+              disabled={saveBankMutation.isPending || !bankForm.accountHolderName || !bankForm.accountNumber || !bankForm.ifscCode}
+              data-testid="button-save-bank"
+            >
+              {saveBankMutation.isPending ? (
+                <>
+                  <Clock className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Bank Details
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

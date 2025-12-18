@@ -521,5 +521,280 @@ export async function registerRoutes(
     }
   });
 
+  // ==================== BANK ACCOUNT ROUTES ====================
+  
+  // Get partner's bank account
+  app.get("/api/bank-account", requireAuth, async (req, res) => {
+    try {
+      const account = await storage.getBankAccountByPartnerId(req.session.userId!);
+      res.json(account || null);
+    } catch (error) {
+      console.error("Get bank account error:", error);
+      res.status(500).json({ message: "Failed to get bank account" });
+    }
+  });
+
+  // Create or update bank account
+  app.post("/api/bank-account", requireAuth, async (req, res) => {
+    try {
+      const { accountHolderName, accountNumber, ifscCode, bankName } = req.body;
+      
+      if (!accountHolderName || !accountNumber || !ifscCode) {
+        return res.status(400).json({ message: "Account holder name, account number, and IFSC code are required" });
+      }
+      
+      const existing = await storage.getBankAccountByPartnerId(req.session.userId!);
+      
+      if (existing) {
+        const updated = await storage.updateBankAccount(req.session.userId!, {
+          accountHolderName,
+          accountNumber,
+          ifscCode,
+          bankName: bankName || null,
+          verified: "pending",
+          razorpayContactId: null,
+          razorpayFundAccountId: null,
+        });
+        res.json(updated);
+      } else {
+        const account = await storage.createBankAccount({
+          partnerId: req.session.userId!,
+          accountHolderName,
+          accountNumber,
+          ifscCode,
+          bankName: bankName || null,
+          verified: "pending",
+        });
+        res.json(account);
+      }
+    } catch (error) {
+      console.error("Save bank account error:", error);
+      res.status(500).json({ message: "Failed to save bank account" });
+    }
+  });
+
+  // ==================== PAYOUT ROUTES (ADMIN) ====================
+
+  // Get all commissions
+  app.get("/api/admin/commissions", requireAdmin, async (req, res) => {
+    try {
+      const allCommissions = await storage.getAllCommissions();
+      res.json(allCommissions);
+    } catch (error) {
+      console.error("Get all commissions error:", error);
+      res.status(500).json({ message: "Failed to get commissions" });
+    }
+  });
+
+  // Update commission status
+  app.patch("/api/admin/commissions/:id/status", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      
+      if (!["pending", "approved", "paid"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+      
+      const commission = await storage.updateCommissionStatus(id, status);
+      if (!commission) {
+        return res.status(404).json({ message: "Commission not found" });
+      }
+      
+      res.json(commission);
+    } catch (error) {
+      console.error("Update commission status error:", error);
+      res.status(500).json({ message: "Failed to update commission status" });
+    }
+  });
+
+  // Get all payouts
+  app.get("/api/admin/payouts", requireAdmin, async (req, res) => {
+    try {
+      const allPayouts = await storage.getAllPayouts();
+      res.json(allPayouts);
+    } catch (error) {
+      console.error("Get all payouts error:", error);
+      res.status(500).json({ message: "Failed to get payouts" });
+    }
+  });
+
+  // Initialize Razorpay and process payout
+  app.post("/api/admin/payouts/process", requireAdmin, async (req, res) => {
+    try {
+      const { commissionId, partnerId, amount, mode = "IMPS" } = req.body;
+      
+      if (!partnerId || !amount) {
+        return res.status(400).json({ message: "Partner ID and amount are required" });
+      }
+      
+      // Check if Razorpay keys are configured
+      const keyId = process.env.RAZORPAY_KEY_ID;
+      const keySecret = process.env.RAZORPAY_KEY_SECRET;
+      const accountNumber = process.env.RAZORPAYX_ACCOUNT_NUMBER;
+      
+      if (!keyId || !keySecret || !accountNumber) {
+        return res.status(500).json({ 
+          message: "Razorpay not configured. Please add RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, and RAZORPAYX_ACCOUNT_NUMBER to secrets." 
+        });
+      }
+      
+      // Get partner and bank account
+      const partner = await storage.getUser(partnerId);
+      if (!partner) {
+        return res.status(404).json({ message: "Partner not found" });
+      }
+      
+      const bankAccount = await storage.getBankAccountByPartnerId(partnerId);
+      if (!bankAccount) {
+        return res.status(400).json({ message: "Partner has not added bank account details" });
+      }
+      
+      // Initialize Razorpay
+      const Razorpay = require("razorpay");
+      const razorpay = new Razorpay({
+        key_id: keyId,
+        key_secret: keySecret,
+      });
+      
+      // Create payout record first
+      const payout = await storage.createPayout({
+        partnerId,
+        commissionId: commissionId || null,
+        amount,
+        mode,
+        status: "processing",
+        razorpayPayoutId: null,
+        razorpayStatus: null,
+        utr: null,
+        failureReason: null,
+        processedAt: null,
+      });
+      
+      try {
+        // Use Composite API to create contact, fund account, and payout in one call
+        const razorpayPayout = await razorpay.payouts.create({
+          account_number: accountNumber,
+          amount: amount * 100, // Convert to paisa
+          currency: "INR",
+          mode: mode,
+          purpose: "payout",
+          fund_account: {
+            account_type: "bank_account",
+            bank_account: {
+              name: bankAccount.accountHolderName,
+              ifsc: bankAccount.ifscCode,
+              account_number: bankAccount.accountNumber,
+            },
+            contact: {
+              name: partner.name,
+              email: partner.email,
+              contact: partner.phone,
+              type: "vendor",
+            },
+          },
+          queue_if_low_balance: true,
+          reference_id: `PAY_${payout.id}`,
+          narration: "Commission Payout",
+        }, {
+          headers: {
+            "X-Payout-Idempotency": `idempotency_${payout.id}`,
+          },
+        });
+        
+        // Update payout with Razorpay response
+        const updatedPayout = await storage.updatePayout(payout.id, {
+          razorpayPayoutId: razorpayPayout.id,
+          razorpayStatus: razorpayPayout.status,
+          utr: razorpayPayout.utr || null,
+          status: razorpayPayout.status === "processed" ? "completed" : "processing",
+          processedAt: razorpayPayout.status === "processed" ? new Date() : null,
+        });
+        
+        // Update commission status if provided
+        if (commissionId && razorpayPayout.status === "processed") {
+          await storage.updateCommissionStatus(commissionId, "paid");
+        }
+        
+        res.json({
+          success: true,
+          payout: updatedPayout,
+          razorpayPayout,
+        });
+      } catch (razorpayError: any) {
+        // Update payout with failure
+        await storage.updatePayout(payout.id, {
+          status: "failed",
+          failureReason: razorpayError.message || "Razorpay API error",
+        });
+        
+        throw razorpayError;
+      }
+    } catch (error: any) {
+      console.error("Process payout error:", error);
+      res.status(500).json({ 
+        message: error.message || "Failed to process payout",
+        error: error.error?.description || error.message,
+      });
+    }
+  });
+
+  // Get payout status from Razorpay
+  app.get("/api/admin/payouts/:id/status", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const payout = await storage.getAllPayouts().then(p => p.find(p => p.id === id));
+      if (!payout || !payout.razorpayPayoutId) {
+        return res.status(404).json({ message: "Payout not found or not processed" });
+      }
+      
+      const keyId = process.env.RAZORPAY_KEY_ID;
+      const keySecret = process.env.RAZORPAY_KEY_SECRET;
+      
+      if (!keyId || !keySecret) {
+        return res.status(500).json({ message: "Razorpay not configured" });
+      }
+      
+      const Razorpay = require("razorpay");
+      const razorpay = new Razorpay({
+        key_id: keyId,
+        key_secret: keySecret,
+      });
+      
+      const razorpayPayout = await razorpay.payouts.fetch(payout.razorpayPayoutId);
+      
+      // Update local payout status
+      const updatedPayout = await storage.updatePayout(payout.id, {
+        razorpayStatus: razorpayPayout.status,
+        utr: razorpayPayout.utr || payout.utr,
+        status: razorpayPayout.status === "processed" ? "completed" : 
+                razorpayPayout.status === "reversed" || razorpayPayout.status === "cancelled" ? "failed" : 
+                "processing",
+        processedAt: razorpayPayout.status === "processed" ? new Date() : payout.processedAt,
+        failureReason: razorpayPayout.failure_reason || null,
+      });
+      
+      res.json({
+        payout: updatedPayout,
+        razorpayPayout,
+      });
+    } catch (error: any) {
+      console.error("Get payout status error:", error);
+      res.status(500).json({ message: error.message || "Failed to get payout status" });
+    }
+  });
+
+  // Get partner payouts (for partner view)
+  app.get("/api/payouts", requireAuth, async (req, res) => {
+    try {
+      const payouts = await storage.getPayoutsByPartnerId(req.session.userId!);
+      res.json(payouts);
+    } catch (error) {
+      console.error("Get partner payouts error:", error);
+      res.status(500).json({ message: "Failed to get payouts" });
+    }
+  });
+
   return httpServer;
 }

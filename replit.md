@@ -38,6 +38,20 @@ Preferred communication style: Simple, everyday language.
 **Non-DCR Panels:**
 - All capacities: DDP Rs 4,000/kW | BDP Rs 2,000/kW
 
+### Razorpay Payout Integration
+Commission payouts are processed via RazorpayX Payout API. Partners must add their bank account details to receive payments.
+
+**Required Environment Variables:**
+- `RAZORPAY_KEY_ID` - RazorpayX API Key ID
+- `RAZORPAY_KEY_SECRET` - RazorpayX API Secret Key
+- `RAZORPAYX_ACCOUNT_NUMBER` - Your RazorpayX account number
+
+**Payout Flow:**
+1. Commissions are auto-generated when customer installations are completed
+2. Admin approves commissions (pending → approved)
+3. Admin processes payout via Razorpay (uses Composite API)
+4. Payment is transferred to partner's registered bank account
+
 ## System Architecture
 
 ### Frontend Architecture
