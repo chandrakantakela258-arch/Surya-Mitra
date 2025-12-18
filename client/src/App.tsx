@@ -23,6 +23,7 @@ import CustomerForm from "@/pages/ddp/customer-form";
 import DDPApplications from "@/pages/ddp/applications";
 import CustomerDetail from "@/pages/ddp/customer-detail";
 import DDPEarnings from "@/pages/ddp/earnings";
+import DDPStore from "@/pages/ddp/store";
 import BDPWallet from "@/pages/bdp/wallet";
 import CalculatorPage from "@/pages/calculator";
 import AdminDashboard from "@/pages/admin/dashboard";
@@ -220,6 +221,13 @@ function AuthenticatedRoutes() {
         <ProtectedRoute allowedRoles={["ddp", "admin"]}>
           <DashboardLayout>
             <DDPEarnings />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/ddp/store">
+        <ProtectedRoute allowedRoles={["ddp", "admin"]}>
+          <DashboardLayout>
+            <DDPStore />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>

@@ -865,25 +865,42 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Order must have at least one item" });
       }
       
-      // Calculate total
+      // Calculate total using SERVER-SIDE prices from database (security fix)
       let totalAmount = 0;
       const orderItems: Array<{productId?: string; productName: string; quantity: number; unitPrice: number; totalPrice: number}> = [];
       
       for (const item of items) {
-        const product = item.productId ? await storage.getProduct(item.productId) : null;
-        const unitPrice = item.unitPrice || (product?.price || 0);
-        const quantity = item.quantity || 1;
+        if (!item.productId) {
+          return res.status(400).json({ message: "Each item must have a valid productId" });
+        }
+        
+        const product = await storage.getProduct(item.productId);
+        if (!product) {
+          return res.status(400).json({ message: `Product not found: ${item.productId}` });
+        }
+        
+        if (product.isActive !== "active") {
+          return res.status(400).json({ message: `Product is not available: ${product.name}` });
+        }
+        
+        // Use SERVER-SIDE price, not client-provided price (security)
+        const unitPrice = product.price;
+        const quantity = Math.max(1, Math.min(item.quantity || 1, 100)); // Clamp quantity
         const totalPrice = unitPrice * quantity;
         
         orderItems.push({
-          productId: item.productId || null,
-          productName: item.productName || product?.name || "Custom Item",
+          productId: item.productId,
+          productName: product.name,
           quantity,
           unitPrice,
           totalPrice,
         });
         
         totalAmount += totalPrice;
+      }
+      
+      if (totalAmount <= 0) {
+        return res.status(400).json({ message: "Order total must be greater than zero" });
       }
       
       // Generate order number
@@ -973,12 +990,45 @@ export async function registerRoutes(
     try {
       const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
       
+      // Validate required fields
+      if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+        return res.status(400).json({ message: "Missing required payment verification fields" });
+      }
+      
       const keySecret = process.env.RAZORPAY_KEY_SECRET;
       if (!keySecret) {
         return res.status(500).json({ message: "Razorpay not configured" });
       }
       
-      // Verify signature
+      // Find order by Razorpay order ID FIRST (before verification to ensure it exists)
+      const order = await storage.getOrderByRazorpayId(razorpay_order_id);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      
+      // Verify order belongs to requesting user
+      if (order.ddpId !== req.session.userId) {
+        return res.status(403).json({ message: "Unauthorized access to order" });
+      }
+      
+      // Check if order is already paid (idempotency)
+      if (order.status === "paid") {
+        return res.json({ success: true, order, message: "Order already verified" });
+      }
+      
+      // Verify order is in pending state
+      if (order.status !== "pending") {
+        return res.status(400).json({ message: `Order cannot be verified in ${order.status} state` });
+      }
+      
+      // Find pending payment record
+      const existingPayments = await storage.getPaymentsByOrderId(order.id);
+      const pendingPayment = existingPayments.find(p => p.status === "pending");
+      if (!pendingPayment) {
+        return res.status(400).json({ message: "No pending payment found for this order" });
+      }
+      
+      // Verify signature (CRITICAL SECURITY CHECK)
       const crypto = require("crypto");
       const expectedSignature = crypto
         .createHmac("sha256", keySecret)
@@ -986,32 +1036,27 @@ export async function registerRoutes(
         .digest("hex");
       
       if (expectedSignature !== razorpay_signature) {
+        // Log failed verification attempt
+        console.error("Payment signature verification failed", { razorpay_order_id, orderId: order.id });
         return res.status(400).json({ message: "Invalid payment signature" });
       }
       
-      // Find order by Razorpay order ID
-      const order = await storage.getOrderByRazorpayId(razorpay_order_id);
-      if (!order) {
-        return res.status(404).json({ message: "Order not found" });
-      }
-      
-      // Update order status
+      // ONLY after successful signature verification, update order and payment status
       await storage.updateOrder(order.id, {
         status: "paid",
       });
       
-      // Update payment record
-      const existingPayments = await storage.getPaymentsByOrderId(order.id);
-      if (existingPayments.length > 0) {
-        await storage.updatePayment(existingPayments[0].id, {
-          razorpayPaymentId: razorpay_payment_id,
-          razorpaySignature: razorpay_signature,
-          status: "captured",
-          paidAt: new Date(),
-        });
-      }
+      await storage.updatePayment(pendingPayment.id, {
+        razorpayPaymentId: razorpay_payment_id,
+        razorpaySignature: razorpay_signature,
+        status: "captured",
+        paidAt: new Date(),
+      });
       
-      res.json({ success: true, order });
+      // Fetch updated order
+      const updatedOrder = await storage.getOrder(order.id);
+      
+      res.json({ success: true, order: updatedOrder });
     } catch (error: any) {
       console.error("Verify payment error:", error);
       res.status(500).json({ message: error.message || "Failed to verify payment" });

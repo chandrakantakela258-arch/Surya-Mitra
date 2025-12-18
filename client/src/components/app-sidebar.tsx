@@ -57,6 +57,7 @@ const ddpMenuItems = [
   { title: "Customers", url: "/ddp/customers", icon: Users },
   { title: "Add Customer", url: "/ddp/customers/new", icon: UserPlus },
   { title: "Applications", url: "/ddp/applications", icon: FileText },
+  { title: "Store", url: "/ddp/store", icon: ShoppingCart },
   { title: "Earnings", url: "/ddp/earnings", icon: Wallet },
   { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },
 ];
