@@ -13,6 +13,7 @@ import {
   Shield,
   Package,
   ShoppingCart,
+  UserCheck,
 } from "lucide-react";
 import {
   Sidebar,
@@ -35,7 +36,7 @@ import { useToast } from "@/hooks/use-toast";
 
 const adminMenuItems = [
   { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
-  { title: "Partners", url: "/admin/partners", icon: Building2 },
+  { title: "Partner Approvals", url: "/admin/partners", icon: UserCheck },
   { title: "All Customers", url: "/admin/customers", icon: Users },
   { title: "Products", url: "/admin/products", icon: Package },
   { title: "Orders", url: "/admin/orders", icon: ShoppingCart },
