@@ -38,19 +38,54 @@ Preferred communication style: Simple, everyday language.
 **Non-DCR Panels:**
 - All capacities: DDP Rs 4,000/kW | BDP Rs 2,000/kW
 
-### Razorpay Payout Integration
+### Razorpay Integration
+The platform uses Razorpay for two distinct payment flows:
+
+**1. RazorpayX Payouts (Partner Commissions)**
 Commission payouts are processed via RazorpayX Payout API. Partners must add their bank account details to receive payments.
 
+**2. Razorpay Checkout (Customer Payments)**
+DDPs can collect payments from customers for solar products and services via the Store page.
+
 **Required Environment Variables:**
-- `RAZORPAY_KEY_ID` - RazorpayX API Key ID
-- `RAZORPAY_KEY_SECRET` - RazorpayX API Secret Key
-- `RAZORPAYX_ACCOUNT_NUMBER` - Your RazorpayX account number
+- `RAZORPAY_KEY_ID` - Razorpay API Key ID
+- `RAZORPAY_KEY_SECRET` - Razorpay API Secret Key
+- `RAZORPAYX_ACCOUNT_NUMBER` - Your RazorpayX account number (for payouts)
 
 **Payout Flow:**
 1. Commissions are auto-generated when customer installations are completed
 2. Admin approves commissions (pending → approved)
 3. Admin processes payout via Razorpay (uses Composite API)
 4. Payment is transferred to partner's registered bank account
+
+**Customer Payment Flow:**
+1. DDP adds products to cart and enters customer details
+2. Order is created with server-validated pricing
+3. Razorpay Checkout opens for payment
+4. Payment signature is verified server-side before capture
+
+**Payment Security:**
+- Server-side price validation (client prices ignored)
+- Razorpay signature verification required before payment status update
+- Order ownership checks prevent unauthorized access
+- Idempotent verification handling
+
+### E-commerce System
+**Product Categories:**
+- `solar_package` - Solar panel installation packages
+- `marketing_material` - Brochures, banners, etc.
+- `accessory` - Additional solar equipment
+
+**Admin Features:**
+- Product management (CRUD)
+- Order tracking and status management
+- Payment monitoring dashboard
+
+**DDP Store Features:**
+- Browse products by category
+- Shopping cart with quantity management
+- Secure checkout via Razorpay
+- Order history and status tracking
 
 ## System Architecture
 
