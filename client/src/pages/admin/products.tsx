@@ -273,11 +273,24 @@ export default function AdminProducts() {
                 {products.map((product) => (
                   <TableRow key={product.id} data-testid={`row-product-${product.id}`}>
                     <TableCell>
-                      <div>
-                        <p className="font-medium">{product.name}</p>
-                        {product.description && (
-                          <p className="text-sm text-muted-foreground truncate max-w-xs">{product.description}</p>
+                      <div className="flex items-center gap-3">
+                        {product.imageUrl ? (
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name}
+                            className="w-12 h-12 object-cover rounded-md border"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 bg-muted rounded-md flex items-center justify-center">
+                            <Package className="w-6 h-6 text-muted-foreground" />
+                          </div>
                         )}
+                        <div>
+                          <p className="font-medium">{product.name}</p>
+                          {product.description && (
+                            <p className="text-sm text-muted-foreground truncate max-w-xs">{product.description}</p>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>

@@ -3,8 +3,12 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { storage } from "./storage";
+import path from "path";
 
 const app = express();
+
+// Serve attached_assets directory for product images
+app.use("/attached_assets", express.static(path.resolve(process.cwd(), "attached_assets")));
 
 // Seed admin user if it doesn't exist
 async function seedAdminUser() {

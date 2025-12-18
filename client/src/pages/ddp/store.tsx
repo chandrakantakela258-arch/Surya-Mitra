@@ -324,7 +324,20 @@ export default function DDPStore() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {products?.map((product) => (
           <Card key={product.id} data-testid={`card-product-${product.id}`}>
-            <CardHeader>
+            {product.imageUrl ? (
+              <div className="w-full h-40 overflow-hidden rounded-t-lg">
+                <img
+                  src={product.imageUrl}
+                  alt={product.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="w-full h-40 bg-muted rounded-t-lg flex items-center justify-center">
+                <Package className="w-12 h-12 text-muted-foreground" />
+              </div>
+            )}
+            <CardHeader className="pt-3">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <CardTitle className="text-lg">{product.name}</CardTitle>
@@ -336,7 +349,7 @@ export default function DDPStore() {
             </CardHeader>
             <CardContent>
               {product.description && (
-                <p className="text-sm text-muted-foreground mb-3">{product.description}</p>
+                <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{product.description}</p>
               )}
               <p className="text-2xl font-bold">{formatINR(product.price)}</p>
             </CardContent>
