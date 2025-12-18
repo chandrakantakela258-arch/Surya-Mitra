@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { IndianRupee, TrendingUp, Clock, CheckCircle, Download, Wallet } from "lucide-react";
+import { IndianRupee, TrendingUp, Clock, CheckCircle, Download, Wallet, Users, Percent } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { StatCard } from "@/components/stat-card";
 import { TableSkeleton } from "@/components/loading-skeleton";
 import { EmptyState } from "@/components/empty-state";
-import { commissionRates, type Commission } from "@shared/schema";
+import { bdpCommissionRate, type Commission } from "@shared/schema";
 import { formatINR } from "@/components/subsidy-calculator";
 
 function CommissionStatusBadge({ status }: { status: string }) {
@@ -21,18 +21,18 @@ function CommissionStatusBadge({ status }: { status: string }) {
   }
 }
 
-export default function DDPEarnings() {
+export default function BDPWallet() {
   const { data: summary, isLoading: summaryLoading } = useQuery<{
     totalEarned: number;
     totalPending: number;
     totalPaid: number;
     totalInstallations: number;
   }>({
-    queryKey: ["/api/ddp/commissions/summary"],
+    queryKey: ["/api/bdp/commissions/summary"],
   });
   
   const { data: commissions, isLoading: commissionsLoading } = useQuery<Commission[]>({
-    queryKey: ["/api/ddp/commissions"],
+    queryKey: ["/api/bdp/commissions"],
   });
   
   function exportToCSV() {
@@ -53,7 +53,7 @@ export default function DDPEarnings() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "my_commissions.csv";
+    a.download = "bdp_commissions.csv";
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -62,14 +62,46 @@ export default function DDPEarnings() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Earnings & Commissions</h1>
-          <p className="text-muted-foreground">Track your commissions from solar installations</p>
+          <h1 className="text-2xl font-bold tracking-tight">Commission Wallet</h1>
+          <p className="text-muted-foreground">Track your earnings from partner network installations</p>
         </div>
         <Button variant="outline" onClick={exportToCSV} disabled={!commissions?.length} data-testid="button-export-csv">
           <Download className="w-4 h-4 mr-2" />
           Export CSV
         </Button>
       </div>
+      
+      <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between gap-6 flex-wrap">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
+                <Wallet className="w-8 h-8 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Wallet Balance</p>
+                <p className="text-3xl font-bold" data-testid="text-wallet-balance">
+                  {summaryLoading ? "..." : formatINR(summary?.totalPending || 0)}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-6 flex-wrap">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                  {summaryLoading ? "..." : formatINR(summary?.totalEarned || 0)}
+                </p>
+                <p className="text-sm text-muted-foreground">Total Earned</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold">
+                  {summaryLoading ? "..." : formatINR(summary?.totalPaid || 0)}
+                </p>
+                <p className="text-sm text-muted-foreground">Total Paid</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
@@ -98,7 +130,7 @@ export default function DDPEarnings() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Commission History</CardTitle>
-            <CardDescription>All your commissions from completed installations</CardDescription>
+            <CardDescription>Earnings from your district partner network</CardDescription>
           </CardHeader>
           <CardContent>
             {commissionsLoading ? (
@@ -107,7 +139,7 @@ export default function DDPEarnings() {
               <EmptyState
                 icon={IndianRupee}
                 title="No commissions yet"
-                description="Complete solar installations to earn commissions. Commissions are generated when installation is marked complete."
+                description="When your district partners complete solar installations, you'll earn 15% of their commission here."
               />
             ) : (
               <Table>
@@ -152,36 +184,47 @@ export default function DDPEarnings() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <IndianRupee className="w-5 h-5 text-primary" />
-              Commission Rates
+              <Percent className="w-5 h-5 text-primary" />
+              Commission Structure
             </CardTitle>
-            <CardDescription>Earnings per installation capacity</CardDescription>
+            <CardDescription>How BDP earnings work</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {commissionRates.map((tier, index) => (
-              <div 
-                key={index}
-                className="p-4 rounded-lg bg-muted/50 space-y-2"
-              >
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <span className="font-medium">{tier.label}</span>
-                  <Badge variant="outline" className="font-mono">
-                    {formatINR(tier.ratePerKw)}/kW
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {tier.minKw === tier.maxKw 
-                    ? `${tier.minKw} kW capacity`
-                    : `${tier.minKw}-${tier.maxKw} kW capacity`
-                  }
-                </p>
+            <div className="p-4 rounded-lg bg-primary/10 space-y-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className="font-medium">BDP Commission Rate</span>
+                <Badge variant="outline" className="font-mono text-lg">
+                  {Math.round(bdpCommissionRate * 100)}%
+                </Badge>
               </div>
-            ))}
+              <p className="text-sm text-muted-foreground">
+                of DDP earnings per installation
+              </p>
+            </div>
+            
+            <div className="p-4 rounded-lg bg-muted/50 space-y-3">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-muted-foreground" />
+                <span className="font-medium">Example Calculation</span>
+              </div>
+              <div className="text-sm space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">5 kW installation</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">DDP earns</span>
+                  <span className="font-mono">{formatINR(12500)}</span>
+                </div>
+                <div className="flex justify-between border-t pt-2">
+                  <span className="font-medium">You earn (15%)</span>
+                  <span className="font-mono font-medium text-primary">{formatINR(1875)}</span>
+                </div>
+              </div>
+            </div>
             
             <div className="pt-4 border-t">
               <p className="text-sm text-muted-foreground">
-                Commissions are calculated based on the installed capacity tier. 
-                Larger installations earn higher rates per kW.
+                Build your network of District Development Partners to maximize your passive income from solar installations.
               </p>
             </div>
           </CardContent>

@@ -23,6 +23,7 @@ import CustomerForm from "@/pages/ddp/customer-form";
 import DDPApplications from "@/pages/ddp/applications";
 import CustomerDetail from "@/pages/ddp/customer-detail";
 import DDPEarnings from "@/pages/ddp/earnings";
+import BDPWallet from "@/pages/bdp/wallet";
 import CalculatorPage from "@/pages/calculator";
 
 function LoadingScreen() {
@@ -116,6 +117,13 @@ function AuthenticatedRoutes() {
         <ProtectedRoute allowedRoles={["bdp", "admin"]}>
           <DashboardLayout>
             <BDPCustomers />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/bdp/wallet">
+        <ProtectedRoute allowedRoles={["bdp", "admin"]}>
+          <DashboardLayout>
+            <BDPWallet />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>

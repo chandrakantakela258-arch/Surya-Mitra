@@ -35,6 +35,7 @@ const bdpMenuItems = [
   { title: "District Partners", url: "/bdp/partners", icon: Building2 },
   { title: "Add Partner", url: "/bdp/partners/new", icon: UserPlus },
   { title: "All Customers", url: "/bdp/customers", icon: Users },
+  { title: "Commission Wallet", url: "/bdp/wallet", icon: Wallet },
   { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },
 ];
 

@@ -96,6 +96,7 @@ export const milestonesRelations = relations(milestones, ({ one }) => ({
 export const commissions = pgTable("commissions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   partnerId: varchar("partner_id").notNull(),
+  partnerType: text("partner_type").notNull().default("ddp"), // ddp or bdp
   customerId: varchar("customer_id").notNull(),
   capacityKw: integer("capacity_kw").notNull(),
   commissionAmount: integer("commission_amount").notNull(), // in INR
@@ -215,12 +216,15 @@ export const installationMilestones = [
   { key: "subsidy_received", label: "Subsidy Received", description: "Subsidy amount credited" },
 ];
 
-// Commission rates per kW capacity tier
+// DDP Commission rates per kW capacity tier
 export const commissionRates = [
   { minKw: 1, maxKw: 3, ratePerKw: 2000, label: "Small System (1-3 kW)" },
   { minKw: 4, maxKw: 5, ratePerKw: 2500, label: "Medium System (4-5 kW)" },
   { minKw: 6, maxKw: 10, ratePerKw: 3000, label: "Large System (6-10 kW)" },
 ];
+
+// BDP Commission - percentage of DDP earnings
+export const bdpCommissionRate = 0.15; // 15% of DDP commission
 
 // Calculate commission based on capacity
 // The tier rate applies to the FULL capacity (not progressive)

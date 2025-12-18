@@ -12,7 +12,8 @@ import {
   type Commission,
   type InsertCommission,
   installationMilestones,
-  calculateCommission
+  calculateCommission,
+  bdpCommissionRate
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, inArray } from "drizzle-orm";
@@ -41,8 +42,8 @@ export interface IStorage {
   initializeCustomerMilestones(customerId: string): Promise<Milestone[]>;
   
   // Commission operations
-  getCommissionsByPartnerId(partnerId: string): Promise<Commission[]>;
-  getCommissionSummaryByPartnerId(partnerId: string): Promise<{
+  getCommissionsByPartnerId(partnerId: string, partnerType?: string): Promise<Commission[]>;
+  getCommissionSummaryByPartnerId(partnerId: string, partnerType?: string): Promise<{
     totalEarned: number;
     totalPending: number;
     totalPaid: number;
@@ -50,7 +51,7 @@ export interface IStorage {
   }>;
   createCommission(commission: InsertCommission): Promise<Commission>;
   updateCommissionStatus(id: string, status: string): Promise<Commission | undefined>;
-  createCommissionForCustomer(customerId: string, partnerId: string): Promise<Commission | null>;
+  createCommissionForCustomer(customerId: string, partnerId: string): Promise<{ ddpCommission: Commission | null; bdpCommission: Commission | null }>;
   
   // Stats
   getBdpStats(bdpId: string): Promise<{
@@ -234,7 +235,17 @@ export class DatabaseStorage implements IStorage {
     return createdMilestones;
   }
   
-  async getCommissionsByPartnerId(partnerId: string): Promise<Commission[]> {
+  async getCommissionsByPartnerId(partnerId: string, partnerType?: string): Promise<Commission[]> {
+    if (partnerType) {
+      return db
+        .select()
+        .from(commissions)
+        .where(and(
+          eq(commissions.partnerId, partnerId),
+          eq(commissions.partnerType, partnerType)
+        ))
+        .orderBy(desc(commissions.createdAt));
+    }
     return db
       .select()
       .from(commissions)
@@ -242,13 +253,13 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(commissions.createdAt));
   }
   
-  async getCommissionSummaryByPartnerId(partnerId: string): Promise<{
+  async getCommissionSummaryByPartnerId(partnerId: string, partnerType?: string): Promise<{
     totalEarned: number;
     totalPending: number;
     totalPaid: number;
     totalInstallations: number;
   }> {
-    const partnerCommissions = await this.getCommissionsByPartnerId(partnerId);
+    const partnerCommissions = await this.getCommissionsByPartnerId(partnerId, partnerType);
     
     return {
       totalEarned: partnerCommissions.reduce((sum, c) => sum + c.commissionAmount, 0),
@@ -284,40 +295,80 @@ export class DatabaseStorage implements IStorage {
     return commission || undefined;
   }
   
-  async createCommissionForCustomer(customerId: string, partnerId: string): Promise<Commission | null> {
+  async createCommissionForCustomer(customerId: string, partnerId: string): Promise<{ ddpCommission: Commission | null; bdpCommission: Commission | null }> {
     const customer = await this.getCustomer(customerId);
     if (!customer || !customer.proposedCapacity) {
-      return null;
+      return { ddpCommission: null, bdpCommission: null };
     }
     
     const capacityKw = Math.round(parseFloat(customer.proposedCapacity) || 0);
     if (capacityKw <= 0) {
-      return null;
+      return { ddpCommission: null, bdpCommission: null };
     }
     
-    const existingCommissions = await db
+    let ddpCommission: Commission | null = null;
+    let bdpCommission: Commission | null = null;
+    
+    // Check for existing DDP commission
+    const existingDdpCommissions = await db
       .select()
       .from(commissions)
       .where(and(
         eq(commissions.customerId, customerId),
-        eq(commissions.partnerId, partnerId)
+        eq(commissions.partnerId, partnerId),
+        eq(commissions.partnerType, "ddp")
       ));
     
-    if (existingCommissions.length > 0) {
-      return existingCommissions[0];
+    const ddpCommissionAmount = calculateCommission(capacityKw);
+    
+    if (existingDdpCommissions.length === 0) {
+      // Create DDP commission
+      ddpCommission = await this.createCommission({
+        partnerId,
+        partnerType: "ddp",
+        customerId,
+        capacityKw,
+        commissionAmount: ddpCommissionAmount,
+        status: "pending",
+        paidAt: null,
+        notes: null,
+      });
+    } else {
+      ddpCommission = existingDdpCommissions[0];
     }
     
-    const commissionAmount = calculateCommission(capacityKw);
+    // Always check and create BDP commission (even if DDP already existed)
+    const ddp = await this.getUser(partnerId);
+    if (ddp?.parentId) {
+      const bdpCommissionAmount = Math.round(ddpCommissionAmount * bdpCommissionRate);
+      
+      // Check for existing BDP commission
+      const existingBdpCommissions = await db
+        .select()
+        .from(commissions)
+        .where(and(
+          eq(commissions.customerId, customerId),
+          eq(commissions.partnerId, ddp.parentId),
+          eq(commissions.partnerType, "bdp")
+        ));
+      
+      if (existingBdpCommissions.length === 0) {
+        bdpCommission = await this.createCommission({
+          partnerId: ddp.parentId,
+          partnerType: "bdp",
+          customerId,
+          capacityKw,
+          commissionAmount: bdpCommissionAmount,
+          status: "pending",
+          paidAt: null,
+          notes: `15% of DDP commission`,
+        });
+      } else {
+        bdpCommission = existingBdpCommissions[0];
+      }
+    }
     
-    return this.createCommission({
-      partnerId,
-      customerId,
-      capacityKw,
-      commissionAmount,
-      status: "pending",
-      paidAt: null,
-      notes: null,
-    });
+    return { ddpCommission, bdpCommission };
   }
 }
 

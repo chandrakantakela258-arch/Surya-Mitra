@@ -364,7 +364,7 @@ export async function registerRoutes(
   app.get("/api/ddp/commissions", requireDDP, async (req, res) => {
     try {
       const user = (req as any).user;
-      const commissions = await storage.getCommissionsByPartnerId(user.id);
+      const commissions = await storage.getCommissionsByPartnerId(user.id, "ddp");
       res.json(commissions);
     } catch (error) {
       console.error("Get commissions error:", error);
@@ -376,10 +376,34 @@ export async function registerRoutes(
   app.get("/api/ddp/commissions/summary", requireDDP, async (req, res) => {
     try {
       const user = (req as any).user;
-      const summary = await storage.getCommissionSummaryByPartnerId(user.id);
+      const summary = await storage.getCommissionSummaryByPartnerId(user.id, "ddp");
       res.json(summary);
     } catch (error) {
       console.error("Get commission summary error:", error);
+      res.status(500).json({ message: "Failed to get commission summary" });
+    }
+  });
+
+  // Get BDP's commissions
+  app.get("/api/bdp/commissions", requireBDP, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const commissions = await storage.getCommissionsByPartnerId(user.id, "bdp");
+      res.json(commissions);
+    } catch (error) {
+      console.error("Get BDP commissions error:", error);
+      res.status(500).json({ message: "Failed to get commissions" });
+    }
+  });
+
+  // Get BDP's commission summary
+  app.get("/api/bdp/commissions/summary", requireBDP, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const summary = await storage.getCommissionSummaryByPartnerId(user.id, "bdp");
+      res.json(summary);
+    } catch (error) {
+      console.error("Get BDP commission summary error:", error);
       res.status(500).json({ message: "Failed to get commission summary" });
     }
   });
