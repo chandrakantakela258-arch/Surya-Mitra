@@ -4,12 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sun, IndianRupee, Zap, TrendingDown, MapPin } from "lucide-react";
+import { Sun, IndianRupee, Zap, TrendingDown, MapPin, BatteryCharging, Power, Check } from "lucide-react";
 import { indianStates } from "@shared/schema";
 
 const stateSubsidies: Record<string, { ratePerKw: number; label: string }> = {
   "Odisha": { ratePerKw: 20000, label: "Odisha State Subsidy" },
   "Uttar Pradesh": { ratePerKw: 10000, label: "UP State Subsidy" },
+};
+
+const systemPricing: Record<number, number> = {
+  3: 225000,
+  5: 375000,
 };
 
 interface SubsidyResult {
@@ -26,8 +31,7 @@ interface SubsidyResult {
 }
 
 function calculateSubsidy(capacityKW: number, state: string = ""): SubsidyResult {
-  const costPerKW = 60000;
-  const totalCost = capacityKW * costPerKW;
+  const totalCost = systemPricing[capacityKW] || capacityKW * 75000;
   
   let centralSubsidy = 0;
   if (capacityKW <= 3) {
@@ -297,6 +301,45 @@ export function SubsidyCalculator({
             </div>
           </div>
         </div>
+        
+        <Card className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30 border-orange-200 dark:border-orange-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg text-orange-700 dark:text-orange-300">
+              <Power className="w-5 h-5" />
+              3-in-1 Hybrid Inverter - Exclusive Features
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex items-start gap-3 p-3 bg-background rounded-lg">
+                <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center flex-shrink-0">
+                  <Zap className="w-4 h-4 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <p className="font-medium text-sm">Works During Power Cuts</p>
+                  <p className="text-xs text-muted-foreground">
+                    Our solar plant works even when grid power is off. Other solar plants stop working during power cuts.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 bg-background rounded-lg">
+                <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center flex-shrink-0">
+                  <BatteryCharging className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <p className="font-medium text-sm">Battery Ready for Night Use</p>
+                  <p className="text-xs text-muted-foreground">
+                    Add a battery later to store power for night usage. Other plants cannot support battery storage.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-orange-700 dark:text-orange-300 pt-2 border-t border-orange-200 dark:border-orange-800">
+              <Check className="w-4 h-4" />
+              <span className="font-medium">Included: 3-in-1 Hybrid Inverter with your solar plant at no extra cost</span>
+            </div>
+          </CardContent>
+        </Card>
         
         <div className="text-xs text-muted-foreground space-y-1">
           <p>* Central Subsidy: Up to 3 kW - Rs 30,000/kW | 3-10 kW - Rs 18,000/kW (above 3 kW) | Maximum - Rs 78,000</p>

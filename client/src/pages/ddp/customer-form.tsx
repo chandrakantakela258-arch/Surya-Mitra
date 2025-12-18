@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation } from "wouter";
-import { Loader2, ArrowLeft, Sun, IndianRupee, TrendingDown } from "lucide-react";
+import { Loader2, ArrowLeft, Sun, IndianRupee, TrendingDown, Zap, BatteryCharging } from "lucide-react";
 import { customerFormSchema, indianStates, roofTypes } from "@shared/schema";
 import { calculateSubsidy, formatINR } from "@/components/subsidy-calculator";
 import type { z } from "zod";
@@ -29,46 +29,64 @@ function SubsidyEstimateCard({ capacity }: { capacity: string | null | undefined
             Subsidy Estimate
           </CardTitle>
           <CardDescription>
-            Enter proposed capacity above to see subsidy calculation
+            Select proposed capacity above to see subsidy calculation
           </CardDescription>
         </CardHeader>
       </Card>
     );
   }
   
-  const result = calculateSubsidy(Math.min(capacityNum, 10));
+  const result = calculateSubsidy(capacityNum);
   
   return (
-    <Card className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg text-green-700 dark:text-green-300">
-          <TrendingDown className="w-5 h-5" />
-          Subsidy Estimate for {capacityNum} kW System
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-          <div className="p-3 bg-background rounded-lg">
-            <p className="text-sm text-muted-foreground">System Cost</p>
-            <p className="text-xl font-semibold font-mono">{formatINR(result.totalCost)}</p>
+    <div className="space-y-4">
+      <Card className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg text-green-700 dark:text-green-300">
+            <TrendingDown className="w-5 h-5" />
+            Subsidy Estimate for {capacityNum} kW System
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+            <div className="p-3 bg-background rounded-lg">
+              <p className="text-sm text-muted-foreground">System Cost</p>
+              <p className="text-xl font-semibold font-mono">{formatINR(result.totalCost)}</p>
+              <p className="text-xs text-muted-foreground">with 3-in-1 Hybrid Inverter</p>
+            </div>
+            <div className="p-3 bg-green-100 dark:bg-green-900/50 rounded-lg">
+              <p className="text-sm text-green-600 dark:text-green-400">Government Subsidy</p>
+              <p className="text-xl font-semibold font-mono text-green-600 dark:text-green-400">
+                - {formatINR(result.centralSubsidy)}
+              </p>
+            </div>
+            <div className="p-3 bg-background rounded-lg">
+              <p className="text-sm text-muted-foreground">Customer Pays</p>
+              <p className="text-xl font-semibold font-mono text-primary">{formatINR(result.netCost)}</p>
+            </div>
           </div>
-          <div className="p-3 bg-green-100 dark:bg-green-900/50 rounded-lg">
-            <p className="text-sm text-green-600 dark:text-green-400">Government Subsidy</p>
-            <p className="text-xl font-semibold font-mono text-green-600 dark:text-green-400">
-              - {formatINR(result.subsidyAmount)}
-            </p>
+          <div className="mt-4 text-center text-sm text-muted-foreground">
+            Estimated annual savings: <span className="font-medium text-orange-600 dark:text-orange-400">{formatINR(result.annualSavings)}</span>
+            {" | "}Payback period: <span className="font-medium">{result.paybackYears} years</span>
           </div>
-          <div className="p-3 bg-background rounded-lg">
-            <p className="text-sm text-muted-foreground">Customer Pays</p>
-            <p className="text-xl font-semibold font-mono text-primary">{formatINR(result.netCost)}</p>
+        </CardContent>
+      </Card>
+      
+      <Card className="bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800">
+        <CardContent className="pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="flex items-center gap-2 text-sm">
+              <Zap className="w-4 h-4 text-green-600" />
+              <span>Works during power cuts (others don't)</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <BatteryCharging className="w-4 h-4 text-blue-600" />
+              <span>Battery ready for night use (others can't)</span>
+            </div>
           </div>
-        </div>
-        <div className="mt-4 text-center text-sm text-muted-foreground">
-          Estimated annual savings: <span className="font-medium text-orange-600 dark:text-orange-400">{formatINR(result.annualSavings)}</span>
-          {" | "}Payback period: <span className="font-medium">{result.paybackYears} years</span>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
