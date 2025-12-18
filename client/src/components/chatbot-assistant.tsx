@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, cloneElement, isValidElement, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { MessageCircleQuestion, X, Search, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,11 +6,22 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import type { ChatbotFaq } from "@shared/schema";
+
+interface ChatbotAssistantProps {
+  trigger?: ReactNode;
+}
 
 const defaultFaqs: ChatbotFaq[] = [
   {
@@ -75,7 +86,7 @@ const defaultFaqs: ChatbotFaq[] = [
   },
 ];
 
-export function ChatbotAssistant() {
+export function ChatbotAssistant({ trigger }: ChatbotAssistantProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedFaq, setExpandedFaq] = useState<string | null>(null);
@@ -110,6 +121,85 @@ export function ChatbotAssistant() {
     partner: "Partner Program",
   };
 
+  const faqContent = (
+    <>
+      <div className="p-3 border-b">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search for help..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+            data-testid="input-chatbot-search"
+          />
+        </div>
+      </div>
+      <ScrollArea className="h-[350px]">
+        <div className="p-3 space-y-3">
+          {Object.entries(groupedFaqs).map(([category, categoryFaqs]) => (
+            <div key={category}>
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2">
+                {categoryLabels[category] || category}
+              </h4>
+              <div className="space-y-1">
+                {categoryFaqs.map((faq) => (
+                  <Collapsible
+                    key={faq.id}
+                    open={expandedFaq === faq.id}
+                    onOpenChange={() =>
+                      setExpandedFaq(expandedFaq === faq.id ? null : faq.id)
+                    }
+                  >
+                    <CollapsibleTrigger className="flex items-center justify-between w-full p-2 text-left text-sm rounded-md hover-elevate">
+                      <span className="flex-1 pr-2">{faq.question}</span>
+                      {expandedFaq === faq.id ? (
+                        <ChevronDown className="h-4 w-4 shrink-0" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 shrink-0" />
+                      )}
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="px-2 pb-2">
+                      <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
+                        {faq.answer}
+                      </p>
+                    </CollapsibleContent>
+                  </Collapsible>
+                ))}
+              </div>
+            </div>
+          ))}
+          {filteredFaqs.length === 0 && (
+            <div className="text-center text-muted-foreground py-8">
+              No matching questions found. Try a different search term.
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+    </>
+  );
+
+  // If a trigger is provided, use Dialog pattern
+  if (trigger) {
+    return (
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogTrigger asChild>
+          {trigger}
+        </DialogTrigger>
+        <DialogContent className="max-w-md p-0">
+          <DialogHeader className="p-4 pb-0">
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircleQuestion className="h-5 w-5" />
+              Help Assistant
+            </DialogTitle>
+          </DialogHeader>
+          {faqContent}
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Floating button pattern (default)
   if (!isOpen) {
     return (
       <Button
@@ -139,61 +229,7 @@ export function ChatbotAssistant() {
           <X className="h-4 w-4" />
         </Button>
       </CardHeader>
-      <div className="p-3 border-b">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search for help..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-            data-testid="input-chatbot-search"
-          />
-        </div>
-      </div>
-      <CardContent className="p-0 flex-1 overflow-hidden">
-        <ScrollArea className="h-[350px]">
-          <div className="p-3 space-y-3">
-            {Object.entries(groupedFaqs).map(([category, categoryFaqs]) => (
-              <div key={category}>
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2">
-                  {categoryLabels[category] || category}
-                </h4>
-                <div className="space-y-1">
-                  {categoryFaqs.map((faq) => (
-                    <Collapsible
-                      key={faq.id}
-                      open={expandedFaq === faq.id}
-                      onOpenChange={() =>
-                        setExpandedFaq(expandedFaq === faq.id ? null : faq.id)
-                      }
-                    >
-                      <CollapsibleTrigger className="flex items-center justify-between w-full p-2 text-left text-sm rounded-md hover-elevate">
-                        <span className="flex-1 pr-2">{faq.question}</span>
-                        {expandedFaq === faq.id ? (
-                          <ChevronDown className="h-4 w-4 shrink-0" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 shrink-0" />
-                        )}
-                      </CollapsibleTrigger>
-                      <CollapsibleContent className="px-2 pb-2">
-                        <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
-                          {faq.answer}
-                        </p>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  ))}
-                </div>
-              </div>
-            ))}
-            {filteredFaqs.length === 0 && (
-              <div className="text-center text-muted-foreground py-8">
-                No matching questions found. Try a different search term.
-              </div>
-            )}
-          </div>
-        </ScrollArea>
-      </CardContent>
+      {faqContent}
     </Card>
   );
 }

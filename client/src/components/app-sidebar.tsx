@@ -15,8 +15,10 @@ import {
   ShoppingCart,
   UserCheck,
   MessageSquare,
+  HelpCircle,
 } from "lucide-react";
 import { FeedbackDialog } from "@/components/feedback-dialog";
+import { ChatbotAssistant } from "@/components/chatbot-assistant";
 import {
   Sidebar,
   SidebarContent,
@@ -134,6 +136,24 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Support</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <ChatbotAssistant
+                  trigger={
+                    <SidebarMenuButton data-testid="button-help-assistant">
+                      <HelpCircle className="w-4 h-4" />
+                      <span>Help Assistant</span>
+                    </SidebarMenuButton>
+                  }
+                />
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
