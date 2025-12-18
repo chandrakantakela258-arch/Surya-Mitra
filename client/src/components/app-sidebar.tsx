@@ -14,7 +14,9 @@ import {
   Package,
   ShoppingCart,
   UserCheck,
+  MessageSquare,
 } from "lucide-react";
+import { FeedbackDialog } from "@/components/feedback-dialog";
 import {
   Sidebar,
   SidebarContent,
@@ -41,6 +43,7 @@ const adminMenuItems = [
   { title: "Products", url: "/admin/products", icon: Package },
   { title: "Orders", url: "/admin/orders", icon: ShoppingCart },
   { title: "Commission Payouts", url: "/admin/payouts", icon: Wallet },
+  { title: "User Feedback", url: "/admin/feedback", icon: MessageSquare },
   { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },
 ];
 
@@ -152,6 +155,16 @@ export function AppSidebar() {
             </div>
           </div>
         </div>
+        {user?.role !== "admin" && (
+          <FeedbackDialog
+            trigger={
+              <Button variant="outline" className="w-full justify-start mb-2" data-testid="button-open-feedback">
+                <MessageSquare className="w-4 h-4 mr-2" />
+                Send Feedback
+              </Button>
+            }
+          />
+        )}
         <Button
           variant="ghost"
           className="w-full justify-start"

@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import session from "express-session";
 import { storage } from "./storage";
-import { registerUserSchema, loginSchema, customerFormSchema } from "@shared/schema";
+import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSchema, updateFeedbackStatusSchema } from "@shared/schema";
 import { z } from "zod";
 
 // Extend express-session types
@@ -1186,6 +1186,68 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Webhook error:", error);
       res.status(500).json({ message: "Webhook processing failed" });
+    }
+  });
+
+  // ============ FEEDBACK ROUTES ============
+  
+  // Submit feedback (authenticated users)
+  app.post("/api/feedback", requireAuth, async (req, res) => {
+    try {
+      const validatedData = insertFeedbackSchema.omit({ userId: true }).parse(req.body);
+      
+      const feedback = await storage.createFeedback({
+        userId: req.session.userId!,
+        ...validatedData,
+      });
+      
+      res.status(201).json(feedback);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      console.error("Create feedback error:", error);
+      res.status(500).json({ message: "Failed to submit feedback" });
+    }
+  });
+  
+  // Get user's own feedback
+  app.get("/api/feedback", requireAuth, async (req, res) => {
+    try {
+      const feedback = await storage.getFeedbackByUserId(req.session.userId!);
+      res.json(feedback);
+    } catch (error) {
+      console.error("Get feedback error:", error);
+      res.status(500).json({ message: "Failed to get feedback" });
+    }
+  });
+  
+  // Admin: Get all feedback
+  app.get("/api/admin/feedback", requireAdmin, async (req, res) => {
+    try {
+      const feedback = await storage.getAllFeedback();
+      res.json(feedback);
+    } catch (error) {
+      console.error("Get all feedback error:", error);
+      res.status(500).json({ message: "Failed to get feedback" });
+    }
+  });
+  
+  // Admin: Update feedback status
+  app.patch("/api/admin/feedback/:id", requireAdmin, async (req, res) => {
+    try {
+      const validatedData = updateFeedbackStatusSchema.parse(req.body);
+      const feedback = await storage.updateFeedbackStatus(req.params.id, validatedData.status, validatedData.adminNotes);
+      if (!feedback) {
+        return res.status(404).json({ message: "Feedback not found" });
+      }
+      res.json(feedback);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      console.error("Update feedback error:", error);
+      res.status(500).json({ message: "Failed to update feedback" });
     }
   });
 

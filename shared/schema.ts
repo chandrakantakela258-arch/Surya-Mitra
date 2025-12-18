@@ -346,6 +346,24 @@ export const insertFeedbackSchema = createInsertSchema(feedback).omit({
   updatedAt: true,
   status: true,
   adminNotes: true,
+}).extend({
+  type: z.enum(["bug", "suggestion", "complaint", "other"]),
+  subject: z.string().min(5, "Subject must be at least 5 characters"),
+  message: z.string().min(20, "Message must be at least 20 characters"),
+});
+
+export const feedbackTypes = [
+  { value: "bug", label: "Report a Bug" },
+  { value: "suggestion", label: "Suggestion" },
+  { value: "complaint", label: "Complaint" },
+  { value: "other", label: "Other" },
+];
+
+export const feedbackStatuses = ["pending", "reviewed", "resolved"] as const;
+
+export const updateFeedbackStatusSchema = z.object({
+  status: z.enum(feedbackStatuses),
+  adminNotes: z.string().optional(),
 });
 
 // Extended schemas with validation

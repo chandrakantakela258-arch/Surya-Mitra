@@ -9,6 +9,7 @@ import {
   orders,
   orderItems,
   payments,
+  feedback,
   type User, 
   type InsertUser, 
   type Customer, 
@@ -29,6 +30,8 @@ import {
   type InsertOrderItem,
   type Payment,
   type InsertPayment,
+  type Feedback,
+  type InsertFeedback,
   installationMilestones,
   calculateCommission,
   calculateBdpCommission
@@ -140,6 +143,12 @@ export interface IStorage {
   getRecentPartners(limit: number): Promise<User[]>;
   getAllCustomers(): Promise<Customer[]>;
   getRecentCustomers(limit: number): Promise<Customer[]>;
+  
+  // Feedback operations
+  getAllFeedback(): Promise<Feedback[]>;
+  getFeedbackByUserId(userId: string): Promise<Feedback[]>;
+  createFeedback(feedback: InsertFeedback): Promise<Feedback>;
+  updateFeedbackStatus(id: string, status: string, adminNotes?: string): Promise<Feedback | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -755,6 +764,39 @@ export class DatabaseStorage implements IStorage {
   async getPaymentByRazorpayId(razorpayPaymentId: string): Promise<Payment | undefined> {
     const [payment] = await db.select().from(payments).where(eq(payments.razorpayPaymentId, razorpayPaymentId));
     return payment || undefined;
+  }
+
+  // Feedback operations
+  async getAllFeedback(): Promise<Feedback[]> {
+    return db
+      .select()
+      .from(feedback)
+      .orderBy(desc(feedback.createdAt));
+  }
+
+  async getFeedbackByUserId(userId: string): Promise<Feedback[]> {
+    return db
+      .select()
+      .from(feedback)
+      .where(eq(feedback.userId, userId))
+      .orderBy(desc(feedback.createdAt));
+  }
+
+  async createFeedback(insertFeedback: InsertFeedback): Promise<Feedback> {
+    const [newFeedback] = await db
+      .insert(feedback)
+      .values(insertFeedback)
+      .returning();
+    return newFeedback;
+  }
+
+  async updateFeedbackStatus(id: string, status: string, adminNotes?: string): Promise<Feedback | undefined> {
+    const [updated] = await db
+      .update(feedback)
+      .set({ status, adminNotes, updatedAt: new Date() })
+      .where(eq(feedback.id, id))
+      .returning();
+    return updated || undefined;
   }
 }
 

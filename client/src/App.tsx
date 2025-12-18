@@ -33,6 +33,7 @@ import AdminCustomers from "@/pages/admin/customers";
 import AdminPayouts from "@/pages/admin/payouts";
 import AdminProducts from "@/pages/admin/products";
 import AdminOrders from "@/pages/admin/orders";
+import AdminFeedback from "@/pages/admin/feedback";
 import ProfilePage from "@/pages/profile";
 
 function LoadingScreen() {
@@ -155,6 +156,13 @@ function AuthenticatedRoutes() {
         <ProtectedRoute allowedRoles={["admin"]}>
           <DashboardLayout>
             <AdminOrders />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/feedback">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminFeedback />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
