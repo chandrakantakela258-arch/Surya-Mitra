@@ -93,6 +93,55 @@ export const milestonesRelations = relations(milestones, ({ one }) => ({
   }),
 }));
 
+// Partner Bank Details for Razorpay Payouts
+export const bankAccounts = pgTable("bank_accounts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  partnerId: varchar("partner_id").notNull().unique(),
+  accountHolderName: text("account_holder_name").notNull(),
+  accountNumber: text("account_number").notNull(),
+  ifscCode: text("ifsc_code").notNull(),
+  bankName: text("bank_name"),
+  razorpayContactId: text("razorpay_contact_id"), // Razorpay contact ID
+  razorpayFundAccountId: text("razorpay_fund_account_id"), // Razorpay fund account ID
+  verified: text("verified").default("pending"), // pending, verified, failed
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const bankAccountsRelations = relations(bankAccounts, ({ one }) => ({
+  partner: one(users, {
+    fields: [bankAccounts.partnerId],
+    references: [users.id],
+  }),
+}));
+
+// Razorpay Payout Transactions
+export const payouts = pgTable("payouts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  partnerId: varchar("partner_id").notNull(),
+  commissionId: varchar("commission_id"), // Link to commission record if applicable
+  amount: integer("amount").notNull(), // in INR
+  razorpayPayoutId: text("razorpay_payout_id"), // Razorpay payout ID
+  razorpayStatus: text("razorpay_status"), // processing, processed, reversed, cancelled
+  mode: text("mode").default("IMPS"), // IMPS, NEFT, RTGS, UPI
+  utr: text("utr"), // Unique Transaction Reference
+  status: text("status").notNull().default("pending"), // pending, processing, completed, failed
+  failureReason: text("failure_reason"),
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const payoutsRelations = relations(payouts, ({ one }) => ({
+  partner: one(users, {
+    fields: [payouts.partnerId],
+    references: [users.id],
+  }),
+  commission: one(commissions, {
+    fields: [payouts.commissionId],
+    references: [commissions.id],
+  }),
+}));
+
 // Partner Commissions
 export const commissions = pgTable("commissions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -140,6 +189,19 @@ export const insertCommissionSchema = createInsertSchema(commissions).omit({
   createdAt: true,
 });
 
+export const insertBankAccountSchema = createInsertSchema(bankAccounts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  razorpayContactId: true,
+  razorpayFundAccountId: true,
+});
+
+export const insertPayoutSchema = createInsertSchema(payouts).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Extended schemas with validation
 export const registerUserSchema = insertUserSchema.extend({
   username: z.string().min(3, "Username must be at least 3 characters"),
@@ -174,6 +236,10 @@ export type InsertMilestone = z.infer<typeof insertMilestoneSchema>;
 export type Milestone = typeof milestones.$inferSelect;
 export type InsertCommission = z.infer<typeof insertCommissionSchema>;
 export type Commission = typeof commissions.$inferSelect;
+export type InsertBankAccount = z.infer<typeof insertBankAccountSchema>;
+export type BankAccount = typeof bankAccounts.$inferSelect;
+export type InsertPayout = z.infer<typeof insertPayoutSchema>;
+export type Payout = typeof payouts.$inferSelect;
 
 // Indian states for dropdown
 export const indianStates = [
