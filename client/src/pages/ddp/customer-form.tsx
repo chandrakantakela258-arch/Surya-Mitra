@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation } from "wouter";
 import { Loader2, ArrowLeft, Sun, IndianRupee, TrendingDown, Zap, BatteryCharging } from "lucide-react";
-import { customerFormSchema, indianStates, roofTypes } from "@shared/schema";
+import { customerFormSchema, indianStates, roofTypes, panelTypes } from "@shared/schema";
 import { calculateSubsidy, formatINR } from "@/components/subsidy-calculator";
 import type { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
@@ -17,8 +17,9 @@ import { Separator } from "@/components/ui/separator";
 
 type CustomerFormValues = z.infer<typeof customerFormSchema>;
 
-function SubsidyEstimateCard({ capacity }: { capacity: string | null | undefined }) {
+function SubsidyEstimateCard({ capacity, panelType }: { capacity: string | null | undefined; panelType: string }) {
   const capacityNum = parseFloat(capacity || "0") || 0;
+  const isNonDcr = panelType === "non_dcr";
   
   if (capacityNum <= 0) {
     return (
@@ -26,25 +27,56 @@ function SubsidyEstimateCard({ capacity }: { capacity: string | null | undefined
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <IndianRupee className="w-5 h-5 text-primary" />
-            Subsidy Estimate
+            {isNonDcr ? "Cost Estimate" : "Subsidy Estimate"}
           </CardTitle>
           <CardDescription>
-            Select proposed capacity above to see subsidy calculation
+            Select proposed capacity above to see {isNonDcr ? "cost" : "subsidy"} calculation
           </CardDescription>
         </CardHeader>
       </Card>
     );
   }
   
-  const result = calculateSubsidy(capacityNum);
+  const result = calculateSubsidy(capacityNum, "", panelType);
   
+  if (isNonDcr) {
+    return (
+      <Card className="bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg text-orange-700 dark:text-orange-300">
+            <IndianRupee className="w-5 h-5" />
+            Cost Estimate for {capacityNum} kW Non-DCR System
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
+            <div className="p-3 bg-background rounded-lg">
+              <p className="text-sm text-muted-foreground">System Cost</p>
+              <p className="text-xl font-semibold font-mono">{formatINR(result.totalCost)}</p>
+              <p className="text-xs text-muted-foreground">Rs 55,000 per kW</p>
+            </div>
+            <div className="p-3 bg-background rounded-lg">
+              <p className="text-sm text-muted-foreground">Customer Pays</p>
+              <p className="text-xl font-semibold font-mono text-primary">{formatINR(result.totalCost)}</p>
+              <p className="text-xs text-muted-foreground">No government subsidy</p>
+            </div>
+          </div>
+          <div className="mt-4 text-center text-sm text-muted-foreground">
+            Estimated annual savings: <span className="font-medium text-orange-600 dark:text-orange-400">{formatINR(result.annualSavings)}</span>
+            {" | "}Payback period: <span className="font-medium">{result.paybackYears} years</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <Card className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg text-green-700 dark:text-green-300">
             <TrendingDown className="w-5 h-5" />
-            Subsidy Estimate for {capacityNum} kW System
+            Subsidy Estimate for {capacityNum} kW DCR System
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -111,6 +143,7 @@ export default function CustomerForm() {
       avgMonthlyBill: undefined,
       roofType: "",
       roofArea: undefined,
+      panelType: "dcr",
       proposedCapacity: "",
       status: "pending",
       documents: [],
@@ -468,34 +501,81 @@ export default function CustomerForm() {
 
                 <FormField
                   control={form.control}
-                  name="proposedCapacity"
+                  name="panelType"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Proposed Capacity (kW)</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <FormLabel>Panel Type</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || "dcr"}>
                         <FormControl>
-                          <SelectTrigger data-testid="select-proposed-capacity">
-                            <SelectValue placeholder="Select capacity" />
+                          <SelectTrigger data-testid="select-panel-type">
+                            <SelectValue placeholder="Select panel type" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="3">3 kW</SelectItem>
-                          <SelectItem value="5">5 kW</SelectItem>
+                          {panelTypes.map((type) => (
+                            <SelectItem key={type.value} value={type.value}>
+                              {type.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormDescription>
-                        Choose 3 kW or 5 kW based on roof area and consumption
+                        DCR panels are eligible for government subsidy
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="proposedCapacity"
+                  render={({ field }) => {
+                    const panelType = form.watch("panelType") || "dcr";
+                    const isDcr = panelType === "dcr";
+                    
+                    return (
+                      <FormItem>
+                        <FormLabel>Proposed Capacity (kW)</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-proposed-capacity">
+                              <SelectValue placeholder="Select capacity" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {isDcr ? (
+                              <>
+                                <SelectItem value="3">3 kW</SelectItem>
+                                <SelectItem value="5">5 kW</SelectItem>
+                              </>
+                            ) : (
+                              <>
+                                <SelectItem value="6">6 kW</SelectItem>
+                                <SelectItem value="7">7 kW</SelectItem>
+                                <SelectItem value="8">8 kW</SelectItem>
+                                <SelectItem value="9">9 kW</SelectItem>
+                                <SelectItem value="10">10 kW</SelectItem>
+                              </>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          {isDcr 
+                            ? "DCR panels: Choose 3 kW or 5 kW (government subsidy eligible)" 
+                            : "Non-DCR panels: 6-10 kW options at Rs 55,000/kW"}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
               </div>
             </CardContent>
           </Card>
 
           {/* Subsidy Estimate */}
-          <SubsidyEstimateCard capacity={form.watch("proposedCapacity")} />
+          <SubsidyEstimateCard capacity={form.watch("proposedCapacity")} panelType={form.watch("panelType") || "dcr"} />
 
           {/* Submit Buttons */}
           <div className="flex gap-4">

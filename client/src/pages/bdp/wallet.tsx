@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { StatCard } from "@/components/stat-card";
 import { TableSkeleton } from "@/components/loading-skeleton";
 import { EmptyState } from "@/components/empty-state";
-import { commissionSchedule, type Commission } from "@shared/schema";
+import { dcrFixedCommission, dcrPerKwRates, nonDcrPerKwRates, type Commission } from "@shared/schema";
 import { formatINR } from "@/components/subsidy-calculator";
 
 function CommissionStatusBadge({ status }: { status: string }) {
@@ -139,7 +139,7 @@ export default function BDPWallet() {
               <EmptyState
                 icon={IndianRupee}
                 title="No commissions yet"
-                description="When your district partners complete solar installations, you'll earn 15% of their commission here."
+                description="When your district partners complete solar installations, you'll earn commissions based on the installation type and capacity."
               />
             ) : (
               <Table>
@@ -187,26 +187,39 @@ export default function BDPWallet() {
               <Wallet className="w-5 h-5 text-primary" />
               Commission Structure
             </CardTitle>
-            <CardDescription>Fixed earnings per installation</CardDescription>
+            <CardDescription>Your earnings per installation type</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div className="p-4 rounded-lg bg-primary/10 flex items-center justify-between gap-4 flex-wrap">
-                <div>
-                  <p className="font-medium">3 kW Installation</p>
-                  <p className="text-xs text-muted-foreground">Your fixed earning</p>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">DCR Panels</p>
+              <div className="space-y-2">
+                <div className="p-3 rounded-lg bg-primary/10 flex items-center justify-between gap-4 flex-wrap">
+                  <span className="text-sm">3 kW</span>
+                  <Badge variant="outline" className="font-mono">
+                    {formatINR(dcrFixedCommission[3]?.bdp || 0)}
+                  </Badge>
                 </div>
-                <Badge variant="outline" className="font-mono text-lg">
-                  {formatINR(commissionSchedule[3]?.bdp || 0)}
-                </Badge>
+                <div className="p-3 rounded-lg bg-primary/10 flex items-center justify-between gap-4 flex-wrap">
+                  <span className="text-sm">5 kW</span>
+                  <Badge variant="outline" className="font-mono">
+                    {formatINR(dcrFixedCommission[5]?.bdp || 0)}
+                  </Badge>
+                </div>
+                <div className="p-3 rounded-lg bg-primary/10 flex items-center justify-between gap-4 flex-wrap">
+                  <span className="text-sm">6-10 kW</span>
+                  <Badge variant="outline" className="font-mono">
+                    {formatINR(dcrPerKwRates.bdp)}/kW
+                  </Badge>
+                </div>
               </div>
-              <div className="p-4 rounded-lg bg-primary/10 flex items-center justify-between gap-4 flex-wrap">
-                <div>
-                  <p className="font-medium">5 kW Installation</p>
-                  <p className="text-xs text-muted-foreground">Your fixed earning</p>
-                </div>
-                <Badge variant="outline" className="font-mono text-lg">
-                  {formatINR(commissionSchedule[5]?.bdp || 0)}
+            </div>
+            
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">Non-DCR Panels</p>
+              <div className="p-3 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-between gap-4 flex-wrap">
+                <span className="text-sm">6-10 kW</span>
+                <Badge variant="outline" className="font-mono">
+                  {formatINR(nonDcrPerKwRates.bdp)}/kW
                 </Badge>
               </div>
             </div>
@@ -214,16 +227,24 @@ export default function BDPWallet() {
             <div className="p-4 rounded-lg bg-muted/50 space-y-3">
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4 text-muted-foreground" />
-                <span className="font-medium">DDP Earnings (for reference)</span>
+                <span className="font-medium text-sm">DDP Rates (reference)</span>
               </div>
-              <div className="text-sm space-y-2">
+              <div className="text-xs space-y-1">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">3 kW installation</span>
-                  <span className="font-mono">{formatINR(commissionSchedule[3]?.ddp || 0)}</span>
+                  <span className="text-muted-foreground">DCR 3 kW</span>
+                  <span className="font-mono">{formatINR(dcrFixedCommission[3]?.ddp || 0)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">5 kW installation</span>
-                  <span className="font-mono">{formatINR(commissionSchedule[5]?.ddp || 0)}</span>
+                  <span className="text-muted-foreground">DCR 5 kW</span>
+                  <span className="font-mono">{formatINR(dcrFixedCommission[5]?.ddp || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">DCR 6-10 kW</span>
+                  <span className="font-mono">{formatINR(dcrPerKwRates.ddp)}/kW</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Non-DCR</span>
+                  <span className="font-mono">{formatINR(nonDcrPerKwRates.ddp)}/kW</span>
                 </div>
               </div>
             </div>

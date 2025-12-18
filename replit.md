@@ -15,12 +15,27 @@ Preferred communication style: Simple, everyday language.
 
 ## Business Rules
 
-- **Capacity Options**: The platform only supports 3 kW and 5 kW solar installations (no other capacities)
-- **System Pricing**: 3 kW = Rs 2,25,000 | 5 kW = Rs 3,50,000 (includes 3-in-1 Hybrid Inverter)
-- **State Subsidies**: Odisha (+Rs 20,000/kW) and Uttar Pradesh (+Rs 10,000/kW) offer additional subsidies on top of central subsidy
-- **Commission Structure (Fixed Amounts)**:
-  - DDP: Rs 20,000 (3 kW) | Rs 35,000 (5 kW)
-  - BDP: Rs 10,000 (3 kW) | Rs 15,000 (5 kW)
+### Panel Types & Capacity Options
+- **DCR Panels (Domestic Content Requirement)**: 3 kW and 5 kW (government subsidy eligible)
+- **Non-DCR Panels**: 6-10 kW capacity options
+
+### System Pricing
+- **DCR Panels**: 3 kW = Rs 2,25,000 | 5 kW = Rs 3,50,000 (includes 3-in-1 Hybrid Inverter)
+- **Non-DCR Panels**: Rs 55,000 per kW
+
+### State Subsidies
+- Odisha: +Rs 20,000/kW additional subsidy
+- Uttar Pradesh: +Rs 10,000/kW additional subsidy
+- (Subsidies are additive to central subsidy for DCR panels only)
+
+### Commission Structure
+**DCR Panels:**
+- 3 kW: DDP Rs 20,000 | BDP Rs 10,000
+- 5 kW: DDP Rs 35,000 | BDP Rs 15,000
+- 6-10 kW: DDP Rs 6,000/kW | BDP Rs 3,000/kW
+
+**Non-DCR Panels:**
+- All capacities: DDP Rs 4,000/kW | BDP Rs 2,000/kW
 
 ## System Architecture
 

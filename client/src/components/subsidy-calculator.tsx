@@ -17,6 +17,8 @@ const systemPricing: Record<number, number> = {
   5: 350000,
 };
 
+const nonDcrPricePerKw = 55000;
+
 interface SubsidyResult {
   capacity: number;
   totalCost: number;
@@ -30,22 +32,31 @@ interface SubsidyResult {
   state: string;
 }
 
-function calculateSubsidy(capacityKW: number, state: string = ""): SubsidyResult {
-  const totalCost = systemPricing[capacityKW] || capacityKW * 75000;
-  
-  let centralSubsidy = 0;
-  if (capacityKW <= 3) {
-    centralSubsidy = capacityKW * 30000;
-  } else if (capacityKW <= 10) {
-    centralSubsidy = 3 * 30000 + (capacityKW - 3) * 18000;
+function calculateSubsidy(capacityKW: number, state: string = "", panelType: string = "dcr"): SubsidyResult {
+  let totalCost: number;
+  if (panelType === "non_dcr") {
+    totalCost = capacityKW * nonDcrPricePerKw;
   } else {
-    centralSubsidy = 3 * 30000 + 7 * 18000;
+    totalCost = systemPricing[capacityKW] || capacityKW * 75000;
   }
-  centralSubsidy = Math.min(centralSubsidy, 78000);
   
+  // No subsidy for Non-DCR panels
+  let centralSubsidy = 0;
   let stateSubsidy = 0;
-  if (state && stateSubsidies[state]) {
-    stateSubsidy = capacityKW * stateSubsidies[state].ratePerKw;
+  
+  if (panelType !== "non_dcr") {
+    if (capacityKW <= 3) {
+      centralSubsidy = capacityKW * 30000;
+    } else if (capacityKW <= 10) {
+      centralSubsidy = 3 * 30000 + (capacityKW - 3) * 18000;
+    } else {
+      centralSubsidy = 3 * 30000 + 7 * 18000;
+    }
+    centralSubsidy = Math.min(centralSubsidy, 78000);
+    
+    if (state && stateSubsidies[state]) {
+      stateSubsidy = capacityKW * stateSubsidies[state].ratePerKw;
+    }
   }
   
   const totalSubsidy = centralSubsidy + stateSubsidy;

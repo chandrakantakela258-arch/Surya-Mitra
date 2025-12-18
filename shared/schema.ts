@@ -50,6 +50,7 @@ export const customers = pgTable("customers", {
   // Roof details
   roofType: text("roof_type"), // RCC, Tin, Tile, etc.
   roofArea: integer("roof_area"), // in sq ft
+  panelType: text("panel_type").default("dcr"), // dcr or non_dcr
   proposedCapacity: text("proposed_capacity"), // in kW
   
   // Application status
@@ -216,28 +217,68 @@ export const installationMilestones = [
   { key: "subsidy_received", label: "Subsidy Received", description: "Subsidy amount credited" },
 ];
 
-// Fixed commission amounts by capacity (in INR)
-export const commissionSchedule: Record<number, { ddp: number; bdp: number }> = {
+// Panel types
+export const panelTypes = [
+  { value: "dcr", label: "DCR Panel (Domestic Content)" },
+  { value: "non_dcr", label: "Non-DCR Panel" },
+];
+
+// Fixed commission amounts for DCR panels 3kW and 5kW (in INR)
+export const dcrFixedCommission: Record<number, { ddp: number; bdp: number }> = {
   3: { ddp: 20000, bdp: 10000 },
   5: { ddp: 35000, bdp: 15000 },
 };
 
-// Calculate DDP commission based on capacity
-export function calculateCommission(capacityKw: number): number {
-  const schedule = commissionSchedule[capacityKw];
-  if (schedule) {
-    return schedule.ddp;
+// Per-kW commission rates for DCR panels above 5kW (up to 10kW)
+export const dcrPerKwRates = { ddp: 6000, bdp: 3000 };
+
+// Per-kW commission rates for Non-DCR panels (above 5kW)
+export const nonDcrPerKwRates = { ddp: 4000, bdp: 2000 };
+
+// Non-DCR panel cost per kW
+export const nonDcrCostPerKw = 55000;
+
+// Calculate DDP commission based on capacity and panel type
+export function calculateCommission(capacityKw: number, panelType: string = "dcr"): number {
+  if (panelType === "non_dcr") {
+    // Non-DCR: Rs 4,000 per kW
+    return capacityKw * nonDcrPerKwRates.ddp;
   }
-  // Fallback for unsupported capacities
+  
+  // DCR Panel logic
+  const fixedSchedule = dcrFixedCommission[capacityKw];
+  if (fixedSchedule) {
+    return fixedSchedule.ddp;
+  }
+  
+  // DCR above 5kW: Rs 6,000 per kW
+  if (capacityKw > 5 && capacityKw <= 10) {
+    return capacityKw * dcrPerKwRates.ddp;
+  }
+  
   return 0;
 }
 
-// Calculate BDP commission based on capacity
-export function calculateBdpCommission(capacityKw: number): number {
-  const schedule = commissionSchedule[capacityKw];
-  if (schedule) {
-    return schedule.bdp;
+// Calculate BDP commission based on capacity and panel type
+export function calculateBdpCommission(capacityKw: number, panelType: string = "dcr"): number {
+  if (panelType === "non_dcr") {
+    // Non-DCR: Rs 2,000 per kW
+    return capacityKw * nonDcrPerKwRates.bdp;
   }
-  // Fallback for unsupported capacities
+  
+  // DCR Panel logic
+  const fixedSchedule = dcrFixedCommission[capacityKw];
+  if (fixedSchedule) {
+    return fixedSchedule.bdp;
+  }
+  
+  // DCR above 5kW: Rs 3,000 per kW
+  if (capacityKw > 5 && capacityKw <= 10) {
+    return capacityKw * dcrPerKwRates.bdp;
+  }
+  
   return 0;
 }
+
+// Export commission schedule for UI display (backwards compatibility)
+export const commissionSchedule = dcrFixedCommission;
