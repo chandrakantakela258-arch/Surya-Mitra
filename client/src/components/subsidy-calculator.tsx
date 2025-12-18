@@ -359,35 +359,59 @@ export function SubsidyCalculator({
           </CardContent>
         </Card>
 
-        {/* EMI Calculator */}
+        {/* EMI Calculator with Power Saving Adjustment */}
         <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200 dark:border-blue-800">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg text-blue-700 dark:text-blue-300">
               <IndianRupee className="w-5 h-5" />
-              EMI Calculator (10% Interest)
+              EMI After Power Savings Adjustment
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
               <div className="p-4 bg-background rounded-lg">
-                <p className="text-sm text-muted-foreground mb-1">Loan Amount</p>
+                <p className="text-sm text-muted-foreground mb-1">Loan Amount (After Subsidy)</p>
                 <p className="text-2xl font-bold font-mono text-primary">{formatINR(result.netCost)}</p>
               </div>
               <div className="p-4 bg-background rounded-lg">
                 <p className="text-sm text-muted-foreground mb-1">Monthly EMI</p>
                 <p className="text-2xl font-bold font-mono text-blue-600 dark:text-blue-400">{formatINR(result.emiMonthly)}</p>
-                <p className="text-xs text-muted-foreground">for {result.emiTenure} months</p>
-              </div>
-              <div className="p-4 bg-background rounded-lg">
-                <p className="text-sm text-muted-foreground mb-1">Net Monthly Benefit</p>
-                <p className="text-2xl font-bold font-mono text-green-600 dark:text-green-400">
-                  {formatINR(Math.max(0, result.monthlySavings - result.emiMonthly))}
-                </p>
-                <p className="text-xs text-muted-foreground">Savings - EMI</p>
+                <p className="text-xs text-muted-foreground">10% interest for {result.emiTenure} months</p>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground text-center mt-3">
-              EMI calculated at 10% annual interest rate for 5 years (60 months)
+            
+            <div className="p-4 bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/50 dark:to-emerald-900/50 rounded-lg">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center items-center">
+                <div>
+                  <p className="text-sm text-muted-foreground">Monthly EMI</p>
+                  <p className="text-xl font-bold font-mono">{formatINR(result.emiMonthly)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-green-600 dark:text-green-400">- Monthly Power Savings</p>
+                  <p className="text-xl font-bold font-mono text-green-600 dark:text-green-400">- {formatINR(result.monthlySavings)}</p>
+                </div>
+                <div className="p-3 bg-background rounded-lg">
+                  <p className="text-sm font-medium text-primary">Effective Monthly Payment</p>
+                  <p className="text-2xl font-bold font-mono text-primary">
+                    {result.monthlySavings >= result.emiMonthly 
+                      ? formatINR(0) + " (FREE!)"
+                      : formatINR(result.emiMonthly - result.monthlySavings)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Your actual pocket expense</p>
+                </div>
+              </div>
+            </div>
+            
+            {result.monthlySavings >= result.emiMonthly && (
+              <div className="p-3 bg-green-100 dark:bg-green-900/50 rounded-lg text-center">
+                <p className="text-green-700 dark:text-green-300 font-medium">
+                  Your power savings cover the entire EMI! Solar pays for itself from Day 1!
+                </p>
+              </div>
+            )}
+            
+            <p className="text-xs text-muted-foreground text-center">
+              Power savings based on 4 units/kW/day generation at Rs 7/unit electricity cost
             </p>
           </CardContent>
         </Card>

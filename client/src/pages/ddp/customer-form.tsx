@@ -90,25 +90,29 @@ function SubsidyEstimateCard({ capacity, panelType }: { capacity: string | null 
           </CardContent>
         </Card>
         
-        {/* EMI */}
+        {/* EMI with Power Saving Adjustment */}
         <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
-          <CardContent className="pt-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-center">
+          <CardContent className="pt-4 space-y-3">
+            <div className="grid grid-cols-2 gap-3 text-center">
               <div className="p-2 bg-background rounded-lg">
-                <p className="text-sm text-muted-foreground">Monthly EMI</p>
+                <p className="text-xs text-muted-foreground">Monthly EMI</p>
                 <p className="text-lg font-bold text-blue-600">{formatINR(result.emiMonthly)}</p>
-                <p className="text-xs text-muted-foreground">10% for 5 years</p>
               </div>
               <div className="p-2 bg-background rounded-lg">
-                <p className="text-sm text-muted-foreground">Net Monthly Benefit</p>
-                <p className="text-lg font-bold text-green-600">{formatINR(Math.max(0, result.monthlySavings - result.emiMonthly))}</p>
-                <p className="text-xs text-muted-foreground">Savings - EMI</p>
-              </div>
-              <div className="p-2 bg-background rounded-lg">
-                <p className="text-sm text-muted-foreground">Payback Period</p>
-                <p className="text-lg font-bold">{result.paybackYears} years</p>
+                <p className="text-xs text-muted-foreground">- Power Savings</p>
+                <p className="text-lg font-bold text-green-600">- {formatINR(result.monthlySavings)}</p>
               </div>
             </div>
+            <div className="p-3 bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/50 dark:to-emerald-900/50 rounded-lg text-center">
+              <p className="text-sm text-muted-foreground">Effective Monthly Payment</p>
+              <p className="text-2xl font-bold text-primary">
+                {result.monthlySavings >= result.emiMonthly 
+                  ? formatINR(0) + " (FREE!)"
+                  : formatINR(result.emiMonthly - result.monthlySavings)}
+              </p>
+              <p className="text-xs text-muted-foreground">Your actual pocket expense after power savings</p>
+            </div>
+            <p className="text-xs text-muted-foreground text-center">10% interest for 5 years | Payback: {result.paybackYears} years</p>
           </CardContent>
         </Card>
       </div>
@@ -170,25 +174,29 @@ function SubsidyEstimateCard({ capacity, panelType }: { capacity: string | null 
         </CardContent>
       </Card>
       
-      {/* EMI */}
+      {/* EMI with Power Saving Adjustment */}
       <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
-        <CardContent className="pt-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-center">
+        <CardContent className="pt-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3 text-center">
             <div className="p-2 bg-background rounded-lg">
-              <p className="text-sm text-muted-foreground">Monthly EMI</p>
+              <p className="text-xs text-muted-foreground">Monthly EMI</p>
               <p className="text-lg font-bold text-blue-600">{formatINR(result.emiMonthly)}</p>
-              <p className="text-xs text-muted-foreground">10% for 5 years</p>
             </div>
             <div className="p-2 bg-background rounded-lg">
-              <p className="text-sm text-muted-foreground">Net Monthly Benefit</p>
-              <p className="text-lg font-bold text-green-600">{formatINR(Math.max(0, result.monthlySavings - result.emiMonthly))}</p>
-              <p className="text-xs text-muted-foreground">Savings - EMI</p>
-            </div>
-            <div className="p-2 bg-background rounded-lg">
-              <p className="text-sm text-muted-foreground">Payback Period</p>
-              <p className="text-lg font-bold">{result.paybackYears} years</p>
+              <p className="text-xs text-muted-foreground">- Power Savings</p>
+              <p className="text-lg font-bold text-green-600">- {formatINR(result.monthlySavings)}</p>
             </div>
           </div>
+          <div className="p-3 bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/50 dark:to-emerald-900/50 rounded-lg text-center">
+            <p className="text-sm text-muted-foreground">Effective Monthly Payment</p>
+            <p className="text-2xl font-bold text-primary">
+              {result.monthlySavings >= result.emiMonthly 
+                ? formatINR(0) + " (FREE!)"
+                : formatINR(result.emiMonthly - result.monthlySavings)}
+            </p>
+            <p className="text-xs text-muted-foreground">Your actual pocket expense after power savings</p>
+          </div>
+          <p className="text-xs text-muted-foreground text-center">10% interest for 5 years | Payback: {result.paybackYears} years</p>
         </CardContent>
       </Card>
       
