@@ -7,9 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sun, IndianRupee, Zap, TrendingDown, MapPin, BatteryCharging, Power, Check } from "lucide-react";
 import { indianStates } from "@shared/schema";
 
-const stateSubsidies: Record<string, { ratePerKw: number; label: string }> = {
-  "Odisha": { ratePerKw: 20000, label: "Odisha State Subsidy" },
-  "Uttar Pradesh": { ratePerKw: 10000, label: "UP State Subsidy" },
+const stateSubsidies: Record<string, { ratePerKw: number; maxSubsidy: number; label: string }> = {
+  "Odisha": { ratePerKw: 20000, maxSubsidy: 60000, label: "Odisha State Subsidy" },
+  "Uttar Pradesh": { ratePerKw: 10000, maxSubsidy: 30000, label: "UP State Subsidy" },
 };
 
 const systemPricing: Record<number, number> = {
@@ -69,7 +69,8 @@ function calculateSubsidy(capacityKW: number, state: string = "", panelType: str
     centralSubsidy = Math.min(centralSubsidy, 78000);
     
     if (state && stateSubsidies[state]) {
-      stateSubsidy = capacityKW * stateSubsidies[state].ratePerKw;
+      const calculatedStateSubsidy = capacityKW * stateSubsidies[state].ratePerKw;
+      stateSubsidy = Math.min(calculatedStateSubsidy, stateSubsidies[state].maxSubsidy);
     }
   }
   
@@ -474,7 +475,7 @@ export function SubsidyCalculator({
         
         <div className="text-xs text-muted-foreground space-y-1">
           <p>* Central Subsidy: Up to 3 kW - Rs 30,000/kW | 3-10 kW - Rs 18,000/kW (above 3 kW) | Maximum - Rs 78,000</p>
-          <p>* State Subsidies: Odisha - Rs 20,000/kW | Uttar Pradesh - Rs 10,000/kW</p>
+          <p>* State Subsidies: Odisha - Rs 20,000/kW (Max Rs 60,000) | Uttar Pradesh - Rs 10,000/kW (Max Rs 30,000)</p>
           <p>* Calculations based on average solar generation of 4 kWh/kW/day and Rs 7/kWh electricity tariff</p>
         </div>
       </CardContent>
