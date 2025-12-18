@@ -1,10 +1,18 @@
 import { 
   users, 
   customers, 
+  milestones,
+  commissions,
   type User, 
   type InsertUser, 
   type Customer, 
-  type InsertCustomer 
+  type InsertCustomer,
+  type Milestone,
+  type InsertMilestone,
+  type Commission,
+  type InsertCommission,
+  installationMilestones,
+  calculateCommission
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, inArray } from "drizzle-orm";
@@ -25,6 +33,24 @@ export interface IStorage {
   getAllCustomersByBdpId(bdpId: string): Promise<Customer[]>;
   createCustomer(customer: InsertCustomer): Promise<Customer>;
   updateCustomerStatus(id: string, status: string): Promise<Customer | undefined>;
+  
+  // Milestone operations
+  getMilestonesByCustomerId(customerId: string): Promise<Milestone[]>;
+  createMilestone(milestone: InsertMilestone): Promise<Milestone>;
+  completeMilestone(id: string, notes?: string): Promise<Milestone | undefined>;
+  initializeCustomerMilestones(customerId: string): Promise<Milestone[]>;
+  
+  // Commission operations
+  getCommissionsByPartnerId(partnerId: string): Promise<Commission[]>;
+  getCommissionSummaryByPartnerId(partnerId: string): Promise<{
+    totalEarned: number;
+    totalPending: number;
+    totalPaid: number;
+    totalInstallations: number;
+  }>;
+  createCommission(commission: InsertCommission): Promise<Commission>;
+  updateCommissionStatus(id: string, status: string): Promise<Commission | undefined>;
+  createCommissionForCustomer(customerId: string, partnerId: string): Promise<Commission | null>;
   
   // Stats
   getBdpStats(bdpId: string): Promise<{
@@ -157,6 +183,141 @@ export class DatabaseStorage implements IStorage {
       approvedApplications: customersList.filter((c) => c.status === "approved" || c.status === "installation_scheduled").length,
       completedInstallations: customersList.filter((c) => c.status === "completed").length,
     };
+  }
+  
+  async getMilestonesByCustomerId(customerId: string): Promise<Milestone[]> {
+    return db
+      .select()
+      .from(milestones)
+      .where(eq(milestones.customerId, customerId))
+      .orderBy(milestones.createdAt);
+  }
+  
+  async createMilestone(insertMilestone: InsertMilestone): Promise<Milestone> {
+    const [milestone] = await db
+      .insert(milestones)
+      .values(insertMilestone)
+      .returning();
+    return milestone;
+  }
+  
+  async completeMilestone(id: string, notes?: string): Promise<Milestone | undefined> {
+    const [milestone] = await db
+      .update(milestones)
+      .set({ 
+        status: "completed", 
+        completedAt: new Date(),
+        notes: notes || null
+      })
+      .where(eq(milestones.id, id))
+      .returning();
+    return milestone || undefined;
+  }
+  
+  async initializeCustomerMilestones(customerId: string): Promise<Milestone[]> {
+    const existingMilestones = await this.getMilestonesByCustomerId(customerId);
+    if (existingMilestones.length > 0) {
+      return existingMilestones;
+    }
+    
+    const createdMilestones: Milestone[] = [];
+    for (const milestone of installationMilestones) {
+      const created = await this.createMilestone({
+        customerId,
+        milestone: milestone.key,
+        status: milestone.key === "application_submitted" ? "completed" : "pending",
+        completedAt: milestone.key === "application_submitted" ? new Date() : null,
+        notes: null,
+      });
+      createdMilestones.push(created);
+    }
+    return createdMilestones;
+  }
+  
+  async getCommissionsByPartnerId(partnerId: string): Promise<Commission[]> {
+    return db
+      .select()
+      .from(commissions)
+      .where(eq(commissions.partnerId, partnerId))
+      .orderBy(desc(commissions.createdAt));
+  }
+  
+  async getCommissionSummaryByPartnerId(partnerId: string): Promise<{
+    totalEarned: number;
+    totalPending: number;
+    totalPaid: number;
+    totalInstallations: number;
+  }> {
+    const partnerCommissions = await this.getCommissionsByPartnerId(partnerId);
+    
+    return {
+      totalEarned: partnerCommissions.reduce((sum, c) => sum + c.commissionAmount, 0),
+      totalPending: partnerCommissions
+        .filter(c => c.status === "pending" || c.status === "approved")
+        .reduce((sum, c) => sum + c.commissionAmount, 0),
+      totalPaid: partnerCommissions
+        .filter(c => c.status === "paid")
+        .reduce((sum, c) => sum + c.commissionAmount, 0),
+      totalInstallations: partnerCommissions.length,
+    };
+  }
+  
+  async createCommission(insertCommission: InsertCommission): Promise<Commission> {
+    const [commission] = await db
+      .insert(commissions)
+      .values(insertCommission)
+      .returning();
+    return commission;
+  }
+  
+  async updateCommissionStatus(id: string, status: string): Promise<Commission | undefined> {
+    const updateData: any = { status };
+    if (status === "paid") {
+      updateData.paidAt = new Date();
+    }
+    
+    const [commission] = await db
+      .update(commissions)
+      .set(updateData)
+      .where(eq(commissions.id, id))
+      .returning();
+    return commission || undefined;
+  }
+  
+  async createCommissionForCustomer(customerId: string, partnerId: string): Promise<Commission | null> {
+    const customer = await this.getCustomer(customerId);
+    if (!customer || !customer.proposedCapacity) {
+      return null;
+    }
+    
+    const capacityKw = Math.round(parseFloat(customer.proposedCapacity) || 0);
+    if (capacityKw <= 0) {
+      return null;
+    }
+    
+    const existingCommissions = await db
+      .select()
+      .from(commissions)
+      .where(and(
+        eq(commissions.customerId, customerId),
+        eq(commissions.partnerId, partnerId)
+      ));
+    
+    if (existingCommissions.length > 0) {
+      return existingCommissions[0];
+    }
+    
+    const commissionAmount = calculateCommission(capacityKw);
+    
+    return this.createCommission({
+      partnerId,
+      customerId,
+      capacityKw,
+      commissionAmount,
+      status: "pending",
+      paidAt: null,
+      notes: null,
+    });
   }
 }
 

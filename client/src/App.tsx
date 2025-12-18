@@ -21,6 +21,9 @@ import DDPDashboard from "@/pages/ddp/dashboard";
 import DDPCustomers from "@/pages/ddp/customers";
 import CustomerForm from "@/pages/ddp/customer-form";
 import DDPApplications from "@/pages/ddp/applications";
+import CustomerDetail from "@/pages/ddp/customer-detail";
+import DDPEarnings from "@/pages/ddp/earnings";
+import CalculatorPage from "@/pages/calculator";
 
 function LoadingScreen() {
   return (
@@ -132,6 +135,13 @@ function AuthenticatedRoutes() {
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
+      <Route path="/ddp/customers/:id">
+        <ProtectedRoute allowedRoles={["ddp", "admin"]}>
+          <DashboardLayout>
+            <CustomerDetail />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
       <Route path="/ddp/customers">
         <ProtectedRoute allowedRoles={["ddp", "admin"]}>
           <DashboardLayout>
@@ -143,6 +153,22 @@ function AuthenticatedRoutes() {
         <ProtectedRoute allowedRoles={["ddp", "admin"]}>
           <DashboardLayout>
             <DDPApplications />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/ddp/earnings">
+        <ProtectedRoute allowedRoles={["ddp", "admin"]}>
+          <DashboardLayout>
+            <DDPEarnings />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+
+      {/* Shared Routes */}
+      <Route path="/calculator">
+        <ProtectedRoute>
+          <DashboardLayout>
+            <CalculatorPage />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>

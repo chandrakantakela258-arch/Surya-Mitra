@@ -8,6 +8,8 @@ import {
   LogOut,
   Building2,
   User,
+  Calculator,
+  Wallet,
 } from "lucide-react";
 import {
   Sidebar,
@@ -33,6 +35,7 @@ const bdpMenuItems = [
   { title: "District Partners", url: "/bdp/partners", icon: Building2 },
   { title: "Add Partner", url: "/bdp/partners/new", icon: UserPlus },
   { title: "All Customers", url: "/bdp/customers", icon: Users },
+  { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },
 ];
 
 const ddpMenuItems = [
@@ -40,6 +43,8 @@ const ddpMenuItems = [
   { title: "Customers", url: "/ddp/customers", icon: Users },
   { title: "Add Customer", url: "/ddp/customers/new", icon: UserPlus },
   { title: "Applications", url: "/ddp/applications", icon: FileText },
+  { title: "Earnings", url: "/ddp/earnings", icon: Wallet },
+  { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },
 ];
 
 export function AppSidebar() {

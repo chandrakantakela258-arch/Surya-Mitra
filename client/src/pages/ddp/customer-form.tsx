@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation } from "wouter";
-import { Loader2, ArrowLeft, Sun } from "lucide-react";
+import { Loader2, ArrowLeft, Sun, IndianRupee, TrendingDown } from "lucide-react";
 import { customerFormSchema, indianStates, roofTypes } from "@shared/schema";
+import { calculateSubsidy, formatINR } from "@/components/subsidy-calculator";
 import type { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +16,61 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 
 type CustomerFormValues = z.infer<typeof customerFormSchema>;
+
+function SubsidyEstimateCard({ capacity }: { capacity: string | null | undefined }) {
+  const capacityNum = parseFloat(capacity || "0") || 0;
+  
+  if (capacityNum <= 0) {
+    return (
+      <Card className="bg-muted/30">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <IndianRupee className="w-5 h-5 text-primary" />
+            Subsidy Estimate
+          </CardTitle>
+          <CardDescription>
+            Enter proposed capacity above to see subsidy calculation
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+  
+  const result = calculateSubsidy(Math.min(capacityNum, 10));
+  
+  return (
+    <Card className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg text-green-700 dark:text-green-300">
+          <TrendingDown className="w-5 h-5" />
+          Subsidy Estimate for {capacityNum} kW System
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+          <div className="p-3 bg-background rounded-lg">
+            <p className="text-sm text-muted-foreground">System Cost</p>
+            <p className="text-xl font-semibold font-mono">{formatINR(result.totalCost)}</p>
+          </div>
+          <div className="p-3 bg-green-100 dark:bg-green-900/50 rounded-lg">
+            <p className="text-sm text-green-600 dark:text-green-400">Government Subsidy</p>
+            <p className="text-xl font-semibold font-mono text-green-600 dark:text-green-400">
+              - {formatINR(result.subsidyAmount)}
+            </p>
+          </div>
+          <div className="p-3 bg-background rounded-lg">
+            <p className="text-sm text-muted-foreground">Customer Pays</p>
+            <p className="text-xl font-semibold font-mono text-primary">{formatINR(result.netCost)}</p>
+          </div>
+        </div>
+        <div className="mt-4 text-center text-sm text-muted-foreground">
+          Estimated annual savings: <span className="font-medium text-orange-600 dark:text-orange-400">{formatINR(result.annualSavings)}</span>
+          {" | "}Payback period: <span className="font-medium">{result.paybackYears} years</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function CustomerForm() {
   const [, setLocation] = useLocation();
@@ -143,7 +199,8 @@ export default function CustomerForm() {
                           type="email"
                           placeholder="customer@example.com" 
                           data-testid="input-email"
-                          {...field} 
+                          {...field}
+                          value={field.value || ""}
                         />
                       </FormControl>
                       <FormMessage />
@@ -258,7 +315,8 @@ export default function CustomerForm() {
                         <Input 
                           placeholder="e.g., BSES, MSEDCL, KSEB" 
                           data-testid="input-electricity-board"
-                          {...field} 
+                          {...field}
+                          value={field.value || ""}
                         />
                       </FormControl>
                       <FormMessage />
@@ -276,7 +334,8 @@ export default function CustomerForm() {
                         <Input 
                           placeholder="Electricity consumer number" 
                           data-testid="input-consumer-number"
-                          {...field} 
+                          {...field}
+                          value={field.value || ""}
                         />
                       </FormControl>
                       <FormMessage />
@@ -294,7 +353,8 @@ export default function CustomerForm() {
                         <Input 
                           placeholder="e.g., 3, 5, 10" 
                           data-testid="input-sanctioned-load"
-                          {...field} 
+                          {...field}
+                          value={field.value || ""}
                         />
                       </FormControl>
                       <FormMessage />
@@ -314,6 +374,7 @@ export default function CustomerForm() {
                           placeholder="e.g., 2500" 
                           data-testid="input-avg-bill"
                           {...field}
+                          value={field.value ?? ""}
                           onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
                         />
                       </FormControl>
@@ -344,7 +405,7 @@ export default function CustomerForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Roof Type</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
                         <FormControl>
                           <SelectTrigger data-testid="select-roof-type">
                             <SelectValue placeholder="Select roof type" />
@@ -375,6 +436,7 @@ export default function CustomerForm() {
                           placeholder="e.g., 300" 
                           data-testid="input-roof-area"
                           {...field}
+                          value={field.value ?? ""}
                           onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
                         />
                       </FormControl>
@@ -396,7 +458,8 @@ export default function CustomerForm() {
                         <Input 
                           placeholder="e.g., 3, 5, 10" 
                           data-testid="input-proposed-capacity"
-                          {...field} 
+                          {...field}
+                          value={field.value || ""}
                         />
                       </FormControl>
                       <FormDescription>
@@ -409,6 +472,9 @@ export default function CustomerForm() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Subsidy Estimate */}
+          <SubsidyEstimateCard capacity={form.watch("proposedCapacity")} />
 
           {/* Submit Buttons */}
           <div className="flex gap-4">

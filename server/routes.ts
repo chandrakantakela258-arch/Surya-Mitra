@@ -311,5 +311,100 @@ export async function registerRoutes(
     }
   });
 
+  // ==================== MILESTONE ROUTES ====================
+  
+  // Get customer milestones
+  app.get("/api/customers/:id/milestones", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const customer = await storage.getCustomer(id);
+      
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      
+      // Initialize milestones if they don't exist
+      const milestones = await storage.initializeCustomerMilestones(id);
+      res.json(milestones);
+    } catch (error) {
+      console.error("Get milestones error:", error);
+      res.status(500).json({ message: "Failed to get milestones" });
+    }
+  });
+
+  // Complete a milestone
+  app.patch("/api/milestones/:id/complete", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { notes } = req.body;
+      
+      const milestone = await storage.completeMilestone(id, notes);
+      if (!milestone) {
+        return res.status(404).json({ message: "Milestone not found" });
+      }
+      
+      // If installation is complete, create commission for the DDP
+      if (milestone.milestone === "installation_complete") {
+        const customer = await storage.getCustomer(milestone.customerId);
+        if (customer) {
+          await storage.createCommissionForCustomer(customer.id, customer.ddpId);
+        }
+      }
+      
+      res.json(milestone);
+    } catch (error) {
+      console.error("Complete milestone error:", error);
+      res.status(500).json({ message: "Failed to complete milestone" });
+    }
+  });
+
+  // ==================== COMMISSION ROUTES ====================
+  
+  // Get DDP's commissions
+  app.get("/api/ddp/commissions", requireDDP, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const commissions = await storage.getCommissionsByPartnerId(user.id);
+      res.json(commissions);
+    } catch (error) {
+      console.error("Get commissions error:", error);
+      res.status(500).json({ message: "Failed to get commissions" });
+    }
+  });
+
+  // Get DDP's commission summary
+  app.get("/api/ddp/commissions/summary", requireDDP, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const summary = await storage.getCommissionSummaryByPartnerId(user.id);
+      res.json(summary);
+    } catch (error) {
+      console.error("Get commission summary error:", error);
+      res.status(500).json({ message: "Failed to get commission summary" });
+    }
+  });
+
+  // Update commission status (BDP only - for approving/paying)
+  app.patch("/api/commissions/:id/status", requireBDP, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      
+      if (!["pending", "approved", "paid"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+      
+      const commission = await storage.updateCommissionStatus(id, status);
+      if (!commission) {
+        return res.status(404).json({ message: "Commission not found" });
+      }
+      
+      res.json(commission);
+    } catch (error) {
+      console.error("Update commission status error:", error);
+      res.status(500).json({ message: "Failed to update commission status" });
+    }
+  });
+
   return httpServer;
 }
