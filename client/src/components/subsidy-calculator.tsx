@@ -59,15 +59,21 @@ function calculateSubsidy(capacityKW: number, state: string = "", panelType: str
   let stateSubsidy = 0;
   
   if (panelType !== "non_dcr") {
-    if (capacityKW <= 3) {
+    // PM Surya Ghar Yojana Central Subsidy Rules:
+    // Up to 2 kW: Rs 30,000/kW (max Rs 60,000)
+    // 2-3 kW: Rs 18,000/kW for capacity above 2 kW
+    // Above 3 kW: No additional central subsidy
+    // Maximum central subsidy: Rs 78,000
+    if (capacityKW <= 2) {
       centralSubsidy = capacityKW * 30000;
-    } else if (capacityKW <= 10) {
-      centralSubsidy = 3 * 30000 + (capacityKW - 3) * 18000;
+    } else if (capacityKW <= 3) {
+      centralSubsidy = 2 * 30000 + (capacityKW - 2) * 18000;
     } else {
-      centralSubsidy = 3 * 30000 + 7 * 18000;
+      // For 3 kW and above, subsidy is capped at Rs 78,000
+      centralSubsidy = 78000;
     }
-    centralSubsidy = Math.min(centralSubsidy, 78000);
     
+    // State subsidies with maximum caps
     if (state && stateSubsidies[state]) {
       const calculatedStateSubsidy = capacityKW * stateSubsidies[state].ratePerKw;
       stateSubsidy = Math.min(calculatedStateSubsidy, stateSubsidies[state].maxSubsidy);
@@ -474,7 +480,7 @@ export function SubsidyCalculator({
         </Card>
         
         <div className="text-xs text-muted-foreground space-y-1">
-          <p>* Central Subsidy: Up to 3 kW - Rs 30,000/kW | 3-10 kW - Rs 18,000/kW (above 3 kW) | Maximum - Rs 78,000</p>
+          <p>* Central Subsidy: Up to 2 kW - Rs 30,000/kW | 2-3 kW - Rs 18,000/kW | Above 3 kW - Capped at Rs 78,000</p>
           <p>* State Subsidies: Odisha - Rs 20,000/kW (Max Rs 60,000) | Uttar Pradesh - Rs 10,000/kW (Max Rs 30,000)</p>
           <p>* Calculations based on average solar generation of 4 kWh/kW/day and Rs 7/kWh electricity tariff</p>
         </div>
