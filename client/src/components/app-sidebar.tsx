@@ -147,10 +147,13 @@ export function AppSidebar() {
               <SidebarMenuItem>
                 <ChatbotAssistant
                   trigger={
-                    <SidebarMenuButton data-testid="button-help-assistant">
+                    <button 
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none ring-offset-background transition-colors hover-elevate focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      data-testid="button-help-assistant"
+                    >
                       <HelpCircle className="w-4 h-4" />
                       <span>Help Assistant</span>
-                    </SidebarMenuButton>
+                    </button>
                   }
                 />
               </SidebarMenuItem>

@@ -92,16 +92,29 @@ app.use((req, res, next) => {
 (async () => {
   try {
     console.log("Starting server initialization...");
+    console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
+    console.log(`PORT: ${process.env.PORT || "5000 (default)"}`);
+    console.log(`DATABASE_URL configured: ${!!process.env.DATABASE_URL}`);
+    console.log(`SESSION_SECRET configured: ${!!process.env.SESSION_SECRET}`);
     
     // Verify database connection before proceeding
+    console.log("Importing database module...");
     const { pool } = await import("./db");
+    
     console.log("Testing database connection...");
-    await pool.query("SELECT 1");
-    console.log("Database connection successful");
+    try {
+      await pool.query("SELECT 1");
+      console.log("Database connection successful");
+    } catch (dbError) {
+      console.error("Database connection failed:", dbError);
+      console.log("Continuing server startup - some features may not work");
+    }
     
     // Seed admin user on startup
+    console.log("Seeding admin user...");
     await seedAdminUser();
     
+    console.log("Registering routes...");
     await registerRoutes(httpServer, app);
 
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -115,6 +128,7 @@ app.use((req, res, next) => {
     // importantly only setup vite in development and after
     // setting up all the other routes so the catch-all route
     // doesn't interfere with the other routes
+    console.log("Setting up static file serving...");
     if (process.env.NODE_ENV === "production") {
       serveStatic(app);
     } else {
@@ -127,6 +141,8 @@ app.use((req, res, next) => {
     // this serves both the API and the client.
     // It is the only port that is not firewalled.
     const port = parseInt(process.env.PORT || "5000", 10);
+    console.log(`Starting HTTP server on port ${port}...`);
+    
     httpServer.listen(
       {
         port,
@@ -135,10 +151,12 @@ app.use((req, res, next) => {
       },
       () => {
         log(`serving on port ${port}`);
+        console.log("Server initialization complete!");
       },
     );
   } catch (error) {
     console.error("Failed to start server:", error);
+    console.error("Stack trace:", error instanceof Error ? error.stack : "No stack trace");
     process.exit(1);
   }
 })();
