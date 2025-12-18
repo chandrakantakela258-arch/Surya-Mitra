@@ -13,7 +13,7 @@ import {
   type InsertCommission,
   installationMilestones,
   calculateCommission,
-  bdpCommissionRate
+  calculateBdpCommission
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, inArray } from "drizzle-orm";
@@ -340,7 +340,7 @@ export class DatabaseStorage implements IStorage {
     // Always check and create BDP commission (even if DDP already existed)
     const ddp = await this.getUser(partnerId);
     if (ddp?.parentId) {
-      const bdpCommissionAmount = Math.round(ddpCommissionAmount * bdpCommissionRate);
+      const bdpCommissionAmount = calculateBdpCommission(capacityKw);
       
       // Check for existing BDP commission
       const existingBdpCommissions = await db
@@ -361,7 +361,7 @@ export class DatabaseStorage implements IStorage {
           commissionAmount: bdpCommissionAmount,
           status: "pending",
           paidAt: null,
-          notes: `15% of DDP commission`,
+          notes: null,
         });
       } else {
         bdpCommission = existingBdpCommissions[0];

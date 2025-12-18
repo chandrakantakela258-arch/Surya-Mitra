@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { StatCard } from "@/components/stat-card";
 import { TableSkeleton } from "@/components/loading-skeleton";
 import { EmptyState } from "@/components/empty-state";
-import { commissionRates, type Commission } from "@shared/schema";
+import { commissionSchedule, type Commission } from "@shared/schema";
 import { formatINR } from "@/components/subsidy-calculator";
 
 function CommissionStatusBadge({ status }: { status: string }) {
@@ -155,33 +155,32 @@ export default function DDPEarnings() {
               <IndianRupee className="w-5 h-5 text-primary" />
               Commission Rates
             </CardTitle>
-            <CardDescription>Earnings per installation capacity</CardDescription>
+            <CardDescription>Fixed earnings per installation</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {commissionRates.map((tier, index) => (
-              <div 
-                key={index}
-                className="p-4 rounded-lg bg-muted/50 space-y-2"
-              >
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <span className="font-medium">{tier.label}</span>
-                  <Badge variant="outline" className="font-mono">
-                    {formatINR(tier.ratePerKw)}/kW
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {tier.minKw === tier.maxKw 
-                    ? `${tier.minKw} kW capacity`
-                    : `${tier.minKw}-${tier.maxKw} kW capacity`
-                  }
-                </p>
+            <div className="p-4 rounded-lg bg-primary/10 flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <p className="font-medium">3 kW Installation</p>
+                <p className="text-xs text-muted-foreground">Your fixed earning</p>
               </div>
-            ))}
+              <Badge variant="outline" className="font-mono text-lg">
+                {formatINR(commissionSchedule[3]?.ddp || 0)}
+              </Badge>
+            </div>
+            <div className="p-4 rounded-lg bg-primary/10 flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <p className="font-medium">5 kW Installation</p>
+                <p className="text-xs text-muted-foreground">Your fixed earning</p>
+              </div>
+              <Badge variant="outline" className="font-mono text-lg">
+                {formatINR(commissionSchedule[5]?.ddp || 0)}
+              </Badge>
+            </div>
             
             <div className="pt-4 border-t">
               <p className="text-sm text-muted-foreground">
-                Commissions are calculated based on the installed capacity tier. 
-                Larger installations earn higher rates per kW.
+                Commissions are fixed amounts per installation capacity. 
+                Complete installations to earn your commission.
               </p>
             </div>
           </CardContent>

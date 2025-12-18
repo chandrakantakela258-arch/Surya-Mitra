@@ -16,8 +16,11 @@ Preferred communication style: Simple, everyday language.
 ## Business Rules
 
 - **Capacity Options**: The platform only supports 3 kW and 5 kW solar installations (no other capacities)
+- **System Pricing**: 3 kW = Rs 2,25,000 | 5 kW = Rs 3,50,000 (includes 3-in-1 Hybrid Inverter)
 - **State Subsidies**: Odisha (+Rs 20,000/kW) and Uttar Pradesh (+Rs 10,000/kW) offer additional subsidies on top of central subsidy
-- **Commission Structure**: DDPs earn capacity-based commissions; BDPs earn 15% of their DDPs' commission earnings
+- **Commission Structure (Fixed Amounts)**:
+  - DDP: Rs 20,000 (3 kW) | Rs 35,000 (5 kW)
+  - BDP: Rs 10,000 (3 kW) | Rs 15,000 (5 kW)
 
 ## System Architecture
 

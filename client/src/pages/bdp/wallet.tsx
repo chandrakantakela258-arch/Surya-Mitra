@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { IndianRupee, TrendingUp, Clock, CheckCircle, Download, Wallet, Users, Percent } from "lucide-react";
+import { IndianRupee, TrendingUp, Clock, CheckCircle, Download, Wallet, Users } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { StatCard } from "@/components/stat-card";
 import { TableSkeleton } from "@/components/loading-skeleton";
 import { EmptyState } from "@/components/empty-state";
-import { bdpCommissionRate, type Commission } from "@shared/schema";
+import { commissionSchedule, type Commission } from "@shared/schema";
 import { formatINR } from "@/components/subsidy-calculator";
 
 function CommissionStatusBadge({ status }: { status: string }) {
@@ -184,47 +184,53 @@ export default function BDPWallet() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Percent className="w-5 h-5 text-primary" />
+              <Wallet className="w-5 h-5 text-primary" />
               Commission Structure
             </CardTitle>
-            <CardDescription>How BDP earnings work</CardDescription>
+            <CardDescription>Fixed earnings per installation</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="p-4 rounded-lg bg-primary/10 space-y-2">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <span className="font-medium">BDP Commission Rate</span>
+            <div className="space-y-3">
+              <div className="p-4 rounded-lg bg-primary/10 flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <p className="font-medium">3 kW Installation</p>
+                  <p className="text-xs text-muted-foreground">Your fixed earning</p>
+                </div>
                 <Badge variant="outline" className="font-mono text-lg">
-                  {Math.round(bdpCommissionRate * 100)}%
+                  {formatINR(commissionSchedule[3]?.bdp || 0)}
                 </Badge>
               </div>
-              <p className="text-sm text-muted-foreground">
-                of DDP earnings per installation
-              </p>
+              <div className="p-4 rounded-lg bg-primary/10 flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <p className="font-medium">5 kW Installation</p>
+                  <p className="text-xs text-muted-foreground">Your fixed earning</p>
+                </div>
+                <Badge variant="outline" className="font-mono text-lg">
+                  {formatINR(commissionSchedule[5]?.bdp || 0)}
+                </Badge>
+              </div>
             </div>
             
             <div className="p-4 rounded-lg bg-muted/50 space-y-3">
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4 text-muted-foreground" />
-                <span className="font-medium">Example Calculation</span>
+                <span className="font-medium">DDP Earnings (for reference)</span>
               </div>
               <div className="text-sm space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">5 kW installation</span>
+                  <span className="text-muted-foreground">3 kW installation</span>
+                  <span className="font-mono">{formatINR(commissionSchedule[3]?.ddp || 0)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">DDP earns</span>
-                  <span className="font-mono">{formatINR(12500)}</span>
-                </div>
-                <div className="flex justify-between border-t pt-2">
-                  <span className="font-medium">You earn (15%)</span>
-                  <span className="font-mono font-medium text-primary">{formatINR(1875)}</span>
+                  <span className="text-muted-foreground">5 kW installation</span>
+                  <span className="font-mono">{formatINR(commissionSchedule[5]?.ddp || 0)}</span>
                 </div>
               </div>
             </div>
             
             <div className="pt-4 border-t">
               <p className="text-sm text-muted-foreground">
-                Build your network of District Development Partners to maximize your passive income from solar installations.
+                Build your network of District Development Partners to maximize your earnings from solar installations.
               </p>
             </div>
           </CardContent>

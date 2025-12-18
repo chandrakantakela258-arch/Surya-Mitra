@@ -216,35 +216,28 @@ export const installationMilestones = [
   { key: "subsidy_received", label: "Subsidy Received", description: "Subsidy amount credited" },
 ];
 
-// DDP Commission rates per kW capacity tier
-export const commissionRates = [
-  { minKw: 1, maxKw: 3, ratePerKw: 2000, label: "Small System (1-3 kW)" },
-  { minKw: 4, maxKw: 5, ratePerKw: 2500, label: "Medium System (4-5 kW)" },
-  { minKw: 6, maxKw: 10, ratePerKw: 3000, label: "Large System (6-10 kW)" },
-];
+// Fixed commission amounts by capacity (in INR)
+export const commissionSchedule: Record<number, { ddp: number; bdp: number }> = {
+  3: { ddp: 20000, bdp: 10000 },
+  5: { ddp: 35000, bdp: 15000 },
+};
 
-// BDP Commission - percentage of DDP earnings
-export const bdpCommissionRate = 0.15; // 15% of DDP commission
-
-// Calculate commission based on capacity
-// The tier rate applies to the FULL capacity (not progressive)
+// Calculate DDP commission based on capacity
 export function calculateCommission(capacityKw: number): number {
-  const capacity = Math.min(capacityKw, 10);
-  
-  // Find the appropriate tier for the total capacity
-  let ratePerKw = 2000; // Default to small tier rate
-  
-  for (const tier of commissionRates) {
-    if (capacity >= tier.minKw && capacity <= tier.maxKw) {
-      ratePerKw = tier.ratePerKw;
-      break;
-    }
+  const schedule = commissionSchedule[capacityKw];
+  if (schedule) {
+    return schedule.ddp;
   }
-  
-  // If capacity exceeds all tiers, use the highest tier rate
-  if (capacity > 10) {
-    ratePerKw = 3000;
+  // Fallback for unsupported capacities
+  return 0;
+}
+
+// Calculate BDP commission based on capacity
+export function calculateBdpCommission(capacityKw: number): number {
+  const schedule = commissionSchedule[capacityKw];
+  if (schedule) {
+    return schedule.bdp;
   }
-  
-  return capacity * ratePerKw;
+  // Fallback for unsupported capacities
+  return 0;
 }
