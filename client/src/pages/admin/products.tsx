@@ -15,7 +15,8 @@ import {
   Trash2, 
   IndianRupee,
   CheckCircle,
-  XCircle
+  XCircle,
+  Download
 } from "lucide-react";
 import type { Product } from "@shared/schema";
 import {
@@ -147,6 +148,26 @@ export default function AdminProducts() {
       toast({
         title: "Error",
         description: error.message || "Failed to delete product",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const seedMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/admin/products/seed");
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/products"] });
+      toast({
+        title: "Products Seeded",
+        description: data.message || "Default products have been added.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to seed products",
         variant: "destructive",
       });
     },
@@ -346,10 +367,21 @@ export default function AdminProducts() {
             <div className="text-center py-12">
               <Package className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-muted-foreground">No products yet</p>
-              <Button className="mt-4" onClick={handleOpenCreate}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add First Product
-              </Button>
+              <div className="flex items-center justify-center gap-4 mt-4 flex-wrap">
+                <Button onClick={handleOpenCreate} data-testid="button-add-first-product">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add First Product
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => seedMutation.mutate()}
+                  disabled={seedMutation.isPending}
+                  data-testid="button-seed-products"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  {seedMutation.isPending ? "Seeding..." : "Seed Default Products"}
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
