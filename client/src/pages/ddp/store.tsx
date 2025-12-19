@@ -14,7 +14,8 @@ import {
   Minus,
   CreditCard,
   CheckCircle,
-  IndianRupee
+  IndianRupee,
+  Sun
 } from "lucide-react";
 import type { Product, Order } from "@shared/schema";
 import {
@@ -34,6 +35,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { format } from "date-fns";
 
 declare global {
@@ -68,10 +76,22 @@ interface CheckoutFormData {
   customerAddress: string;
 }
 
+// Generate capacity options from 3 kW to 100 kW
+const capacityOptions = Array.from({ length: 98 }, (_, i) => i + 3);
+
+// Calculate booking amount based on capacity
+function getBookingAmount(capacityKw: number): number {
+  if (capacityKw <= 3) {
+    return 5000;
+  }
+  return 20000;
+}
+
 export default function DDPStore() {
   const { toast } = useToast();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
+  const [selectedCapacity, setSelectedCapacity] = useState<string>("3");
   const [checkoutData, setCheckoutData] = useState<CheckoutFormData>({
     customerName: "",
     customerPhone: "",
@@ -159,6 +179,34 @@ export default function DDPStore() {
     toast({
       title: "Added to Cart",
       description: `${product.name} added to cart`,
+    });
+  };
+
+  const addBookingToCart = () => {
+    const capacityKw = parseInt(selectedCapacity);
+    const amount = getBookingAmount(capacityKw);
+    const bookingProduct: Product = {
+      id: `booking-${capacityKw}kw`,
+      name: `Booking Amount - ${capacityKw} kW Plant Installation`,
+      description: `Advance booking amount for ${capacityKw} kW solar plant installation. This amount will be adjusted in the final bill.`,
+      category: "solar_package",
+      price: amount,
+      imageUrl: null,
+      isActive: "active",
+      stock: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    
+    // Remove any existing booking from cart before adding new one
+    setCart((prev) => {
+      const filteredCart = prev.filter((item) => !item.product.id.startsWith("booking-"));
+      return [...filteredCart, { product: bookingProduct, quantity: 1 }];
+    });
+    
+    toast({
+      title: "Booking Added",
+      description: `${capacityKw} kW plant booking (${formatINR(amount)}) added to cart`,
     });
   };
 
@@ -267,6 +315,48 @@ export default function DDPStore() {
         </Button>
       </div>
 
+      {/* Booking Amount Section */}
+      <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sun className="w-5 h-5 text-primary" />
+            Book Solar Plant Installation
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
+            <div className="flex-1 space-y-2">
+              <Label htmlFor="capacity-select">Select Plant Capacity</Label>
+              <Select value={selectedCapacity} onValueChange={setSelectedCapacity}>
+                <SelectTrigger id="capacity-select" className="w-full sm:w-48" data-testid="select-capacity">
+                  <SelectValue placeholder="Select capacity" />
+                </SelectTrigger>
+                <SelectContent>
+                  {capacityOptions.map((kw) => (
+                    <SelectItem key={kw} value={kw.toString()}>
+                      {kw} kW
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">
+                Booking amount: {parseInt(selectedCapacity) <= 3 ? "Rs 5,000" : "Rs 20,000"} (Up to 3 kW: Rs 5,000 | Above 3 kW: Rs 20,000)
+              </p>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">Amount</p>
+                <p className="text-2xl font-bold text-primary">{formatINR(getBookingAmount(parseInt(selectedCapacity)))}</p>
+              </div>
+              <Button onClick={addBookingToCart} data-testid="button-add-booking">
+                <Plus className="w-4 h-4 mr-2" />
+                Add to Cart
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {cart.length > 0 && (
         <Card>
           <CardHeader>
@@ -322,7 +412,7 @@ export default function DDPStore() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {products?.map((product) => (
+        {products?.filter((p) => !p.name.toLowerCase().includes("booking amount")).map((product) => (
           <Card key={product.id} data-testid={`card-product-${product.id}`}>
             {product.imageUrl ? (
               <div className="w-full h-40 overflow-hidden rounded-t-lg">
