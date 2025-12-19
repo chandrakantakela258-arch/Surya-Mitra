@@ -871,6 +871,55 @@ export async function registerRoutes(
     }
   });
 
+  // Admin: Seed default products (MUST be before /api/admin/products POST to avoid route conflicts)
+  app.post("/api/admin/products/seed", requireAdmin, async (req, res) => {
+    try {
+      const defaultProducts = [
+        { name: "3 kW DCR Solar Package (Hybrid Inverter)", description: "Complete 3 kW DCR solar panel system with 3-in-1 hybrid inverter. Eligible for government subsidy. Installation included.", category: "solar_package", price: 225000 },
+        { name: "5 kW DCR Solar Package (Hybrid Inverter)", description: "Complete 5 kW DCR solar panel system with 3-in-1 hybrid inverter. Subsidy eligible up to 3 kW. Installation included.", category: "solar_package", price: 375000 },
+        { name: "10 kW DCR Solar Package (Hybrid Inverter)", description: "Complete 10 kW DCR solar panel system with 3-in-1 hybrid inverter. Ideal for larger homes. Installation included.", category: "solar_package", price: 750000 },
+        { name: "3 kW DCR Solar Package (Ongrid Inverter)", description: "Complete 3 kW DCR solar panel system with ongrid inverter. Eligible for government subsidy. Installation included.", category: "solar_package", price: 198000 },
+        { name: "5 kW DCR Solar Package (Ongrid Inverter)", description: "Complete 5 kW DCR solar panel system with ongrid inverter. Subsidy eligible up to 3 kW. Installation included.", category: "solar_package", price: 330000 },
+        { name: "3 kW Non-DCR Solar Package", description: "Complete 3 kW non-DCR solar panel system. Budget-friendly option without subsidy. Installation included.", category: "solar_package", price: 165000 },
+        { name: "5 kW Non-DCR Solar Package", description: "Complete 5 kW non-DCR solar panel system. Budget-friendly option without subsidy. Installation included.", category: "solar_package", price: 275000 },
+        { name: "10 kW Non-DCR Solar Package", description: "Complete 10 kW non-DCR solar panel system. Budget-friendly option for larger installations without subsidy.", category: "solar_package", price: 550000 },
+        { name: "SunPunch Trimax 3.5 kW Inverter", description: "On-Grid + Off-Grid + Hybrid Inverter. Supports grid-tie, off-grid, and backup modes.", category: "accessory", price: 42000 },
+        { name: "SunPunch Trimax 5.5 kW Inverter", description: "On-Grid + Off-Grid + Hybrid Inverter. Supports grid-tie, off-grid, and backup modes.", category: "accessory", price: 55000 },
+        { name: "SunPunch Trimax 6.2 kW Inverter", description: "On-Grid + Off-Grid + Hybrid Inverter. Supports grid-tie, off-grid, and backup modes.", category: "accessory", price: 65000 },
+        { name: "Solar Panel Brochure Pack (50 pcs)", description: "High-quality printed brochures explaining PM Surya Ghar Yojana benefits.", category: "marketing_material", price: 500 },
+        { name: "Brochures Tri-Fold (100 pcs)", description: "Tri-fold brochures explaining PM Surya Ghar Yojana benefits.", category: "marketing_material", price: 1300 },
+        { name: "Solar Subsidy Pamphlet (100 pcs)", description: "Pamphlets detailing central and state subsidies for rooftop solar.", category: "marketing_material", price: 350 },
+        { name: "DivyanshiSolar Banner (3x6 ft)", description: "Large vinyl banner with DivyanshiSolar branding.", category: "marketing_material", price: 1200 },
+        { name: "Standee Display (Roll-up 3x6 ft)", description: "Portable roll-up standee with solar benefits graphics.", category: "marketing_material", price: 2500 },
+        { name: "Standee (2ft x 5ft)", description: "Portable roll-up standee with DivyanshiSolar branding.", category: "marketing_material", price: 1800 },
+        { name: "Customer Visiting Cards (500 pcs)", description: "Professional visiting cards with DivyanshiSolar branding.", category: "marketing_material", price: 800 },
+        { name: "Visiting Cards (100 pcs)", description: "Professional visiting cards with DivyanshiSolar branding.", category: "marketing_material", price: 300 },
+        { name: "Personalised Notebooks", description: "Customized notebooks with DivyanshiSolar branding.", category: "marketing_material", price: 350 },
+        { name: "Customized Key Chains", description: "Branded key chains with DivyanshiSolar logo.", category: "marketing_material", price: 250 },
+      ];
+
+      let createdCount = 0;
+      for (const product of defaultProducts) {
+        await storage.createProduct({
+          name: product.name,
+          description: product.description,
+          category: product.category,
+          price: product.price,
+          imageUrl: null,
+          isActive: "active",
+          stock: 0,
+        });
+        createdCount++;
+      }
+      
+      console.log(`Admin seeded ${createdCount} products successfully`);
+      res.json({ message: `Successfully seeded ${createdCount} products`, count: createdCount });
+    } catch (error) {
+      console.error("Seed products error:", error);
+      res.status(500).json({ message: "Failed to seed products" });
+    }
+  });
+
   // Admin: Create product
   app.post("/api/admin/products", requireAdmin, async (req, res) => {
     try {
@@ -904,59 +953,6 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Delete product error:", error);
       res.status(500).json({ message: "Failed to delete product" });
-    }
-  });
-
-  // Admin: Seed default products
-  app.post("/api/admin/products/seed", requireAdmin, async (req, res) => {
-    try {
-      const defaultProducts = [
-        // Solar Packages - DCR (Hybrid Inverter)
-        { name: "3 kW DCR Solar Package (Hybrid Inverter)", description: "Complete 3 kW DCR solar panel system with 3-in-1 hybrid inverter. Eligible for government subsidy. Installation included.", category: "solar_package", price: 225000 },
-        { name: "5 kW DCR Solar Package (Hybrid Inverter)", description: "Complete 5 kW DCR solar panel system with 3-in-1 hybrid inverter. Subsidy eligible up to 3 kW. Installation included.", category: "solar_package", price: 375000 },
-        { name: "10 kW DCR Solar Package (Hybrid Inverter)", description: "Complete 10 kW DCR solar panel system with 3-in-1 hybrid inverter. Ideal for larger homes. Installation included.", category: "solar_package", price: 750000 },
-        // Solar Packages - DCR (Ongrid Inverter)
-        { name: "3 kW DCR Solar Package (Ongrid Inverter)", description: "Complete 3 kW DCR solar panel system with ongrid inverter. Eligible for government subsidy. Installation included.", category: "solar_package", price: 198000 },
-        { name: "5 kW DCR Solar Package (Ongrid Inverter)", description: "Complete 5 kW DCR solar panel system with ongrid inverter. Subsidy eligible up to 3 kW. Installation included.", category: "solar_package", price: 330000 },
-        // Solar Packages - Non-DCR
-        { name: "3 kW Non-DCR Solar Package", description: "Complete 3 kW non-DCR solar panel system. Budget-friendly option without subsidy. Installation included.", category: "solar_package", price: 165000 },
-        { name: "5 kW Non-DCR Solar Package", description: "Complete 5 kW non-DCR solar panel system. Budget-friendly option without subsidy. Installation included.", category: "solar_package", price: 275000 },
-        { name: "10 kW Non-DCR Solar Package", description: "Complete 10 kW non-DCR solar panel system. Budget-friendly option for larger installations without subsidy.", category: "solar_package", price: 550000 },
-        // Inverters
-        { name: "SunPunch Trimax 3.5 kW Inverter", description: "Market's only On-Grid + Off-Grid + Hybrid Inverter. Supports grid-tie, off-grid, and grid-tie with backup modes.", category: "accessory", price: 42000 },
-        { name: "SunPunch Trimax 5.5 kW Inverter", description: "Market's only On-Grid + Off-Grid + Hybrid Inverter. Supports grid-tie, off-grid, and grid-tie with backup modes.", category: "accessory", price: 55000 },
-        { name: "SunPunch Trimax 6.2 kW Inverter", description: "Market's only On-Grid + Off-Grid + Hybrid Inverter. Supports grid-tie, off-grid, and grid-tie with backup modes.", category: "accessory", price: 65000 },
-        // Marketing Materials
-        { name: "Solar Panel Brochure Pack (50 pcs)", description: "High-quality printed brochures explaining PM Surya Ghar Yojana benefits. Pack of 50 pieces.", category: "marketing_material", price: 500 },
-        { name: "Brochures Tri-Fold (100 pcs)", description: "High-quality tri-fold brochures explaining PM Surya Ghar Yojana benefits. Pack of 100 pieces.", category: "marketing_material", price: 1300 },
-        { name: "Solar Subsidy Pamphlet (100 pcs)", description: "Informative pamphlets detailing central and state subsidies for rooftop solar. Pack of 100 pieces.", category: "marketing_material", price: 350 },
-        { name: "DivyanshiSolar Banner (3x6 ft)", description: "Large vinyl banner with DivyanshiSolar branding for office or event display.", category: "marketing_material", price: 1200 },
-        { name: "Standee Display (Roll-up 3x6 ft)", description: "Portable roll-up standee with solar benefits graphics. Easy to carry and set up at events.", category: "marketing_material", price: 2500 },
-        { name: "Standee (2ft x 5ft)", description: "Portable roll-up standee with DivyanshiSolar branding. Easy to carry and set up.", category: "marketing_material", price: 1800 },
-        { name: "Customer Visiting Cards (500 pcs)", description: "Professional visiting cards with your details and DivyanshiSolar branding. Pack of 500 cards.", category: "marketing_material", price: 800 },
-        { name: "Visiting Cards (100 pcs)", description: "Professional visiting cards with your details and DivyanshiSolar branding. Pack of 100 cards.", category: "marketing_material", price: 300 },
-        { name: "Personalised Notebooks", description: "Customized notebooks with DivyanshiSolar branding. Perfect for partners and customer meetings.", category: "marketing_material", price: 350 },
-        { name: "Customized Key Chains", description: "Branded key chains with DivyanshiSolar logo. Perfect for customer giveaways and promotions.", category: "marketing_material", price: 250 },
-      ];
-
-      let createdCount = 0;
-      for (const product of defaultProducts) {
-        await storage.createProduct({
-          name: product.name,
-          description: product.description,
-          category: product.category,
-          price: product.price,
-          imageUrl: null,
-          isActive: "active",
-          stock: 0,
-        });
-        createdCount++;
-      }
-      
-      res.json({ message: `Successfully seeded ${createdCount} products`, count: createdCount });
-    } catch (error) {
-      console.error("Seed products error:", error);
-      res.status(500).json({ message: "Failed to seed products" });
     }
   });
 
