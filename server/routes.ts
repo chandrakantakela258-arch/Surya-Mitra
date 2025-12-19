@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import session from "express-session";
 import { storage } from "./storage";
-import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSchema, updateFeedbackStatusSchema } from "@shared/schema";
+import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSchema, updateFeedbackStatusSchema, inverterCommission } from "@shared/schema";
 import { z } from "zod";
 
 // Extend express-session types
@@ -1161,6 +1161,45 @@ export async function registerRoutes(
       
       // Fetch updated order
       const updatedOrder = await storage.getOrder(order.id);
+      
+      // Create commissions for SunPunch inverter sales
+      const orderItems = await storage.getOrderItems(order.id);
+      const ddp = await storage.getUser(order.ddpId);
+      
+      for (const item of orderItems) {
+        // Check if this is a SunPunch inverter product
+        if (item.productName && item.productName.toLowerCase().includes("sunpunch")) {
+          const quantity = item.quantity || 1;
+          const ddpCommissionAmount = inverterCommission.ddp * quantity;
+          const bdpCommissionAmount = inverterCommission.bdp * quantity;
+          
+          // Create DDP commission for inverter sale
+          await storage.createCommission({
+            partnerId: order.ddpId,
+            partnerType: "ddp",
+            customerId: null,
+            capacityKw: 0,
+            commissionAmount: ddpCommissionAmount,
+            status: "pending",
+            paidAt: null,
+            notes: `SunPunch Inverter sale: ${item.productName} x${quantity} (Order #${order.id.slice(-6)})`,
+          });
+          
+          // Create BDP commission if DDP has a parent
+          if (ddp?.parentId) {
+            await storage.createCommission({
+              partnerId: ddp.parentId,
+              partnerType: "bdp",
+              customerId: null,
+              capacityKw: 0,
+              commissionAmount: bdpCommissionAmount,
+              status: "pending",
+              paidAt: null,
+              notes: `SunPunch Inverter sale: ${item.productName} x${quantity} (Order #${order.id.slice(-6)})`,
+            });
+          }
+        }
+      }
       
       res.json({ success: true, order: updatedOrder });
     } catch (error: any) {

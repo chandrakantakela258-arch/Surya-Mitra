@@ -38,6 +38,10 @@ Preferred communication style: Simple, everyday language.
 **Non-DCR Panels:**
 - All capacities: DDP Rs 4,000/kW | BDP Rs 2,000/kW
 
+**SunPunch 3-in-1 Inverters (per unit sold):**
+- DDP: Rs 4,000 | BDP: Rs 1,000
+- Commissions auto-generated when inverter order payment is verified
+
 ### Razorpay Integration
 The platform uses Razorpay for two distinct payment flows:
 

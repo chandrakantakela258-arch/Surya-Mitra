@@ -244,7 +244,7 @@ export const commissions = pgTable("commissions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   partnerId: varchar("partner_id").notNull(),
   partnerType: text("partner_type").notNull().default("ddp"), // ddp or bdp
-  customerId: varchar("customer_id").notNull(),
+  customerId: varchar("customer_id"), // Optional - null for product sales like inverters
   capacityKw: integer("capacity_kw").notNull(),
   commissionAmount: integer("commission_amount").notNull(), // in INR
   status: text("status").notNull().default("pending"), // pending, approved, paid
@@ -588,6 +588,9 @@ export const nonDcrPerKwRates = { ddp: 4000, bdp: 2000 };
 
 // Non-DCR panel cost per kW
 export const nonDcrCostPerKw = 55000;
+
+// SunPunch 3-in-1 Inverter commission rates (per unit sold)
+export const inverterCommission = { ddp: 4000, bdp: 1000 };
 
 // Calculate DDP commission based on capacity and panel type
 export function calculateCommission(capacityKw: number, panelType: string = "dcr"): number {
