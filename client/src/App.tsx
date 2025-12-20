@@ -54,6 +54,8 @@ import LeaderboardPage from "@/pages/leaderboard";
 import ReferralsPage from "@/pages/referrals";
 import InstallationMap from "@/pages/installation-map";
 import VendorRegistration from "@/pages/vendor-registration";
+import { MobileNav } from "@/components/mobile-nav";
+import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 
 function LoadingScreen() {
   return (
@@ -127,10 +129,12 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
               <ThemeToggle />
             </div>
           </header>
-          <main className="flex-1 p-6 overflow-auto">
+          <main className="flex-1 p-4 md:p-6 overflow-auto pb-20 md:pb-6">
             {children}
           </main>
         </div>
+        <MobileNav />
+        <PWAInstallPrompt />
         <ChatbotAssistant />
         {user && (user.role === "bdp" || user.role === "ddp") && (
           <OnboardingTutorial userRole={user.role} />
