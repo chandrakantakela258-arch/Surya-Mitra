@@ -15,6 +15,8 @@ import { ChatbotAssistant } from "@/components/chatbot-assistant";
 import { OnboardingTutorial } from "@/components/onboarding-tutorial";
 
 import NotFound from "@/pages/not-found";
+import LandingPage from "@/pages/landing";
+import SubsidyCalculatorPage from "@/pages/subsidy-calculator";
 import LoginPage from "@/pages/login";
 import RegisterPage from "@/pages/register";
 import BDPDashboard from "@/pages/bdp/dashboard";
@@ -304,6 +306,13 @@ function PublicRouter() {
 
   return (
     <Switch>
+      {/* Public pages - accessible without login */}
+      <Route path="/">
+        <LandingPage />
+      </Route>
+      <Route path="/subsidy-calculator">
+        <SubsidyCalculatorPage />
+      </Route>
       <Route path="/login">
         {user ? (
           <Redirect to={user.role === "admin" ? "/admin/dashboard" : user.role === "bdp" ? "/bdp/dashboard" : "/ddp/dashboard"} />
@@ -316,13 +325,6 @@ function PublicRouter() {
           <Redirect to={user.role === "admin" ? "/admin/dashboard" : user.role === "bdp" ? "/bdp/dashboard" : "/ddp/dashboard"} />
         ) : (
           <RegisterPage />
-        )}
-      </Route>
-      <Route path="/">
-        {user ? (
-          <Redirect to={user.role === "admin" ? "/admin/dashboard" : user.role === "bdp" ? "/bdp/dashboard" : "/ddp/dashboard"} />
-        ) : (
-          <Redirect to="/login" />
         )}
       </Route>
       <Route>
