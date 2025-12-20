@@ -78,7 +78,6 @@ export async function registerRoutes(
         tableName: "user_sessions",
         createTableIfMissing: true,
       }),
-      name: "dsolar.sid",
       secret: process.env.SESSION_SECRET || "surya-partner-secret-key",
       resave: false,
       saveUninitialized: false,
@@ -86,9 +85,8 @@ export async function registerRoutes(
       cookie: {
         secure: isProduction,
         httpOnly: true,
-        sameSite: isProduction ? "strict" : "lax",
+        sameSite: "lax",
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        path: "/",
       },
     })
   );
