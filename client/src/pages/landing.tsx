@@ -114,7 +114,7 @@ export default function LandingPage() {
                   data-testid="nav-customer-registration"
                 >
                   <ClipboardList className="w-4 h-4" />
-                  Customer Referral
+                  Customer Registration
                 </button>
               </WouterLink>
             </nav>
@@ -190,7 +190,7 @@ export default function LandingPage() {
                     data-testid="mobile-nav-customer-registration"
                   >
                     <ClipboardList className="w-4 h-4" />
-                    Customer Referral
+                    Customer Registration
                   </div>
                 </WouterLink>
               </div>
