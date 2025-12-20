@@ -75,6 +75,7 @@ const adminMenuSections: MenuSection[] = [
     items: [
       { title: "Partner Approvals", url: "/admin/partners", icon: UserCheck },
       { title: "All Customers", url: "/admin/customers", icon: Users },
+      { title: "Independent Customers", url: "/admin/independent-customers", icon: UserPlus },
     ],
   },
   {

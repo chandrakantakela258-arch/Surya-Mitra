@@ -43,6 +43,7 @@ import AdminFeedback from "@/pages/admin/feedback";
 import AdminNotificationSettings from "@/pages/admin/notifications-settings";
 import AdminVendors from "@/pages/admin/vendors";
 import AdminSiteExpenses from "@/pages/admin/site-expenses";
+import AdminIndependentCustomers from "@/pages/admin/independent-customers";
 import ProfilePage from "@/pages/profile";
 import PrivacyPolicyPage from "@/pages/privacy-policy";
 import DisclaimerPage from "@/pages/disclaimer";
@@ -222,6 +223,13 @@ function AuthenticatedRoutes() {
         <ProtectedRoute allowedRoles={["admin"]}>
           <DashboardLayout>
             <AdminSiteExpenses />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/independent-customers">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminIndependentCustomers />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
