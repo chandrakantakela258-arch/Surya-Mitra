@@ -40,7 +40,7 @@ import {
   Headphones,
   AlertTriangle,
   Clock,
-  MessageSquarePlus
+  MessageSquare
 } from "lucide-react";
 import { useState } from "react";
 
@@ -1370,7 +1370,7 @@ export default function LandingPage() {
           isPublic={true}
           trigger={
             <Button size="lg" className="gap-2 shadow-lg" data-testid="button-floating-feedback">
-              <MessageSquarePlus className="w-5 h-5" />
+              <MessageSquare className="w-5 h-5" />
               <span className="hidden sm:inline">Feedback</span>
             </Button>
           }

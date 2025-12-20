@@ -226,12 +226,21 @@ export default function AdminFeedback() {
                           <Badge variant="outline" className={statusColors[item.status]}>
                             {item.status}
                           </Badge>
+                          {item.priority && item.priority !== "normal" && (
+                            <Badge variant={item.priority === "critical" ? "destructive" : "secondary"}>
+                              {item.priority}
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-sm text-muted-foreground line-clamp-2">{item.message}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(item.createdAt!).toLocaleDateString()} at{" "}
-                          {new Date(item.createdAt!).toLocaleTimeString()}
-                        </p>
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          <span>
+                            {new Date(item.createdAt!).toLocaleDateString()} at{" "}
+                            {new Date(item.createdAt!).toLocaleTimeString()}
+                          </span>
+                          {item.userName && <span>from {item.userName}</span>}
+                          {item.page && <span>on {item.page}</span>}
+                        </div>
                       </div>
                       <Button size="sm" variant="outline" data-testid={`button-view-${item.id}`}>
                         <Eye className="w-4 h-4 mr-1" />
@@ -264,6 +273,30 @@ export default function AdminFeedback() {
                   {new Date(selectedFeedback.createdAt!).toLocaleString()}
                 </span>
               </div>
+
+              {selectedFeedback.priority && selectedFeedback.priority !== "normal" && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">Priority:</span>
+                  <Badge variant={selectedFeedback.priority === "critical" ? "destructive" : "secondary"}>
+                    {selectedFeedback.priority}
+                  </Badge>
+                </div>
+              )}
+
+              {(selectedFeedback.userEmail || selectedFeedback.userName || selectedFeedback.page) && (
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <h4 className="font-semibold mb-1 text-sm">Submitted By</h4>
+                  {selectedFeedback.userName && (
+                    <p className="text-sm">{selectedFeedback.userName}</p>
+                  )}
+                  {selectedFeedback.userEmail && (
+                    <p className="text-sm text-muted-foreground">{selectedFeedback.userEmail}</p>
+                  )}
+                  {selectedFeedback.page && (
+                    <p className="text-xs text-muted-foreground mt-1">Page: {selectedFeedback.page}</p>
+                  )}
+                </div>
+              )}
 
               <div>
                 <h4 className="font-semibold mb-1">Subject</h4>
