@@ -2365,7 +2365,7 @@ export async function registerRoutes(
 
   // ===== MAP VIEW ROUTES =====
   
-  // Public: Get installation locations for map
+  // Public: Get installation locations for map (completed only)
   app.get("/api/public/installations-map", async (req, res) => {
     try {
       const installations = await storage.getCustomersWithLocations();
@@ -2388,6 +2388,50 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Get installations map error:", error);
       res.status(500).json({ message: "Failed to get installation locations" });
+    }
+  });
+  
+  // Public: Get all installations for interactive map (including ongoing)
+  app.get("/api/public/all-installations-map", async (req, res) => {
+    try {
+      const installations = await storage.getAllCustomersWithLocations();
+      const publicData = installations.map(c => ({
+        id: c.id,
+        state: c.state,
+        district: c.district,
+        address: c.address,
+        proposedCapacity: c.proposedCapacity,
+        panelType: c.panelType,
+        latitude: c.latitude,
+        longitude: c.longitude,
+        installationDate: c.installationDate,
+        sitePictures: c.sitePictures,
+        siteVideo: c.siteVideo,
+        status: c.status,
+      }));
+      res.json(publicData);
+    } catch (error) {
+      console.error("Get all installations map error:", error);
+      res.status(500).json({ message: "Failed to get installation locations" });
+    }
+  });
+  
+  // Public: Get partner network for map visualization
+  app.get("/api/public/partner-network-map", async (req, res) => {
+    try {
+      const partners = await storage.getPartnersForMap();
+      // Return only public partner data (no sensitive info)
+      const publicData = partners.map(p => ({
+        id: p.id,
+        name: p.name,
+        role: p.role,
+        district: p.district,
+        state: p.state,
+      }));
+      res.json(publicData);
+    } catch (error) {
+      console.error("Get partner network map error:", error);
+      res.status(500).json({ message: "Failed to get partner network" });
     }
   });
 

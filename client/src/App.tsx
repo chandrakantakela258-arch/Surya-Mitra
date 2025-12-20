@@ -53,6 +53,7 @@ import PanelComparisonPage from "@/pages/panel-comparison";
 import LeaderboardPage from "@/pages/leaderboard";
 import ReferralsPage from "@/pages/referrals";
 import InstallationMap from "@/pages/installation-map";
+import NetworkMap from "@/pages/network-map";
 import VendorRegistration from "@/pages/vendor-registration";
 import { MobileNav } from "@/components/mobile-nav";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
@@ -393,6 +394,12 @@ function PublicRouter() {
       </Route>
       <Route path="/installations">
         <InstallationMap />
+      </Route>
+      <Route path="/network-map">
+        <NetworkMap />
+      </Route>
+      <Route path="/map">
+        <NetworkMap />
       </Route>
       <Route path="/vendor-registration">
         <VendorRegistration />

@@ -283,6 +283,8 @@ export interface IStorage {
   // Map data operations
   getInstallationLocations(): Promise<{ state: string; district: string; count: number; latitude?: string; longitude?: string }[]>;
   getCustomersWithLocations(): Promise<Customer[]>;
+  getAllCustomersWithLocations(): Promise<Customer[]>;
+  getPartnersForMap(): Promise<User[]>;
   updateCustomerLocation(id: string, latitude: string, longitude: string): Promise<Customer | undefined>;
   
   // Site media operations
@@ -1691,6 +1693,19 @@ export class DatabaseStorage implements IStorage {
       .where(and(
         eq(customers.status, "completed"),
         sql`${customers.latitude} IS NOT NULL`
+      ));
+  }
+  
+  async getAllCustomersWithLocations(): Promise<Customer[]> {
+    return await db.select().from(customers)
+      .where(sql`${customers.latitude} IS NOT NULL`);
+  }
+  
+  async getPartnersForMap(): Promise<User[]> {
+    return await db.select().from(users)
+      .where(and(
+        sql`${users.role} IN ('bdp', 'ddp')`,
+        eq(users.status, "approved")
       ));
   }
 
