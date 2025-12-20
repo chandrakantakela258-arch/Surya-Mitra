@@ -1275,7 +1275,10 @@ export default function LandingPage() {
                 Authorized Partner Network for PM Surya Ghar Yojana
               </p>
               <p className="text-xs text-muted-foreground">
-                CIN: Incorporated 11th December 2017
+                CIN: U93090BR2017PTC036522
+              </p>
+              <p className="text-xs text-muted-foreground">
+                GST: 10AAGCD4586K1ZK
               </p>
             </div>
 
