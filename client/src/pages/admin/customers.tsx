@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Search, Phone, MapPin, Zap, Calendar, MoreVertical, CheckCircle, Clock, FileCheck, Truck, PartyPopper, Eye } from "lucide-react";
+import { Search, Phone, MapPin, Zap, Calendar, MoreVertical, CheckCircle, Clock, FileCheck, Truck, PartyPopper, Eye, Camera, Video, Play, X, Image } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { CustomerJourneyMini } from "@/components/customer-journey-tracker";
@@ -24,6 +24,14 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 import { CustomerJourneyTracker } from "@/components/customer-journey-tracker";
 import type { Customer } from "@shared/schema";
 
@@ -40,6 +48,8 @@ export default function AdminCustomers() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [panelFilter, setPanelFilter] = useState<string>("all");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewVideo, setPreviewVideo] = useState(false);
   const { toast } = useToast();
 
   const { data: customers, isLoading } = useQuery<Customer[]>({
@@ -218,6 +228,22 @@ export default function AdminCustomers() {
                       <div className="mt-2 max-w-[200px]">
                         <CustomerJourneyMini customerId={customer.id} />
                       </div>
+                      {((customer.sitePictures && customer.sitePictures.length > 0) || customer.siteVideo) && (
+                        <div className="flex items-center gap-2 mt-2">
+                          {customer.sitePictures && customer.sitePictures.length > 0 && (
+                            <Badge variant="outline" className="text-xs">
+                              <Camera className="w-3 h-3 mr-1" />
+                              {customer.sitePictures.length} pics
+                            </Badge>
+                          )}
+                          {customer.siteVideo && (
+                            <Badge variant="outline" className="text-xs">
+                              <Video className="w-3 h-3 mr-1" />
+                              Video
+                            </Badge>
+                          )}
+                        </div>
+                      )}
                     </div>
                     
                     <div className="flex items-start gap-4">
@@ -293,22 +319,119 @@ export default function AdminCustomers() {
       <Sheet open={!!selectedCustomer} onOpenChange={(open) => !open && setSelectedCustomer(null)}>
         <SheetContent className="sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Customer Journey</SheetTitle>
+            <SheetTitle>Customer Details</SheetTitle>
             <SheetDescription>
-              View installation progress and milestones
+              View installation progress, milestones, and site media
             </SheetDescription>
           </SheetHeader>
           {selectedCustomer && (
-            <div className="mt-6">
+            <div className="mt-6 space-y-6">
               <CustomerJourneyTracker 
                 customerId={selectedCustomer.id} 
                 customerName={selectedCustomer.name}
                 showActions={false}
               />
+              
+              <Separator />
+              
+              <div className="space-y-4">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Camera className="w-4 h-4" />
+                  Site Media
+                </h3>
+                
+                {selectedCustomer.sitePictures && selectedCustomer.sitePictures.length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Image className="w-3 h-3" />
+                      {selectedCustomer.sitePictures.length}/6 Site Pictures
+                    </p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {selectedCustomer.sitePictures.map((url, index) => (
+                        <div 
+                          key={index} 
+                          className="aspect-square rounded-md overflow-hidden cursor-pointer hover-elevate"
+                          onClick={() => setPreviewImage(url)}
+                        >
+                          <img 
+                            src={url} 
+                            alt={`Site picture ${index + 1}`}
+                            className="w-full h-full object-cover"
+                            data-testid={`img-admin-site-picture-${index}`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No site pictures uploaded</p>
+                )}
+                
+                {selectedCustomer.siteVideo ? (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Video className="w-3 h-3" />
+                      Highlight Video
+                    </p>
+                    <div 
+                      className="relative aspect-[9/16] max-w-[150px] bg-muted rounded-md overflow-hidden cursor-pointer"
+                      onClick={() => setPreviewVideo(true)}
+                    >
+                      <video 
+                        src={selectedCustomer.siteVideo} 
+                        className="w-full h-full object-cover"
+                        data-testid="video-admin-site"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <Play className="w-8 h-8 text-white" />
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                      {selectedCustomer.proposedCapacity || "?"} kW - {selectedCustomer.district}
+                    </Badge>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No site video uploaded</p>
+                )}
+              </div>
             </div>
           )}
         </SheetContent>
       </Sheet>
+      
+      <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Site Picture</DialogTitle>
+            <DialogDescription>
+              {selectedCustomer?.name} - {selectedCustomer?.address}, {selectedCustomer?.district}
+            </DialogDescription>
+          </DialogHeader>
+          {previewImage && (
+            <img src={previewImage} alt="Site preview" className="w-full rounded-md" />
+          )}
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={previewVideo} onOpenChange={setPreviewVideo}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Site Highlight Video</DialogTitle>
+            <DialogDescription>
+              {selectedCustomer?.name} - {selectedCustomer?.proposedCapacity} kW - {selectedCustomer?.address}, {selectedCustomer?.district}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedCustomer?.siteVideo && (
+            <video 
+              src={selectedCustomer.siteVideo} 
+              controls 
+              autoPlay 
+              className="w-full aspect-[9/16] rounded-md"
+              data-testid="video-admin-preview"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
