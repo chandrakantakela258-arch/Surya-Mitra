@@ -60,7 +60,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b shadow-sm">
+      <header className="sticky top-0 z-50 bg-gradient-to-r from-background via-background to-background/95 backdrop-blur-md border-b border-primary/10 shadow-lg shadow-primary/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-4 h-16">
             {/* Logo */}
@@ -73,46 +73,46 @@ export default function LandingPage() {
             </div>
 
             {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center gap-1">
+            <nav className="hidden lg:flex items-center gap-1 bg-muted/30 rounded-full px-2 py-1 border border-border/50">
               <button 
                 onClick={() => scrollToSection("about")} 
-                className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-200"
                 data-testid="nav-about"
               >
-                <Building2 className="w-4 h-4" />
+                <Building2 className="w-4 h-4 text-blue-500" />
                 About Us
               </button>
               <button 
                 onClick={() => scrollToSection("sunpunch")} 
-                className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-200"
                 data-testid="nav-sunpunch"
               >
-                <Battery className="w-4 h-4" />
+                <Battery className="w-4 h-4 text-purple-500" />
                 SunPunch
               </button>
               <button 
                 onClick={() => scrollToSection("state-progress")} 
-                className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-200"
                 data-testid="nav-state-progress"
               >
-                <BarChart3 className="w-4 h-4" />
+                <BarChart3 className="w-4 h-4 text-teal-500" />
                 Progress
               </button>
               <WouterLink href="/network-map">
                 <button 
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-200"
                   data-testid="nav-network-map"
                 >
-                  <Map className="w-4 h-4" />
+                  <Map className="w-4 h-4 text-indigo-500" />
                   Partner Map
                 </button>
               </WouterLink>
               <WouterLink href="/vendor-registration">
                 <button 
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-200"
                   data-testid="nav-vendor-registration"
                 >
-                  <Store className="w-4 h-4" />
+                  <Store className="w-4 h-4 text-orange-500" />
                   Vendor
                 </button>
               </WouterLink>
