@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { StatCard } from "@/components/stat-card";
 import { TableSkeleton } from "@/components/loading-skeleton";
 import { EmptyState } from "@/components/empty-state";
-import { dcrFixedCommission, dcrPerKwRates, nonDcrPerKwRates, type Commission, type BankAccount } from "@shared/schema";
+import { dcrFixedCommission, dcrPerKwRates, nonDcrPerKwRates, inverterCommission, type Commission, type BankAccount } from "@shared/schema";
 import { formatINR } from "@/components/subsidy-calculator";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -271,6 +271,16 @@ export default function BDPWallet() {
                 </Badge>
               </div>
             </div>
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">SunPunch 3-in-1 Inverter</p>
+              <div className="p-3 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-between gap-4 flex-wrap">
+                <span className="text-sm">Per Unit Sold</span>
+                <Badge variant="outline" className="font-mono">
+                  {formatINR(inverterCommission.bdp)}
+                </Badge>
+              </div>
+            </div>
             
             <div className="p-4 rounded-lg bg-muted/50 space-y-3">
               <div className="flex items-center gap-2">
@@ -293,6 +303,10 @@ export default function BDPWallet() {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Non-DCR</span>
                   <span className="font-mono">{formatINR(nonDcrPerKwRates.ddp)}/kW</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Inverter</span>
+                  <span className="font-mono">{formatINR(inverterCommission.ddp)}/unit</span>
                 </div>
               </div>
             </div>
