@@ -123,14 +123,26 @@ export async function registerRoutes(
   app.post("/api/auth/login", async (req, res) => {
     try {
       const data = loginSchema.parse(req.body);
+      console.log("Login attempt for:", data.username);
       
       const user = await storage.getUserByUsername(data.username);
       if (!user || user.password !== data.password) {
+        console.log("Login failed - invalid credentials");
         return res.status(401).json({ message: "Invalid username or password" });
       }
       
       req.session.userId = user.id;
-      res.json({ user: { ...user, password: undefined } });
+      console.log("Login successful, setting userId:", user.id, "sessionId:", req.sessionID);
+      
+      // Force session save
+      req.session.save((err) => {
+        if (err) {
+          console.error("Session save error:", err);
+          return res.status(500).json({ message: "Session save failed" });
+        }
+        console.log("Session saved successfully");
+        res.json({ user: { ...user, password: undefined } });
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors[0].message });
