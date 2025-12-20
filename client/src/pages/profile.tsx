@@ -19,6 +19,7 @@ const bankAccountSchema = z.object({
   accountNumber: z.string().min(9, "Valid account number is required"),
   ifscCode: z.string().regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, "Invalid IFSC code format"),
   bankName: z.string().min(2, "Bank name is required"),
+  upiId: z.string().regex(/^[a-zA-Z0-9._-]+@[a-zA-Z0-9]+$/, "Invalid UPI ID format (e.g. name@upi)").optional().or(z.literal("")),
 });
 
 type BankAccountFormData = z.infer<typeof bankAccountSchema>;
@@ -38,6 +39,7 @@ export default function ProfilePage() {
       accountNumber: "",
       ifscCode: "",
       bankName: "",
+      upiId: "",
     },
   });
 
@@ -171,6 +173,12 @@ export default function ProfilePage() {
                       <span className="text-muted-foreground">Bank Name:</span>
                       <span className="font-medium">{bankAccount.bankName}</span>
                     </div>
+                    {bankAccount.upiId && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">UPI ID:</span>
+                        <span className="font-medium">{bankAccount.upiId}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground">
@@ -243,6 +251,23 @@ export default function ProfilePage() {
                             placeholder="e.g. State Bank of India" 
                             {...field} 
                             data-testid="input-bank-name"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="upiId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>UPI ID (Optional)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="e.g. yourname@upi" 
+                            {...field} 
+                            data-testid="input-upi-id"
                           />
                         </FormControl>
                         <FormMessage />

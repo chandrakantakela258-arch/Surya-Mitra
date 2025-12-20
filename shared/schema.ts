@@ -118,6 +118,7 @@ export const bankAccounts = pgTable("bank_accounts", {
   accountNumber: text("account_number").notNull(),
   ifscCode: text("ifsc_code").notNull(),
   bankName: text("bank_name"),
+  upiId: text("upi_id"), // UPI ID for payouts (e.g. name@upi)
   razorpayContactId: text("razorpay_contact_id"), // Razorpay contact ID
   razorpayFundAccountId: text("razorpay_fund_account_id"), // Razorpay fund account ID
   verified: text("verified").default("pending"), // pending, verified, failed
