@@ -1,6 +1,7 @@
 import { Link as WouterLink } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { 
   Sun, 
@@ -18,7 +19,9 @@ import {
   Shield,
   TrendingUp,
   Menu,
-  X
+  X,
+  MapPin,
+  BarChart3
 } from "lucide-react";
 import { useState } from "react";
 
@@ -83,6 +86,13 @@ export default function LandingPage() {
                 data-testid="nav-sunpunch"
               >
                 SunPunch Inverter
+              </button>
+              <button 
+                onClick={() => scrollToSection("state-progress")} 
+                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                data-testid="nav-state-progress"
+              >
+                State Progress
               </button>
             </nav>
 
@@ -156,6 +166,13 @@ export default function LandingPage() {
                 data-testid="mobile-nav-sunpunch"
               >
                 SunPunch Inverter
+              </button>
+              <button 
+                onClick={() => scrollToSection("state-progress")} 
+                className="text-left py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+                data-testid="mobile-nav-state-progress"
+              >
+                State Progress
               </button>
               <WouterLink href="/subsidy-calculator">
                 <Button variant="outline" size="sm" className="w-full mt-2 gap-2" data-testid="mobile-nav-subsidy">
@@ -580,6 +597,237 @@ export default function LandingPage() {
                 </div>
               </CardContent>
             </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* State-wise Progress Section */}
+      <section id="state-progress" className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-4">
+              <BarChart3 className="w-4 h-4" />
+              Our Working States
+            </div>
+            <h2 className="text-3xl font-bold mb-4">State-wise Progress Under PM Surya Ghar Yojana</h2>
+            <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+              DivyanshiSolar is actively partnering across four key states in India. 
+              See our installation progress and reach.
+            </p>
+          </div>
+
+          {/* National Stats */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-primary" data-testid="text-national-installations">19.45 Lakh+</div>
+                <div className="text-sm text-muted-foreground">Systems Installed (India)</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-primary" data-testid="text-national-budget">Rs 75,021 Cr</div>
+                <div className="text-sm text-muted-foreground">Total Budget</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-primary" data-testid="text-national-disbursed">Rs 13,926 Cr</div>
+                <div className="text-sm text-muted-foreground">Subsidy Disbursed</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-primary" data-testid="text-national-zero-bills">7.71 Lakh</div>
+                <div className="text-sm text-muted-foreground">Zero Bill Households</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* State Tabs */}
+          <Tabs defaultValue="bihar" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 h-auto gap-2 bg-transparent p-0">
+              <TabsTrigger 
+                value="bihar" 
+                className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border"
+                data-testid="tab-bihar"
+              >
+                <MapPin className="w-4 h-4" />
+                Bihar
+              </TabsTrigger>
+              <TabsTrigger 
+                value="jharkhand" 
+                className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border"
+                data-testid="tab-jharkhand"
+              >
+                <MapPin className="w-4 h-4" />
+                Jharkhand
+              </TabsTrigger>
+              <TabsTrigger 
+                value="uttar-pradesh" 
+                className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border"
+                data-testid="tab-up"
+              >
+                <MapPin className="w-4 h-4" />
+                Uttar Pradesh
+              </TabsTrigger>
+              <TabsTrigger 
+                value="odisha" 
+                className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border"
+                data-testid="tab-odisha"
+              >
+                <MapPin className="w-4 h-4" />
+                Odisha
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="bihar" className="mt-6">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                      <MapPin className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-xl">Bihar</h3>
+                      <p className="text-sm text-muted-foreground">Active Partner Network</p>
+                    </div>
+                  </div>
+                  <div className="grid sm:grid-cols-3 gap-4 mb-6">
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-2xl font-bold" data-testid="text-bihar-registrations">5+ Lakh</div>
+                      <div className="text-sm text-muted-foreground">Registrations</div>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-2xl font-bold" data-testid="text-bihar-status">Active</div>
+                      <div className="text-sm text-muted-foreground">Program Status</div>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-2xl font-bold" data-testid="text-bihar-subsidy">Standard</div>
+                      <div className="text-sm text-muted-foreground">State Subsidy</div>
+                    </div>
+                  </div>
+                  <p className="text-muted-foreground">
+                    Bihar has seen strong adoption of the PM Surya Ghar Yojana with over 5 lakh registrations. 
+                    Our partner network covers major districts including Patna, Gaya, Bhagalpur, and Muzaffarpur.
+                  </p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="jharkhand" className="mt-6">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                      <MapPin className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-xl">Jharkhand</h3>
+                      <p className="text-sm text-muted-foreground">Growing Partner Network</p>
+                    </div>
+                  </div>
+                  <div className="grid sm:grid-cols-3 gap-4 mb-6">
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-2xl font-bold" data-testid="text-jharkhand-registrations">2+ Lakh</div>
+                      <div className="text-sm text-muted-foreground">Registrations</div>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-2xl font-bold" data-testid="text-jharkhand-status">Active</div>
+                      <div className="text-sm text-muted-foreground">Program Status</div>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-2xl font-bold" data-testid="text-jharkhand-subsidy">Standard</div>
+                      <div className="text-sm text-muted-foreground">State Subsidy</div>
+                    </div>
+                  </div>
+                  <p className="text-muted-foreground">
+                    Jharkhand is rapidly adopting rooftop solar under the scheme. 
+                    Our network is expanding in Ranchi, Jamshedpur, Dhanbad, and Bokaro regions.
+                  </p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="uttar-pradesh" className="mt-6">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                      <MapPin className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-xl">Uttar Pradesh</h3>
+                      <p className="text-sm text-muted-foreground">Highest Target State</p>
+                    </div>
+                  </div>
+                  <div className="grid sm:grid-cols-3 gap-4 mb-6">
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-2xl font-bold" data-testid="text-up-registrations">5+ Lakh</div>
+                      <div className="text-sm text-muted-foreground">Registrations</div>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-2xl font-bold" data-testid="text-up-target">25 Lakh</div>
+                      <div className="text-sm text-muted-foreground">State Target</div>
+                    </div>
+                    <div className="p-4 bg-primary/10 rounded-lg text-center border-2 border-primary/30">
+                      <div className="text-2xl font-bold text-primary" data-testid="text-up-subsidy">+Rs 10,000/kW</div>
+                      <div className="text-sm text-muted-foreground">Additional Subsidy</div>
+                    </div>
+                  </div>
+                  <p className="text-muted-foreground">
+                    Uttar Pradesh has the highest target of 25 lakh households and offers an additional 
+                    Rs 10,000/kW state subsidy. We operate across Lucknow, Varanasi, Agra, Kanpur, and more.
+                  </p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="odisha" className="mt-6">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                      <MapPin className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-xl">Odisha</h3>
+                      <p className="text-sm text-muted-foreground">Best State Subsidy</p>
+                    </div>
+                  </div>
+                  <div className="grid sm:grid-cols-3 gap-4 mb-6">
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-2xl font-bold" data-testid="text-odisha-registrations">5+ Lakh</div>
+                      <div className="text-sm text-muted-foreground">Registrations</div>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-2xl font-bold" data-testid="text-odisha-status">Active</div>
+                      <div className="text-sm text-muted-foreground">Program Status</div>
+                    </div>
+                    <div className="p-4 bg-primary/10 rounded-lg text-center border-2 border-primary/30">
+                      <div className="text-2xl font-bold text-primary" data-testid="text-odisha-subsidy">+Rs 20,000/kW</div>
+                      <div className="text-sm text-muted-foreground">Additional Subsidy</div>
+                    </div>
+                  </div>
+                  <p className="text-muted-foreground">
+                    Odisha offers the highest additional state subsidy of Rs 20,000/kW, making solar 
+                    even more affordable. Our network covers Bhubaneswar, Cuttack, Rourkela, and Puri.
+                  </p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+
+          <div className="mt-8 text-center">
+            <p className="text-sm text-muted-foreground mb-4">
+              Data sourced from PM Surya Ghar portal (pmsuryaghar.gov.in). Last updated: December 2024.
+            </p>
+            <WouterLink href="/register">
+              <Button className="gap-2" data-testid="button-state-become-partner">
+                <Users className="w-4 h-4" />
+                Become a Partner in Your State
+              </Button>
+            </WouterLink>
           </div>
         </div>
       </section>
