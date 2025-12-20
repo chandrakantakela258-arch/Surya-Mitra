@@ -1,4 +1,4 @@
-const CACHE_NAME = 'divyanshi-solar-v1';
+const CACHE_NAME = 'divyanshi-solar-v2';
 const STATIC_ASSETS = [
   '/',
   '/favicon.png',
@@ -10,6 +10,18 @@ const CACHE_STRATEGIES = {
   cacheFirst: ['fonts.googleapis.com', 'fonts.gstatic.com', '.png', '.jpg', '.svg', '.ico'],
   staleWhileRevalidate: ['.js', '.css']
 };
+
+const SKIP_CACHE_PATTERNS = [
+  '/api/commissions',
+  '/api/customers',
+  '/api/dashboard',
+  '/api/earnings',
+  '/api/payouts',
+  '/api/wallet',
+  '/api/referrals',
+  '/api/leaderboard',
+  '/api/orders'
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -40,7 +52,15 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
 
   if (url.pathname.startsWith('/api')) {
-    event.respondWith(networkFirst(request));
+    const shouldSkipCache = SKIP_CACHE_PATTERNS.some(pattern => 
+      url.pathname.includes(pattern)
+    );
+    
+    if (shouldSkipCache) {
+      event.respondWith(networkOnly(request));
+    } else {
+      event.respondWith(networkFirst(request));
+    }
     return;
   }
 
@@ -56,6 +76,17 @@ function isCacheFirst(url) {
   return CACHE_STRATEGIES.cacheFirst.some(pattern => url.includes(pattern));
 }
 
+async function networkOnly(request) {
+  try {
+    return await fetch(request);
+  } catch (error) {
+    return new Response(JSON.stringify({ error: 'Offline', offline: true }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+}
+
 async function networkFirst(request) {
   try {
     const networkResponse = await fetch(request);
@@ -67,7 +98,7 @@ async function networkFirst(request) {
   } catch (error) {
     const cachedResponse = await caches.match(request);
     if (cachedResponse) return cachedResponse;
-    return new Response(JSON.stringify({ error: 'Offline' }), {
+    return new Response(JSON.stringify({ error: 'Offline', offline: true }), {
       status: 503,
       headers: { 'Content-Type': 'application/json' }
     });
