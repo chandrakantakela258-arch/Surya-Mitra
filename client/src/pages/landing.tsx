@@ -489,7 +489,7 @@ export default function LandingPage() {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-6">
               <div className="grid sm:grid-cols-2 gap-4">
-                <Card className="bg-card">
+                <Card className="bg-card" data-testid="card-sunpunch-functionality">
                   <CardContent className="p-4 flex items-start gap-3">
                     <Battery className="w-8 h-8 text-primary flex-shrink-0" />
                     <div>
@@ -498,7 +498,7 @@ export default function LandingPage() {
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="bg-card">
+                <Card className="bg-card" data-testid="card-sunpunch-wifi">
                   <CardContent className="p-4 flex items-start gap-3">
                     <Wifi className="w-8 h-8 text-primary flex-shrink-0" />
                     <div>
@@ -507,7 +507,7 @@ export default function LandingPage() {
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="bg-card">
+                <Card className="bg-card" data-testid="card-sunpunch-backflow">
                   <CardContent className="p-4 flex items-start gap-3">
                     <Shield className="w-8 h-8 text-primary flex-shrink-0" />
                     <div>
@@ -516,7 +516,7 @@ export default function LandingPage() {
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="bg-card">
+                <Card className="bg-card" data-testid="card-sunpunch-efficiency">
                   <CardContent className="p-4 flex items-start gap-3">
                     <TrendingUp className="w-8 h-8 text-primary flex-shrink-0" />
                     <div>
