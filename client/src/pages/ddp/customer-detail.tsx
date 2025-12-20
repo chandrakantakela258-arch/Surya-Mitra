@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute, useLocation, Link } from "wouter";
-import { ArrowLeft, User, MapPin, Zap, Home, Phone, Mail, FileText, CheckCircle, Circle, Clock, Loader2 } from "lucide-react";
+import { ArrowLeft, User, MapPin, Zap, Home, Phone, Mail, FileText, CheckCircle, Circle, Clock, Loader2, Camera, Video, X, Upload, Image, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,363 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { StatusBadge } from "@/components/status-badge";
 import { calculateSubsidy, formatINR } from "@/components/subsidy-calculator";
 import { installationMilestones, type Customer, type Milestone } from "@shared/schema";
-import { useState } from "react";
+import { useState, useRef } from "react";
+
+function SiteMediaUpload({ customer }: { customer: Customer }) {
+  const { toast } = useToast();
+  const pictureInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState<"pictures" | "video" | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewVideo, setPreviewVideo] = useState(false);
+  
+  const uploadPicturesMutation = useMutation({
+    mutationFn: async (files: FileList) => {
+      const formData = new FormData();
+      Array.from(files).forEach((file) => formData.append("pictures", file));
+      
+      const response = await fetch(`/api/ddp/customers/${customer.id}/site-pictures`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Upload failed");
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers", customer.id] });
+      toast({ title: `${data.count} pictures uploaded successfully` });
+      setUploading(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to upload pictures", description: error.message, variant: "destructive" });
+      setUploading(null);
+    }
+  });
+  
+  const uploadVideoMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("video", file);
+      
+      const response = await fetch(`/api/ddp/customers/${customer.id}/site-video`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Upload failed");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers", customer.id] });
+      toast({ title: "Video uploaded successfully" });
+      setUploading(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to upload video", description: error.message, variant: "destructive" });
+      setUploading(null);
+    }
+  });
+  
+  const deletePictureMutation = useMutation({
+    mutationFn: async (index: number) => {
+      const response = await fetch(`/api/ddp/customers/${customer.id}/site-pictures/${index}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Delete failed");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers", customer.id] });
+      toast({ title: "Picture deleted" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete picture", variant: "destructive" });
+    }
+  });
+  
+  const deleteVideoMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/ddp/customers/${customer.id}/site-video`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Delete failed");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers", customer.id] });
+      toast({ title: "Video deleted" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete video", variant: "destructive" });
+    }
+  });
+  
+  function handlePictureSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files?.length) return;
+    
+    const currentCount = customer.sitePictures?.length || 0;
+    const remainingSlots = 6 - currentCount;
+    
+    if (files.length > remainingSlots) {
+      toast({ 
+        title: `Can only upload ${remainingSlots} more pictures`, 
+        description: "Maximum 6 pictures allowed", 
+        variant: "destructive" 
+      });
+      return;
+    }
+    
+    setUploading("pictures");
+    uploadPicturesMutation.mutate(files);
+    e.target.value = "";
+  }
+  
+  function handleVideoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (file.size > 100 * 1024 * 1024) {
+      toast({ title: "Video too large", description: "Maximum file size is 100MB", variant: "destructive" });
+      return;
+    }
+    
+    setUploading("video");
+    uploadVideoMutation.mutate(file);
+    e.target.value = "";
+  }
+  
+  const sitePictures = customer.sitePictures || [];
+  const canAddMorePictures = sitePictures.length < 6;
+  
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Camera className="w-5 h-5 text-primary" />
+          Site Media
+        </CardTitle>
+        <CardDescription>
+          Upload site pictures (6 angles) and highlight video (9:16, max 60 sec)
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <h4 className="font-medium flex items-center gap-2">
+                <Image className="w-4 h-4" />
+                Site Pictures
+              </h4>
+              <p className="text-sm text-muted-foreground">
+                {sitePictures.length}/6 pictures uploaded
+              </p>
+            </div>
+            {canAddMorePictures && (
+              <Button
+                size="sm"
+                onClick={() => pictureInputRef.current?.click()}
+                disabled={uploading === "pictures"}
+                data-testid="button-upload-pictures"
+              >
+                {uploading === "pictures" ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Add Pictures
+                  </>
+                )}
+              </Button>
+            )}
+            <input
+              ref={pictureInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handlePictureSelect}
+              data-testid="input-pictures"
+            />
+          </div>
+          
+          {sitePictures.length > 0 ? (
+            <div className="grid grid-cols-3 gap-2">
+              {sitePictures.map((url, index) => (
+                <div key={index} className="relative group aspect-square">
+                  <img 
+                    src={url} 
+                    alt={`Site picture ${index + 1}`}
+                    className="w-full h-full object-cover rounded-md cursor-pointer"
+                    onClick={() => setPreviewImage(url)}
+                    data-testid={`img-site-picture-${index}`}
+                  />
+                  <button
+                    onClick={() => deletePictureMutation.mutate(index)}
+                    className="absolute top-1 right-1 p-1 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    disabled={deletePictureMutation.isPending}
+                    data-testid={`button-delete-picture-${index}`}
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+              {Array.from({ length: 6 - sitePictures.length }).map((_, index) => (
+                <div 
+                  key={`empty-${index}`}
+                  className="aspect-square border-2 border-dashed border-muted rounded-md flex items-center justify-center cursor-pointer hover-elevate"
+                  onClick={() => pictureInputRef.current?.click()}
+                >
+                  <Camera className="w-6 h-6 text-muted-foreground" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div 
+              className="border-2 border-dashed border-muted rounded-md p-8 text-center cursor-pointer hover-elevate"
+              onClick={() => pictureInputRef.current?.click()}
+            >
+              <Camera className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+              <p className="text-sm text-muted-foreground">Click to upload site pictures</p>
+              <p className="text-xs text-muted-foreground">Upload 6 pictures from different angles</p>
+            </div>
+          )}
+        </div>
+        
+        <Separator />
+        
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <h4 className="font-medium flex items-center gap-2">
+                <Video className="w-4 h-4" />
+                Highlight Video
+              </h4>
+              <p className="text-sm text-muted-foreground">
+                9:16 Instagram-style video (max 60 seconds)
+              </p>
+            </div>
+            {!customer.siteVideo && (
+              <Button
+                size="sm"
+                onClick={() => videoInputRef.current?.click()}
+                disabled={uploading === "video"}
+                data-testid="button-upload-video"
+              >
+                {uploading === "video" ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload Video
+                  </>
+                )}
+              </Button>
+            )}
+            <input
+              ref={videoInputRef}
+              type="file"
+              accept="video/*"
+              className="hidden"
+              onChange={handleVideoSelect}
+              data-testid="input-video"
+            />
+          </div>
+          
+          {customer.siteVideo ? (
+            <div className="relative group">
+              <div 
+                className="aspect-[9/16] max-w-[200px] bg-muted rounded-md overflow-hidden cursor-pointer"
+                onClick={() => setPreviewVideo(true)}
+              >
+                <video 
+                  src={customer.siteVideo} 
+                  className="w-full h-full object-cover"
+                  data-testid="video-site"
+                />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                  <Play className="w-12 h-12 text-white" />
+                </div>
+              </div>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={() => deleteVideoMutation.mutate()}
+                disabled={deleteVideoMutation.isPending}
+                data-testid="button-delete-video"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+              <div className="mt-2">
+                <Badge variant="outline">
+                  {customer.proposedCapacity || "?"} kW - {customer.district}
+                </Badge>
+              </div>
+            </div>
+          ) : (
+            <div 
+              className="border-2 border-dashed border-muted rounded-md p-8 text-center cursor-pointer hover-elevate max-w-[200px]"
+              onClick={() => videoInputRef.current?.click()}
+            >
+              <Video className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+              <p className="text-sm text-muted-foreground">Upload video</p>
+              <p className="text-xs text-muted-foreground">9:16 format, max 60s</p>
+            </div>
+          )}
+        </div>
+        
+        <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Site Picture</DialogTitle>
+            </DialogHeader>
+            {previewImage && (
+              <img src={previewImage} alt="Site preview" className="w-full rounded-md" />
+            )}
+          </DialogContent>
+        </Dialog>
+        
+        <Dialog open={previewVideo} onOpenChange={setPreviewVideo}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Site Highlight Video</DialogTitle>
+              <DialogDescription>
+                {customer.name} - {customer.proposedCapacity} kW - {customer.address}, {customer.district}
+              </DialogDescription>
+            </DialogHeader>
+            {customer.siteVideo && (
+              <video 
+                src={customer.siteVideo} 
+                controls 
+                autoPlay 
+                className="w-full aspect-[9/16] rounded-md"
+                data-testid="video-preview"
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+      </CardContent>
+    </Card>
+  );
+}
 
 function MilestoneTimeline({ customerId }: { customerId: string }) {
   const { toast } = useToast();
@@ -404,6 +760,8 @@ export default function CustomerDetail() {
             <MilestoneTimeline customerId={customer.id} />
           </CardContent>
         </Card>
+        
+        <SiteMediaUpload customer={customer} />
       </div>
     </div>
   );
