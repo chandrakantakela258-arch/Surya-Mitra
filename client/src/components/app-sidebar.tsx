@@ -182,6 +182,7 @@ const customerPartnerMenuSections: MenuSection[] = [
   {
     label: "Referrals",
     items: [
+      { title: "Refer Customer", url: "/customer-registration", icon: UserPlus, highlight: true },
       { title: "My Referrals", url: "/customer-partner/referrals", icon: Users },
       { title: "Earnings", url: "/customer-partner/earnings", icon: Wallet },
     ],
