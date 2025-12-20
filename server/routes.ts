@@ -64,10 +64,8 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Trust proxy for production (Replit uses reverse proxy)
-  if (process.env.NODE_ENV === "production") {
-    app.set("trust proxy", 1);
-  }
+  // Trust proxy - Replit always uses reverse proxy
+  app.set("trust proxy", 1);
 
   // Session setup with PostgreSQL store for production persistence
   app.use(
@@ -77,13 +75,14 @@ export async function registerRoutes(
         tableName: "user_sessions",
         createTableIfMissing: true,
       }),
+      name: "divyanshi.sid",
       secret: process.env.SESSION_SECRET || "surya-partner-secret-key",
       resave: false,
       saveUninitialized: false,
       cookie: {
         secure: process.env.NODE_ENV === "production",
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
       },
     })
