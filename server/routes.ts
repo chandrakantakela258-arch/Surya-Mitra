@@ -606,6 +606,17 @@ export async function registerRoutes(
     }
   });
 
+  // Debug: Check session status (public for debugging)
+  app.get("/api/debug/session", (req, res) => {
+    res.json({
+      hasSession: !!req.session,
+      sessionId: req.sessionID,
+      userId: req.session?.userId || null,
+      cookie: req.headers.cookie || "none",
+      isProduction: process.env.NODE_ENV === "production",
+    });
+  });
+
   // Get recent partners
   app.get("/api/admin/partners/recent", requireAdmin, async (req, res) => {
     try {
