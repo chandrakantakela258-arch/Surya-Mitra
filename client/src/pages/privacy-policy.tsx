@@ -106,7 +106,7 @@ export default function PrivacyPolicyPage() {
                 <p className="mb-2">For privacy-related inquiries, please contact:</p>
                 <p><strong>Divyanshi Digital Services Pvt. Ltd.</strong></p>
                 <p>PIPARWAN, PANCHAYAT-JAITIPUR, NAUBATPUR, PATNA 800014</p>
-                <p>Email: chandrakant@apnaatm.com</p>
+                <p>Email: chandrakant@divyanshisolar.com</p>
                 <p>Phone: 9801005212, 8709127232</p>
               </section>
             </div>

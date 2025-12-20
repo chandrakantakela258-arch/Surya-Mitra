@@ -142,11 +142,11 @@ export default function TermsAndConditionsPage() {
                 <p><strong>Divyanshi Digital Services Pvt. Ltd.</strong></p>
                 <p>PIPARWAN, PANCHAYAT-JAITIPUR, NAUBATPUR, PATNA 800014</p>
                 <p className="mt-2"><strong>Chandrakant Akela:</strong> 9801005212, 8709127232</p>
-                <p>Email: chandrakant@apnaatm.com</p>
+                <p>Email: chandrakant@divyanshisolar.com</p>
                 <p className="mt-2"><strong>Anil:</strong> 9123141987</p>
-                <p>Email: anil@apnaatm.com</p>
+                <p>Email: anil@divyanshisolar.com</p>
                 <p className="mt-2"><strong>Sanjay:</strong> 8777684575</p>
-                <p>Email: sanjay@apnaatm.com</p>
+                <p>Email: sanjay@divyanshisolar.com</p>
               </section>
             </div>
           </CardContent>

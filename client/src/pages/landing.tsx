@@ -1018,7 +1018,7 @@ export default function LandingPage() {
                   <a href="tel:8709127232" className="hover:text-primary">8709127232</a>
                 </p>
                 <p className="text-xs text-muted-foreground mt-2">
-                  <a href="mailto:chandrakant@apnaatm.com" className="hover:text-primary">chandrakant@apnaatm.com</a>
+                  <a href="mailto:chandrakant@divyanshisolar.com" className="hover:text-primary">chandrakant@divyanshisolar.com</a>
                 </p>
               </CardContent>
             </Card>
@@ -1033,7 +1033,7 @@ export default function LandingPage() {
                   <a href="tel:9123141987" className="hover:text-primary">9123141987</a>
                 </p>
                 <p className="text-xs text-muted-foreground mt-2">
-                  <a href="mailto:anil@apnaatm.com" className="hover:text-primary">anil@apnaatm.com</a>
+                  <a href="mailto:anil@divyanshisolar.com" className="hover:text-primary">anil@divyanshisolar.com</a>
                 </p>
               </CardContent>
             </Card>
@@ -1048,7 +1048,7 @@ export default function LandingPage() {
                   <a href="tel:8777684575" className="hover:text-primary">8777684575</a>
                 </p>
                 <p className="text-xs text-muted-foreground mt-2">
-                  <a href="mailto:sanjay@apnaatm.com" className="hover:text-primary">sanjay@apnaatm.com</a>
+                  <a href="mailto:sanjay@divyanshisolar.com" className="hover:text-primary">sanjay@divyanshisolar.com</a>
                 </p>
               </CardContent>
             </Card>
