@@ -774,26 +774,34 @@ export default function LandingPage() {
                     </div>
                     <div>
                       <h3 className="font-semibold text-xl">Uttar Pradesh</h3>
-                      <p className="text-sm text-muted-foreground">Highest Target State</p>
+                      <p className="text-sm text-muted-foreground">Highest Target State (+Rs 10,000/kW Additional Subsidy)</p>
                     </div>
                   </div>
-                  <div className="grid sm:grid-cols-3 gap-4 mb-6">
+                  <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                     <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <div className="text-2xl font-bold" data-testid="text-up-registrations">5+ Lakh</div>
-                      <div className="text-sm text-muted-foreground">Registrations</div>
+                      <div className="text-xl font-bold" data-testid="text-up-applications">10,06,682</div>
+                      <div className="text-xs text-muted-foreground">Applications</div>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <div className="text-2xl font-bold" data-testid="text-up-target">25 Lakh</div>
-                      <div className="text-sm text-muted-foreground">State Target</div>
+                      <div className="text-xl font-bold" data-testid="text-up-installations">3,12,953</div>
+                      <div className="text-xs text-muted-foreground">Installations</div>
                     </div>
-                    <div className="p-4 bg-primary/10 rounded-lg text-center border-2 border-primary/30">
-                      <div className="text-2xl font-bold text-primary" data-testid="text-up-subsidy">+Rs 10,000/kW</div>
-                      <div className="text-sm text-muted-foreground">Additional Subsidy</div>
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-xl font-bold" data-testid="text-up-households">3,16,267</div>
+                      <div className="text-xs text-muted-foreground">Households Covered</div>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-xl font-bold" data-testid="text-up-capacity">1,078.93 MW</div>
+                      <div className="text-xs text-muted-foreground">Capacity Installed</div>
+                    </div>
+                    <div className="p-4 bg-primary/10 rounded-lg text-center col-span-2 lg:col-span-1">
+                      <div className="text-xl font-bold text-primary" data-testid="text-up-subsidy">Rs 2,162.79 Cr</div>
+                      <div className="text-xs text-muted-foreground">Subsidy Released</div>
                     </div>
                   </div>
                   <p className="text-muted-foreground">
-                    Uttar Pradesh has the highest target of 25 lakh households and offers an additional 
-                    Rs 10,000/kW state subsidy. We operate across Lucknow, Varanasi, Agra, Kanpur, and more.
+                    Uttar Pradesh leads with over 10 lakh applications and 3.12 lakh installations. The state offers an additional 
+                    Rs 10,000/kW subsidy. We operate across Lucknow, Varanasi, Agra, Kanpur, and more.
                   </p>
                 </CardContent>
               </Card>
