@@ -63,12 +63,12 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 bg-gradient-to-r from-background via-background to-background/95 backdrop-blur-md border-b border-primary/10 shadow-lg shadow-primary/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-4 h-16">
-            {/* Logo */}
+            {/* Logo - Prominent */}
             <div className="flex items-center">
               <img 
                 src={logoImage} 
                 alt="Divyanshi Solar - Powering Every Home" 
-                className="h-12 sm:h-14 w-auto object-contain"
+                className="h-14 sm:h-16 md:h-18 w-auto object-contain drop-shadow-sm"
               />
             </div>
 
@@ -89,14 +89,6 @@ export default function LandingPage() {
               >
                 <Battery className="w-4 h-4 text-purple-500" />
                 SunPunch
-              </button>
-              <button 
-                onClick={() => scrollToSection("state-progress")} 
-                className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-200"
-                data-testid="nav-state-progress"
-              >
-                <BarChart3 className="w-4 h-4 text-teal-500" />
-                Progress
               </button>
               <WouterLink href="/network-map">
                 <button 
@@ -121,12 +113,6 @@ export default function LandingPage() {
             {/* Right Side Actions */}
             <div className="flex items-center gap-2">
               <ThemeToggle />
-              <WouterLink href="/subsidy-calculator">
-                <Button variant="outline" size="sm" className="hidden md:flex gap-2 border-primary/30 text-primary hover:bg-primary/10" data-testid="button-subsidy-calculator">
-                  <Calculator className="w-4 h-4" />
-                  <span className="hidden lg:inline">Subsidy</span> Calculator
-                </Button>
-              </WouterLink>
               <WouterLink href="/login">
                 <Button variant="ghost" size="sm" data-testid="button-login">
                   Login
@@ -172,14 +158,6 @@ export default function LandingPage() {
                   <Battery className="w-4 h-4 text-purple-500" />
                   SunPunch
                 </button>
-                <button 
-                  onClick={() => scrollToSection("state-progress")} 
-                  className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left"
-                  data-testid="mobile-nav-state-progress"
-                >
-                  <BarChart3 className="w-4 h-4 text-teal-500" />
-                  State Progress
-                </button>
                 <WouterLink href="/network-map" onClick={() => setMobileMenuOpen(false)}>
                   <div 
                     className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left"
@@ -200,12 +178,6 @@ export default function LandingPage() {
                 </WouterLink>
               </div>
               <div className="flex flex-col gap-2 pt-2 border-t">
-                <WouterLink href="/subsidy-calculator">
-                  <Button variant="outline" size="sm" className="w-full gap-2 border-primary/30" data-testid="mobile-nav-subsidy">
-                    <Calculator className="w-4 h-4 text-primary" />
-                    Subsidy Calculator
-                  </Button>
-                </WouterLink>
                 <a href="tel:+919801005212">
                   <Button variant="secondary" size="sm" className="w-full gap-2">
                     <Phone className="w-4 h-4" />
