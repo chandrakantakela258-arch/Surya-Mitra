@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { HeroSlider } from "@/components/hero-slider";
+import { FeedbackDialog } from "@/components/feedback-dialog";
 import logoImage from "@assets/88720521_logo_1766219255006.png";
 import { SiLinkedin, SiX, SiFacebook, SiInstagram } from "react-icons/si";
 import { 
@@ -38,7 +39,8 @@ import {
   Award,
   Headphones,
   AlertTriangle,
-  Clock
+  Clock,
+  MessageSquarePlus
 } from "lucide-react";
 import { useState } from "react";
 
@@ -1361,6 +1363,19 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* Floating Feedback Button */}
+      <div className="fixed bottom-4 right-4 z-50">
+        <FeedbackDialog
+          isPublic={true}
+          trigger={
+            <Button size="lg" className="gap-2 shadow-lg" data-testid="button-floating-feedback">
+              <MessageSquarePlus className="w-5 h-5" />
+              <span className="hidden sm:inline">Feedback</span>
+            </Button>
+          }
+        />
+      </div>
     </div>
   );
 }

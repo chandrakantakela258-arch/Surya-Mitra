@@ -308,45 +308,45 @@ export function FeedbackDialog({ trigger, isPublic = false }: FeedbackDialogProp
           </TabsContent>
 
           {!isAnonymous && (
-          <TabsContent value="history" className="mt-4">
-            {isLoading ? (
-              <p className="text-center text-muted-foreground py-8">Loading...</p>
-            ) : myFeedback && myFeedback.length > 0 ? (
-              <div className="space-y-3">
-                {myFeedback.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-3 border rounded-lg space-y-2"
-                    data-testid={`feedback-item-${item.id}`}
-                  >
-                    <div className="flex items-start justify-between gap-2 flex-wrap">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge variant="outline">{item.type}</Badge>
-                        <Badge variant="outline" className={statusColors[item.status]}>
-                          {item.status}
-                        </Badge>
+            <TabsContent value="history" className="mt-4">
+              {isLoading ? (
+                <p className="text-center text-muted-foreground py-8">Loading...</p>
+              ) : myFeedback && myFeedback.length > 0 ? (
+                <div className="space-y-3">
+                  {myFeedback.map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-3 border rounded-lg space-y-2"
+                      data-testid={`feedback-item-${item.id}`}
+                    >
+                      <div className="flex items-start justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="outline">{item.type}</Badge>
+                          <Badge variant="outline" className={statusColors[item.status]}>
+                            {item.status}
+                          </Badge>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(item.createdAt!).toLocaleDateString()}
+                        </span>
                       </div>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(item.createdAt!).toLocaleDateString()}
-                      </span>
+                      <h4 className="font-medium">{item.subject}</h4>
+                      <p className="text-sm text-muted-foreground line-clamp-2">{item.message}</p>
+                      {item.adminNotes && (
+                        <div className="pt-2 border-t">
+                          <p className="text-xs text-muted-foreground">Admin Response:</p>
+                          <p className="text-sm">{item.adminNotes}</p>
+                        </div>
+                      )}
                     </div>
-                    <h4 className="font-medium">{item.subject}</h4>
-                    <p className="text-sm text-muted-foreground line-clamp-2">{item.message}</p>
-                    {item.adminNotes && (
-                      <div className="pt-2 border-t">
-                        <p className="text-xs text-muted-foreground">Admin Response:</p>
-                        <p className="text-sm">{item.adminNotes}</p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-center text-muted-foreground py-8">
-                No feedback submitted yet
-              </p>
-            )}
-          </TabsContent>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-muted-foreground py-8">
+                  No feedback submitted yet
+                </p>
+              )}
+            </TabsContent>
           )}
         </Tabs>
       </DialogContent>
