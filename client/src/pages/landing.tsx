@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { HeroSlider } from "@/components/hero-slider";
 import logoImage from "@assets/88720521_logo_1766219255006.png";
 import { SiLinkedin, SiX, SiFacebook, SiInstagram } from "react-icons/si";
 import { 
@@ -253,6 +254,11 @@ export default function LandingPage() {
                 </Button>
               </WouterLink>
             </div>
+          </div>
+
+          {/* Hero Image Slider */}
+          <div className="mt-12 max-w-5xl mx-auto">
+            <HeroSlider />
           </div>
 
           {/* Stats */}
