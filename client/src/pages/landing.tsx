@@ -50,28 +50,6 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Top Bar */}
-      <div className="bg-gradient-to-r from-primary via-primary to-amber-500 text-primary-foreground py-2 px-4">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2 text-sm">
-          <div className="flex items-center gap-4 flex-wrap">
-            <a href="tel:+919777480310" className="flex items-center gap-1.5 hover:underline">
-              <Phone className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">+91 9777480310</span>
-            </a>
-            <a href="mailto:info@divyanshisolar.com" className="flex items-center gap-1.5 hover:underline">
-              <Mail className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">info@divyanshisolar.com</span>
-            </a>
-          </div>
-          <div className="flex items-center gap-3">
-            <Badge variant="secondary" className="bg-white/20 text-white border-0 text-xs">
-              <Sparkles className="w-3 h-3 mr-1" />
-              PM Surya Ghar Partner
-            </Badge>
-          </div>
-        </div>
-      </div>
-
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
