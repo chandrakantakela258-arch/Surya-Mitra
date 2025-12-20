@@ -392,14 +392,18 @@ export const chatbotFaq = pgTable("chatbot_faq", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// User Feedback
+// User Feedback - for bug reports and feature suggestions
 export const feedback = pgTable("feedback", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull(),
+  userId: varchar("user_id"), // null if from anonymous visitor
+  userEmail: text("user_email"), // for anonymous users or contact email
+  userName: text("user_name"), // for anonymous users
   type: text("type").notNull().default("suggestion"), // bug, suggestion, complaint, other
   subject: text("subject").notNull(),
   message: text("message").notNull(),
+  priority: text("priority").default("medium"), // low, medium, high, critical
   status: text("status").notNull().default("pending"), // pending, reviewed, resolved
+  page: text("page"), // which page the feedback was submitted from
   adminNotes: text("admin_notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
