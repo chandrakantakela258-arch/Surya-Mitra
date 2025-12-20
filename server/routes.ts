@@ -1,9 +1,13 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
+import { pool } from "./db";
 import { storage } from "./storage";
 import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSchema, updateFeedbackStatusSchema, inverterCommission } from "@shared/schema";
 import { z } from "zod";
+
+const PgSession = connectPgSimple(session);
 
 // Extend express-session types
 declare module "express-session" {
@@ -65,9 +69,14 @@ export async function registerRoutes(
     app.set("trust proxy", 1);
   }
 
-  // Session setup
+  // Session setup with PostgreSQL store for production persistence
   app.use(
     session({
+      store: new PgSession({
+        pool: pool,
+        tableName: "user_sessions",
+        createTableIfMissing: true,
+      }),
       secret: process.env.SESSION_SECRET || "surya-partner-secret-key",
       resave: false,
       saveUninitialized: false,
