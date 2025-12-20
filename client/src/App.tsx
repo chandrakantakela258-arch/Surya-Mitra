@@ -61,6 +61,7 @@ import CustomerPartnerDashboard from "@/pages/customer-partner/dashboard";
 import CustomerPartnerReferrals from "@/pages/customer-partner/referrals";
 import CustomerPartnerEarnings from "@/pages/customer-partner/earnings";
 import CustomerPartnerProfile from "@/pages/customer-partner/profile";
+import CustomerPartnerRegisterPage from "@/pages/customer-partner-register";
 import { MobileNav } from "@/components/mobile-nav";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 
@@ -446,6 +447,18 @@ function PublicRouter() {
       </Route>
       <Route path="/register-solar">
         <CustomerRegistration />
+      </Route>
+      <Route path="/customer-partner-register">
+        {user ? (
+          <Redirect to={
+            user.role === "admin" ? "/admin/dashboard" : 
+            user.role === "bdp" ? "/bdp/dashboard" : 
+            user.role === "customer_partner" ? "/customer-partner/dashboard" :
+            "/ddp/dashboard"
+          } />
+        ) : (
+          <CustomerPartnerRegisterPage />
+        )}
       </Route>
       <Route path="/login">
         {user ? (

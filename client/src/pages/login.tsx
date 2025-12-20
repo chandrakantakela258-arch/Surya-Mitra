@@ -158,11 +158,19 @@ export default function LoginPage() {
               </form>
             </Form>
 
-            <div className="mt-6 text-center text-sm">
-              <span className="text-muted-foreground">Don't have an account? </span>
-              <Link href="/register" className="text-primary hover:underline" data-testid="link-register">
-                Register as Partner
-              </Link>
+            <div className="mt-6 text-center text-sm space-y-2">
+              <div>
+                <span className="text-muted-foreground">Don't have an account? </span>
+                <Link href="/register" className="text-primary hover:underline" data-testid="link-register">
+                  Register as Partner
+                </Link>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Completed solar installation? </span>
+                <Link href="/customer-partner-register" className="text-primary hover:underline" data-testid="link-customer-partner">
+                  Become a Customer Partner
+                </Link>
+              </div>
             </div>
           </CardContent>
         </Card>
