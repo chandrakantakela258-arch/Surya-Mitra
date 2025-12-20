@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useLocation } from "wouter";
-import { Sun, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
+import logoImage from "@assets/88720521_logo_1766219255006.png";
 import { registerUserSchema, indianStates } from "@shared/schema";
 import type { z } from "zod";
 import { useAuth } from "@/lib/auth";
@@ -71,12 +72,13 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="flex items-center justify-between p-4 border-b">
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-            <Sun className="w-6 h-6 text-primary-foreground" />
-          </div>
-          <span className="text-xl font-semibold">DivyanshiSolar</span>
-        </div>
+        <Link href="/">
+          <img 
+            src={logoImage} 
+            alt="Divyanshi Solar" 
+            className="h-10 w-auto object-contain"
+          />
+        </Link>
         <ThemeToggle />
       </header>
 

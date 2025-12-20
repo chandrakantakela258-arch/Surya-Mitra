@@ -1,5 +1,6 @@
 import { useLocation, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import logoImage from "@assets/88720521_logo_1766219255006.png";
 import {
   LayoutDashboard,
   Users,
@@ -212,14 +213,12 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="border-b p-4">
-        <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 via-orange-500 to-amber-600 flex items-center justify-center flex-shrink-0 shadow-md group-hover:shadow-lg transition-shadow">
-            <Sun className="w-6 h-6 text-white" />
-          </div>
-          <div className="flex flex-col">
-            <span className="font-bold text-lg tracking-tight">DivyanshiSolar</span>
-            <span className="text-xs text-muted-foreground">PM Surya Ghar Yojana</span>
-          </div>
+        <Link href="/" className="flex items-center group">
+          <img 
+            src={logoImage} 
+            alt="Divyanshi Solar" 
+            className="h-10 w-auto object-contain"
+          />
         </Link>
       </SidebarHeader>
 

@@ -1096,11 +1096,12 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             {/* Company Info */}
             <div className="md:col-span-2">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                  <Sun className="w-6 h-6 text-primary-foreground" />
-                </div>
-                <span className="font-bold text-xl">Divyanshi Solar</span>
+              <div className="mb-4">
+                <img 
+                  src={logoImage} 
+                  alt="Divyanshi Solar" 
+                  className="h-12 w-auto object-contain"
+                />
               </div>
               <p className="text-sm text-muted-foreground mb-4">
                 A brand of Divyanshi Digital Services Pvt. Ltd.<br />
