@@ -200,6 +200,56 @@ export async function registerRoutes(
     }
   });
 
+  // Get specific partner details
+  app.get("/api/bdp/partners/:id", requireBDP, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const partnerId = req.params.id;
+      
+      // Get the partner
+      const partner = await storage.getUser(partnerId);
+      if (!partner) {
+        return res.status(404).json({ message: "Partner not found" });
+      }
+      
+      // Verify this partner belongs to the BDP
+      if (partner.parentId !== user.id && user.role !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      res.json({ ...partner, password: undefined });
+    } catch (error) {
+      console.error("Get partner details error:", error);
+      res.status(500).json({ message: "Failed to get partner details" });
+    }
+  });
+
+  // Get customers for a specific partner
+  app.get("/api/bdp/partners/:id/customers", requireBDP, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const partnerId = req.params.id;
+      
+      // Get the partner to verify access
+      const partner = await storage.getUser(partnerId);
+      if (!partner) {
+        return res.status(404).json({ message: "Partner not found" });
+      }
+      
+      // Verify this partner belongs to the BDP
+      if (partner.parentId !== user.id && user.role !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Get customers for this partner
+      const customers = await storage.getCustomersByDdpId(partnerId);
+      res.json(customers);
+    } catch (error) {
+      console.error("Get partner customers error:", error);
+      res.status(500).json({ message: "Failed to get partner customers" });
+    }
+  });
+
   // Add new partner (DDP)
   app.post("/api/bdp/partners", requireBDP, async (req, res) => {
     try {

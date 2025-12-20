@@ -21,6 +21,7 @@ import LoginPage from "@/pages/login";
 import RegisterPage from "@/pages/register";
 import BDPDashboard from "@/pages/bdp/dashboard";
 import BDPPartners from "@/pages/bdp/partners";
+import PartnerDetail from "@/pages/bdp/partner-detail";
 import PartnerForm from "@/pages/bdp/partner-form";
 import BDPCustomers from "@/pages/bdp/customers";
 import DDPDashboard from "@/pages/ddp/dashboard";
@@ -195,6 +196,13 @@ function AuthenticatedRoutes() {
         <ProtectedRoute allowedRoles={["bdp", "admin"]}>
           <DashboardLayout>
             <PartnerForm />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/bdp/partners/:id">
+        <ProtectedRoute allowedRoles={["bdp", "admin"]}>
+          <DashboardLayout>
+            <PartnerDetail />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
