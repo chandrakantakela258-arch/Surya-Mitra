@@ -83,30 +83,6 @@ export default function LandingPage() {
                 About Us
               </button>
               <button 
-                onClick={() => scrollToSection("renewable-energy")} 
-                className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                data-testid="nav-renewable"
-              >
-                <Leaf className="w-4 h-4" />
-                Renewable Energy
-              </button>
-              <button 
-                onClick={() => scrollToSection("pm-surya-ghar")} 
-                className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                data-testid="nav-pmsghy"
-              >
-                <Sun className="w-4 h-4" />
-                PM Surya Ghar
-              </button>
-              <button 
-                onClick={() => scrollToSection("steps")} 
-                className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                data-testid="nav-steps"
-              >
-                <ClipboardList className="w-4 h-4" />
-                How to Apply
-              </button>
-              <button 
                 onClick={() => scrollToSection("sunpunch")} 
                 className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                 data-testid="nav-sunpunch"
@@ -187,30 +163,6 @@ export default function LandingPage() {
                 >
                   <Building2 className="w-4 h-4 text-primary" />
                   About Us
-                </button>
-                <button 
-                  onClick={() => scrollToSection("renewable-energy")} 
-                  className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left"
-                  data-testid="mobile-nav-renewable"
-                >
-                  <Leaf className="w-4 h-4 text-green-500" />
-                  Renewable Energy
-                </button>
-                <button 
-                  onClick={() => scrollToSection("pm-surya-ghar")} 
-                  className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left"
-                  data-testid="mobile-nav-pmsghy"
-                >
-                  <Sun className="w-4 h-4 text-amber-500" />
-                  PM Surya Ghar
-                </button>
-                <button 
-                  onClick={() => scrollToSection("steps")} 
-                  className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left"
-                  data-testid="mobile-nav-steps"
-                >
-                  <ClipboardList className="w-4 h-4 text-blue-500" />
-                  How to Apply
                 </button>
                 <button 
                   onClick={() => scrollToSection("sunpunch")} 
