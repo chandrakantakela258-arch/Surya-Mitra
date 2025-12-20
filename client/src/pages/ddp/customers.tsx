@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Link } from "wouter";
-import { Plus, Search, Download, MoreVertical, Users, Eye } from "lucide-react";
+import { Link, useLocation } from "wouter";
+import { Plus, Search, Download, MoreVertical, Users, Eye, User, Camera } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ import type { Customer } from "@shared/schema";
 
 export default function DDPCustomers() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
@@ -156,14 +157,25 @@ export default function DDPCustomers() {
                     <TableHead>Location</TableHead>
                     <TableHead>Capacity</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Details</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredCustomers.map((customer) => (
-                    <TableRow key={customer.id} data-testid={`row-customer-${customer.id}`}>
+                    <TableRow 
+                      key={customer.id} 
+                      data-testid={`row-customer-${customer.id}`}
+                      className="cursor-pointer hover-elevate"
+                      onClick={() => setLocation(`/ddp/customers/${customer.id}`)}
+                    >
                       <TableCell>
-                        <p className="font-medium">{customer.name}</p>
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <User className="w-4 h-4 text-primary" />
+                          </div>
+                          <p className="font-medium">{customer.name}</p>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div>
@@ -183,7 +195,20 @@ export default function DDPCustomers() {
                       <TableCell>
                         <StatusBadge status={customer.status} />
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Button 
+                          size="sm" 
+                          variant="default"
+                          asChild
+                          data-testid={`button-view-details-${customer.id}`}
+                        >
+                          <Link href={`/ddp/customers/${customer.id}`}>
+                            <Eye className="w-4 h-4 mr-1" />
+                            View
+                          </Link>
+                        </Button>
+                      </TableCell>
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" data-testid={`button-actions-${customer.id}`}>
@@ -194,7 +219,7 @@ export default function DDPCustomers() {
                             <DropdownMenuItem asChild>
                               <Link href={`/ddp/customers/${customer.id}`}>
                                 <Eye className="w-4 h-4 mr-2" />
-                                View Details
+                                View Details & Media
                               </Link>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
