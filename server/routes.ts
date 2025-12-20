@@ -3022,13 +3022,82 @@ export async function registerRoutes(
 
   // ==================== CUSTOMER PARTNER ROUTES ====================
   
+  // Lookup customer eligibility for Customer Partner registration
+  app.post("/api/customer-partner/lookup", async (req, res) => {
+    try {
+      const { phone } = req.body;
+      
+      if (!phone) {
+        return res.status(400).json({ message: "Phone number is required" });
+      }
+      
+      // Find customer by phone who is independent and has completed installation
+      const allCustomers = await storage.getAllCustomers();
+      const customer = allCustomers.find(c => 
+        c.phone === phone && 
+        c.source === "website_direct" && 
+        c.status === "completed"
+      );
+      
+      if (!customer) {
+        return res.status(404).json({ 
+          eligible: false,
+          message: "No eligible customer found. You must have registered independently and completed your solar installation." 
+        });
+      }
+      
+      // Check capacity is at least 3kW
+      const capacity = parseInt(customer.proposedCapacity || "0");
+      if (capacity < 3) {
+        return res.status(400).json({ 
+          eligible: false,
+          message: "Only customers with 3kW or above installations can become Customer Partners." 
+        });
+      }
+      
+      // Check if already registered as customer partner
+      const existingUser = await storage.getUserByPhone(phone);
+      if (existingUser && existingUser.role === "customer_partner") {
+        return res.status(400).json({ 
+          eligible: false,
+          message: "You are already registered as a Customer Partner. Please login instead." 
+        });
+      }
+      
+      // Return sanitized customer data for auto-population
+      res.json({
+        eligible: true,
+        customer: {
+          name: customer.name,
+          phone: customer.phone,
+          email: customer.email || "",
+          address: customer.address,
+          district: customer.district,
+          state: customer.state,
+          proposedCapacity: customer.proposedCapacity,
+          panelType: customer.panelType,
+          completedAt: customer.completedAt,
+        }
+      });
+    } catch (error) {
+      console.error("Customer Partner lookup error:", error);
+      res.status(500).json({ message: "Failed to verify eligibility" });
+    }
+  });
+  
   // Register as Customer Partner (for independent customers who completed installation)
   app.post("/api/customer-partner/register", async (req, res) => {
     try {
-      const { phone, password, email } = req.body;
+      const { phone, password, email, username } = req.body;
       
-      if (!phone || !password) {
-        return res.status(400).json({ message: "Phone and password are required" });
+      if (!phone || !password || !username) {
+        return res.status(400).json({ message: "Phone, username and password are required" });
+      }
+      
+      // Check if username is already taken
+      const existingUsername = await storage.getUserByUsername(username);
+      if (existingUsername) {
+        return res.status(400).json({ message: "Username is already taken. Please choose a different one." });
       }
       
       // Find customer by phone who is independent and has completed installation
@@ -3069,7 +3138,7 @@ export async function registerRoutes(
       
       // Create customer partner user
       const newUser = await storage.createUser({
-        username: `cp_${phone}`,
+        username: username,
         password: hashedPassword,
         name: customer.name,
         email: email || customer.email || "",
