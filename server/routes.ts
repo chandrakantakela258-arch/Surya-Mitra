@@ -11,6 +11,7 @@ import { storage } from "./storage";
 import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSchema, updateFeedbackStatusSchema, inverterCommission, insertVendorSchema, vendorStates } from "@shared/schema";
 import { z } from "zod";
 import { notificationService } from "./notification-service";
+import { calculateLeadScore, type LeadScoreResult } from "./lead-scoring-service";
 
 // Configure multer for file uploads
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -558,6 +559,123 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Delete site video error:", error);
       res.status(500).json({ message: "Failed to delete video" });
+    }
+  });
+  
+  // ==================== LEAD SCORING ROUTES ====================
+  
+  // Calculate lead score for a specific customer
+  app.post("/api/customers/:id/lead-score", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const user = (req as any).user;
+      
+      const customer = await storage.getCustomer(id);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      
+      // Verify access - DDP can only score their own customers
+      if (user.role === "ddp" && customer.ddpId !== user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Calculate lead score using AI
+      const scoreResult = await calculateLeadScore(customer);
+      
+      // Save the score to database
+      await storage.updateCustomerLeadScore(id, scoreResult.score, JSON.stringify(scoreResult));
+      
+      res.json(scoreResult);
+    } catch (error) {
+      console.error("Lead scoring error:", error);
+      res.status(500).json({ message: "Failed to calculate lead score" });
+    }
+  });
+  
+  // Get lead score for a customer (without recalculating)
+  app.get("/api/customers/:id/lead-score", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const user = (req as any).user;
+      
+      const customer = await storage.getCustomer(id);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      
+      // Verify access
+      if (user.role === "ddp" && customer.ddpId !== user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      if (!customer.leadScore || !customer.leadScoreDetails) {
+        return res.json({ 
+          score: null, 
+          message: "No lead score calculated yet" 
+        });
+      }
+      
+      try {
+        const details = JSON.parse(customer.leadScoreDetails) as LeadScoreResult;
+        res.json({
+          ...details,
+          updatedAt: customer.leadScoreUpdatedAt,
+        });
+      } catch {
+        res.json({ 
+          score: customer.leadScore,
+          tier: customer.leadScore >= 70 ? "hot" : customer.leadScore >= 40 ? "warm" : "cold",
+          updatedAt: customer.leadScoreUpdatedAt,
+        });
+      }
+    } catch (error) {
+      console.error("Get lead score error:", error);
+      res.status(500).json({ message: "Failed to get lead score" });
+    }
+  });
+  
+  // Batch calculate lead scores for all customers (admin/BDP only)
+  app.post("/api/lead-scores/batch", requireBDP, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      let customers;
+      
+      if (user.role === "admin") {
+        customers = await storage.getAllCustomers();
+      } else {
+        customers = await storage.getAllCustomersByBdpId(user.id);
+      }
+      
+      // Filter to only unscored or stale scores (older than 7 days)
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const toScore = customers.filter(c => 
+        !c.leadScore || 
+        !c.leadScoreUpdatedAt || 
+        new Date(c.leadScoreUpdatedAt) < sevenDaysAgo
+      );
+      
+      // Process in background, return immediately
+      res.json({ 
+        message: `Scoring ${toScore.length} customers in background`,
+        total: customers.length,
+        toScore: toScore.length,
+      });
+      
+      // Process scoring asynchronously
+      for (const customer of toScore) {
+        try {
+          const scoreResult = await calculateLeadScore(customer);
+          await storage.updateCustomerLeadScore(customer.id, scoreResult.score, JSON.stringify(scoreResult));
+        } catch (error) {
+          console.error(`Failed to score customer ${customer.id}:`, error);
+        }
+        // Rate limiting - wait 1 second between API calls
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    } catch (error) {
+      console.error("Batch lead scoring error:", error);
+      res.status(500).json({ message: "Failed to start batch scoring" });
     }
   });
 

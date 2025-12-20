@@ -290,6 +290,9 @@ export interface IStorage {
   // Site media operations
   updateCustomerSiteMedia(id: string, sitePictures?: string[], siteVideo?: string): Promise<Customer | undefined>;
   
+  // Lead scoring operations
+  updateCustomerLeadScore(id: string, score: number, details: string): Promise<Customer | undefined>;
+  
   // Vendor operations
   createVendor(vendor: InsertVendor): Promise<Vendor>;
   getVendors(): Promise<Vendor[]>;
@@ -1724,6 +1727,19 @@ export class DatabaseStorage implements IStorage {
     
     const [updated] = await db.update(customers)
       .set(updateData)
+      .where(eq(customers.id, id))
+      .returning();
+    return updated || undefined;
+  }
+  
+  async updateCustomerLeadScore(id: string, score: number, details: string): Promise<Customer | undefined> {
+    const [updated] = await db.update(customers)
+      .set({ 
+        leadScore: score, 
+        leadScoreDetails: details,
+        leadScoreUpdatedAt: new Date(),
+        updatedAt: new Date() 
+      })
       .where(eq(customers.id, id))
       .returning();
     return updated || undefined;
