@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth";
 import {
   Dialog,
   DialogContent,
@@ -33,13 +34,16 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquarePlus, Bug, Lightbulb, AlertCircle, MessageCircle } from "lucide-react";
+import { MessageSquarePlus, Bug, Lightbulb, AlertCircle, MessageCircle, Loader2 } from "lucide-react";
 import type { Feedback } from "@shared/schema";
 
 const feedbackSchema = z.object({
   type: z.enum(["bug", "suggestion", "complaint", "other"]),
   subject: z.string().min(5, "Subject must be at least 5 characters"),
   message: z.string().min(20, "Please provide more details (at least 20 characters)"),
+  priority: z.enum(["low", "medium", "high", "critical"]).optional(),
+  userEmail: z.string().email("Invalid email").optional().or(z.literal("")),
+  userName: z.string().optional(),
 });
 
 type FeedbackFormData = z.infer<typeof feedbackSchema>;
@@ -59,15 +63,19 @@ const statusColors: Record<string, string> = {
 
 interface FeedbackDialogProps {
   trigger?: React.ReactNode;
+  isPublic?: boolean;
 }
 
-export function FeedbackDialog({ trigger }: FeedbackDialogProps) {
+export function FeedbackDialog({ trigger, isPublic = false }: FeedbackDialogProps) {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+  
+  const isAnonymous = isPublic || !user;
 
   const { data: myFeedback, isLoading } = useQuery<Feedback[]>({
     queryKey: ["/api/feedback"],
-    enabled: open,
+    enabled: open && !isAnonymous,
   });
 
   const form = useForm<FeedbackFormData>({
@@ -76,19 +84,32 @@ export function FeedbackDialog({ trigger }: FeedbackDialogProps) {
       type: "suggestion",
       subject: "",
       message: "",
+      priority: "medium",
+      userEmail: "",
+      userName: "",
     },
   });
 
   const submitMutation = useMutation({
     mutationFn: async (data: FeedbackFormData) => {
-      return apiRequest("POST", "/api/feedback", data);
+      const endpoint = isAnonymous ? "/api/public/feedback" : "/api/feedback";
+      const payload = {
+        ...data,
+        page: window.location.pathname,
+        userEmail: data.userEmail || undefined,
+        userName: data.userName || undefined,
+      };
+      return apiRequest("POST", endpoint, payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/feedback"] });
-      toast({ title: "Feedback submitted successfully" });
+      if (!isAnonymous) {
+        queryClient.invalidateQueries({ queryKey: ["/api/feedback"] });
+      }
+      toast({ title: "Feedback submitted successfully", description: "Thank you for your feedback!" });
       form.reset();
+      setOpen(false);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Failed to submit feedback",
         description: error.message,
@@ -100,6 +121,8 @@ export function FeedbackDialog({ trigger }: FeedbackDialogProps) {
   const onSubmit = (data: FeedbackFormData) => {
     submitMutation.mutate(data);
   };
+  
+  const selectedType = form.watch("type");
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -120,10 +143,12 @@ export function FeedbackDialog({ trigger }: FeedbackDialogProps) {
         </DialogHeader>
 
         <Tabs defaultValue="submit" className="mt-4">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="submit" data-testid="tab-submit-feedback">Submit Feedback</TabsTrigger>
-            <TabsTrigger value="history" data-testid="tab-feedback-history">My Submissions</TabsTrigger>
-          </TabsList>
+          {!isAnonymous && (
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="submit" data-testid="tab-submit-feedback">Submit Feedback</TabsTrigger>
+              <TabsTrigger value="history" data-testid="tab-feedback-history">My Submissions</TabsTrigger>
+            </TabsList>
+          )}
 
           <TabsContent value="submit" className="mt-4">
             <Form {...form}>
@@ -182,7 +207,11 @@ export function FeedbackDialog({ trigger }: FeedbackDialogProps) {
                       <FormLabel>Details</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Please describe in detail..."
+                          placeholder={
+                            selectedType === "bug" 
+                              ? "Describe what happened, what you expected, and steps to reproduce..."
+                              : "Please describe in detail..."
+                          }
                           className="min-h-[120px]"
                           {...field}
                           data-testid="textarea-feedback-message"
@@ -193,18 +222,92 @@ export function FeedbackDialog({ trigger }: FeedbackDialogProps) {
                   )}
                 />
 
+                {selectedType === "bug" && (
+                  <FormField
+                    control={form.control}
+                    name="priority"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Priority</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-feedback-priority">
+                              <SelectValue placeholder="Select priority" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="low">Low - Minor issue</SelectItem>
+                            <SelectItem value="medium">Medium - Affects usage</SelectItem>
+                            <SelectItem value="high">High - Major problem</SelectItem>
+                            <SelectItem value="critical">Critical - Cannot use platform</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                {isAnonymous && (
+                  <>
+                    <FormField
+                      control={form.control}
+                      name="userName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Your Name (optional)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="Enter your name" 
+                              {...field} 
+                              data-testid="input-feedback-name"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="userEmail"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email (optional - for follow-up)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="email"
+                              placeholder="your@email.com" 
+                              {...field} 
+                              data-testid="input-feedback-email"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </>
+                )}
+
                 <Button
                   type="submit"
                   className="w-full"
                   disabled={submitMutation.isPending}
                   data-testid="button-submit-feedback"
                 >
-                  {submitMutation.isPending ? "Submitting..." : "Submit Feedback"}
+                  {submitMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    "Submit Feedback"
+                  )}
                 </Button>
               </form>
             </Form>
           </TabsContent>
 
+          {!isAnonymous && (
           <TabsContent value="history" className="mt-4">
             {isLoading ? (
               <p className="text-center text-muted-foreground py-8">Loading...</p>
@@ -244,6 +347,7 @@ export function FeedbackDialog({ trigger }: FeedbackDialogProps) {
               </p>
             )}
           </TabsContent>
+          )}
         </Tabs>
       </DialogContent>
     </Dialog>
