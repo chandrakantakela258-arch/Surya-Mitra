@@ -6,6 +6,7 @@ import { pool } from "./db";
 import { storage } from "./storage";
 import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSchema, updateFeedbackStatusSchema, inverterCommission } from "@shared/schema";
 import { z } from "zod";
+import { notificationService } from "./notification-service";
 
 const PgSession = connectPgSimple(session);
 
@@ -373,28 +374,28 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid status" });
       }
       
+      // Get current customer to track old status
+      const existingCustomer = await storage.getCustomer(id);
+      if (!existingCustomer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      const oldStatus = existingCustomer.status;
+      
       const customer = await storage.updateCustomerStatus(id, status);
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
       
-      // Create notification for the DDP about status change
-      const statusLabels: Record<string, string> = {
-        verified: "Documents Verified",
-        approved: "Application Approved",
-        installation_scheduled: "Installation Scheduled",
-        completed: "Installation Completed",
-      };
-      
-      if (statusLabels[status]) {
-        await storage.createNotification({
-          userId: customer.ddpId,
-          customerId: customer.id,
-          type: "status_update",
-          title: `Customer Status: ${statusLabels[status]}`,
-          message: `${customer.name}'s application status has been updated to "${statusLabels[status]}".`,
-        });
-      }
+      // Send notifications via WhatsApp, SMS, and Email
+      await notificationService.notifyCustomerStatusChange({
+        customerId: customer.id,
+        customerName: customer.name,
+        customerPhone: customer.phone,
+        customerEmail: customer.email || undefined,
+        ddpId: customer.ddpId,
+        oldStatus,
+        newStatus: status,
+      });
       
       res.json(customer);
     } catch (error) {
@@ -468,27 +469,51 @@ export async function registerRoutes(
           subsidy_received: "Subsidy Received",
         };
         
-        await storage.createNotification({
-          userId: customer.ddpId,
-          customerId: customer.id,
-          type: "milestone_complete",
-          title: `Milestone: ${milestoneLabels[milestone.milestone] || milestone.milestone}`,
-          message: `${customer.name}'s milestone "${milestoneLabels[milestone.milestone] || milestone.milestone}" has been completed.`,
-        });
+        // Send milestone notification via WhatsApp/Email/In-app
+        await notificationService.notifyMilestoneComplete(
+          customer.id,
+          customer.name,
+          customer.phone,
+          customer.email || undefined,
+          milestoneLabels[milestone.milestone] || milestone.milestone,
+          customer.ddpId
+        );
         
         // If installation is complete, create commission for the DDP
         if (milestone.milestone === "installation_complete") {
           const commissions = await storage.createCommissionForCustomer(customer.id, customer.ddpId);
           
-          // Notify about commission earned
+          // Notify about commission earned via WhatsApp/Email
           if (commissions.ddpCommission) {
-            await storage.createNotification({
-              userId: customer.ddpId,
-              customerId: customer.id,
-              type: "commission_earned",
-              title: "Commission Earned",
-              message: `You earned Rs ${(commissions.ddpCommission.commissionAmount || 0).toLocaleString()} commission for ${customer.name}'s installation.`,
-            });
+            const ddp = await storage.getUser(customer.ddpId);
+            if (ddp) {
+              await notificationService.notifyCommissionEarned(
+                customer.ddpId,
+                ddp.phone,
+                ddp.email,
+                commissions.ddpCommission.commissionAmount || 0,
+                "solar installation",
+                customer.name
+              );
+            }
+          }
+          
+          // Also notify BDP if exists
+          if (commissions.bdpCommission) {
+            const ddp = await storage.getUser(customer.ddpId);
+            if (ddp?.parentId) {
+              const bdp = await storage.getUser(ddp.parentId);
+              if (bdp) {
+                await notificationService.notifyCommissionEarned(
+                  bdp.id,
+                  bdp.phone,
+                  bdp.email,
+                  commissions.bdpCommission.commissionAmount || 0,
+                  "solar installation (via partner)",
+                  customer.name
+                );
+              }
+            }
           }
         }
       }
@@ -1600,6 +1625,24 @@ export async function registerRoutes(
   });
 
   // ============ USER PREFERENCES ROUTES ============
+  
+  // Get notification service configuration status (admin only)
+  app.get("/api/admin/notification-config", requireAdmin, async (req, res) => {
+    try {
+      const config = notificationService.isConfigured();
+      res.json({
+        whatsapp: config.twilio,
+        sms: config.twilio,
+        email: config.resend,
+        message: !config.twilio && !config.resend 
+          ? "No notification services configured. Add TWILIO_* and RESEND_API_KEY secrets to enable."
+          : "Notification services active.",
+      });
+    } catch (error) {
+      console.error("Get notification config error:", error);
+      res.status(500).json({ message: "Failed to get notification config" });
+    }
+  });
   
   // Get user preferences
   app.get("/api/preferences", requireAuth, async (req, res) => {

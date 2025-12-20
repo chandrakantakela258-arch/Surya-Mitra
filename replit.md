@@ -164,3 +164,34 @@ Key tables:
 ### Validation
 - Zod for runtime schema validation
 - drizzle-zod for database-to-validation schema generation
+
+### Notification Services
+The platform supports multi-channel notifications for application status updates:
+
+**Channels:**
+- **WhatsApp** - Primary notification channel via Twilio WhatsApp Business API
+- **SMS** - Fallback when WhatsApp unavailable (via Twilio)
+- **Email** - Professional HTML email notifications via Resend
+- **In-App** - Always sent, stored in `notifications` table
+
+**Required Environment Variables:**
+- `TWILIO_ACCOUNT_SID` - Twilio Account SID
+- `TWILIO_AUTH_TOKEN` - Twilio Auth Token
+- `TWILIO_PHONE_NUMBER` - Twilio WhatsApp-enabled phone number (format: +1234567890)
+- `RESEND_API_KEY` - Resend API key for email notifications
+- `FROM_EMAIL` - Sender email address (default: notifications@divyanshisolar.com)
+
+**Notification Triggers:**
+1. Customer status changes (pending → verified → approved → scheduled → completed)
+2. Milestone completions
+3. Commission earned notifications
+
+**User Preferences:**
+Users can control notifications via `user_preferences` table:
+- `emailNotifications` - Enable/disable email
+- `smsNotifications` - Enable/disable SMS
+- `whatsappNotifications` - Enable/disable WhatsApp
+
+**Files:**
+- `server/notification-service.ts` - Core notification service
+- API endpoint: `GET /api/admin/notification-config` - Check service status

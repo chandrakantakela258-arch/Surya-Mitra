@@ -298,6 +298,7 @@ export const userPreferences = pgTable("user_preferences", {
   dashboardLayout: text("dashboard_layout"), // JSON string of widget order
   emailNotifications: text("email_notifications").default("true"),
   smsNotifications: text("sms_notifications").default("true"),
+  whatsappNotifications: text("whatsapp_notifications").default("true"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
