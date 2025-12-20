@@ -588,11 +588,13 @@ export async function registerRoutes(
     try {
       const allUsers = await storage.getAllUsers();
       const partners = await storage.getAllPartners();
-      console.log("DEBUG - Total users:", allUsers.length, "Partners:", partners.length);
+      const stats = await storage.getAdminStats();
+      console.log("DEBUG - Total users:", allUsers.length, "Partners:", partners.length, "Stats:", stats);
       res.json({ 
         totalUsers: allUsers.length, 
         totalPartners: partners.length,
-        users: allUsers.map(u => ({ name: u.name, role: u.role }))
+        stats: stats,
+        users: allUsers.map(u => ({ name: u.name, role: u.role, status: u.status }))
       });
     } catch (error) {
       console.error("Debug users error:", error);
