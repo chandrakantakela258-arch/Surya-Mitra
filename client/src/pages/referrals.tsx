@@ -194,7 +194,7 @@ export default function ReferralsPage() {
               <h4 className="font-semibold mb-2">Partner Referral</h4>
               <p className="text-2xl font-bold text-primary">Rs 2,000</p>
               <p className="text-sm text-muted-foreground">
-                Earn when referred partner gets approved
+                Earn when the referred partner completes 15 successful installations
               </p>
             </div>
           </div>
