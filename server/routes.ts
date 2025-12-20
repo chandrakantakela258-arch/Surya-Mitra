@@ -108,6 +108,18 @@ async function requireAdmin(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+async function requireCustomerPartner(req: Request, res: Response, next: NextFunction) {
+  if (!req.session.userId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+  const user = await storage.getUser(req.session.userId);
+  if (!user || user.role !== "customer_partner") {
+    return res.status(403).json({ message: "Forbidden: Customer Partner access required" });
+  }
+  (req as any).user = user;
+  next();
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -1968,31 +1980,46 @@ export async function registerRoutes(
       // Check if customer used a referral code
       let ddpId: string | null = null;
       let isIndependent = true; // Default: no commission sharing
+      let referrerCustomerId: string | null = null; // For customer partner referrals
       
       if (referralCode && referralCode.trim()) {
-        // Find user with this referral code
-        const referrer = await storage.getUserByReferralCode(referralCode.trim());
-        if (referrer && (referrer.role === "ddp" || referrer.role === "bdp")) {
-          isIndependent = false; // Referred customer - commission will be shared
-          
-          if (referrer.role === "ddp") {
-            ddpId = referrer.id;
-          } else {
-            // For BDP referral, find any DDP under this BDP
-            const ddps = await storage.getPartnersByParentId(referrer.id);
-            if (ddps.length > 0) {
-              ddpId = ddps[0].id;
-            }
+        const code = referralCode.trim();
+        
+        // Check if it's a Customer Partner referral code (starts with CP)
+        if (code.startsWith("CP")) {
+          // Find customer partner with this referral code
+          const customerPartner = await storage.getUserByReferralCode(code);
+          if (customerPartner && customerPartner.role === "customer_partner" && customerPartner.linkedCustomerId) {
+            isIndependent = false; // Referred by customer partner - commission eligible
+            referrerCustomerId = customerPartner.linkedCustomerId;
+            
+            // Track referral in referrals table
+            await storage.createReferral({
+              referrerId: customerPartner.id,
+              referredType: "customer",
+              referredName: name,
+              referredPhone: phone,
+              status: "pending",
+            });
           }
-          
-          // Track referral
-          await storage.createReferral({
-            referrerId: referrer.id,
-            referredType: "customer",
-            referredName: name,
-            referredPhone: phone,
-            status: "pending",
-          });
+        } else {
+          // Find user with this referral code (BDP/DDP - but now they don't have referral access)
+          // Keep backward compatibility but mark as website_direct (no commission for BDP/DDP referrals)
+          const referrer = await storage.getUserByReferralCode(code);
+          if (referrer && (referrer.role === "ddp" || referrer.role === "bdp")) {
+            // BDP/DDP referrals now go to website_direct (no commission)
+            // Only Customer Partner referrals earn commission
+            if (referrer.role === "ddp") {
+              ddpId = referrer.id;
+            } else {
+              // For BDP referral, find any DDP under this BDP
+              const ddps = await storage.getPartnersByParentId(referrer.id);
+              if (ddps.length > 0) {
+                ddpId = ddps[0].id;
+              }
+            }
+            // Note: isIndependent stays true - BDP/DDP don't get referral commission anymore
+          }
         }
       }
       
@@ -2028,10 +2055,11 @@ export async function registerRoutes(
         roofType,
         panelType,
         proposedCapacity,
-        monthlyBill: monthlyBill || null,
+        avgMonthlyBill: monthlyBill || null,
         ddpId,
         status: "pending",
         source: isIndependent ? "website_direct" : "website_referral",
+        referrerCustomerId, // For customer partner referrals
       });
       
       res.status(201).json({ 
@@ -2940,6 +2968,191 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Get site expense by customer error:", error);
       res.status(500).json({ message: "Failed to get site expense" });
+    }
+  });
+
+  // ==================== CUSTOMER PARTNER ROUTES ====================
+  
+  // Register as Customer Partner (for independent customers who completed installation)
+  app.post("/api/customer-partner/register", async (req, res) => {
+    try {
+      const { phone, password, email } = req.body;
+      
+      if (!phone || !password) {
+        return res.status(400).json({ message: "Phone and password are required" });
+      }
+      
+      // Find customer by phone who is independent and has completed installation
+      const allCustomers = await storage.getAllCustomers();
+      const customer = allCustomers.find(c => 
+        c.phone === phone && 
+        c.source === "website_direct" && 
+        c.status === "completed"
+      );
+      
+      if (!customer) {
+        return res.status(400).json({ 
+          message: "No eligible customer found. You must have registered independently and completed your solar installation (3kW or above)." 
+        });
+      }
+      
+      // Check capacity is at least 3kW
+      const capacity = parseInt(customer.proposedCapacity || "0");
+      if (capacity < 3) {
+        return res.status(400).json({ 
+          message: "Only customers with 3kW or above installations can become Customer Partners." 
+        });
+      }
+      
+      // Check if already registered as customer partner
+      const existingUser = await storage.getUserByPhone(phone);
+      if (existingUser && existingUser.role === "customer_partner") {
+        return res.status(400).json({ message: "You are already registered as a Customer Partner" });
+      }
+      
+      // Generate referral code based on customer name
+      const baseCode = customer.name.replace(/\s+/g, "").slice(0, 6).toUpperCase();
+      const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+      const referralCode = `CP${baseCode}${randomSuffix}`;
+      
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+      
+      // Create customer partner user
+      const newUser = await storage.createUser({
+        username: `cp_${phone}`,
+        password: hashedPassword,
+        name: customer.name,
+        email: email || customer.email || "",
+        phone: customer.phone,
+        role: "customer_partner",
+        district: customer.district,
+        state: customer.state,
+        address: customer.address,
+        status: "approved", // Auto-approve since they have completed installation
+        referralCode,
+        linkedCustomerId: customer.id,
+      });
+      
+      // Set session
+      req.session.userId = newUser.id;
+      
+      res.status(201).json({ 
+        message: "Successfully registered as Customer Partner!",
+        user: { 
+          id: newUser.id, 
+          name: newUser.name, 
+          role: newUser.role,
+          referralCode: newUser.referralCode 
+        } 
+      });
+    } catch (error) {
+      console.error("Customer Partner registration error:", error);
+      res.status(500).json({ message: "Failed to register as Customer Partner" });
+    }
+  });
+  
+  // Get Customer Partner dashboard stats
+  app.get("/api/customer-partner/stats", requireCustomerPartner, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      
+      // Get referrals made by this customer partner
+      const allCustomers = await storage.getAllCustomers();
+      const referredCustomers = allCustomers.filter(c => c.referrerCustomerId === user.linkedCustomerId);
+      
+      // Get commissions for this customer partner
+      const commissions = await storage.getCommissionsByPartnerId(user.id, "customer_partner");
+      
+      const stats = {
+        totalReferrals: referredCustomers.length,
+        completedReferrals: referredCustomers.filter(c => c.status === "completed").length,
+        pendingReferrals: referredCustomers.filter(c => c.status !== "completed").length,
+        eligibleReferrals: referredCustomers.filter(c => 
+          c.status === "completed" && parseInt(c.proposedCapacity || "0") >= 3
+        ).length,
+        totalEarnings: commissions.reduce((sum, c) => sum + (c.status === "paid" ? c.commissionAmount : 0), 0),
+        pendingEarnings: commissions.reduce((sum, c) => sum + (c.status === "pending" || c.status === "approved" ? c.commissionAmount : 0), 0),
+        referralCode: user.referralCode,
+      };
+      
+      res.json(stats);
+    } catch (error) {
+      console.error("Get Customer Partner stats error:", error);
+      res.status(500).json({ message: "Failed to get stats" });
+    }
+  });
+  
+  // Get Customer Partner referrals list
+  app.get("/api/customer-partner/referrals", requireCustomerPartner, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      
+      // Get customers referred by this customer partner
+      const allCustomers = await storage.getAllCustomers();
+      const referredCustomers = allCustomers
+        .filter(c => c.referrerCustomerId === user.linkedCustomerId)
+        .map(c => ({
+          id: c.id,
+          name: c.name,
+          phone: c.phone,
+          district: c.district,
+          state: c.state,
+          capacity: c.proposedCapacity,
+          status: c.status,
+          panelType: c.panelType,
+          createdAt: c.createdAt,
+          isEligibleForReward: c.status === "completed" && parseInt(c.proposedCapacity || "0") >= 3,
+        }));
+      
+      res.json(referredCustomers);
+    } catch (error) {
+      console.error("Get Customer Partner referrals error:", error);
+      res.status(500).json({ message: "Failed to get referrals" });
+    }
+  });
+  
+  // Get Customer Partner commissions
+  app.get("/api/customer-partner/commissions", requireCustomerPartner, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const commissions = await storage.getCommissionsByPartnerId(user.id, "customer_partner");
+      res.json(commissions);
+    } catch (error) {
+      console.error("Get Customer Partner commissions error:", error);
+      res.status(500).json({ message: "Failed to get commissions" });
+    }
+  });
+  
+  // Get Customer Partner profile
+  app.get("/api/customer-partner/profile", requireCustomerPartner, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      
+      // Get linked customer record for additional details
+      let linkedCustomer = null;
+      if (user.linkedCustomerId) {
+        linkedCustomer = await storage.getCustomer(user.linkedCustomerId);
+      }
+      
+      res.json({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        district: user.district,
+        state: user.state,
+        referralCode: user.referralCode,
+        createdAt: user.createdAt,
+        linkedCustomer: linkedCustomer ? {
+          capacity: linkedCustomer.proposedCapacity,
+          panelType: linkedCustomer.panelType,
+          installationDate: linkedCustomer.installationDate,
+        } : null,
+      });
+    } catch (error) {
+      console.error("Get Customer Partner profile error:", error);
+      res.status(500).json({ message: "Failed to get profile" });
     }
   });
 
