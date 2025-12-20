@@ -83,7 +83,7 @@ export function HeroSlider() {
                   alt={slide.title}
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-8 md:p-16 lg:p-20">
                   <h3 className="text-white text-2xl md:text-4xl lg:text-5xl font-bold mb-3 drop-shadow-lg">
                     {slide.title}
