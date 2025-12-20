@@ -84,6 +84,9 @@ export default function AdminPayouts() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/commissions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ddp/commissions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bdp/commissions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
       toast({
         title: "Status Updated",
         description: "Commission status has been updated.",
@@ -105,6 +108,9 @@ export default function AdminPayouts() {
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/payouts"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/commissions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ddp/commissions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bdp/commissions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
       setShowPayoutDialog(false);
       setSelectedCommission(null);
       toast({

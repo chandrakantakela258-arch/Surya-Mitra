@@ -1,4 +1,4 @@
-const CACHE_NAME = 'divyanshi-solar-v2';
+const CACHE_NAME = 'divyanshi-solar-v3';
 const STATIC_ASSETS = [
   '/',
   '/favicon.png',
@@ -12,15 +12,20 @@ const CACHE_STRATEGIES = {
 };
 
 const SKIP_CACHE_PATTERNS = [
-  '/api/commissions',
-  '/api/customers',
-  '/api/dashboard',
-  '/api/earnings',
-  '/api/payouts',
-  '/api/wallet',
-  '/api/referrals',
-  '/api/leaderboard',
-  '/api/orders'
+  '/api/admin/',
+  '/api/bdp/',
+  '/api/ddp/',
+  'commissions',
+  'customers',
+  'dashboard',
+  'earnings',
+  'payouts',
+  'wallet',
+  'referrals',
+  'leaderboard',
+  'orders',
+  'stats',
+  'milestones'
 ];
 
 self.addEventListener('install', (event) => {
@@ -52,11 +57,13 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
 
   if (url.pathname.startsWith('/api')) {
-    const shouldSkipCache = SKIP_CACHE_PATTERNS.some(pattern => 
-      url.pathname.includes(pattern)
-    );
+    const isSensitiveRoute = 
+      url.pathname.startsWith('/api/admin/') ||
+      url.pathname.startsWith('/api/bdp/') ||
+      url.pathname.startsWith('/api/ddp/') ||
+      SKIP_CACHE_PATTERNS.some(pattern => url.pathname.includes(pattern));
     
-    if (shouldSkipCache) {
+    if (isSensitiveRoute) {
       event.respondWith(networkOnly(request));
     } else {
       event.respondWith(networkFirst(request));

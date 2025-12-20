@@ -62,6 +62,10 @@ export default function AdminCustomers() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ddp/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bdp/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/commissions"] });
       toast({
         title: "Status Updated",
         description: "Customer status has been updated and notifications sent.",

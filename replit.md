@@ -238,3 +238,24 @@ Users can control notifications via `user_preferences` table:
 **Files:**
 - `server/notification-service.ts` - Core notification service
 - API endpoint: `GET /api/admin/notification-config` - Check service status
+
+### Progressive Web App (PWA)
+The platform is installable as a mobile app on iOS and Android devices.
+
+**Features:**
+- Installable on home screen via browser prompt
+- Mobile-optimized bottom navigation (role-specific quick access)
+- Offline-aware with graceful degradation
+- Service worker for static asset caching
+
+**Data Synchronization:**
+- React Query configured with 30-second stale time for automatic refresh
+- Automatic refetch on window focus and network reconnect
+- Sensitive API endpoints (commissions, customers, dashboard, earnings) bypass service worker cache
+- Cross-role cache invalidation ensures admin changes propagate to partner views
+
+**Files:**
+- `client/public/manifest.json` - PWA manifest
+- `client/public/sw.js` - Service worker with caching strategies
+- `client/src/components/mobile-nav.tsx` - Bottom navigation component
+- `client/src/components/pwa-install-prompt.tsx` - Install prompt component
