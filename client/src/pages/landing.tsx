@@ -693,22 +693,30 @@ export default function LandingPage() {
                       <p className="text-sm text-muted-foreground">Active Partner Network</p>
                     </div>
                   </div>
-                  <div className="grid sm:grid-cols-3 gap-4 mb-6">
+                  <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                     <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <div className="text-2xl font-bold" data-testid="text-bihar-registrations">5+ Lakh</div>
-                      <div className="text-sm text-muted-foreground">Registrations</div>
+                      <div className="text-xl font-bold" data-testid="text-bihar-applications">54,075</div>
+                      <div className="text-xs text-muted-foreground">Applications</div>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <div className="text-2xl font-bold" data-testid="text-bihar-status">Active</div>
-                      <div className="text-sm text-muted-foreground">Program Status</div>
+                      <div className="text-xl font-bold" data-testid="text-bihar-installations">13,953</div>
+                      <div className="text-xs text-muted-foreground">Installations</div>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <div className="text-2xl font-bold" data-testid="text-bihar-subsidy">Standard</div>
-                      <div className="text-sm text-muted-foreground">State Subsidy</div>
+                      <div className="text-xl font-bold" data-testid="text-bihar-households">14,601</div>
+                      <div className="text-xs text-muted-foreground">Households Covered</div>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-xl font-bold" data-testid="text-bihar-capacity">50.14 MW</div>
+                      <div className="text-xs text-muted-foreground">Capacity Installed</div>
+                    </div>
+                    <div className="p-4 bg-primary/10 rounded-lg text-center col-span-2 lg:col-span-1">
+                      <div className="text-xl font-bold text-primary" data-testid="text-bihar-subsidy">Rs 99.33 Cr</div>
+                      <div className="text-xs text-muted-foreground">Subsidy Released</div>
                     </div>
                   </div>
                   <p className="text-muted-foreground">
-                    Bihar has seen strong adoption of the PM Surya Ghar Yojana with over 5 lakh registrations. 
+                    Bihar is making strong progress under PM Surya Ghar Yojana with over 54,000 applications and nearly 14,000 installations completed. 
                     Our partner network covers major districts including Patna, Gaya, Bhagalpur, and Muzaffarpur.
                   </p>
                 </CardContent>
