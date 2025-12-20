@@ -1,0 +1,43 @@
+{
+  "name": "DivyanshiSolar Partner App",
+  "short_name": "DivyanshiSolar",
+  "description": "Partner Management Platform for PM Surya Ghar Yojana - Manage customers, track installations, and earn commissions on the go.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f97316",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "url": "/ddp/dashboard",
+      "description": "View your partner dashboard"
+    },
+    {
+      "name": "Add Customer",
+      "url": "/ddp/customers/new",
+      "description": "Register a new customer"
+    },
+    {
+      "name": "My Earnings",
+      "url": "/ddp/earnings",
+      "description": "View your commission earnings"
+    }
+  ]
+}
