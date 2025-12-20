@@ -2,6 +2,7 @@ import { Link as WouterLink } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SiLinkedin, SiX, SiFacebook, SiInstagram } from "react-icons/si";
 import { 
@@ -25,7 +26,14 @@ import {
   BarChart3,
   Phone,
   Mail,
-  MapPinned
+  MapPinned,
+  Building2,
+  ClipboardList,
+  Sparkles,
+  ChevronDown,
+  Globe,
+  Award,
+  Headphones
 } from "lucide-react";
 import { useState } from "react";
 
@@ -42,61 +50,92 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Top Bar */}
+      <div className="bg-gradient-to-r from-primary via-primary to-amber-500 text-primary-foreground py-2 px-4">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2 text-sm">
+          <div className="flex items-center gap-4 flex-wrap">
+            <a href="tel:+919777480310" className="flex items-center gap-1.5 hover:underline">
+              <Phone className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">+91 9777480310</span>
+            </a>
+            <a href="mailto:info@divyanshisolar.com" className="flex items-center gap-1.5 hover:underline">
+              <Mail className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">info@divyanshisolar.com</span>
+            </a>
+          </div>
+          <div className="flex items-center gap-3">
+            <Badge variant="secondary" className="bg-white/20 text-white border-0 text-xs">
+              <Sparkles className="w-3 h-3 mr-1" />
+              PM Surya Ghar Partner
+            </Badge>
+          </div>
+        </div>
+      </div>
+
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b">
+      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-4 h-16">
             {/* Logo */}
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                <Sun className="w-6 h-6 text-primary-foreground" />
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 bg-gradient-to-br from-amber-400 via-orange-500 to-amber-600 rounded-xl flex items-center justify-center shadow-md">
+                <Sun className="w-6 h-6 text-white" />
               </div>
-              <span className="font-bold text-xl hidden sm:block">DivyanshiSolar</span>
+              <div className="hidden sm:flex flex-col">
+                <span className="font-bold text-lg tracking-tight">DivyanshiSolar</span>
+                <span className="text-[10px] text-muted-foreground -mt-0.5">Powering India's Solar Future</span>
+              </div>
             </div>
 
             {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center gap-6">
+            <nav className="hidden lg:flex items-center gap-1">
               <button 
                 onClick={() => scrollToSection("about")} 
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                 data-testid="nav-about"
               >
+                <Building2 className="w-4 h-4" />
                 About Us
               </button>
               <button 
                 onClick={() => scrollToSection("renewable-energy")} 
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                 data-testid="nav-renewable"
               >
+                <Leaf className="w-4 h-4" />
                 Renewable Energy
               </button>
               <button 
                 onClick={() => scrollToSection("pm-surya-ghar")} 
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                 data-testid="nav-pmsghy"
               >
-                PM Surya Ghar Yojana
+                <Sun className="w-4 h-4" />
+                PM Surya Ghar
               </button>
               <button 
                 onClick={() => scrollToSection("steps")} 
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                 data-testid="nav-steps"
               >
-                Steps to Apply
+                <ClipboardList className="w-4 h-4" />
+                How to Apply
               </button>
               <button 
                 onClick={() => scrollToSection("sunpunch")} 
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                 data-testid="nav-sunpunch"
               >
-                SunPunch Inverter
+                <Battery className="w-4 h-4" />
+                SunPunch
               </button>
               <button 
                 onClick={() => scrollToSection("state-progress")} 
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                 data-testid="nav-state-progress"
               >
-                State Progress
+                <BarChart3 className="w-4 h-4" />
+                Progress
               </button>
             </nav>
 
@@ -104,9 +143,9 @@ export default function LandingPage() {
             <div className="flex items-center gap-2">
               <ThemeToggle />
               <WouterLink href="/subsidy-calculator">
-                <Button variant="outline" size="sm" className="hidden sm:flex gap-2" data-testid="button-subsidy-calculator">
+                <Button variant="outline" size="sm" className="hidden md:flex gap-2 border-primary/30 text-primary hover:bg-primary/10" data-testid="button-subsidy-calculator">
                   <Calculator className="w-4 h-4" />
-                  Subsidy Calculator
+                  <span className="hidden lg:inline">Subsidy</span> Calculator
                 </Button>
               </WouterLink>
               <WouterLink href="/login">
@@ -115,8 +154,9 @@ export default function LandingPage() {
                 </Button>
               </WouterLink>
               <WouterLink href="/register">
-                <Button size="sm" data-testid="button-join-network">
-                  Join Our Network
+                <Button size="sm" className="gap-1.5 bg-gradient-to-r from-primary to-amber-500 hover:from-primary/90 hover:to-amber-500/90 shadow-md" data-testid="button-join-network">
+                  <Award className="w-4 h-4" />
+                  <span className="hidden sm:inline">Join Network</span>
                 </Button>
               </WouterLink>
               
@@ -135,55 +175,71 @@ export default function LandingPage() {
 
           {/* Mobile Navigation */}
           {mobileMenuOpen && (
-            <nav className="lg:hidden py-4 border-t flex flex-col gap-2">
-              <button 
-                onClick={() => scrollToSection("about")} 
-                className="text-left py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-                data-testid="mobile-nav-about"
-              >
-                About Us
-              </button>
-              <button 
-                onClick={() => scrollToSection("renewable-energy")} 
-                className="text-left py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-                data-testid="mobile-nav-renewable"
-              >
-                Renewable Energy
-              </button>
-              <button 
-                onClick={() => scrollToSection("pm-surya-ghar")} 
-                className="text-left py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-                data-testid="mobile-nav-pmsghy"
-              >
-                PM Surya Ghar Yojana
-              </button>
-              <button 
-                onClick={() => scrollToSection("steps")} 
-                className="text-left py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-                data-testid="mobile-nav-steps"
-              >
-                Steps to Apply
-              </button>
-              <button 
-                onClick={() => scrollToSection("sunpunch")} 
-                className="text-left py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-                data-testid="mobile-nav-sunpunch"
-              >
-                SunPunch Inverter
-              </button>
-              <button 
-                onClick={() => scrollToSection("state-progress")} 
-                className="text-left py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-                data-testid="mobile-nav-state-progress"
-              >
-                State Progress
-              </button>
-              <WouterLink href="/subsidy-calculator">
-                <Button variant="outline" size="sm" className="w-full mt-2 gap-2" data-testid="mobile-nav-subsidy">
-                  <Calculator className="w-4 h-4" />
-                  Subsidy Calculator
-                </Button>
-              </WouterLink>
+            <nav className="lg:hidden py-4 border-t">
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                <button 
+                  onClick={() => scrollToSection("about")} 
+                  className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left"
+                  data-testid="mobile-nav-about"
+                >
+                  <Building2 className="w-4 h-4 text-primary" />
+                  About Us
+                </button>
+                <button 
+                  onClick={() => scrollToSection("renewable-energy")} 
+                  className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left"
+                  data-testid="mobile-nav-renewable"
+                >
+                  <Leaf className="w-4 h-4 text-green-500" />
+                  Renewable Energy
+                </button>
+                <button 
+                  onClick={() => scrollToSection("pm-surya-ghar")} 
+                  className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left"
+                  data-testid="mobile-nav-pmsghy"
+                >
+                  <Sun className="w-4 h-4 text-amber-500" />
+                  PM Surya Ghar
+                </button>
+                <button 
+                  onClick={() => scrollToSection("steps")} 
+                  className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left"
+                  data-testid="mobile-nav-steps"
+                >
+                  <ClipboardList className="w-4 h-4 text-blue-500" />
+                  How to Apply
+                </button>
+                <button 
+                  onClick={() => scrollToSection("sunpunch")} 
+                  className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left"
+                  data-testid="mobile-nav-sunpunch"
+                >
+                  <Battery className="w-4 h-4 text-purple-500" />
+                  SunPunch
+                </button>
+                <button 
+                  onClick={() => scrollToSection("state-progress")} 
+                  className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left"
+                  data-testid="mobile-nav-state-progress"
+                >
+                  <BarChart3 className="w-4 h-4 text-teal-500" />
+                  State Progress
+                </button>
+              </div>
+              <div className="flex flex-col gap-2 pt-2 border-t">
+                <WouterLink href="/subsidy-calculator">
+                  <Button variant="outline" size="sm" className="w-full gap-2 border-primary/30" data-testid="mobile-nav-subsidy">
+                    <Calculator className="w-4 h-4 text-primary" />
+                    Subsidy Calculator
+                  </Button>
+                </WouterLink>
+                <a href="tel:+919777480310">
+                  <Button variant="secondary" size="sm" className="w-full gap-2">
+                    <Phone className="w-4 h-4" />
+                    Call: +91 9777480310
+                  </Button>
+                </a>
+              </div>
             </nav>
           )}
         </div>
