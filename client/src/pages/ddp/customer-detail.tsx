@@ -23,11 +23,54 @@ function SiteMediaUpload({ customer }: { customer: Customer }) {
   const [uploading, setUploading] = useState<"pictures" | "video" | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [previewVideo, setPreviewVideo] = useState(false);
+  const [capturingLocation, setCapturingLocation] = useState(false);
+  
+  const captureGPSLocation = async (): Promise<{lat: string, lng: string} | null> => {
+    if (!navigator.geolocation) {
+      toast({ title: "GPS not available", description: "Your device doesn't support location services", variant: "destructive" });
+      return null;
+    }
+    
+    return new Promise((resolve) => {
+      setCapturingLocation(true);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setCapturingLocation(false);
+          resolve({
+            lat: position.coords.latitude.toString(),
+            lng: position.coords.longitude.toString()
+          });
+        },
+        (error) => {
+          setCapturingLocation(false);
+          console.log("GPS error:", error);
+          resolve(null);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    });
+  };
+  
+  const updateLocationMutation = useMutation({
+    mutationFn: async (coords: { lat: string; lng: string }) => {
+      return apiRequest("PATCH", `/api/ddp/customers/${customer.id}/location`, coords);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers", customer.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/public/installations-map"] });
+    }
+  });
   
   const uploadPicturesMutation = useMutation({
     mutationFn: async (files: FileList) => {
+      const coords = await captureGPSLocation();
+      
       const formData = new FormData();
       Array.from(files).forEach((file) => formData.append("pictures", file));
+      if (coords) {
+        formData.append("latitude", coords.lat);
+        formData.append("longitude", coords.lng);
+      }
       
       const response = await fetch(`/api/ddp/customers/${customer.id}/site-pictures`, {
         method: "POST",
@@ -43,7 +86,8 @@ function SiteMediaUpload({ customer }: { customer: Customer }) {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers", customer.id] });
-      toast({ title: `${data.count} pictures uploaded successfully` });
+      queryClient.invalidateQueries({ queryKey: ["/api/public/installations-map"] });
+      toast({ title: `${data.count} pictures uploaded successfully${data.locationUpdated ? " - Location captured" : ""}` });
       setUploading(null);
     },
     onError: (error: any) => {
@@ -163,6 +207,12 @@ function SiteMediaUpload({ customer }: { customer: Customer }) {
         </CardTitle>
         <CardDescription>
           Upload site pictures (6 angles) and highlight video (9:16, max 60 sec)
+          {customer.latitude && customer.longitude && (
+            <span className="block mt-1 text-xs">
+              <MapPin className="w-3 h-3 inline mr-1" />
+              GPS: {parseFloat(customer.latitude).toFixed(4)}, {parseFloat(customer.longitude).toFixed(4)}
+            </span>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -201,6 +251,7 @@ function SiteMediaUpload({ customer }: { customer: Customer }) {
               ref={pictureInputRef}
               type="file"
               accept="image/*"
+              capture="environment"
               multiple
               className="hidden"
               onChange={handlePictureSelect}
@@ -288,6 +339,7 @@ function SiteMediaUpload({ customer }: { customer: Customer }) {
               ref={videoInputRef}
               type="file"
               accept="video/*"
+              capture="environment"
               className="hidden"
               onChange={handleVideoSelect}
               data-testid="input-video"

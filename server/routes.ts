@@ -407,11 +407,12 @@ export async function registerRoutes(
     }
   });
   
-  // Upload site pictures (6 images from all angles)
+  // Upload site pictures (6 images from all angles) with optional GPS location
   app.post("/api/ddp/customers/:id/site-pictures", requireDDP, upload.array("pictures", 6), async (req, res) => {
     try {
       const user = (req as any).user;
       const { id } = req.params;
+      const { latitude, longitude } = req.body;
       
       // Verify customer belongs to this DDP
       const customer = await storage.getCustomer(id);
@@ -434,14 +435,47 @@ export async function registerRoutes(
       const allPictures = [...existingPictures, ...newPictures].slice(0, 6);
       
       const updated = await storage.updateCustomerSiteMedia(id, allPictures, undefined);
+      
+      // Update GPS location if provided and not already set
+      let locationUpdated = false;
+      if (latitude && longitude && (!customer.latitude || !customer.longitude)) {
+        await storage.updateCustomerLocation(id, latitude, longitude);
+        locationUpdated = true;
+      }
+      
       res.json({ 
         message: "Pictures uploaded successfully", 
         sitePictures: updated?.sitePictures,
-        count: updated?.sitePictures?.length || 0
+        count: updated?.sitePictures?.length || 0,
+        locationUpdated
       });
     } catch (error) {
       console.error("Upload site pictures error:", error);
       res.status(500).json({ message: "Failed to upload pictures" });
+    }
+  });
+  
+  // Update customer GPS location
+  app.patch("/api/ddp/customers/:id/location", requireDDP, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { id } = req.params;
+      const { lat, lng } = req.body;
+      
+      const customer = await storage.getCustomer(id);
+      if (!customer || customer.ddpId !== user.id) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      
+      if (!lat || !lng) {
+        return res.status(400).json({ message: "Latitude and longitude required" });
+      }
+      
+      await storage.updateCustomerLocation(id, lat, lng);
+      res.json({ message: "Location updated successfully" });
+    } catch (error) {
+      console.error("Update location error:", error);
+      res.status(500).json({ message: "Failed to update location" });
     }
   });
   
