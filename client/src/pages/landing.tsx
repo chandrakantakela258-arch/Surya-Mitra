@@ -254,10 +254,10 @@ export default function LandingPage() {
                     Subsidy Calculator
                   </Button>
                 </WouterLink>
-                <a href="tel:+919777480310">
+                <a href="tel:+919801005212">
                   <Button variant="secondary" size="sm" className="w-full gap-2">
                     <Phone className="w-4 h-4" />
-                    Call: +91 9777480310
+                    Call: +91 9801005212
                   </Button>
                 </a>
               </div>

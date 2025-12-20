@@ -1023,8 +1023,12 @@ export default function VendorRegistration() {
             </p>
             <p className="mt-2">
               For queries, contact us at{" "}
-              <a href="tel:+919876543210" className="text-orange-600 hover:underline">
-                +91 98765 43210
+              <a href="tel:+919801005212" className="text-orange-600 hover:underline">
+                +91 9801005212
+              </a>
+              {", "}
+              <a href="tel:+918777684575" className="text-orange-600 hover:underline">
+                8777684575
               </a>
             </p>
           </div>
