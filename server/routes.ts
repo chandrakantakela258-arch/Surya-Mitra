@@ -3113,6 +3113,9 @@ export async function registerRoutes(
       // Get commissions for this customer partner
       const commissions = await storage.getCommissionsByPartnerId(user.id, "customer_partner");
       
+      const paidEarnings = commissions.reduce((sum, c) => sum + (c.status === "paid" ? c.commissionAmount : 0), 0);
+      const pendingEarnings = commissions.reduce((sum, c) => sum + (c.status === "pending" || c.status === "approved" ? c.commissionAmount : 0), 0);
+      
       const stats = {
         totalReferrals: referredCustomers.length,
         completedReferrals: referredCustomers.filter(c => c.status === "completed").length,
@@ -3120,8 +3123,9 @@ export async function registerRoutes(
         eligibleReferrals: referredCustomers.filter(c => 
           c.status === "completed" && parseInt(c.proposedCapacity || "0") >= 3
         ).length,
-        totalEarnings: commissions.reduce((sum, c) => sum + (c.status === "paid" ? c.commissionAmount : 0), 0),
-        pendingEarnings: commissions.reduce((sum, c) => sum + (c.status === "pending" || c.status === "approved" ? c.commissionAmount : 0), 0),
+        totalEarnings: paidEarnings + pendingEarnings,
+        paidEarnings,
+        pendingEarnings,
         referralCode: user.referralCode,
       };
       

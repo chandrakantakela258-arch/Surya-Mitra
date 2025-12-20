@@ -3,9 +3,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Copy, Users, Wallet, CheckCircle, Clock, Share2, Gift } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Copy, Users, Wallet, CheckCircle, Clock, Share2, Gift, TrendingUp, Zap, MapPin, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
+import { Link } from "wouter";
+import { format } from "date-fns";
 
 interface CustomerPartnerStats {
   totalReferrals: number;
@@ -14,16 +17,47 @@ interface CustomerPartnerStats {
   eligibleReferrals: number;
   totalEarnings: number;
   pendingEarnings: number;
+  paidEarnings: number;
   referralCode: string;
+}
+
+interface Referral {
+  id: string;
+  name: string;
+  phone: string;
+  district: string;
+  state: string;
+  capacity: string;
+  status: string;
+  panelType: string;
+  createdAt: string;
+  isEligibleForReward: boolean;
+}
+
+interface Commission {
+  id: string;
+  commissionAmount: number;
+  status: string;
+  createdAt: string;
 }
 
 export default function CustomerPartnerDashboard() {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const { data: stats, isLoading } = useQuery<CustomerPartnerStats>({
+  const { data: stats, isLoading: statsLoading } = useQuery<CustomerPartnerStats>({
     queryKey: ["/api/customer-partner/stats"],
   });
+
+  const { data: referrals, isLoading: referralsLoading } = useQuery<Referral[]>({
+    queryKey: ["/api/customer-partner/referrals"],
+  });
+
+  const { data: commissions, isLoading: commissionsLoading } = useQuery<Commission[]>({
+    queryKey: ["/api/customer-partner/commissions"],
+  });
+
+  const isLoading = statsLoading || referralsLoading || commissionsLoading;
 
   const copyReferralCode = () => {
     if (stats?.referralCode) {
@@ -52,6 +86,23 @@ export default function CustomerPartnerDashboard() {
     }
   };
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "completed":
+        return <Badge className="bg-green-500/10 text-green-600 border-green-500/20">Completed</Badge>;
+      case "pending":
+        return <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">Pending</Badge>;
+      case "approved":
+        return <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">Approved</Badge>;
+      case "installation_scheduled":
+        return <Badge className="bg-purple-500/10 text-purple-600 border-purple-500/20">Scheduled</Badge>;
+      case "paid":
+        return <Badge className="bg-green-500/10 text-green-600 border-green-500/20">Paid</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="p-6 space-y-6">
@@ -61,9 +112,14 @@ export default function CustomerPartnerDashboard() {
             <Skeleton key={i} className="h-32" />
           ))}
         </div>
+        <Skeleton className="h-64" />
       </div>
     );
   }
+
+  const recentReferrals = referrals?.slice(0, 5) || [];
+  const recentCommissions = commissions?.slice(0, 5) || [];
+  const completionRate = stats?.totalReferrals ? Math.round((stats.completedReferrals / stats.totalReferrals) * 100) : 0;
 
   return (
     <div className="p-6 space-y-6">
@@ -72,7 +128,7 @@ export default function CustomerPartnerDashboard() {
           Welcome, {user?.name}
         </h1>
         <p className="text-muted-foreground">
-          Earn Rs 10,000 for every referral that completes a 3kW+ solar installation
+          Your Customer Partner Dashboard - Earn Rs 10,000 for every 3kW+ referral
         </p>
       </div>
 
@@ -127,87 +183,189 @@ export default function CustomerPartnerDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-            <CardTitle className="text-sm font-medium">Eligible Referrals</CardTitle>
+            <CardTitle className="text-sm font-medium">Completed</CardTitle>
             <CheckCircle className="w-4 h-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600" data-testid="text-eligible-referrals">
-              {stats?.eligibleReferrals || 0}
+            <div className="text-2xl font-bold text-green-600" data-testid="text-completed-referrals">
+              {stats?.completedReferrals || 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              Completed 3kW+ installations
+              Installations completed
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Referrals</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Earned</CardTitle>
+            <Wallet className="w-4 h-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600" data-testid="text-total-earned">
+              Rs {(stats?.paidEarnings || 0).toLocaleString("en-IN")}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Received in your account
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+            <CardTitle className="text-sm font-medium">Pending Payout</CardTitle>
             <Clock className="w-4 h-4 text-yellow-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600" data-testid="text-pending-referrals">
-              {stats?.pendingReferrals || 0}
+            <div className="text-2xl font-bold text-yellow-600" data-testid="text-pending-payout">
+              Rs {(stats?.pendingEarnings || 0).toLocaleString("en-IN")}
             </div>
             <p className="text-xs text-muted-foreground">
-              In progress
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-            <CardTitle className="text-sm font-medium">Total Earnings</CardTitle>
-            <Wallet className="w-4 h-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-total-earnings">
-              Rs {(stats?.totalEarnings || 0).toLocaleString("en-IN")}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              <Badge variant="outline" className="text-xs">
-                Rs {(stats?.pendingEarnings || 0).toLocaleString("en-IN")} pending
-              </Badge>
+              Awaiting processing
             </p>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
+      {stats && stats.totalReferrals > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Referral Completion Rate</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <Progress value={completionRate} className="flex-1" />
+              <span className="text-sm font-medium">{completionRate}%</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              {stats.completedReferrals} of {stats.totalReferrals} referrals have completed installation
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <div>
+              <CardTitle>Recent Referrals</CardTitle>
+              <CardDescription>Your latest customer referrals</CardDescription>
+            </div>
+            <Link href="/customer-partner/referrals">
+              <Button variant="ghost" size="sm">
+                View All <ArrowRight className="w-4 h-4 ml-1" />
+              </Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {recentReferrals.length > 0 ? (
+              <div className="space-y-3">
+                {recentReferrals.map((referral) => (
+                  <div key={referral.id} className="flex items-center justify-between p-3 border rounded-md">
+                    <div className="space-y-1">
+                      <p className="font-medium">{referral.name}</p>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <MapPin className="w-3 h-3" />
+                          {referral.district}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Zap className="w-3 h-3" />
+                          {referral.capacity} kW
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      {getStatusBadge(referral.status)}
+                      {referral.isEligibleForReward && (
+                        <span className="text-xs text-green-600 font-medium">Rs 10,000</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Users className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                <p>No referrals yet</p>
+                <p className="text-sm">Share your code to start earning</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <div>
+              <CardTitle>Commission History</CardTitle>
+              <CardDescription>Your recent earnings</CardDescription>
+            </div>
+            <Link href="/customer-partner/earnings">
+              <Button variant="ghost" size="sm">
+                View All <ArrowRight className="w-4 h-4 ml-1" />
+              </Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {recentCommissions.length > 0 ? (
+              <div className="space-y-3">
+                {recentCommissions.map((commission) => (
+                  <div key={commission.id} className="flex items-center justify-between p-3 border rounded-md">
+                    <div className="space-y-1">
+                      <p className="font-medium">Referral Commission</p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(commission.createdAt), "dd MMM yyyy")}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="font-bold text-green-600">
+                        Rs {commission.commissionAmount.toLocaleString("en-IN")}
+                      </span>
+                      {getStatusBadge(commission.status)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Wallet className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                <p>No commissions yet</p>
+                <p className="text-sm">Complete referrals to earn</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
         <CardHeader>
-          <CardTitle>How It Works</CardTitle>
-          <CardDescription>
-            Earn rewards by referring friends and family to solar
-          </CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-blue-600" />
+            How It Works
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center p-4">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
-                <Share2 className="w-6 h-6 text-primary" />
+              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-2">
+                <Share2 className="w-5 h-5 text-blue-600" />
               </div>
-              <h3 className="font-semibold mb-1">1. Share Your Code</h3>
-              <p className="text-sm text-muted-foreground">
-                Share your unique referral code with anyone interested in going solar
-              </p>
+              <h4 className="font-medium">1. Share Your Code</h4>
+              <p className="text-sm text-muted-foreground">Share your unique referral code with interested people</p>
             </div>
             <div className="text-center p-4">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
-                <Users className="w-6 h-6 text-primary" />
+              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-2">
+                <Zap className="w-5 h-5 text-blue-600" />
               </div>
-              <h3 className="font-semibold mb-1">2. They Register</h3>
-              <p className="text-sm text-muted-foreground">
-                When they use your code during registration, they get linked to you
-              </p>
+              <h4 className="font-medium">2. They Install Solar</h4>
+              <p className="text-sm text-muted-foreground">When they complete a 3kW+ installation</p>
             </div>
             <div className="text-center p-4">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
-                <Wallet className="w-6 h-6 text-primary" />
+              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-2">
+                <Wallet className="w-5 h-5 text-blue-600" />
               </div>
-              <h3 className="font-semibold mb-1">3. Earn Rs 10,000</h3>
-              <p className="text-sm text-muted-foreground">
-                Get Rs 10,000 when they complete a 3kW or larger installation
-              </p>
+              <h4 className="font-medium">3. Earn Rs 10,000</h4>
+              <p className="text-sm text-muted-foreground">Get rewarded for each successful referral</p>
             </div>
           </div>
         </CardContent>
