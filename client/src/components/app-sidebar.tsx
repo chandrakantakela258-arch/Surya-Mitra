@@ -83,6 +83,7 @@ const adminMenuSections: MenuSection[] = [
       { title: "Products", url: "/admin/products", icon: Package },
       { title: "Orders", url: "/admin/orders", icon: ShoppingCart },
       { title: "Commission Payouts", url: "/admin/payouts", icon: Wallet },
+      { title: "Site Expenses", url: "/admin/site-expenses", icon: FileText },
     ],
   },
   {

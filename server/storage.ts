@@ -1773,25 +1773,49 @@ export class DatabaseStorage implements IStorage {
   }
   
   async updateSiteExpense(id: string, data: Partial<SiteExpense>): Promise<SiteExpense | undefined> {
-    // Calculate totals
-    const totalExpenses = 
-      Number(data.solarPanelsCost || 0) +
-      Number(data.inverterCost || 0) +
-      Number(data.electricalCost || 0) +
-      Number(data.civilWorkCost || 0) +
-      Number(data.electricianCost || 0) +
-      Number(data.meterCost || 0) +
-      Number(data.meterInstallationCost || 0) +
-      Number(data.logisticCost || 0) +
-      Number(data.bankLoanApprovalCost || 0) +
-      Number(data.discomApprovalCost || 0) +
-      Number(data.bdpCommission || 0) +
-      Number(data.ddpCommission || 0) +
-      Number(data.referralPayment || 0) +
-      Number(data.incentivePayment || 0) +
-      Number(data.miscellaneousExpense || 0);
+    // First fetch existing record to merge values
+    const existing = await this.getSiteExpense(id);
+    if (!existing) return undefined;
     
-    const customerPayment = Number(data.customerPaymentReceived || 0);
+    // Merge with existing values
+    const merged = {
+      solarPanelsCost: data.solarPanelsCost ?? existing.solarPanelsCost,
+      inverterCost: data.inverterCost ?? existing.inverterCost,
+      electricalCost: data.electricalCost ?? existing.electricalCost,
+      civilWorkCost: data.civilWorkCost ?? existing.civilWorkCost,
+      electricianCost: data.electricianCost ?? existing.electricianCost,
+      meterCost: data.meterCost ?? existing.meterCost,
+      meterInstallationCost: data.meterInstallationCost ?? existing.meterInstallationCost,
+      logisticCost: data.logisticCost ?? existing.logisticCost,
+      bankLoanApprovalCost: data.bankLoanApprovalCost ?? existing.bankLoanApprovalCost,
+      discomApprovalCost: data.discomApprovalCost ?? existing.discomApprovalCost,
+      bdpCommission: data.bdpCommission ?? existing.bdpCommission,
+      ddpCommission: data.ddpCommission ?? existing.ddpCommission,
+      referralPayment: data.referralPayment ?? existing.referralPayment,
+      incentivePayment: data.incentivePayment ?? existing.incentivePayment,
+      miscellaneousExpense: data.miscellaneousExpense ?? existing.miscellaneousExpense,
+      customerPaymentReceived: data.customerPaymentReceived ?? existing.customerPaymentReceived,
+    };
+    
+    // Calculate totals from merged values
+    const totalExpenses = 
+      Number(merged.solarPanelsCost || 0) +
+      Number(merged.inverterCost || 0) +
+      Number(merged.electricalCost || 0) +
+      Number(merged.civilWorkCost || 0) +
+      Number(merged.electricianCost || 0) +
+      Number(merged.meterCost || 0) +
+      Number(merged.meterInstallationCost || 0) +
+      Number(merged.logisticCost || 0) +
+      Number(merged.bankLoanApprovalCost || 0) +
+      Number(merged.discomApprovalCost || 0) +
+      Number(merged.bdpCommission || 0) +
+      Number(merged.ddpCommission || 0) +
+      Number(merged.referralPayment || 0) +
+      Number(merged.incentivePayment || 0) +
+      Number(merged.miscellaneousExpense || 0);
+    
+    const customerPayment = Number(merged.customerPaymentReceived || 0);
     const profit = customerPayment - totalExpenses;
     const profitMargin = customerPayment > 0 ? (profit / customerPayment) * 100 : 0;
     
