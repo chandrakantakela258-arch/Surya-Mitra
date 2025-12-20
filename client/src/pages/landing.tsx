@@ -40,7 +40,9 @@ import {
   Headphones,
   AlertTriangle,
   Clock,
-  MessageSquare
+  MessageSquare,
+  Map,
+  Store
 } from "lucide-react";
 import { useState } from "react";
 
@@ -120,6 +122,24 @@ export default function LandingPage() {
                 <BarChart3 className="w-4 h-4" />
                 Progress
               </button>
+              <WouterLink href="/network-map">
+                <button 
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                  data-testid="nav-network-map"
+                >
+                  <Map className="w-4 h-4" />
+                  Partner Map
+                </button>
+              </WouterLink>
+              <WouterLink href="/vendor-registration">
+                <button 
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                  data-testid="nav-vendor-registration"
+                >
+                  <Store className="w-4 h-4" />
+                  Vendor
+                </button>
+              </WouterLink>
             </nav>
 
             {/* Right Side Actions */}
@@ -208,6 +228,24 @@ export default function LandingPage() {
                   <BarChart3 className="w-4 h-4 text-teal-500" />
                   State Progress
                 </button>
+                <WouterLink href="/network-map" onClick={() => setMobileMenuOpen(false)}>
+                  <div 
+                    className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left"
+                    data-testid="mobile-nav-network-map"
+                  >
+                    <Map className="w-4 h-4 text-indigo-500" />
+                    Partner Network Map
+                  </div>
+                </WouterLink>
+                <WouterLink href="/vendor-registration" onClick={() => setMobileMenuOpen(false)}>
+                  <div 
+                    className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left"
+                    data-testid="mobile-nav-vendor-registration"
+                  >
+                    <Store className="w-4 h-4 text-orange-500" />
+                    Vendor Registration
+                  </div>
+                </WouterLink>
               </div>
               <div className="flex flex-col gap-2 pt-2 border-t">
                 <WouterLink href="/subsidy-calculator">
@@ -1288,6 +1326,12 @@ export default function LandingPage() {
               <div className="flex flex-col gap-2">
                 <WouterLink href="/subsidy-calculator" className="text-sm text-muted-foreground hover:text-foreground">
                   Subsidy Calculator
+                </WouterLink>
+                <WouterLink href="/network-map" className="text-sm text-muted-foreground hover:text-foreground">
+                  Partner Network Map
+                </WouterLink>
+                <WouterLink href="/vendor-registration" className="text-sm text-muted-foreground hover:text-foreground">
+                  Vendor Registration
                 </WouterLink>
                 <WouterLink href="/login" className="text-sm text-muted-foreground hover:text-foreground">
                   Partner Login
