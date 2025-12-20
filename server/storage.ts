@@ -278,6 +278,9 @@ export interface IStorage {
   getInstallationLocations(): Promise<{ state: string; district: string; count: number; latitude?: string; longitude?: string }[]>;
   getCustomersWithLocations(): Promise<Customer[]>;
   updateCustomerLocation(id: string, latitude: string, longitude: string): Promise<Customer | undefined>;
+  
+  // Site media operations
+  updateCustomerSiteMedia(id: string, sitePictures?: string[], siteVideo?: string): Promise<Customer | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1673,6 +1676,18 @@ export class DatabaseStorage implements IStorage {
   async updateCustomerLocation(id: string, latitude: string, longitude: string): Promise<Customer | undefined> {
     const [updated] = await db.update(customers)
       .set({ latitude, longitude, updatedAt: new Date() })
+      .where(eq(customers.id, id))
+      .returning();
+    return updated || undefined;
+  }
+  
+  async updateCustomerSiteMedia(id: string, sitePictures?: string[], siteVideo?: string): Promise<Customer | undefined> {
+    const updateData: Partial<{ sitePictures: string[]; siteVideo: string; updatedAt: Date }> = { updatedAt: new Date() };
+    if (sitePictures !== undefined) updateData.sitePictures = sitePictures;
+    if (siteVideo !== undefined) updateData.siteVideo = siteVideo;
+    
+    const [updated] = await db.update(customers)
+      .set(updateData)
       .where(eq(customers.id, id))
       .returning();
     return updated || undefined;

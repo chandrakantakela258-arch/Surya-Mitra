@@ -11,6 +11,9 @@ const app = express();
 // Serve attached_assets directory for product images
 app.use("/attached_assets", express.static(path.resolve(process.cwd(), "attached_assets")));
 
+// Serve uploads directory for site pictures and videos
+app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads")));
+
 // Seed admin user if it doesn't exist
 async function seedAdminUser() {
   try {

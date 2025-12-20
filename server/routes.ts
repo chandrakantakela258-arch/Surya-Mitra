@@ -3,11 +3,52 @@ import { createServer, type Server } from "http";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import bcrypt from "bcrypt";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 import { pool } from "./db";
 import { storage } from "./storage";
 import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSchema, updateFeedbackStatusSchema, inverterCommission } from "@shared/schema";
 import { z } from "zod";
 import { notificationService } from "./notification-service";
+
+// Configure multer for file uploads
+const uploadDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const multerStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const subDir = file.mimetype.startsWith("video/") ? "videos" : "images";
+    const targetDir = path.join(uploadDir, subDir);
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+    cb(null, targetDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({
+  storage: multerStorage,
+  limits: {
+    fileSize: 100 * 1024 * 1024, // 100MB max for videos
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/heic"];
+    const allowedVideoTypes = ["video/mp4", "video/quicktime", "video/x-msvideo", "video/webm"];
+    
+    if (allowedImageTypes.includes(file.mimetype) || allowedVideoTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Invalid file type. Only images (JPEG, PNG, WebP) and videos (MP4, MOV, AVI, WebM) are allowed."));
+    }
+  },
+});
 
 const SALT_ROUNDS = 10;
 
@@ -363,6 +404,126 @@ export async function registerRoutes(
       }
       console.error("Add customer error:", error);
       res.status(500).json({ message: "Failed to add customer" });
+    }
+  });
+  
+  // Upload site pictures (6 images from all angles)
+  app.post("/api/ddp/customers/:id/site-pictures", requireDDP, upload.array("pictures", 6), async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { id } = req.params;
+      
+      // Verify customer belongs to this DDP
+      const customer = await storage.getCustomer(id);
+      if (!customer || customer.ddpId !== user.id) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      
+      const files = req.files as Express.Multer.File[];
+      if (!files || files.length === 0) {
+        return res.status(400).json({ message: "No files uploaded" });
+      }
+      
+      if (files.length > 6) {
+        return res.status(400).json({ message: "Maximum 6 pictures allowed" });
+      }
+      
+      // Get existing pictures and combine with new ones
+      const existingPictures = customer.sitePictures || [];
+      const newPictures = files.map(f => `/uploads/images/${f.filename}`);
+      const allPictures = [...existingPictures, ...newPictures].slice(0, 6);
+      
+      const updated = await storage.updateCustomerSiteMedia(id, allPictures, undefined);
+      res.json({ 
+        message: "Pictures uploaded successfully", 
+        sitePictures: updated?.sitePictures,
+        count: updated?.sitePictures?.length || 0
+      });
+    } catch (error) {
+      console.error("Upload site pictures error:", error);
+      res.status(500).json({ message: "Failed to upload pictures" });
+    }
+  });
+  
+  // Upload site video (9:16 Instagram-style, max 60 seconds)
+  app.post("/api/ddp/customers/:id/site-video", requireDDP, upload.single("video"), async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { id } = req.params;
+      
+      // Verify customer belongs to this DDP
+      const customer = await storage.getCustomer(id);
+      if (!customer || customer.ddpId !== user.id) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ message: "No video uploaded" });
+      }
+      
+      const videoUrl = `/uploads/videos/${file.filename}`;
+      const updated = await storage.updateCustomerSiteMedia(id, undefined, videoUrl);
+      
+      res.json({ 
+        message: "Video uploaded successfully", 
+        siteVideo: updated?.siteVideo 
+      });
+    } catch (error) {
+      console.error("Upload site video error:", error);
+      res.status(500).json({ message: "Failed to upload video" });
+    }
+  });
+  
+  // Delete a site picture
+  app.delete("/api/ddp/customers/:id/site-pictures/:index", requireDDP, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { id, index } = req.params;
+      const pictureIndex = parseInt(index, 10);
+      
+      // Verify customer belongs to this DDP
+      const customer = await storage.getCustomer(id);
+      if (!customer || customer.ddpId !== user.id) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      
+      const pictures = customer.sitePictures || [];
+      if (pictureIndex < 0 || pictureIndex >= pictures.length) {
+        return res.status(400).json({ message: "Invalid picture index" });
+      }
+      
+      // Remove the picture from array
+      pictures.splice(pictureIndex, 1);
+      const updated = await storage.updateCustomerSiteMedia(id, pictures, undefined);
+      
+      res.json({ 
+        message: "Picture deleted successfully", 
+        sitePictures: updated?.sitePictures 
+      });
+    } catch (error) {
+      console.error("Delete site picture error:", error);
+      res.status(500).json({ message: "Failed to delete picture" });
+    }
+  });
+  
+  // Delete site video
+  app.delete("/api/ddp/customers/:id/site-video", requireDDP, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { id } = req.params;
+      
+      // Verify customer belongs to this DDP
+      const customer = await storage.getCustomer(id);
+      if (!customer || customer.ddpId !== user.id) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      
+      const updated = await storage.updateCustomerSiteMedia(id, undefined, "");
+      res.json({ message: "Video deleted successfully" });
+    } catch (error) {
+      console.error("Delete site video error:", error);
+      res.status(500).json({ message: "Failed to delete video" });
     }
   });
 
