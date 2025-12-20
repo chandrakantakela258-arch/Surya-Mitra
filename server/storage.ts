@@ -21,6 +21,7 @@ import {
   leaderboard,
   referrals,
   notificationTemplates,
+  vendors,
   type User, 
   type InsertUser, 
   type Customer, 
@@ -65,6 +66,8 @@ import {
   type InsertReferral,
   type NotificationTemplate,
   type InsertNotificationTemplate,
+  type Vendor,
+  type InsertVendor,
   installationMilestones,
   calculateCommission,
   calculateBdpCommission,
@@ -281,6 +284,12 @@ export interface IStorage {
   
   // Site media operations
   updateCustomerSiteMedia(id: string, sitePictures?: string[], siteVideo?: string): Promise<Customer | undefined>;
+  
+  // Vendor operations
+  createVendor(vendor: InsertVendor): Promise<Vendor>;
+  getVendors(): Promise<Vendor[]>;
+  getVendor(id: string): Promise<Vendor | undefined>;
+  updateVendorStatus(id: string, status: string, notes?: string): Promise<Vendor | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1689,6 +1698,32 @@ export class DatabaseStorage implements IStorage {
     const [updated] = await db.update(customers)
       .set(updateData)
       .where(eq(customers.id, id))
+      .returning();
+    return updated || undefined;
+  }
+  
+  // Vendor operations
+  async createVendor(vendor: InsertVendor): Promise<Vendor> {
+    const [created] = await db.insert(vendors).values(vendor).returning();
+    return created;
+  }
+  
+  async getVendors(): Promise<Vendor[]> {
+    return await db.select().from(vendors).orderBy(desc(vendors.createdAt));
+  }
+  
+  async getVendor(id: string): Promise<Vendor | undefined> {
+    const [vendor] = await db.select().from(vendors).where(eq(vendors.id, id));
+    return vendor || undefined;
+  }
+  
+  async updateVendorStatus(id: string, status: string, notes?: string): Promise<Vendor | undefined> {
+    const updateData: Partial<Vendor> = { status, updatedAt: new Date() };
+    if (notes !== undefined) updateData.notes = notes;
+    
+    const [updated] = await db.update(vendors)
+      .set(updateData)
+      .where(eq(vendors.id, id))
       .returning();
     return updated || undefined;
   }

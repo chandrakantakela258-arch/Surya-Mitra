@@ -8,7 +8,7 @@ import path from "path";
 import fs from "fs";
 import { pool } from "./db";
 import { storage } from "./storage";
-import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSchema, updateFeedbackStatusSchema, inverterCommission } from "@shared/schema";
+import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSchema, updateFeedbackStatusSchema, inverterCommission, insertVendorSchema, vendorStates } from "@shared/schema";
 import { z } from "zod";
 import { notificationService } from "./notification-service";
 
@@ -2484,6 +2484,60 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Test notification error:", error);
       res.status(500).json({ message: "Failed to send test notification" });
+    }
+  });
+
+  // ===== VENDOR REGISTRATION ROUTES =====
+  
+  // Public: Register as a vendor
+  app.post("/api/public/vendors/register", async (req, res) => {
+    try {
+      // Validate and parse input using schema (strips disallowed fields like status, notes)
+      const validatedData = insertVendorSchema.parse(req.body);
+      
+      // Verify state is one of the allowed states
+      const allowedStates = vendorStates.map(s => s.value);
+      if (!allowedStates.includes(validatedData.state)) {
+        return res.status(400).json({ message: "Invalid state. Only Bihar, Jharkhand, Uttar Pradesh, and Odisha are accepted." });
+      }
+      
+      const vendor = await storage.createVendor(validatedData);
+      res.status(201).json({ 
+        message: "Registration successful! We will review your application and contact you soon.",
+        vendor 
+      });
+    } catch (error) {
+      console.error("Vendor registration error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid input", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to register vendor" });
+    }
+  });
+  
+  // Admin: Get all vendors
+  app.get("/api/admin/vendors", requireAdmin, async (req, res) => {
+    try {
+      const allVendors = await storage.getVendors();
+      res.json(allVendors);
+    } catch (error) {
+      console.error("Get vendors error:", error);
+      res.status(500).json({ message: "Failed to get vendors" });
+    }
+  });
+  
+  // Admin: Update vendor status
+  app.patch("/api/admin/vendors/:id/status", requireAdmin, async (req, res) => {
+    try {
+      const { status, notes } = req.body;
+      const vendor = await storage.updateVendorStatus(req.params.id, status, notes);
+      if (!vendor) {
+        return res.status(404).json({ message: "Vendor not found" });
+      }
+      res.json(vendor);
+    } catch (error) {
+      console.error("Update vendor status error:", error);
+      res.status(500).json({ message: "Failed to update vendor status" });
     }
   });
 

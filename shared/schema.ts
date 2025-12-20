@@ -896,3 +896,60 @@ export function calculateBdpCommission(capacityKw: number, panelType: string = "
 
 // Export commission schedule for UI display (backwards compatibility)
 export const commissionSchedule = dcrFixedCommission;
+
+// Site Installation Vendors - Register for solar installation work
+export const vendors = pgTable("vendors", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  phone: text("phone").notNull(),
+  email: text("email"),
+  companyName: text("company_name"),
+  state: text("state").notNull(), // Bihar, Jharkhand, Uttar Pradesh, Odisha
+  district: text("district").notNull(),
+  address: text("address").notNull(),
+  pincode: text("pincode").notNull(),
+  
+  // Services offered
+  services: text("services").array(), // installation, maintenance, repair, inspection
+  experience: text("experience"), // years of experience
+  teamSize: integer("team_size"), // number of technicians
+  
+  // Documents
+  gstNumber: text("gst_number"),
+  panNumber: text("pan_number"),
+  
+  // Status
+  status: text("status").notNull().default("pending"), // pending, approved, rejected
+  notes: text("notes"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertVendorSchema = createInsertSchema(vendors).omit({
+  id: true,
+  status: true,
+  notes: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertVendor = z.infer<typeof insertVendorSchema>;
+export type Vendor = typeof vendors.$inferSelect;
+
+// Vendor service options
+export const vendorServices = [
+  { value: "installation", label: "Solar Panel Installation" },
+  { value: "maintenance", label: "Maintenance & Cleaning" },
+  { value: "repair", label: "Repair Services" },
+  { value: "inspection", label: "Site Inspection" },
+  { value: "electrical", label: "Electrical Work" },
+];
+
+// States for vendor registration
+export const vendorStates = [
+  { value: "Bihar", label: "Bihar" },
+  { value: "Jharkhand", label: "Jharkhand" },
+  { value: "Uttar Pradesh", label: "Uttar Pradesh" },
+  { value: "Odisha", label: "Odisha" },
+];

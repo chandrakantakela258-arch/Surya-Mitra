@@ -51,6 +51,7 @@ import PanelComparisonPage from "@/pages/panel-comparison";
 import LeaderboardPage from "@/pages/leaderboard";
 import ReferralsPage from "@/pages/referrals";
 import InstallationMap from "@/pages/installation-map";
+import VendorRegistration from "@/pages/vendor-registration";
 
 function LoadingScreen() {
   return (
@@ -372,6 +373,9 @@ function PublicRouter() {
       </Route>
       <Route path="/installations">
         <InstallationMap />
+      </Route>
+      <Route path="/vendor-registration">
+        <VendorRegistration />
       </Route>
       <Route path="/login">
         {user ? (
