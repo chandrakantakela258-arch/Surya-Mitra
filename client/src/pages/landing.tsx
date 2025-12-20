@@ -252,35 +252,120 @@ export default function LandingPage() {
       <section id="about" className="py-20 bg-muted/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">About DivyanshiSolar</h2>
+            <h2 className="text-3xl font-bold mb-4">About Divyanshi Solar</h2>
             <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-              We are an authorized partner network for PM Surya Ghar Yojana, helping Indian households 
-              transition to clean, affordable solar energy.
+              Divyanshi Solar is an authorized partner network under PM Surya Ghar Yojana, committed to helping 
+              Indian households transition to clean, reliable, and affordable solar energy.
             </p>
           </div>
-          
-          <div className="grid md:grid-cols-3 gap-8">
+
+          {/* Company Background */}
+          <Card className="mb-8">
+            <CardContent className="p-6">
+              <h3 className="font-semibold text-xl mb-4">Our Legacy</h3>
+              <p className="text-muted-foreground mb-4">
+                Divyanshi Solar is a brand of <span className="font-medium text-foreground">Divyanshi Digital Services Pvt. Ltd.</span>, 
+                a company incorporated on 11th December 2017, with a strong legacy of executing large-scale, 
+                technology-driven infrastructure projects across India.
+              </p>
+              <p className="text-muted-foreground mb-4">
+                For the last 8 years, we have been closely associated with Hitachi Payment Services Pvt. Ltd., 
+                delivering mission-critical financial infrastructure:
+              </p>
+              <div className="grid sm:grid-cols-3 gap-4 mb-4">
+                <div className="p-4 bg-muted/50 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-primary">300+</div>
+                  <div className="text-sm text-muted-foreground">White Label ATMs Installed</div>
+                </div>
+                <div className="p-4 bg-muted/50 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-primary">500+</div>
+                  <div className="text-sm text-muted-foreground">ATMs Sourced for Banks</div>
+                </div>
+                <div className="p-4 bg-muted/50 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-primary">5,000+</div>
+                  <div className="text-sm text-muted-foreground">Partners Onboarded</div>
+                </div>
+              </div>
+              <p className="text-muted-foreground">
+                This deep experience in nationwide deployment, compliance, partner management, and operations 
+                forms the backbone of Divyanshi Solar. Today, we are applying the same execution excellence to 
+                the renewable energy sector.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Mission */}
+          <Card className="mb-8">
+            <CardContent className="p-6">
+              <h3 className="font-semibold text-xl mb-4">Our Mission</h3>
+              <p className="text-muted-foreground">
+                To empower Indian households with clean, affordable, and reliable solar energy by delivering 
+                high-quality rooftop solar solutions under PM Surya Ghar Yojana—while reducing electricity costs, 
+                strengthening energy independence, and safeguarding the future of the next generation.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Values */}
+          <h3 className="font-semibold text-xl mb-6 text-center">Our Values</h3>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <Card>
               <CardContent className="p-6">
                 <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                  <Users className="w-6 h-6 text-primary" />
+                  <Shield className="w-6 h-6 text-primary" />
                 </div>
-                <h3 className="font-semibold text-lg mb-2">Partner Network</h3>
-                <p className="text-muted-foreground">
-                  Our network of Business Development Partners (BDP) and District Development Partners (DDP) 
-                  ensures quality installations across India.
+                <h4 className="font-semibold text-lg mb-2">Trust & Transparency</h4>
+                <p className="text-muted-foreground text-sm">
+                  We operate with complete honesty in pricing, processes, and commitments—building long-term 
+                  trust with customers, partners, and institutions.
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-6">
                 <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                  <Shield className="w-6 h-6 text-primary" />
+                  <Zap className="w-6 h-6 text-primary" />
                 </div>
-                <h3 className="font-semibold text-lg mb-2">Quality Assurance</h3>
-                <p className="text-muted-foreground">
-                  We use only DCR-compliant (Domestic Content Requirement) solar panels, 
-                  ensuring Made in India quality with government subsidy eligibility.
+                <h4 className="font-semibold text-lg mb-2">Execution Excellence</h4>
+                <p className="text-muted-foreground text-sm">
+                  Backed by years of national infrastructure deployment, we focus on timely installation, 
+                  regulatory compliance, and operational reliability.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <Leaf className="w-6 h-6 text-primary" />
+                </div>
+                <h4 className="font-semibold text-lg mb-2">Sustainability First</h4>
+                <p className="text-muted-foreground text-sm">
+                  Every solar installation is a step toward reducing carbon emissions and protecting 
+                  India's environmental future.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <Users className="w-6 h-6 text-primary" />
+                </div>
+                <h4 className="font-semibold text-lg mb-2">Partner Empowerment</h4>
+                <p className="text-muted-foreground text-sm">
+                  We believe in inclusive growth by enabling local partners, installers, and entrepreneurs 
+                  to grow with us.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <Home className="w-6 h-6 text-primary" />
+                </div>
+                <h4 className="font-semibold text-lg mb-2">Nation Building</h4>
+                <p className="text-muted-foreground text-sm">
+                  From digital payments to renewable energy, our work is aligned with India's vision of 
+                  self-reliance, energy security, and economic resilience.
                 </p>
               </CardContent>
             </Card>
@@ -289,10 +374,10 @@ export default function LandingPage() {
                 <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
                   <FileText className="w-6 h-6 text-primary" />
                 </div>
-                <h3 className="font-semibold text-lg mb-2">End-to-End Support</h3>
-                <p className="text-muted-foreground">
-                  From application to installation and subsidy claim, we handle everything 
-                  for a hassle-free solar journey.
+                <h4 className="font-semibold text-lg mb-2">Customer-Centric Approach</h4>
+                <p className="text-muted-foreground text-sm">
+                  We design solutions around household needs—simple processes, dependable systems, 
+                  and long-term support.
                 </p>
               </CardContent>
             </Card>
