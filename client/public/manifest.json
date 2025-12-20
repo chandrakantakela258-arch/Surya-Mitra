@@ -1,13 +1,16 @@
 {
-  "name": "DivyanshiSolar Partner App",
+  "name": "DivyanshiSolar - PM Surya Ghar Muft Bijli Yojana Partner",
   "short_name": "DivyanshiSolar",
-  "description": "Partner Management Platform for PM Surya Ghar Yojana - Manage customers, track installations, and earn commissions on the go.",
+  "description": "Official partner platform for PM Surya Ghar Muft Bijli Yojana. Manage solar panel installation customers, track installations, earn commissions. Free rooftop solar with government subsidy up to Rs 78,000.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#f97316",
   "orientation": "portrait-primary",
   "scope": "/",
+  "lang": "en-IN",
+  "dir": "ltr",
+  "categories": ["business", "productivity", "utilities"],
   "icons": [
     {
       "src": "/favicon.png",
@@ -22,22 +25,28 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["business", "productivity"],
   "shortcuts": [
     {
-      "name": "Dashboard",
+      "name": "Partner Dashboard",
       "url": "/ddp/dashboard",
-      "description": "View your partner dashboard"
+      "description": "View your solar partner dashboard"
     },
     {
       "name": "Add Customer",
       "url": "/ddp/customers/new",
-      "description": "Register a new customer"
+      "description": "Register a new solar customer"
     },
     {
       "name": "My Earnings",
       "url": "/ddp/earnings",
-      "description": "View your commission earnings"
+      "description": "View your solar installation commissions"
+    },
+    {
+      "name": "Installation Map",
+      "url": "/map",
+      "description": "View completed solar installations across India"
     }
-  ]
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
 }

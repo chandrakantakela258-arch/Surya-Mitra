@@ -1,0 +1,27 @@
+# DivyanshiSolar - Robots.txt
+# PM Surya Ghar Muft Bijli Yojana Partner Platform
+
+User-agent: *
+Allow: /
+Allow: /login
+Allow: /register
+Allow: /news
+Allow: /panels
+Allow: /leaderboard
+Allow: /map
+
+# Disallow protected partner dashboards
+Disallow: /admin/
+Disallow: /bdp/
+Disallow: /ddp/
+Disallow: /api/
+
+# Allow search engines to crawl static assets
+Allow: /favicon.png
+Allow: /manifest.json
+
+# Sitemap location
+Sitemap: https://divyanshisolar.replit.app/sitemap.xml
+
+# Crawl delay for polite crawling
+Crawl-delay: 1
