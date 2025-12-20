@@ -1,11 +1,21 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Phone, MapPin, Zap, Calendar } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { Search, Phone, MapPin, Zap, Calendar, MoreVertical, CheckCircle, Clock, FileCheck, Truck, PartyPopper } from "lucide-react";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import type { Customer } from "@shared/schema";
 
 function formatINR(amount: number): string {
@@ -20,9 +30,30 @@ export default function AdminCustomers() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [panelFilter, setPanelFilter] = useState<string>("all");
+  const { toast } = useToast();
 
   const { data: customers, isLoading } = useQuery<Customer[]>({
     queryKey: ["/api/admin/customers"],
+  });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      return apiRequest("PATCH", `/api/admin/customers/${id}/status`, { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/customers"] });
+      toast({
+        title: "Status Updated",
+        description: "Customer status has been updated and notifications sent.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update customer status.",
+        variant: "destructive",
+      });
+    },
   });
 
   const filteredCustomers = customers?.filter((customer) => {
@@ -176,9 +207,57 @@ export default function AdminCustomers() {
                       </div>
                     </div>
                     
-                    <div className="text-right">
-                      <p className="text-sm text-muted-foreground">Avg Bill</p>
-                      <p className="font-medium">{customer.avgMonthlyBill ? formatINR(customer.avgMonthlyBill) : "-"}</p>
+                    <div className="flex items-start gap-4">
+                      <div className="text-right">
+                        <p className="text-sm text-muted-foreground">Avg Bill</p>
+                        <p className="font-medium">{customer.avgMonthlyBill ? formatINR(customer.avgMonthlyBill) : "-"}</p>
+                      </div>
+                      
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" data-testid={`button-actions-${customer.id}`}>
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem disabled className="font-semibold text-muted-foreground">
+                            Change Status
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => updateStatusMutation.mutate({ id: customer.id, status: "verified" })}
+                            disabled={customer.status !== "pending" || updateStatusMutation.isPending}
+                            data-testid={`button-verify-${customer.id}`}
+                          >
+                            <CheckCircle className="w-4 h-4 mr-2 text-blue-500" />
+                            Mark as Verified
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => updateStatusMutation.mutate({ id: customer.id, status: "approved" })}
+                            disabled={customer.status !== "verified" || updateStatusMutation.isPending}
+                            data-testid={`button-approve-${customer.id}`}
+                          >
+                            <FileCheck className="w-4 h-4 mr-2 text-purple-500" />
+                            Mark as Approved
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => updateStatusMutation.mutate({ id: customer.id, status: "installation_scheduled" })}
+                            disabled={customer.status !== "approved" || updateStatusMutation.isPending}
+                            data-testid={`button-schedule-${customer.id}`}
+                          >
+                            <Truck className="w-4 h-4 mr-2 text-orange-500" />
+                            Schedule Installation
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => updateStatusMutation.mutate({ id: customer.id, status: "completed" })}
+                            disabled={customer.status !== "installation_scheduled" || updateStatusMutation.isPending}
+                            data-testid={`button-complete-${customer.id}`}
+                          >
+                            <PartyPopper className="w-4 h-4 mr-2 text-green-500" />
+                            Mark as Completed
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 </div>

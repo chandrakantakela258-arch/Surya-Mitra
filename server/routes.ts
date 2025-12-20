@@ -746,6 +746,45 @@ export async function registerRoutes(
     }
   });
 
+  // Admin update customer status (with notifications)
+  app.patch("/api/admin/customers/:id/status", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      
+      if (!["pending", "verified", "approved", "installation_scheduled", "completed"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+      
+      const existingCustomer = await storage.getCustomer(id);
+      if (!existingCustomer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      const oldStatus = existingCustomer.status;
+      
+      const customer = await storage.updateCustomerStatus(id, status);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      
+      // Send notifications via WhatsApp, SMS, and Email
+      await notificationService.notifyCustomerStatusChange({
+        customerId: customer.id,
+        customerName: customer.name,
+        customerPhone: customer.phone,
+        customerEmail: customer.email || undefined,
+        ddpId: customer.ddpId,
+        oldStatus,
+        newStatus: status,
+      });
+      
+      res.json(customer);
+    } catch (error) {
+      console.error("Admin update customer status error:", error);
+      res.status(500).json({ message: "Failed to update customer status" });
+    }
+  });
+
   // Get recent customers
   app.get("/api/admin/customers/recent", requireAdmin, async (req, res) => {
     try {
