@@ -134,6 +134,23 @@ DDPs can collect payments from customers for solar products and services via the
 - Trigger-based automation (status changes, milestones)
 - Variable placeholders for personalization
 
+**7. AI-Powered Lead Scoring**
+- Uses OpenAI (via Replit AI Integrations) to analyze customer conversion potential
+- Scoring factors (total 100 points):
+  - Capacity (20 pts): Higher capacity = more revenue potential
+  - Panel Type (15 pts): DCR panels eligible for subsidy = higher score
+  - Monthly Bill (15 pts): Higher bill = more motivation to go solar
+  - Roof Readiness (15 pts): RCC roof is ideal
+  - Engagement (15 pts): Email provided, site pictures uploaded
+  - Location (10 pts): States with additional subsidies (Odisha, UP)
+  - Status (10 pts): Further in pipeline = more likely to convert
+- Lead Tiers: Hot (≥70), Warm (40-69), Cold (<40)
+- Includes conversion probability and actionable recommendations
+- Per-customer scoring with visual loading state
+- Batch scoring available for BDPs/Admins
+- Access control: DDPs can only score their own customers
+- Route: Available in customer list via dropdown menu
+
 ## System Architecture
 
 ### Frontend Architecture

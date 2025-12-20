@@ -575,13 +575,30 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Customer not found" });
       }
       
-      // Verify access - DDP can only score their own customers
+      // Verify access based on role hierarchy
       if (user.role === "ddp" && customer.ddpId !== user.id) {
         return res.status(403).json({ message: "Access denied" });
       }
       
+      // For BDP, verify customer belongs to their network
+      if (user.role === "bdp") {
+        const ddp = await storage.getUser(customer.ddpId);
+        if (!ddp || ddp.parentId !== user.id) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
+      
       // Calculate lead score using AI
       const scoreResult = await calculateLeadScore(customer);
+      
+      // Validate score result before storing
+      if (typeof scoreResult.score !== "number" || scoreResult.score < 0 || scoreResult.score > 100) {
+        return res.status(500).json({ message: "Invalid score generated" });
+      }
+      
+      if (!["hot", "warm", "cold"].includes(scoreResult.tier)) {
+        scoreResult.tier = scoreResult.score >= 70 ? "hot" : scoreResult.score >= 40 ? "warm" : "cold";
+      }
       
       // Save the score to database
       await storage.updateCustomerLeadScore(id, scoreResult.score, JSON.stringify(scoreResult));
@@ -604,9 +621,17 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Customer not found" });
       }
       
-      // Verify access
+      // Verify access based on role hierarchy
       if (user.role === "ddp" && customer.ddpId !== user.id) {
         return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // For BDP, verify customer belongs to their network
+      if (user.role === "bdp") {
+        const ddp = await storage.getUser(customer.ddpId);
+        if (!ddp || ddp.parentId !== user.id) {
+          return res.status(403).json({ message: "Access denied" });
+        }
       }
       
       if (!customer.leadScore || !customer.leadScoreDetails) {

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
-import { Plus, Search, Download, MoreVertical, Users, Eye, User, Camera } from "lucide-react";
+import { Plus, Search, Download, MoreVertical, Users, Eye, User, Camera, Sparkles, TrendingUp, AlertCircle, ThermometerSun } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,7 @@ export default function DDPCustomers() {
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [scoringCustomerId, setScoringCustomerId] = useState<string | null>(null);
 
   const { data: customers, isLoading } = useQuery<Customer[]>({
     queryKey: ["/api/ddp/customers"],
@@ -38,6 +39,61 @@ export default function DDPCustomers() {
       toast({ title: "Failed to update status", variant: "destructive" });
     },
   });
+
+  const calculateLeadScoreMutation = useMutation({
+    mutationFn: async (id: string) => {
+      setScoringCustomerId(id);
+      return apiRequest("POST", `/api/customers/${id}/lead-score`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ddp/customers"] });
+      toast({ title: "Lead score calculated using AI" });
+      setScoringCustomerId(null);
+    },
+    onError: () => {
+      toast({ title: "Failed to calculate lead score", variant: "destructive" });
+      setScoringCustomerId(null);
+    },
+  });
+
+  function getLeadScoreBadge(score: number | null | undefined, customerId?: string) {
+    if (customerId && scoringCustomerId === customerId) {
+      return (
+        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground animate-pulse">
+          <Sparkles className="w-3 h-3" />
+          Scoring...
+        </span>
+      );
+    }
+    
+    if (score === null || score === undefined) {
+      return (
+        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+          <AlertCircle className="w-3 h-3" />
+          Not scored
+        </span>
+      );
+    }
+    
+    const tier = score >= 70 ? "hot" : score >= 40 ? "warm" : "cold";
+    const colors = {
+      hot: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800",
+      warm: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800",
+      cold: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800",
+    };
+    const icons = {
+      hot: <ThermometerSun className="w-3 h-3" />,
+      warm: <TrendingUp className="w-3 h-3" />,
+      cold: <AlertCircle className="w-3 h-3" />,
+    };
+    
+    return (
+      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${colors[tier]}`}>
+        {icons[tier]}
+        {score}
+      </span>
+    );
+  }
 
   const filteredCustomers = customers?.filter((customer) => {
     const matchesSearch =
@@ -156,6 +212,7 @@ export default function DDPCustomers() {
                     <TableHead>Contact</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead>Capacity</TableHead>
+                    <TableHead>Lead Score</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Details</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -192,6 +249,9 @@ export default function DDPCustomers() {
                       <TableCell className="font-mono">
                         {customer.proposedCapacity || "-"} kW
                       </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        {getLeadScoreBadge(customer.leadScore, customer.id)}
+                      </TableCell>
                       <TableCell>
                         <StatusBadge status={customer.status} />
                       </TableCell>
@@ -221,6 +281,13 @@ export default function DDPCustomers() {
                                 <Eye className="w-4 h-4 mr-2" />
                                 View Details & Media
                               </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => calculateLeadScoreMutation.mutate(customer.id)}
+                              disabled={scoringCustomerId === customer.id}
+                            >
+                              <Sparkles className="w-4 h-4 mr-2" />
+                              {scoringCustomerId === customer.id ? "Calculating..." : "Calculate AI Score"}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
