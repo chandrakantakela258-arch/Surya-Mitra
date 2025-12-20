@@ -47,6 +47,7 @@ export default function AdminCustomers() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [panelFilter, setPanelFilter] = useState<string>("all");
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [previewVideo, setPreviewVideo] = useState(false);
@@ -86,7 +87,11 @@ export default function AdminCustomers() {
       customer.district?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || customer.status === statusFilter;
     const matchesPanel = panelFilter === "all" || customer.panelType === panelFilter;
-    return matchesSearch && matchesStatus && matchesPanel;
+    const matchesSource = sourceFilter === "all" || 
+      (sourceFilter === "independent" && customer.source === "website_direct") ||
+      (sourceFilter === "referred" && customer.source === "website_referral") ||
+      (sourceFilter === "partner" && (!customer.source || (customer.source !== "website_direct" && customer.source !== "website_referral")));
+    return matchesSearch && matchesStatus && matchesPanel && matchesSource;
   });
 
   if (isLoading) {
@@ -106,6 +111,8 @@ export default function AdminCustomers() {
   const completedCount = customers?.filter(c => c.status === "completed").length || 0;
   const dcrCount = customers?.filter(c => c.panelType === "dcr").length || 0;
   const nonDcrCount = customers?.filter(c => c.panelType === "non_dcr").length || 0;
+  const independentCount = customers?.filter(c => c.source === "website_direct").length || 0;
+  const referredCount = customers?.filter(c => c.source === "website_referral").length || 0;
 
   const statusColors: Record<string, string> = {
     pending: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300",
@@ -122,7 +129,7 @@ export default function AdminCustomers() {
         <p className="text-muted-foreground">View all solar applications across the platform</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="pt-4">
             <p className="text-2xl font-bold">{customers?.length || 0}</p>
@@ -148,6 +155,15 @@ export default function AdminCustomers() {
               <Badge variant="secondary">{nonDcrCount} Non-DCR</Badge>
             </div>
             <p className="text-sm text-muted-foreground mt-1">Panel Types</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex gap-2">
+              <Badge variant="outline">{independentCount} Independent</Badge>
+              <Badge variant="outline" className="bg-blue-50 dark:bg-blue-900/30">{referredCount} Referred</Badge>
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">Website Registrations</p>
           </CardContent>
         </Card>
       </div>
@@ -191,6 +207,17 @@ export default function AdminCustomers() {
                 <SelectItem value="non_dcr">Non-DCR</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={sourceFilter} onValueChange={setSourceFilter}>
+              <SelectTrigger className="w-[160px]" data-testid="select-source-filter">
+                <SelectValue placeholder="Source" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sources</SelectItem>
+                <SelectItem value="independent">Independent</SelectItem>
+                <SelectItem value="referred">Referred</SelectItem>
+                <SelectItem value="partner">Partner Added</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-3">
@@ -205,6 +232,16 @@ export default function AdminCustomers() {
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-semibold">{customer.name}</h3>
+                        {customer.source === "website_direct" && (
+                          <Badge variant="outline" className="bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border-gray-300 dark:border-gray-600">
+                            Independent
+                          </Badge>
+                        )}
+                        {customer.source === "website_referral" && (
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-700">
+                            Referred
+                          </Badge>
+                        )}
                         <Badge variant={customer.panelType === "dcr" ? "default" : "secondary"}>
                           {customer.panelType === "dcr" ? "DCR" : "Non-DCR"}
                         </Badge>

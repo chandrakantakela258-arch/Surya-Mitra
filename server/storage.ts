@@ -77,7 +77,7 @@ import {
   defaultIncentiveTargets
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, sql, inArray } from "drizzle-orm";
+import { eq, desc, and, sql, inArray, isNull, not, or } from "drizzle-orm";
 
 export interface IStorage {
   // User/Partner operations
@@ -360,10 +360,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCustomersByDdpId(ddpId: string): Promise<Customer[]> {
+    // Exclude independent customers (website_direct) - they are admin-only
     return db
       .select()
       .from(customers)
-      .where(eq(customers.ddpId, ddpId))
+      .where(and(
+        eq(customers.ddpId, ddpId),
+        or(
+          isNull(customers.source),
+          not(eq(customers.source, "website_direct"))
+        )
+      ))
       .orderBy(desc(customers.createdAt));
   }
 
@@ -377,10 +384,17 @@ export class DatabaseStorage implements IStorage {
     }
     
     // Get all customers from those DDPs using inArray
+    // Exclude independent customers (website_direct) - they are admin-only
     const allCustomers = await db
       .select()
       .from(customers)
-      .where(inArray(customers.ddpId, ddpIds))
+      .where(and(
+        inArray(customers.ddpId, ddpIds),
+        or(
+          isNull(customers.source),
+          not(eq(customers.source, "website_direct"))
+        )
+      ))
       .orderBy(desc(customers.createdAt));
     
     return allCustomers;
