@@ -14,6 +14,8 @@ import {
   userPreferences,
   partnerOfMonth,
   chatbotFaq,
+  incentiveTargets,
+  performanceMetrics,
   type User, 
   type InsertUser, 
   type Customer, 
@@ -44,9 +46,14 @@ import {
   type InsertPartnerOfMonth,
   type ChatbotFaq,
   type InsertChatbotFaq,
+  type IncentiveTarget,
+  type InsertIncentiveTarget,
+  type PerformanceMetrics,
+  type InsertPerformanceMetrics,
   installationMilestones,
   calculateCommission,
-  calculateBdpCommission
+  calculateBdpCommission,
+  defaultIncentiveTargets
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, inArray } from "drizzle-orm";
@@ -185,6 +192,28 @@ export interface IStorage {
   updateFaq(id: string, data: Partial<ChatbotFaq>): Promise<ChatbotFaq | undefined>;
   deleteFaq(id: string): Promise<boolean>;
   searchFaqs(query: string): Promise<ChatbotFaq[]>;
+  
+  // Incentive Target operations
+  getIncentiveTargetsByPartnerId(partnerId: string, month?: number, year?: number): Promise<IncentiveTarget[]>;
+  getCurrentIncentiveTarget(partnerId: string): Promise<IncentiveTarget | undefined>;
+  createIncentiveTarget(target: InsertIncentiveTarget): Promise<IncentiveTarget>;
+  updateIncentiveProgress(partnerId: string, installations: number, capacityKw: number): Promise<IncentiveTarget | undefined>;
+  
+  // Performance Metrics operations
+  getPerformanceMetrics(partnerId: string, month?: number, year?: number): Promise<PerformanceMetrics[]>;
+  getMonthlyPerformance(partnerId: string, months: number): Promise<PerformanceMetrics[]>;
+  
+  // Enhanced commission summary with breakdown
+  getEnhancedCommissionSummary(partnerId: string, partnerType?: string): Promise<{
+    totalEarned: number;
+    totalPending: number;
+    totalPaid: number;
+    totalInstallations: number;
+    installationCommission: number;
+    inverterCommission: number;
+    bonusCommission: number;
+    currentMonthEarnings: number;
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -447,12 +476,16 @@ export class DatabaseStorage implements IStorage {
         partnerId,
         partnerType: "ddp",
         customerId,
+        source: "installation",
         capacityKw,
         commissionAmount: ddpCommissionAmount,
         status: "pending",
         paidAt: null,
         notes: null,
       });
+      
+      // Update incentive progress for DDP
+      await this.updateIncentiveProgress(partnerId, 1, capacityKw);
     } else {
       ddpCommission = existingDdpCommissions[0];
     }
@@ -477,12 +510,16 @@ export class DatabaseStorage implements IStorage {
           partnerId: ddp.parentId,
           partnerType: "bdp",
           customerId,
+          source: "installation",
           capacityKw,
           commissionAmount: bdpCommissionAmount,
           status: "pending",
           paidAt: null,
           notes: null,
         });
+        
+        // Update incentive progress for BDP
+        await this.updateIncentiveProgress(ddp.parentId, 1, capacityKw);
       } else {
         bdpCommission = existingBdpCommissions[0];
       }
@@ -985,6 +1022,219 @@ export class DatabaseStorage implements IStorage {
       faq.answer.toLowerCase().includes(lowerQuery) ||
       faq.keywords?.some(k => k.toLowerCase().includes(lowerQuery))
     );
+  }
+
+  // Incentive Target operations
+  async getIncentiveTargetsByPartnerId(partnerId: string, month?: number, year?: number): Promise<IncentiveTarget[]> {
+    if (month && year) {
+      return db
+        .select()
+        .from(incentiveTargets)
+        .where(and(
+          eq(incentiveTargets.partnerId, partnerId),
+          eq(incentiveTargets.month, month),
+          eq(incentiveTargets.year, year)
+        ))
+        .orderBy(desc(incentiveTargets.year), desc(incentiveTargets.month));
+    }
+    return db
+      .select()
+      .from(incentiveTargets)
+      .where(eq(incentiveTargets.partnerId, partnerId))
+      .orderBy(desc(incentiveTargets.year), desc(incentiveTargets.month));
+  }
+
+  async getCurrentIncentiveTarget(partnerId: string): Promise<IncentiveTarget | undefined> {
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+    
+    const [target] = await db
+      .select()
+      .from(incentiveTargets)
+      .where(and(
+        eq(incentiveTargets.partnerId, partnerId),
+        eq(incentiveTargets.month, currentMonth),
+        eq(incentiveTargets.year, currentYear)
+      ));
+    
+    // If no target exists for current month, create one
+    if (!target) {
+      const partner = await this.getUser(partnerId);
+      const defaults = partner?.role === "bdp" ? defaultIncentiveTargets.bdp : defaultIncentiveTargets.ddp;
+      
+      const [newTarget] = await db
+        .insert(incentiveTargets)
+        .values({
+          partnerId,
+          partnerType: partner?.role || "ddp",
+          month: currentMonth,
+          year: currentYear,
+          targetInstallations: defaults.installations,
+          targetCapacityKw: defaults.capacityKw,
+          achievedInstallations: 0,
+          achievedCapacityKw: 0,
+          bonusAmount: 0,
+          status: "active",
+        })
+        .returning();
+      
+      return newTarget;
+    }
+    
+    return target;
+  }
+
+  async createIncentiveTarget(target: InsertIncentiveTarget): Promise<IncentiveTarget> {
+    const [newTarget] = await db
+      .insert(incentiveTargets)
+      .values(target)
+      .returning();
+    return newTarget;
+  }
+
+  async updateIncentiveProgress(partnerId: string, installations: number, capacityKw: number): Promise<IncentiveTarget | undefined> {
+    const target = await this.getCurrentIncentiveTarget(partnerId);
+    if (!target) return undefined;
+    
+    const newAchievedInstallations = target.achievedInstallations + installations;
+    const newAchievedCapacityKw = target.achievedCapacityKw + capacityKw;
+    
+    // Check if target is achieved
+    const targetAchieved = newAchievedInstallations >= target.targetInstallations && 
+                           newAchievedCapacityKw >= target.targetCapacityKw;
+    
+    const partner = await this.getUser(partnerId);
+    const defaults = partner?.role === "bdp" ? defaultIncentiveTargets.bdp : defaultIncentiveTargets.ddp;
+    
+    const [updated] = await db
+      .update(incentiveTargets)
+      .set({
+        achievedInstallations: newAchievedInstallations,
+        achievedCapacityKw: newAchievedCapacityKw,
+        status: targetAchieved ? "achieved" : "active",
+        bonusAmount: targetAchieved ? defaults.bonusAmount : 0,
+        updatedAt: new Date(),
+      })
+      .where(eq(incentiveTargets.id, target.id))
+      .returning();
+    
+    // If target achieved, create bonus commission
+    if (targetAchieved && target.status !== "achieved") {
+      await this.createCommission({
+        partnerId,
+        partnerType: partner?.role || "ddp",
+        source: "bonus",
+        capacityKw: newAchievedCapacityKw,
+        commissionAmount: defaults.bonusAmount,
+        status: "pending",
+        notes: `Monthly target bonus for ${target.month}/${target.year}`,
+      });
+      
+      // Create notification
+      await this.createNotification({
+        userId: partnerId,
+        type: "commission_earned",
+        title: "Monthly Target Achieved!",
+        message: `Congratulations! You've achieved your monthly target and earned a bonus of Rs ${defaults.bonusAmount.toLocaleString()}.`,
+      });
+    }
+    
+    return updated;
+  }
+
+  // Performance Metrics operations
+  async getPerformanceMetrics(partnerId: string, month?: number, year?: number): Promise<PerformanceMetrics[]> {
+    if (month && year) {
+      return db
+        .select()
+        .from(performanceMetrics)
+        .where(and(
+          eq(performanceMetrics.partnerId, partnerId),
+          eq(performanceMetrics.month, month),
+          eq(performanceMetrics.year, year)
+        ));
+    }
+    return db
+      .select()
+      .from(performanceMetrics)
+      .where(eq(performanceMetrics.partnerId, partnerId))
+      .orderBy(desc(performanceMetrics.year), desc(performanceMetrics.month));
+  }
+
+  async getMonthlyPerformance(partnerId: string, months: number): Promise<PerformanceMetrics[]> {
+    return db
+      .select()
+      .from(performanceMetrics)
+      .where(eq(performanceMetrics.partnerId, partnerId))
+      .orderBy(desc(performanceMetrics.year), desc(performanceMetrics.month))
+      .limit(months);
+  }
+
+  // Enhanced commission summary with breakdown
+  async getEnhancedCommissionSummary(partnerId: string, partnerType?: string): Promise<{
+    totalEarned: number;
+    totalPending: number;
+    totalPaid: number;
+    totalInstallations: number;
+    installationCommission: number;
+    inverterCommission: number;
+    bonusCommission: number;
+    currentMonthEarnings: number;
+  }> {
+    const allCommissions = await this.getCommissionsByPartnerId(partnerId, partnerType);
+    
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+    
+    let totalEarned = 0;
+    let totalPending = 0;
+    let totalPaid = 0;
+    let totalInstallations = 0;
+    let installationCommission = 0;
+    let inverterCommission = 0;
+    let bonusCommission = 0;
+    let currentMonthEarnings = 0;
+    
+    for (const c of allCommissions) {
+      const amount = c.commissionAmount || 0;
+      totalEarned += amount;
+      
+      if (c.status === "pending" || c.status === "approved") {
+        totalPending += amount;
+      } else if (c.status === "paid") {
+        totalPaid += amount;
+      }
+      
+      // Break down by source
+      const source = (c as any).source || "installation";
+      if (source === "installation") {
+        installationCommission += amount;
+        totalInstallations++;
+      } else if (source === "inverter") {
+        inverterCommission += amount;
+      } else if (source === "bonus") {
+        bonusCommission += amount;
+      }
+      
+      // Check if commission is from current month
+      const commissionDate = new Date(c.createdAt!);
+      if (commissionDate.getMonth() + 1 === currentMonth && commissionDate.getFullYear() === currentYear) {
+        currentMonthEarnings += amount;
+      }
+    }
+    
+    return {
+      totalEarned,
+      totalPending,
+      totalPaid,
+      totalInstallations,
+      installationCommission,
+      inverterCommission,
+      bonusCommission,
+      currentMonthEarnings,
+    };
   }
 }
 

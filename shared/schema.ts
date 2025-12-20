@@ -245,6 +245,7 @@ export const commissions = pgTable("commissions", {
   partnerId: varchar("partner_id").notNull(),
   partnerType: text("partner_type").notNull().default("ddp"), // ddp or bdp
   customerId: varchar("customer_id"), // Optional - null for product sales like inverters
+  source: text("source").notNull().default("installation"), // installation, inverter, bonus
   capacityKw: integer("capacity_kw").notNull(),
   commissionAmount: integer("commission_amount").notNull(), // in INR
   status: text("status").notNull().default("pending"), // pending, approved, paid
@@ -323,6 +324,57 @@ export const partnerOfMonth = pgTable("partner_of_month", {
 export const partnerOfMonthRelations = relations(partnerOfMonth, ({ one }) => ({
   partner: one(users, {
     fields: [partnerOfMonth.partnerId],
+    references: [users.id],
+  }),
+}));
+
+// Partner Incentive Targets
+export const incentiveTargets = pgTable("incentive_targets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  partnerId: varchar("partner_id").notNull(),
+  partnerType: text("partner_type").notNull().default("ddp"), // ddp or bdp
+  month: integer("month").notNull(), // 1-12
+  year: integer("year").notNull(),
+  targetInstallations: integer("target_installations").notNull().default(5),
+  targetCapacityKw: integer("target_capacity_kw").notNull().default(15),
+  achievedInstallations: integer("achieved_installations").notNull().default(0),
+  achievedCapacityKw: integer("achieved_capacity_kw").notNull().default(0),
+  bonusAmount: integer("bonus_amount").default(0), // Bonus earned if target achieved
+  status: text("status").notNull().default("active"), // active, achieved, expired
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const incentiveTargetsRelations = relations(incentiveTargets, ({ one }) => ({
+  partner: one(users, {
+    fields: [incentiveTargets.partnerId],
+    references: [users.id],
+  }),
+}));
+
+// Partner Performance Metrics (monthly snapshots)
+export const performanceMetrics = pgTable("performance_metrics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  partnerId: varchar("partner_id").notNull(),
+  partnerType: text("partner_type").notNull().default("ddp"),
+  month: integer("month").notNull(),
+  year: integer("year").notNull(),
+  totalInstallations: integer("total_installations").notNull().default(0),
+  totalCapacityKw: integer("total_capacity_kw").notNull().default(0),
+  dcrInstallations: integer("dcr_installations").notNull().default(0),
+  nonDcrInstallations: integer("non_dcr_installations").notNull().default(0),
+  invertersSold: integer("inverters_sold").notNull().default(0),
+  totalCommissionEarned: integer("total_commission_earned").notNull().default(0),
+  installationCommission: integer("installation_commission").notNull().default(0),
+  inverterCommission: integer("inverter_commission").notNull().default(0),
+  bonusEarned: integer("bonus_earned").notNull().default(0),
+  rank: integer("rank"), // Rank among all partners for that month
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const performanceMetricsRelations = relations(performanceMetrics, ({ one }) => ({
+  partner: one(users, {
+    fields: [performanceMetrics.partnerId],
     references: [users.id],
   }),
 }));
@@ -431,6 +483,17 @@ export const insertPartnerOfMonthSchema = createInsertSchema(partnerOfMonth).omi
   createdAt: true,
 });
 
+export const insertIncentiveTargetSchema = createInsertSchema(incentiveTargets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPerformanceMetricsSchema = createInsertSchema(performanceMetrics).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertChatbotFaqSchema = createInsertSchema(chatbotFaq).omit({
   id: true,
   createdAt: true,
@@ -518,6 +581,23 @@ export type InsertPartnerOfMonth = z.infer<typeof insertPartnerOfMonthSchema>;
 export type PartnerOfMonth = typeof partnerOfMonth.$inferSelect;
 export type InsertChatbotFaq = z.infer<typeof insertChatbotFaqSchema>;
 export type ChatbotFaq = typeof chatbotFaq.$inferSelect;
+export type InsertIncentiveTarget = z.infer<typeof insertIncentiveTargetSchema>;
+export type IncentiveTarget = typeof incentiveTargets.$inferSelect;
+export type InsertPerformanceMetrics = z.infer<typeof insertPerformanceMetricsSchema>;
+export type PerformanceMetrics = typeof performanceMetrics.$inferSelect;
+
+// Commission source types
+export const commissionSources = [
+  { value: "installation", label: "Solar Installation" },
+  { value: "inverter", label: "Inverter Sale" },
+  { value: "bonus", label: "Performance Bonus" },
+];
+
+// Monthly incentive target defaults
+export const defaultIncentiveTargets = {
+  ddp: { installations: 5, capacityKw: 15, bonusAmount: 5000 },
+  bdp: { installations: 10, capacityKw: 30, bonusAmount: 10000 },
+};
 
 // Product categories
 export const productCategories = [

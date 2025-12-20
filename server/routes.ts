@@ -453,6 +453,55 @@ export async function registerRoutes(
     }
   });
 
+  // Get DDP's enhanced commission summary with breakdown
+  app.get("/api/ddp/commissions/enhanced-summary", requireDDP, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const summary = await storage.getEnhancedCommissionSummary(user.id, "ddp");
+      res.json(summary);
+    } catch (error) {
+      console.error("Get enhanced commission summary error:", error);
+      res.status(500).json({ message: "Failed to get enhanced commission summary" });
+    }
+  });
+
+  // Get DDP's current incentive target
+  app.get("/api/ddp/incentive-target", requireDDP, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const target = await storage.getCurrentIncentiveTarget(user.id);
+      res.json(target);
+    } catch (error) {
+      console.error("Get incentive target error:", error);
+      res.status(500).json({ message: "Failed to get incentive target" });
+    }
+  });
+
+  // Get DDP's all incentive targets (history)
+  app.get("/api/ddp/incentive-targets", requireDDP, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const targets = await storage.getIncentiveTargetsByPartnerId(user.id);
+      res.json(targets);
+    } catch (error) {
+      console.error("Get incentive targets error:", error);
+      res.status(500).json({ message: "Failed to get incentive targets" });
+    }
+  });
+
+  // Get DDP's performance metrics
+  app.get("/api/ddp/performance", requireDDP, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const months = parseInt(req.query.months as string) || 6;
+      const metrics = await storage.getMonthlyPerformance(user.id, months);
+      res.json(metrics);
+    } catch (error) {
+      console.error("Get performance metrics error:", error);
+      res.status(500).json({ message: "Failed to get performance metrics" });
+    }
+  });
+
   // Get BDP's commissions
   app.get("/api/bdp/commissions", requireBDP, async (req, res) => {
     try {
