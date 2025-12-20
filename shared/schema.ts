@@ -900,10 +900,20 @@ export const commissionSchedule = dcrFixedCommission;
 // Site Installation Vendors - Register for solar installation work
 export const vendors = pgTable("vendors", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Personal Details
   name: text("name").notNull(),
+  fatherName: text("father_name"),
+  dateOfBirth: text("date_of_birth"),
   phone: text("phone").notNull(),
+  alternatePhone: text("alternate_phone"),
   email: text("email"),
+  
+  // Company Details
   companyName: text("company_name"),
+  companyType: text("company_type"), // proprietorship, partnership, pvt_ltd, llp
+  
+  // Location
   state: text("state").notNull(), // Bihar, Jharkhand, Uttar Pradesh, Odisha
   district: text("district").notNull(),
   address: text("address").notNull(),
@@ -911,12 +921,39 @@ export const vendors = pgTable("vendors", {
   
   // Services offered
   services: text("services").array(), // installation, maintenance, repair, inspection
-  experience: text("experience"), // years of experience
+  
+  // Experience Details
+  experienceYears: text("experience_years"), // years of experience
+  totalInstallations: integer("total_installations"), // number of installations completed
+  previousCompanies: text("previous_companies"), // companies worked with before
+  projectsCompleted: text("projects_completed"), // description of major projects
+  specializations: text("specializations").array(), // rooftop, ground_mount, industrial, residential
+  
+  // Team Details
   teamSize: integer("team_size"), // number of technicians
+  supervisorCount: integer("supervisor_count"),
+  helperCount: integer("helper_count"),
+  
+  // Equipment & Tools
+  equipmentOwned: text("equipment_owned").array(), // ladders, safety_gear, multimeter, crimping_tools, etc.
+  hasTransportation: boolean("has_transportation").default(false),
+  vehicleDetails: text("vehicle_details"),
+  
+  // Certifications & Training
+  certifications: text("certifications").array(), // mnre_certified, skill_india, manufacturer_trained
+  trainingDetails: text("training_details"),
   
   // Documents
-  gstNumber: text("gst_number"),
+  aadharNumber: text("aadhar_number"),
   panNumber: text("pan_number"),
+  gstNumber: text("gst_number"),
+  
+  // Bank Details for Payment
+  bankAccountName: text("bank_account_name"),
+  bankAccountNumber: text("bank_account_number"),
+  bankIfsc: text("bank_ifsc"),
+  bankName: text("bank_name"),
+  upiId: text("upi_id"),
   
   // Status
   status: text("status").notNull().default("pending"), // pending, approved, rejected
@@ -944,6 +981,46 @@ export const vendorServices = [
   { value: "repair", label: "Repair Services" },
   { value: "inspection", label: "Site Inspection" },
   { value: "electrical", label: "Electrical Work" },
+  { value: "structure", label: "Structure & Mounting" },
+  { value: "earthing", label: "Earthing Work" },
+];
+
+// Vendor specializations
+export const vendorSpecializations = [
+  { value: "rooftop_residential", label: "Rooftop - Residential" },
+  { value: "rooftop_commercial", label: "Rooftop - Commercial" },
+  { value: "ground_mount", label: "Ground Mount" },
+  { value: "industrial", label: "Industrial Projects" },
+  { value: "govt_projects", label: "Government Projects" },
+];
+
+// Vendor certifications
+export const vendorCertifications = [
+  { value: "mnre_certified", label: "MNRE Certified" },
+  { value: "skill_india", label: "Skill India Certified" },
+  { value: "manufacturer_trained", label: "Manufacturer Trained" },
+  { value: "nsdc_certified", label: "NSDC Certified" },
+  { value: "electrician_license", label: "Electrician License" },
+];
+
+// Equipment options
+export const vendorEquipment = [
+  { value: "ladders", label: "Ladders & Scaffolding" },
+  { value: "safety_gear", label: "Safety Gear (Harness, Helmets)" },
+  { value: "multimeter", label: "Multimeter & Testing Equipment" },
+  { value: "crimping_tools", label: "Crimping & Wiring Tools" },
+  { value: "drill_machine", label: "Drill Machine" },
+  { value: "welding_machine", label: "Welding Machine" },
+  { value: "earthing_kit", label: "Earthing Kit" },
+];
+
+// Company types
+export const companyTypes = [
+  { value: "individual", label: "Individual / Freelancer" },
+  { value: "proprietorship", label: "Proprietorship Firm" },
+  { value: "partnership", label: "Partnership Firm" },
+  { value: "pvt_ltd", label: "Private Limited Company" },
+  { value: "llp", label: "LLP" },
 ];
 
 // States for vendor registration

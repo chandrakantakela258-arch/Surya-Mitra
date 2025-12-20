@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Sun, Wrench, MapPin, Building2, Phone, Mail, Users, FileText, CheckCircle, ArrowLeft } from "lucide-react";
+import { Sun, Wrench, MapPin, Building2, Phone, User, Users, FileText, CheckCircle, ArrowLeft, Briefcase, Award, Truck, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -12,34 +12,56 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { vendorServices, vendorStates } from "@shared/schema";
+import { vendorServices, vendorStates, vendorSpecializations, vendorCertifications, vendorEquipment, companyTypes } from "@shared/schema";
 import { Link } from "wouter";
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
+  fatherName: z.string().optional(),
+  dateOfBirth: z.string().optional(),
   phone: z.string().min(10, "Enter valid phone number").max(10, "Enter valid 10-digit phone number"),
+  alternatePhone: z.string().optional(),
   email: z.string().email("Enter valid email").optional().or(z.literal("")),
   companyName: z.string().optional(),
+  companyType: z.string().optional(),
   state: z.string().min(1, "Select a state"),
   district: z.string().min(2, "Enter district name"),
   address: z.string().min(10, "Enter complete address"),
   pincode: z.string().length(6, "Enter valid 6-digit pincode"),
   services: z.array(z.string()).min(1, "Select at least one service"),
-  experience: z.string().optional(),
+  experienceYears: z.string().optional(),
+  totalInstallations: z.number().optional(),
+  previousCompanies: z.string().optional(),
+  projectsCompleted: z.string().optional(),
+  specializations: z.array(z.string()).optional(),
   teamSize: z.number().optional(),
-  gstNumber: z.string().optional(),
+  supervisorCount: z.number().optional(),
+  helperCount: z.number().optional(),
+  equipmentOwned: z.array(z.string()).optional(),
+  hasTransportation: z.boolean().optional(),
+  vehicleDetails: z.string().optional(),
+  certifications: z.array(z.string()).optional(),
+  trainingDetails: z.string().optional(),
+  aadharNumber: z.string().optional(),
   panNumber: z.string().optional(),
+  gstNumber: z.string().optional(),
+  bankAccountName: z.string().optional(),
+  bankAccountNumber: z.string().optional(),
+  bankIfsc: z.string().optional(),
+  bankName: z.string().optional(),
+  upiId: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
 
 const districtsByState: Record<string, string[]> = {
-  "Bihar": ["Patna", "Gaya", "Muzaffarpur", "Bhagalpur", "Purnia", "Darbhanga", "Munger", "Begusarai", "Samastipur", "Vaishali", "Saran", "Nalanda", "Aurangabad", "Rohtas", "Katihar"],
-  "Jharkhand": ["Ranchi", "Jamshedpur", "Dhanbad", "Bokaro", "Hazaribagh", "Deoghar", "Giridih", "Dumka", "Ramgarh", "Chatra", "Gumla", "Pakur", "Godda", "Koderma", "Lohardaga"],
-  "Uttar Pradesh": ["Lucknow", "Kanpur", "Varanasi", "Agra", "Prayagraj", "Meerut", "Ghaziabad", "Noida", "Gorakhpur", "Bareilly", "Aligarh", "Moradabad", "Saharanpur", "Jhansi", "Mathura"],
-  "Odisha": ["Bhubaneswar", "Cuttack", "Rourkela", "Berhampur", "Sambalpur", "Puri", "Balasore", "Baripada", "Bhadrak", "Jharsuguda", "Jeypore", "Angul", "Dhenkanal", "Kendrapara", "Koraput"],
+  "Bihar": ["Patna", "Gaya", "Muzaffarpur", "Bhagalpur", "Purnia", "Darbhanga", "Munger", "Begusarai", "Samastipur", "Vaishali", "Saran", "Nalanda", "Aurangabad", "Rohtas", "Katihar", "Madhubani", "Saharsa", "Sitamarhi", "Chapra", "Arrah"],
+  "Jharkhand": ["Ranchi", "Jamshedpur", "Dhanbad", "Bokaro", "Hazaribagh", "Deoghar", "Giridih", "Dumka", "Ramgarh", "Chatra", "Gumla", "Pakur", "Godda", "Koderma", "Lohardaga", "Palamu", "Latehar", "Khunti"],
+  "Uttar Pradesh": ["Lucknow", "Kanpur", "Varanasi", "Agra", "Prayagraj", "Meerut", "Ghaziabad", "Noida", "Gorakhpur", "Bareilly", "Aligarh", "Moradabad", "Saharanpur", "Jhansi", "Mathura", "Firozabad", "Azamgarh", "Sultanpur", "Faizabad", "Mirzapur"],
+  "Odisha": ["Bhubaneswar", "Cuttack", "Rourkela", "Berhampur", "Sambalpur", "Puri", "Balasore", "Baripada", "Bhadrak", "Jharsuguda", "Jeypore", "Angul", "Dhenkanal", "Kendrapara", "Koraput", "Rayagada", "Bolangir", "Bargarh"],
 };
 
 export default function VendorRegistration() {
@@ -52,18 +74,39 @@ export default function VendorRegistration() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
+      fatherName: "",
+      dateOfBirth: "",
       phone: "",
+      alternatePhone: "",
       email: "",
       companyName: "",
+      companyType: "",
       state: "",
       district: "",
       address: "",
       pincode: "",
       services: [],
-      experience: "",
+      experienceYears: "",
+      totalInstallations: undefined,
+      previousCompanies: "",
+      projectsCompleted: "",
+      specializations: [],
       teamSize: undefined,
-      gstNumber: "",
+      supervisorCount: undefined,
+      helperCount: undefined,
+      equipmentOwned: [],
+      hasTransportation: false,
+      vehicleDetails: "",
+      certifications: [],
+      trainingDetails: "",
+      aadharNumber: "",
       panNumber: "",
+      gstNumber: "",
+      bankAccountName: "",
+      bankAccountNumber: "",
+      bankIfsc: "",
+      bankName: "",
+      upiId: "",
     },
   });
 
@@ -119,7 +162,7 @@ export default function VendorRegistration() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white dark:from-gray-900 dark:to-gray-800">
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           <div className="text-center mb-8">
             <div className="flex items-center justify-center gap-2 mb-4">
               <Sun className="w-8 h-8 text-orange-500" />
@@ -138,19 +181,17 @@ export default function VendorRegistration() {
             </div>
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Wrench className="w-5 h-5" />
-                Vendor Details
-              </CardTitle>
-              <CardDescription>
-                Fill in your details to register as a solar installation vendor
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="w-5 h-5" />
+                    Personal Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -160,6 +201,34 @@ export default function VendorRegistration() {
                           <FormLabel>Full Name *</FormLabel>
                           <FormControl>
                             <Input placeholder="Enter your full name" {...field} data-testid="input-vendor-name" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="fatherName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Father's Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter father's name" {...field} data-testid="input-vendor-father" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="dateOfBirth"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Date of Birth</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} data-testid="input-vendor-dob" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -192,6 +261,30 @@ export default function VendorRegistration() {
 
                     <FormField
                       control={form.control}
+                      name="alternatePhone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Alternate Phone</FormLabel>
+                          <FormControl>
+                            <div className="flex">
+                              <span className="inline-flex items-center px-3 text-sm border border-r-0 rounded-l-md bg-muted text-muted-foreground">
+                                +91
+                              </span>
+                              <Input 
+                                placeholder="9876543210" 
+                                className="rounded-l-none" 
+                                {...field} 
+                                data-testid="input-vendor-alt-phone"
+                              />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
                       name="email"
                       render={({ field }) => (
                         <FormItem>
@@ -203,7 +296,19 @@ export default function VendorRegistration() {
                         </FormItem>
                       )}
                     />
+                  </div>
+                </CardContent>
+              </Card>
 
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Building2 className="w-5 h-5" />
+                    Company Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="companyName"
@@ -217,248 +322,700 @@ export default function VendorRegistration() {
                         </FormItem>
                       )}
                     />
-                  </div>
 
-                  <div className="border-t pt-6">
-                    <h3 className="font-semibold mb-4 flex items-center gap-2">
-                      <MapPin className="w-4 h-4" />
-                      Location Details
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="state"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>State *</FormLabel>
-                            <Select 
-                              onValueChange={(value) => {
-                                field.onChange(value);
-                                setSelectedState(value);
-                                form.setValue("district", "");
-                              }} 
-                              value={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger data-testid="select-vendor-state">
-                                  <SelectValue placeholder="Select state" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {vendorStates.map((state) => (
-                                  <SelectItem key={state.value} value={state.value}>
-                                    {state.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="district"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>District *</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value} disabled={!selectedState}>
-                              <FormControl>
-                                <SelectTrigger data-testid="select-vendor-district">
-                                  <SelectValue placeholder={selectedState ? "Select district" : "Select state first"} />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {selectedState && districtsByState[selectedState]?.map((district) => (
-                                  <SelectItem key={district} value={district}>
-                                    {district}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="address"
-                        render={({ field }) => (
-                          <FormItem className="md:col-span-2">
-                            <FormLabel>Full Address *</FormLabel>
-                            <FormControl>
-                              <Textarea 
-                                placeholder="Enter your complete address" 
-                                {...field} 
-                                data-testid="input-vendor-address"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="pincode"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Pincode *</FormLabel>
-                            <FormControl>
-                              <Input placeholder="123456" maxLength={6} {...field} data-testid="input-vendor-pincode" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-6">
-                    <h3 className="font-semibold mb-4 flex items-center gap-2">
-                      <Wrench className="w-4 h-4" />
-                      Services & Experience
-                    </h3>
-                    
                     <FormField
                       control={form.control}
-                      name="services"
-                      render={() => (
+                      name="companyType"
+                      render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Services Offered *</FormLabel>
-                          <FormDescription>Select all services you can provide</FormDescription>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
-                            {vendorServices.map((service) => (
-                              <FormField
-                                key={service.value}
-                                control={form.control}
-                                name="services"
-                                render={({ field }) => (
-                                  <FormItem className="flex items-center space-x-3 space-y-0">
-                                    <FormControl>
-                                      <Checkbox
-                                        checked={field.value?.includes(service.value)}
-                                        onCheckedChange={(checked) => {
-                                          const newValue = checked
-                                            ? [...(field.value || []), service.value]
-                                            : field.value?.filter((v) => v !== service.value) || [];
-                                          field.onChange(newValue);
-                                        }}
-                                        data-testid={`checkbox-service-${service.value}`}
-                                      />
-                                    </FormControl>
-                                    <FormLabel className="font-normal cursor-pointer">
-                                      {service.label}
-                                    </FormLabel>
-                                  </FormItem>
-                                )}
-                              />
-                            ))}
-                          </div>
+                          <FormLabel>Company Type</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-vendor-company-type">
+                                <SelectValue placeholder="Select company type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {companyTypes.map((type) => (
+                                <SelectItem key={type.value} value={type.value}>
+                                  {type.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MapPin className="w-5 h-5" />
+                    Location Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="state"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>State *</FormLabel>
+                          <Select 
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              setSelectedState(value);
+                              form.setValue("district", "");
+                            }} 
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger data-testid="select-vendor-state">
+                                <SelectValue placeholder="Select state" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {vendorStates.map((state) => (
+                                <SelectItem key={state.value} value={state.value}>
+                                  {state.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                      <FormField
-                        control={form.control}
-                        name="experience"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Years of Experience</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger data-testid="select-vendor-experience">
-                                  <SelectValue placeholder="Select experience" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="0-1">Less than 1 year</SelectItem>
-                                <SelectItem value="1-3">1-3 years</SelectItem>
-                                <SelectItem value="3-5">3-5 years</SelectItem>
-                                <SelectItem value="5-10">5-10 years</SelectItem>
-                                <SelectItem value="10+">10+ years</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="teamSize"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Team Size (Technicians)</FormLabel>
+                    <FormField
+                      control={form.control}
+                      name="district"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>District *</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value} disabled={!selectedState}>
                             <FormControl>
-                              <Input 
-                                type="number" 
-                                placeholder="Number of technicians"
-                                {...field}
-                                onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
-                                value={field.value || ""}
-                                data-testid="input-vendor-team-size"
-                              />
+                              <SelectTrigger data-testid="select-vendor-district">
+                                <SelectValue placeholder={selectedState ? "Select district" : "Select state first"} />
+                              </SelectTrigger>
                             </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
+                            <SelectContent>
+                              {selectedState && districtsByState[selectedState]?.map((district) => (
+                                <SelectItem key={district} value={district}>
+                                  {district}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  <div className="border-t pt-6">
-                    <h3 className="font-semibold mb-4 flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
-                      Business Documents (Optional)
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="gstNumber"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>GST Number</FormLabel>
+                    <FormField
+                      control={form.control}
+                      name="address"
+                      render={({ field }) => (
+                        <FormItem className="md:col-span-2">
+                          <FormLabel>Full Address *</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Enter your complete address" 
+                              {...field} 
+                              data-testid="input-vendor-address"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="pincode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Pincode *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="123456" maxLength={6} {...field} data-testid="input-vendor-pincode" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Wrench className="w-5 h-5" />
+                    Services Offered
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="services"
+                    render={() => (
+                      <FormItem>
+                        <FormLabel>Services You Can Provide *</FormLabel>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                          {vendorServices.map((service) => (
+                            <FormField
+                              key={service.value}
+                              control={form.control}
+                              name="services"
+                              render={({ field }) => (
+                                <FormItem className="flex items-center space-x-3 space-y-0">
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={field.value?.includes(service.value)}
+                                      onCheckedChange={(checked) => {
+                                        const newValue = checked
+                                          ? [...(field.value || []), service.value]
+                                          : field.value?.filter((v) => v !== service.value) || [];
+                                        field.onChange(newValue);
+                                      }}
+                                      data-testid={`checkbox-service-${service.value}`}
+                                    />
+                                  </FormControl>
+                                  <FormLabel className="font-normal cursor-pointer">
+                                    {service.label}
+                                  </FormLabel>
+                                </FormItem>
+                              )}
+                            />
+                          ))}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="specializations"
+                    render={() => (
+                      <FormItem>
+                        <FormLabel>Specializations</FormLabel>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                          {vendorSpecializations.map((spec) => (
+                            <FormField
+                              key={spec.value}
+                              control={form.control}
+                              name="specializations"
+                              render={({ field }) => (
+                                <FormItem className="flex items-center space-x-3 space-y-0">
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={field.value?.includes(spec.value)}
+                                      onCheckedChange={(checked) => {
+                                        const newValue = checked
+                                          ? [...(field.value || []), spec.value]
+                                          : field.value?.filter((v) => v !== spec.value) || [];
+                                        field.onChange(newValue);
+                                      }}
+                                      data-testid={`checkbox-spec-${spec.value}`}
+                                    />
+                                  </FormControl>
+                                  <FormLabel className="font-normal cursor-pointer">
+                                    {spec.label}
+                                  </FormLabel>
+                                </FormItem>
+                              )}
+                            />
+                          ))}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Briefcase className="w-5 h-5" />
+                    Experience Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="experienceYears"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Years of Experience</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
-                              <Input placeholder="22AAAAA0000A1Z5" {...field} data-testid="input-vendor-gst" />
+                              <SelectTrigger data-testid="select-vendor-experience">
+                                <SelectValue placeholder="Select experience" />
+                              </SelectTrigger>
                             </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                            <SelectContent>
+                              <SelectItem value="0-1">Less than 1 year</SelectItem>
+                              <SelectItem value="1-3">1-3 years</SelectItem>
+                              <SelectItem value="3-5">3-5 years</SelectItem>
+                              <SelectItem value="5-10">5-10 years</SelectItem>
+                              <SelectItem value="10+">10+ years</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                      <FormField
-                        control={form.control}
-                        name="panNumber"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>PAN Number</FormLabel>
-                            <FormControl>
-                              <Input placeholder="AAAAA1234A" {...field} data-testid="input-vendor-pan" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
+                    <FormField
+                      control={form.control}
+                      name="totalInstallations"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Total Installations Completed</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              placeholder="Number of installations"
+                              {...field}
+                              onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                              value={field.value || ""}
+                              data-testid="input-vendor-installations"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                    <Button type="submit" className="flex-1" disabled={registerMutation.isPending} data-testid="button-submit-vendor">
-                      {registerMutation.isPending ? "Submitting..." : "Submit Registration"}
-                    </Button>
-                    <Button type="button" variant="outline" asChild>
-                      <Link href="/">Cancel</Link>
-                    </Button>
+                    <FormField
+                      control={form.control}
+                      name="previousCompanies"
+                      render={({ field }) => (
+                        <FormItem className="md:col-span-2">
+                          <FormLabel>Previous Companies Worked With</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="List companies you have worked with for solar installations (e.g., Tata Power Solar, Adani Solar, Vikram Solar, etc.)"
+                              {...field} 
+                              data-testid="input-vendor-prev-companies"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="projectsCompleted"
+                      render={({ field }) => (
+                        <FormItem className="md:col-span-2">
+                          <FormLabel>Major Projects Completed</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Describe major projects you have completed (location, capacity, type of installation, etc.)"
+                              {...field} 
+                              data-testid="input-vendor-projects"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="w-5 h-5" />
+                    Team Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="teamSize"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Total Team Size</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              placeholder="Total members"
+                              {...field}
+                              onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                              value={field.value || ""}
+                              data-testid="input-vendor-team-size"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="supervisorCount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Supervisors/Technicians</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              placeholder="Skilled workers"
+                              {...field}
+                              onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                              value={field.value || ""}
+                              data-testid="input-vendor-supervisors"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="helperCount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Helpers</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              placeholder="Helper count"
+                              {...field}
+                              onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                              value={field.value || ""}
+                              data-testid="input-vendor-helpers"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Wrench className="w-5 h-5" />
+                    Equipment & Transportation
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="equipmentOwned"
+                    render={() => (
+                      <FormItem>
+                        <FormLabel>Equipment & Tools Owned</FormLabel>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                          {vendorEquipment.map((equip) => (
+                            <FormField
+                              key={equip.value}
+                              control={form.control}
+                              name="equipmentOwned"
+                              render={({ field }) => (
+                                <FormItem className="flex items-center space-x-3 space-y-0">
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={field.value?.includes(equip.value)}
+                                      onCheckedChange={(checked) => {
+                                        const newValue = checked
+                                          ? [...(field.value || []), equip.value]
+                                          : field.value?.filter((v) => v !== equip.value) || [];
+                                        field.onChange(newValue);
+                                      }}
+                                      data-testid={`checkbox-equip-${equip.value}`}
+                                    />
+                                  </FormControl>
+                                  <FormLabel className="font-normal cursor-pointer">
+                                    {equip.label}
+                                  </FormLabel>
+                                </FormItem>
+                              )}
+                            />
+                          ))}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+                    <FormField
+                      control={form.control}
+                      name="hasTransportation"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base">Own Transportation</FormLabel>
+                            <FormDescription>
+                              Do you have your own vehicle for transporting equipment?
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              data-testid="switch-vendor-transport"
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="vehicleDetails"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Vehicle Details</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="e.g., Tata Ace, Mahindra Bolero" 
+                              {...field} 
+                              data-testid="input-vendor-vehicle"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Award className="w-5 h-5" />
+                    Certifications & Training
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="certifications"
+                    render={() => (
+                      <FormItem>
+                        <FormLabel>Certifications</FormLabel>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                          {vendorCertifications.map((cert) => (
+                            <FormField
+                              key={cert.value}
+                              control={form.control}
+                              name="certifications"
+                              render={({ field }) => (
+                                <FormItem className="flex items-center space-x-3 space-y-0">
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={field.value?.includes(cert.value)}
+                                      onCheckedChange={(checked) => {
+                                        const newValue = checked
+                                          ? [...(field.value || []), cert.value]
+                                          : field.value?.filter((v) => v !== cert.value) || [];
+                                        field.onChange(newValue);
+                                      }}
+                                      data-testid={`checkbox-cert-${cert.value}`}
+                                    />
+                                  </FormControl>
+                                  <FormLabel className="font-normal cursor-pointer">
+                                    {cert.label}
+                                  </FormLabel>
+                                </FormItem>
+                              )}
+                            />
+                          ))}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="trainingDetails"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Training Details</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Describe any solar-related training you have received"
+                            {...field} 
+                            data-testid="input-vendor-training"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="w-5 h-5" />
+                    Documents
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="aadharNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Aadhar Number</FormLabel>
+                          <FormControl>
+                            <Input placeholder="1234 5678 9012" maxLength={14} {...field} data-testid="input-vendor-aadhar" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="panNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>PAN Number</FormLabel>
+                          <FormControl>
+                            <Input placeholder="AAAAA1234A" {...field} data-testid="input-vendor-pan" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="gstNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>GST Number</FormLabel>
+                          <FormControl>
+                            <Input placeholder="22AAAAA0000A1Z5" {...field} data-testid="input-vendor-gst" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="w-5 h-5" />
+                    Bank Details (For Payment)
+                  </CardTitle>
+                  <CardDescription>
+                    Your payment will be processed to this account after work completion
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="bankAccountName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Account Holder Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Name as per bank account" {...field} data-testid="input-vendor-bank-name" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="bankAccountNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Account Number</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter account number" {...field} data-testid="input-vendor-bank-acc" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="bankIfsc"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>IFSC Code</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g., SBIN0001234" {...field} data-testid="input-vendor-bank-ifsc" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="bankName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Bank Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g., State Bank of India" {...field} data-testid="input-vendor-bank-branch" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="upiId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>UPI ID (Optional)</FormLabel>
+                          <FormControl>
+                            <Input placeholder="yourname@upi" {...field} data-testid="input-vendor-upi" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                <Button type="submit" className="flex-1" disabled={registerMutation.isPending} data-testid="button-submit-vendor">
+                  {registerMutation.isPending ? "Submitting..." : "Submit Registration"}
+                </Button>
+                <Button type="button" variant="outline" asChild>
+                  <Link href="/">Cancel</Link>
+                </Button>
+              </div>
+            </form>
+          </Form>
 
           <div className="mt-8 text-center text-sm text-muted-foreground">
             <p>
