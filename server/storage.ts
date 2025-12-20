@@ -257,8 +257,11 @@ export interface IStorage {
   // Referral operations
   getReferralsByReferrerId(referrerId: string): Promise<Referral[]>;
   getReferralByCode(code: string): Promise<Referral | undefined>;
+  getReferralByReferredPartnerId(partnerId: string): Promise<Referral | undefined>;
   createReferral(referral: InsertReferral): Promise<Referral>;
   updateReferralStatus(id: string, status: string, conversionDate?: Date): Promise<Referral | undefined>;
+  updatePartnerReferralInstallationCount(referralId: string, count: number): Promise<Referral | undefined>;
+  checkAndConvertPartnerReferral(partnerId: string): Promise<{ converted: boolean; referral?: Referral }>;
   generateReferralCode(partnerId: string): Promise<string>;
   getUserByReferralCode(code: string): Promise<User | undefined>;
   updateUserReferralCode(userId: string, code: string): Promise<User | undefined>;
@@ -1518,6 +1521,63 @@ export class DatabaseStorage implements IStorage {
       .where(eq(referrals.id, id))
       .returning();
     return updated || undefined;
+  }
+
+  async getReferralByReferredPartnerId(partnerId: string): Promise<Referral | undefined> {
+    const [referral] = await db.select().from(referrals)
+      .where(and(
+        eq(referrals.referredPartnerId, partnerId),
+        eq(referrals.referredType, "partner")
+      ));
+    return referral || undefined;
+  }
+
+  async updatePartnerReferralInstallationCount(referralId: string, count: number): Promise<Referral | undefined> {
+    const [updated] = await db.update(referrals)
+      .set({ partnerInstallationCount: count })
+      .where(eq(referrals.id, referralId))
+      .returning();
+    return updated || undefined;
+  }
+
+  async checkAndConvertPartnerReferral(partnerId: string): Promise<{ converted: boolean; referral?: Referral }> {
+    // Check if this partner was referred by someone
+    const referral = await this.getReferralByReferredPartnerId(partnerId);
+    if (!referral || referral.status === "converted") {
+      return { converted: false };
+    }
+
+    // Count completed installations under this partner's team
+    const completedInstallations = await db.select({ count: sql<number>`COUNT(*)::int` })
+      .from(customers)
+      .where(and(
+        eq(customers.ddpId, partnerId),
+        eq(customers.status, "completed")
+      ));
+    
+    const count = completedInstallations[0]?.count || 0;
+
+    // Update the installation count on the referral
+    await this.updatePartnerReferralInstallationCount(referral.id, count);
+
+    // Check if threshold is reached (15 installations)
+    const PARTNER_REFERRAL_THRESHOLD = 15;
+    if (count >= PARTNER_REFERRAL_THRESHOLD && referral.status === "pending") {
+      // Convert the referral and set reward
+      const PARTNER_REFERRAL_REWARD = 2000; // Rs 2,000
+      const [converted] = await db.update(referrals)
+        .set({
+          status: "converted",
+          conversionDate: new Date(),
+          rewardAmount: PARTNER_REFERRAL_REWARD,
+          notes: `Converted after ${count} installations completed`
+        })
+        .where(eq(referrals.id, referral.id))
+        .returning();
+      return { converted: true, referral: converted };
+    }
+
+    return { converted: false, referral };
   }
 
   async generateReferralCode(partnerId: string): Promise<string> {

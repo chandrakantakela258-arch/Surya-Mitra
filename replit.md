@@ -117,8 +117,11 @@ DDPs can collect payments from customers for solar products and services via the
 
 **4. Referral Program**
 - Unique referral codes per partner
-- Reward structure: Rs 1,000 for customer referrals, Rs 2,000 for partner referrals
-- Referral tracking and status management
+- Reward structure: 
+  - Customer referrals: Rs 1,000 (earned when customer registration is complete)
+  - Partner referrals: Rs 2,000 (earned when the referred partner completes 15 successful installations)
+- Partner referral threshold: 15 completed installations under the referred partner's team
+- Referral tracking with installation count monitoring
 - Route: `/referrals` (protected, partner dashboard)
 
 **5. Installation Map View**

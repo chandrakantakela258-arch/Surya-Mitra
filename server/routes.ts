@@ -423,6 +423,19 @@ export async function registerRoutes(
         newStatus: status,
       });
       
+      // When installation is completed, check if the DDP's referrer should get their reward
+      // Partner referral reward is earned when referred partner completes 15 installations
+      if (status === "completed" && customer.ddpId) {
+        try {
+          const result = await storage.checkAndConvertPartnerReferral(customer.ddpId);
+          if (result.converted && result.referral) {
+            console.log(`Partner referral converted! Referrer: ${result.referral.referrerId}, Reward: Rs ${result.referral.rewardAmount}`);
+          }
+        } catch (err) {
+          console.error("Error checking partner referral:", err);
+        }
+      }
+      
       res.json(customer);
     } catch (error) {
       console.error("Update customer status error:", error);
@@ -803,6 +816,19 @@ export async function registerRoutes(
         oldStatus,
         newStatus: status,
       });
+      
+      // When installation is completed, check if the DDP's referrer should get their reward
+      // Partner referral reward is earned when referred partner completes 15 installations
+      if (status === "completed" && customer.ddpId) {
+        try {
+          const result = await storage.checkAndConvertPartnerReferral(customer.ddpId);
+          if (result.converted && result.referral) {
+            console.log(`Partner referral converted! Referrer: ${result.referral.referrerId}, Reward: Rs ${result.referral.rewardAmount}`);
+          }
+        } catch (err) {
+          console.error("Error checking partner referral:", err);
+        }
+      }
       
       res.json(customer);
     } catch (error) {

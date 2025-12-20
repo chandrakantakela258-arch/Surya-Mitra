@@ -498,6 +498,9 @@ export const leaderboardRelations = relations(leaderboard, ({ one }) => ({
 }));
 
 // 4. Referral Program
+// Partner referral rewards are earned when the referred partner completes 15 successful installations
+export const PARTNER_REFERRAL_THRESHOLD = 15; // Installations required for partner referral reward
+
 export const referrals = pgTable("referrals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   referrerId: varchar("referrer_id").notNull(), // Partner who made the referral
@@ -511,6 +514,7 @@ export const referrals = pgTable("referrals", {
   conversionDate: timestamp("conversion_date"),
   expiresAt: timestamp("expires_at"),
   notes: text("notes"),
+  partnerInstallationCount: integer("partner_installation_count").default(0), // Track referred partner's installations
   createdAt: timestamp("created_at").defaultNow(),
 });
 
