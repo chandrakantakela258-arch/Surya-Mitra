@@ -816,26 +816,34 @@ export default function LandingPage() {
                     </div>
                     <div>
                       <h3 className="font-semibold text-xl">Odisha</h3>
-                      <p className="text-sm text-muted-foreground">Best State Subsidy</p>
+                      <p className="text-sm text-muted-foreground">Best State Subsidy (+Rs 20,000/kW Additional Subsidy)</p>
                     </div>
                   </div>
-                  <div className="grid sm:grid-cols-3 gap-4 mb-6">
+                  <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                     <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <div className="text-2xl font-bold" data-testid="text-odisha-registrations">5+ Lakh</div>
-                      <div className="text-sm text-muted-foreground">Registrations</div>
+                      <div className="text-xl font-bold" data-testid="text-odisha-applications">1,50,935</div>
+                      <div className="text-xs text-muted-foreground">Applications</div>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <div className="text-2xl font-bold" data-testid="text-odisha-status">Active</div>
-                      <div className="text-sm text-muted-foreground">Program Status</div>
+                      <div className="text-xl font-bold" data-testid="text-odisha-installations">25,544</div>
+                      <div className="text-xs text-muted-foreground">Installations</div>
                     </div>
-                    <div className="p-4 bg-primary/10 rounded-lg text-center border-2 border-primary/30">
-                      <div className="text-2xl font-bold text-primary" data-testid="text-odisha-subsidy">+Rs 20,000/kW</div>
-                      <div className="text-sm text-muted-foreground">Additional Subsidy</div>
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-xl font-bold" data-testid="text-odisha-households">25,892</div>
+                      <div className="text-xs text-muted-foreground">Households Covered</div>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-xl font-bold" data-testid="text-odisha-capacity">83.1 MW</div>
+                      <div className="text-xs text-muted-foreground">Capacity Installed</div>
+                    </div>
+                    <div className="p-4 bg-primary/10 rounded-lg text-center col-span-2 lg:col-span-1">
+                      <div className="text-xl font-bold text-primary" data-testid="text-odisha-subsidy">Rs 158.07 Cr</div>
+                      <div className="text-xs text-muted-foreground">Subsidy Released</div>
                     </div>
                   </div>
                   <p className="text-muted-foreground">
-                    Odisha offers the highest additional state subsidy of Rs 20,000/kW, making solar 
-                    even more affordable. Our network covers Bhubaneswar, Cuttack, Rourkela, and Puri.
+                    Odisha has 1.5 lakh applications with 25,544 installations completed. The state offers the highest additional 
+                    subsidy of Rs 20,000/kW. Our network covers Bhubaneswar, Cuttack, Rourkela, and Puri.
                   </p>
                 </CardContent>
               </Card>
