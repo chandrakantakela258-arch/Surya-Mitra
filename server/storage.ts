@@ -159,6 +159,7 @@ export interface IStorage {
     pendingCommissions: number;
   }>;
   getAllPartners(): Promise<User[]>;
+  getAllUsers(): Promise<User[]>;
   getRecentPartners(limit: number): Promise<User[]>;
   getAllCustomers(): Promise<Customer[]>;
   getRecentCustomers(limit: number): Promise<Customer[]>;
@@ -590,6 +591,13 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(users)
       .where(sql`${users.role} IN ('bdp', 'ddp')`)
+      .orderBy(desc(users.createdAt));
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return db
+      .select()
+      .from(users)
       .orderBy(desc(users.createdAt));
   }
 

@@ -575,11 +575,28 @@ export async function registerRoutes(
     try {
       console.log("Fetching all partners for admin...");
       const partners = await storage.getAllPartners();
-      console.log(`Found ${partners.length} partners`);
+      console.log(`Found ${partners.length} partners:`, partners.map(p => ({ id: p.id, name: p.name, role: p.role, status: p.status })));
       res.json(partners.map((p) => ({ ...p, password: undefined })));
     } catch (error) {
       console.error("Get all partners error:", error);
       res.status(500).json({ message: "Failed to get partners" });
+    }
+  });
+  
+  // Debug: Check all users in database (public for debugging)
+  app.get("/api/debug/users-count", async (req, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      const partners = await storage.getAllPartners();
+      console.log("DEBUG - Total users:", allUsers.length, "Partners:", partners.length);
+      res.json({ 
+        totalUsers: allUsers.length, 
+        totalPartners: partners.length,
+        users: allUsers.map(u => ({ name: u.name, role: u.role }))
+      });
+    } catch (error) {
+      console.error("Debug users error:", error);
+      res.status(500).json({ message: "Failed to get users" });
     }
   });
 
