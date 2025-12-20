@@ -449,16 +449,7 @@ function PublicRouter() {
         <CustomerRegistration />
       </Route>
       <Route path="/customer-partner-register">
-        {user ? (
-          <Redirect to={
-            user.role === "admin" ? "/admin/dashboard" : 
-            user.role === "bdp" ? "/bdp/dashboard" : 
-            user.role === "customer_partner" ? "/customer-partner/dashboard" :
-            "/ddp/dashboard"
-          } />
-        ) : (
-          <CustomerPartnerRegisterPage />
-        )}
+        <Redirect to="/register" />
       </Route>
       <Route path="/login">
         {user ? (

@@ -160,15 +160,15 @@ export default function LoginPage() {
 
             <div className="mt-6 text-center text-sm space-y-2">
               <div>
-                <span className="text-muted-foreground">Don't have an account? </span>
+                <span className="text-muted-foreground">Completed solar installation? </span>
                 <Link href="/register" className="text-primary hover:underline" data-testid="link-register">
-                  Register as Partner
+                  Join Network
                 </Link>
               </div>
               <div>
-                <span className="text-muted-foreground">Completed solar installation? </span>
-                <Link href="/customer-partner-register" className="text-primary hover:underline" data-testid="link-customer-partner">
-                  Become a Customer Partner
+                <span className="text-muted-foreground">Not a customer yet? </span>
+                <Link href="/customer-registration" className="text-primary hover:underline" data-testid="link-customer-registration">
+                  Register for Solar
                 </Link>
               </div>
             </div>
