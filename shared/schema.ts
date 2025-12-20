@@ -1030,3 +1030,89 @@ export const vendorStates = [
   { value: "Uttar Pradesh", label: "Uttar Pradesh" },
   { value: "Odisha", label: "Odisha" },
 ];
+
+// Site Installation Expenses - Track all costs and profit per installation
+export const siteExpenses = pgTable("site_expenses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").notNull(),
+  siteId: text("site_id").notNull().unique(), // Auto-generated Site ID (e.g., DS-2024-0001)
+  
+  // Customer Payment Received
+  customerPaymentReceived: decimal("customer_payment_received", { precision: 12, scale: 2 }).default("0"),
+  
+  // Installation Costs
+  solarPanelsCost: decimal("solar_panels_cost", { precision: 12, scale: 2 }).default("0"),
+  inverterCost: decimal("inverter_cost", { precision: 12, scale: 2 }).default("0"),
+  electricalCost: decimal("electrical_cost", { precision: 12, scale: 2 }).default("0"),
+  civilWorkCost: decimal("civil_work_cost", { precision: 12, scale: 2 }).default("0"),
+  electricianCost: decimal("electrician_cost", { precision: 12, scale: 2 }).default("0"),
+  meterCost: decimal("meter_cost", { precision: 12, scale: 2 }).default("0"),
+  meterInstallationCost: decimal("meter_installation_cost", { precision: 12, scale: 2 }).default("0"),
+  logisticCost: decimal("logistic_cost", { precision: 12, scale: 2 }).default("0"),
+  bankLoanApprovalCost: decimal("bank_loan_approval_cost", { precision: 12, scale: 2 }).default("0"),
+  discomApprovalCost: decimal("discom_approval_cost", { precision: 12, scale: 2 }).default("0"),
+  
+  // Commission Payments
+  bdpCommission: decimal("bdp_commission", { precision: 12, scale: 2 }).default("0"),
+  ddpCommission: decimal("ddp_commission", { precision: 12, scale: 2 }).default("0"),
+  referralPayment: decimal("referral_payment", { precision: 12, scale: 2 }).default("0"),
+  incentivePayment: decimal("incentive_payment", { precision: 12, scale: 2 }).default("0"),
+  
+  // Other Expenses
+  miscellaneousExpense: decimal("miscellaneous_expense", { precision: 12, scale: 2 }).default("0"),
+  miscellaneousNotes: text("miscellaneous_notes"),
+  
+  // Calculated Fields (stored for quick access)
+  totalExpenses: decimal("total_expenses", { precision: 12, scale: 2 }).default("0"),
+  profit: decimal("profit", { precision: 12, scale: 2 }).default("0"),
+  profitMargin: decimal("profit_margin", { precision: 5, scale: 2 }).default("0"), // percentage
+  
+  // Status
+  status: text("status").notNull().default("pending"), // pending, approved, completed
+  approvedBy: varchar("approved_by"),
+  approvedAt: timestamp("approved_at"),
+  notes: text("notes"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const siteExpensesRelations = relations(siteExpenses, ({ one }) => ({
+  customer: one(customers, {
+    fields: [siteExpenses.customerId],
+    references: [customers.id],
+  }),
+}));
+
+export const insertSiteExpenseSchema = createInsertSchema(siteExpenses).omit({
+  id: true,
+  totalExpenses: true,
+  profit: true,
+  profitMargin: true,
+  approvedBy: true,
+  approvedAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertSiteExpense = z.infer<typeof insertSiteExpenseSchema>;
+export type SiteExpense = typeof siteExpenses.$inferSelect;
+
+// Site expense categories for display
+export const siteExpenseCategories = [
+  { key: "solarPanelsCost", label: "Solar Panels Cost", group: "installation" },
+  { key: "inverterCost", label: "Inverter Cost", group: "installation" },
+  { key: "electricalCost", label: "Electrical Cost", group: "installation" },
+  { key: "civilWorkCost", label: "Civil Work Execution Cost", group: "installation" },
+  { key: "electricianCost", label: "Electrician Cost", group: "installation" },
+  { key: "meterCost", label: "Meter Cost", group: "installation" },
+  { key: "meterInstallationCost", label: "Meter Installation Cost", group: "installation" },
+  { key: "logisticCost", label: "Logistic Cost", group: "other" },
+  { key: "bankLoanApprovalCost", label: "Bank Loan Approval Cost", group: "other" },
+  { key: "discomApprovalCost", label: "DISCOM Approval Cost", group: "other" },
+  { key: "bdpCommission", label: "BDP Commission", group: "commission" },
+  { key: "ddpCommission", label: "DDP Commission", group: "commission" },
+  { key: "referralPayment", label: "Referral Payment", group: "commission" },
+  { key: "incentivePayment", label: "Incentive Payment", group: "commission" },
+  { key: "miscellaneousExpense", label: "Miscellaneous Expense", group: "other" },
+];

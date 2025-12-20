@@ -2541,5 +2541,84 @@ export async function registerRoutes(
     }
   });
 
+  // ===== SITE EXPENSE ROUTES =====
+  
+  // Admin: Get all site expenses
+  app.get("/api/admin/site-expenses", requireAdmin, async (req, res) => {
+    try {
+      const expenses = await storage.getSiteExpenses();
+      res.json(expenses);
+    } catch (error) {
+      console.error("Get site expenses error:", error);
+      res.status(500).json({ message: "Failed to get site expenses" });
+    }
+  });
+  
+  // Admin: Get site expense by ID
+  app.get("/api/admin/site-expenses/:id", requireAdmin, async (req, res) => {
+    try {
+      const expense = await storage.getSiteExpense(req.params.id);
+      if (!expense) {
+        return res.status(404).json({ message: "Site expense not found" });
+      }
+      res.json(expense);
+    } catch (error) {
+      console.error("Get site expense error:", error);
+      res.status(500).json({ message: "Failed to get site expense" });
+    }
+  });
+  
+  // Admin: Create site expense (when customer is approved)
+  app.post("/api/admin/site-expenses", requireAdmin, async (req, res) => {
+    try {
+      const { customerId } = req.body;
+      
+      // Check if expense already exists for this customer
+      const existing = await storage.getSiteExpenseByCustomerId(customerId);
+      if (existing) {
+        return res.status(400).json({ message: "Site expense already exists for this customer", expense: existing });
+      }
+      
+      // Generate unique site ID
+      const siteId = await storage.generateSiteId();
+      
+      const expense = await storage.createSiteExpense({
+        customerId,
+        siteId,
+        status: "pending",
+      });
+      
+      res.status(201).json(expense);
+    } catch (error) {
+      console.error("Create site expense error:", error);
+      res.status(500).json({ message: "Failed to create site expense" });
+    }
+  });
+  
+  // Admin: Update site expense
+  app.patch("/api/admin/site-expenses/:id", requireAdmin, async (req, res) => {
+    try {
+      const expense = await storage.updateSiteExpense(req.params.id, req.body);
+      if (!expense) {
+        return res.status(404).json({ message: "Site expense not found" });
+      }
+      res.json(expense);
+    } catch (error) {
+      console.error("Update site expense error:", error);
+      res.status(500).json({ message: "Failed to update site expense" });
+    }
+  });
+  
+  // Admin: Get site expense by customer ID
+  app.get("/api/admin/customers/:customerId/site-expense", requireAdmin, async (req, res) => {
+    try {
+      const expense = await storage.getSiteExpenseByCustomerId(req.params.customerId);
+      res.json(expense || null);
+    } catch (error) {
+      console.error("Get site expense by customer error:", error);
+      res.status(500).json({ message: "Failed to get site expense" });
+    }
+  });
+
   return httpServer;
 }

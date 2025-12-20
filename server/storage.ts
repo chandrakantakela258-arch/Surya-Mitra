@@ -22,6 +22,7 @@ import {
   referrals,
   notificationTemplates,
   vendors,
+  siteExpenses,
   type User, 
   type InsertUser, 
   type Customer, 
@@ -68,6 +69,8 @@ import {
   type InsertNotificationTemplate,
   type Vendor,
   type InsertVendor,
+  type SiteExpense,
+  type InsertSiteExpense,
   installationMilestones,
   calculateCommission,
   calculateBdpCommission,
@@ -290,6 +293,15 @@ export interface IStorage {
   getVendors(): Promise<Vendor[]>;
   getVendor(id: string): Promise<Vendor | undefined>;
   updateVendorStatus(id: string, status: string, notes?: string): Promise<Vendor | undefined>;
+  
+  // Site Expense operations
+  createSiteExpense(expense: InsertSiteExpense): Promise<SiteExpense>;
+  getSiteExpenses(): Promise<SiteExpense[]>;
+  getSiteExpense(id: string): Promise<SiteExpense | undefined>;
+  getSiteExpenseByCustomerId(customerId: string): Promise<SiteExpense | undefined>;
+  getSiteExpenseBySiteId(siteId: string): Promise<SiteExpense | undefined>;
+  updateSiteExpense(id: string, data: Partial<SiteExpense>): Promise<SiteExpense | undefined>;
+  generateSiteId(): Promise<string>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1724,6 +1736,76 @@ export class DatabaseStorage implements IStorage {
     const [updated] = await db.update(vendors)
       .set(updateData)
       .where(eq(vendors.id, id))
+      .returning();
+    return updated || undefined;
+  }
+  
+  // Site Expense operations
+  async generateSiteId(): Promise<string> {
+    const year = new Date().getFullYear();
+    const result = await db.select({ count: sql<number>`COUNT(*)::int` }).from(siteExpenses);
+    const count = (result[0]?.count || 0) + 1;
+    return `DS-${year}-${String(count).padStart(4, '0')}`;
+  }
+  
+  async createSiteExpense(expense: InsertSiteExpense): Promise<SiteExpense> {
+    const [created] = await db.insert(siteExpenses).values(expense).returning();
+    return created;
+  }
+  
+  async getSiteExpenses(): Promise<SiteExpense[]> {
+    return await db.select().from(siteExpenses).orderBy(desc(siteExpenses.createdAt));
+  }
+  
+  async getSiteExpense(id: string): Promise<SiteExpense | undefined> {
+    const [expense] = await db.select().from(siteExpenses).where(eq(siteExpenses.id, id));
+    return expense || undefined;
+  }
+  
+  async getSiteExpenseByCustomerId(customerId: string): Promise<SiteExpense | undefined> {
+    const [expense] = await db.select().from(siteExpenses).where(eq(siteExpenses.customerId, customerId));
+    return expense || undefined;
+  }
+  
+  async getSiteExpenseBySiteId(siteId: string): Promise<SiteExpense | undefined> {
+    const [expense] = await db.select().from(siteExpenses).where(eq(siteExpenses.siteId, siteId));
+    return expense || undefined;
+  }
+  
+  async updateSiteExpense(id: string, data: Partial<SiteExpense>): Promise<SiteExpense | undefined> {
+    // Calculate totals
+    const totalExpenses = 
+      Number(data.solarPanelsCost || 0) +
+      Number(data.inverterCost || 0) +
+      Number(data.electricalCost || 0) +
+      Number(data.civilWorkCost || 0) +
+      Number(data.electricianCost || 0) +
+      Number(data.meterCost || 0) +
+      Number(data.meterInstallationCost || 0) +
+      Number(data.logisticCost || 0) +
+      Number(data.bankLoanApprovalCost || 0) +
+      Number(data.discomApprovalCost || 0) +
+      Number(data.bdpCommission || 0) +
+      Number(data.ddpCommission || 0) +
+      Number(data.referralPayment || 0) +
+      Number(data.incentivePayment || 0) +
+      Number(data.miscellaneousExpense || 0);
+    
+    const customerPayment = Number(data.customerPaymentReceived || 0);
+    const profit = customerPayment - totalExpenses;
+    const profitMargin = customerPayment > 0 ? (profit / customerPayment) * 100 : 0;
+    
+    const updateData = {
+      ...data,
+      totalExpenses: String(totalExpenses),
+      profit: String(profit),
+      profitMargin: String(profitMargin.toFixed(2)),
+      updatedAt: new Date(),
+    };
+    
+    const [updated] = await db.update(siteExpenses)
+      .set(updateData)
+      .where(eq(siteExpenses.id, id))
       .returning();
     return updated || undefined;
   }
