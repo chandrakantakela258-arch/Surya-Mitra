@@ -617,29 +617,35 @@ export default function LandingPage() {
           </div>
 
           {/* National Stats */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-10">
             <Card>
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-primary" data-testid="text-national-installations">19.45 Lakh+</div>
-                <div className="text-sm text-muted-foreground">Systems Installed (India)</div>
+                <div className="text-xl font-bold text-primary" data-testid="text-national-applications">54,45,589</div>
+                <div className="text-xs text-muted-foreground">Applications (India)</div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-primary" data-testid="text-national-budget">Rs 75,021 Cr</div>
-                <div className="text-sm text-muted-foreground">Total Budget</div>
+                <div className="text-xl font-bold text-primary" data-testid="text-national-installations">20,12,203</div>
+                <div className="text-xs text-muted-foreground">Installations</div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-primary" data-testid="text-national-disbursed">Rs 13,926 Cr</div>
-                <div className="text-sm text-muted-foreground">Subsidy Disbursed</div>
+                <div className="text-xl font-bold text-primary" data-testid="text-national-households">25,12,142</div>
+                <div className="text-xs text-muted-foreground">Households Covered</div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-primary" data-testid="text-national-zero-bills">7.71 Lakh</div>
-                <div className="text-sm text-muted-foreground">Zero Bill Households</div>
+                <div className="text-xl font-bold text-primary" data-testid="text-national-capacity">7,442.81 MW</div>
+                <div className="text-xs text-muted-foreground">Capacity Installed</div>
+              </CardContent>
+            </Card>
+            <Card className="col-span-2 lg:col-span-1">
+              <CardContent className="p-4 text-center">
+                <div className="text-xl font-bold text-primary" data-testid="text-national-subsidy">Rs 14,361.31 Cr</div>
+                <div className="text-xs text-muted-foreground">Subsidy Released</div>
               </CardContent>
             </Card>
           </div>
