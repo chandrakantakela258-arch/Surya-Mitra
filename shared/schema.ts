@@ -79,6 +79,11 @@ export const customers = pgTable("customers", {
   sitePictures: text("site_pictures").array(), // 6 pictures from all angles
   siteVideo: text("site_video"), // 9:16 Instagram-style video URL (max 60 seconds)
   
+  // AI Lead Scoring
+  leadScore: integer("lead_score"), // 0-100 score
+  leadScoreDetails: text("lead_score_details"), // JSON with scoring breakdown
+  leadScoreUpdatedAt: timestamp("lead_score_updated_at"),
+  
   // Timestamps
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -1116,3 +1121,6 @@ export const siteExpenseCategories = [
   { key: "incentivePayment", label: "Incentive Payment", group: "commission" },
   { key: "miscellaneousExpense", label: "Miscellaneous Expense", group: "other" },
 ];
+
+// Re-export chat models for OpenAI integration
+export * from "./models/chat";
