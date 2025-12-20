@@ -70,6 +70,7 @@ export async function registerRoutes(
   app.set("trust proxy", 1);
 
   // Session setup with PostgreSQL store for production persistence
+  const isProduction = process.env.NODE_ENV === "production";
   app.use(
     session({
       store: new PgSession({
@@ -77,15 +78,17 @@ export async function registerRoutes(
         tableName: "user_sessions",
         createTableIfMissing: true,
       }),
-      name: "divyanshi.sid",
+      name: "dsolar.sid",
       secret: process.env.SESSION_SECRET || "surya-partner-secret-key",
       resave: false,
       saveUninitialized: false,
+      proxy: true,
       cookie: {
-        secure: process.env.NODE_ENV === "production",
+        secure: isProduction,
         httpOnly: true,
-        sameSite: "lax",
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        sameSite: isProduction ? "strict" : "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: "/",
       },
     })
   );
