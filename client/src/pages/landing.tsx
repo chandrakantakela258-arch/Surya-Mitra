@@ -256,10 +256,14 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Hero Image Slider */}
-          <div className="mt-12 max-w-5xl mx-auto">
-            <HeroSlider />
-          </div>
+        </div>
+
+        {/* Hero Image Slider - Full Width */}
+        <div className="mt-12">
+          <HeroSlider />
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
           {/* Stats */}
           <div className="mt-16 grid grid-cols-2 lg:grid-cols-4 gap-6">

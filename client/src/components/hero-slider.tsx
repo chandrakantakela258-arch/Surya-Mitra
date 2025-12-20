@@ -3,37 +3,37 @@ import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-import solarRoof1 from "@assets/stock_images/solar_panels_on_roof_434b8cd5.jpg";
-import solarRoof2 from "@assets/stock_images/solar_panels_on_roof_0bbf267f.jpg";
-import solarRoof3 from "@assets/stock_images/solar_panels_on_roof_d57dcf73.jpg";
-import solarInstall1 from "@assets/stock_images/solar_panel_installa_2cf01698.jpg";
-import solarInstall2 from "@assets/stock_images/solar_panel_installa_900f77e8.jpg";
+import indianHome from "@assets/generated_images/indian_home_with_solar_panels.png";
+import indianFamily from "@assets/generated_images/indian_family_with_solar_home.png";
+import solarInstallation from "@assets/generated_images/solar_installation_in_india.png";
+import indianBungalow from "@assets/generated_images/indian_bungalow_with_solar.png";
+import indianColony from "@assets/generated_images/indian_colony_with_solar_roofs.png";
 
 const slides = [
   {
-    image: solarRoof1,
-    title: "Rooftop Solar for Every Home",
-    subtitle: "Transform your roof into a power plant"
+    image: indianHome,
+    title: "PM Surya Ghar Yojana",
+    subtitle: "Free electricity for 1 crore households across India"
   },
   {
-    image: solarInstall1,
-    title: "Professional Installation",
-    subtitle: "Expert technicians ensuring quality work"
+    image: indianFamily,
+    title: "Power Your Home with Sunlight",
+    subtitle: "Join lakhs of Indian families saving on electricity"
   },
   {
-    image: solarRoof2,
-    title: "Save on Electricity Bills",
-    subtitle: "Generate your own clean energy"
+    image: solarInstallation,
+    title: "Expert Installation Team",
+    subtitle: "Professional technicians across Bihar, Jharkhand, UP & Odisha"
   },
   {
-    image: solarInstall2,
-    title: "Trusted Service Network",
-    subtitle: "Pan-India installation partners"
+    image: indianBungalow,
+    title: "Up to Rs 78,000 Subsidy",
+    subtitle: "Government subsidy on DCR solar panels for your home"
   },
   {
-    image: solarRoof3,
-    title: "25+ Years of Clean Energy",
-    subtitle: "Long-lasting solar panels with warranty"
+    image: indianColony,
+    title: "Solar for Every Neighborhood",
+    subtitle: "Building a greener India, one rooftop at a time"
   }
 ];
 
@@ -72,23 +72,23 @@ export function HeroSlider() {
   }, [emblaApi]);
 
   return (
-    <div className="relative w-full rounded-xl overflow-hidden shadow-2xl">
+    <div className="relative w-full overflow-hidden">
       <div className="overflow-hidden" ref={emblaRef}>
         <div className="flex">
           {slides.map((slide, index) => (
             <div key={index} className="flex-[0_0_100%] min-w-0 relative">
-              <div className="relative aspect-[16/9] md:aspect-[21/9]">
+              <div className="relative h-[50vh] md:h-[70vh] lg:h-[80vh]">
                 <img
                   src={slide.image}
                   alt={slide.title}
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10">
-                  <h3 className="text-white text-xl md:text-3xl font-bold mb-2">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" />
+                <div className="absolute bottom-0 left-0 right-0 p-8 md:p-16 lg:p-20">
+                  <h3 className="text-white text-2xl md:text-4xl lg:text-5xl font-bold mb-3 drop-shadow-lg">
                     {slide.title}
                   </h3>
-                  <p className="text-white/80 text-sm md:text-lg">
+                  <p className="text-white/90 text-base md:text-xl lg:text-2xl drop-shadow-md max-w-3xl">
                     {slide.subtitle}
                   </p>
                 </div>
@@ -101,31 +101,31 @@ export function HeroSlider() {
       <Button
         variant="ghost"
         size="icon"
-        className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white backdrop-blur-sm"
+        className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 bg-white/20 text-white backdrop-blur-sm w-12 h-12 md:w-14 md:h-14"
         onClick={scrollPrev}
         data-testid="button-slider-prev"
       >
-        <ChevronLeft className="w-6 h-6" />
+        <ChevronLeft className="w-8 h-8" />
       </Button>
 
       <Button
         variant="ghost"
         size="icon"
-        className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white backdrop-blur-sm"
+        className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 bg-white/20 text-white backdrop-blur-sm w-12 h-12 md:w-14 md:h-14"
         onClick={scrollNext}
         data-testid="button-slider-next"
       >
-        <ChevronRight className="w-6 h-6" />
+        <ChevronRight className="w-8 h-8" />
       </Button>
 
-      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2">
+      <div className="absolute bottom-6 md:bottom-10 left-1/2 -translate-x-1/2 flex gap-3">
         {slides.map((_, index) => (
           <button
             key={index}
-            className={`w-2 h-2 rounded-full transition-all ${
+            className={`h-3 rounded-full transition-all ${
               index === selectedIndex
-                ? "bg-white w-6"
-                : "bg-white/50 hover:bg-white/70"
+                ? "bg-white w-10"
+                : "bg-white/50 w-3"
             }`}
             onClick={() => emblaApi?.scrollTo(index)}
             data-testid={`button-slider-dot-${index}`}
