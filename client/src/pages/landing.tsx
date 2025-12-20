@@ -21,7 +21,10 @@ import {
   Menu,
   X,
   MapPin,
-  BarChart3
+  BarChart3,
+  Phone,
+  Mail,
+  MapPinned
 } from "lucide-react";
 import { useState } from "react";
 
@@ -980,26 +983,140 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Contact Us Section */}
+      <section id="contact" className="py-20 bg-muted/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-4">Contact Us</h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Get in touch with our team for solar installation inquiries or partnership opportunities
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card>
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <MapPinned className="w-6 h-6 text-primary" />
+                </div>
+                <h3 className="font-semibold text-lg mb-2">Office Address</h3>
+                <p className="text-muted-foreground text-sm">
+                  PIPARWAN, PANCHAYAT-JAITIPUR,<br />
+                  NAUBATPUR, PATNA 800014
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <Phone className="w-6 h-6 text-primary" />
+                </div>
+                <h3 className="font-semibold text-lg mb-2">Chandrakant Akela</h3>
+                <p className="text-muted-foreground text-sm">
+                  <a href="tel:9801005212" className="hover:text-primary">9801005212</a><br />
+                  <a href="tel:8709127232" className="hover:text-primary">8709127232</a>
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  <a href="mailto:chandrakant@apnaatm.com" className="hover:text-primary">chandrakant@apnaatm.com</a>
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <Phone className="w-6 h-6 text-primary" />
+                </div>
+                <h3 className="font-semibold text-lg mb-2">Anil</h3>
+                <p className="text-muted-foreground text-sm">
+                  <a href="tel:9123141987" className="hover:text-primary">9123141987</a>
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  <a href="mailto:anil@apnaatm.com" className="hover:text-primary">anil@apnaatm.com</a>
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <Phone className="w-6 h-6 text-primary" />
+                </div>
+                <h3 className="font-semibold text-lg mb-2">Sanjay</h3>
+                <p className="text-muted-foreground text-sm">
+                  <a href="tel:8777684575" className="hover:text-primary">8777684575</a>
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  <a href="mailto:sanjay@apnaatm.com" className="hover:text-primary">sanjay@apnaatm.com</a>
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="py-12 border-t">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <Sun className="w-5 h-5 text-primary-foreground" />
+          <div className="grid md:grid-cols-4 gap-8 mb-8">
+            {/* Company Info */}
+            <div className="md:col-span-2">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+                  <Sun className="w-6 h-6 text-primary-foreground" />
+                </div>
+                <span className="font-bold text-xl">Divyanshi Solar</span>
               </div>
-              <span className="font-bold">DivyanshiSolar</span>
+              <p className="text-sm text-muted-foreground mb-4">
+                A brand of Divyanshi Digital Services Pvt. Ltd.<br />
+                Authorized Partner Network for PM Surya Ghar Yojana
+              </p>
+              <p className="text-xs text-muted-foreground">
+                CIN: Incorporated 11th December 2017
+              </p>
             </div>
+
+            {/* Quick Links */}
+            <div>
+              <h4 className="font-semibold mb-4">Quick Links</h4>
+              <div className="flex flex-col gap-2">
+                <WouterLink href="/subsidy-calculator" className="text-sm text-muted-foreground hover:text-foreground">
+                  Subsidy Calculator
+                </WouterLink>
+                <WouterLink href="/login" className="text-sm text-muted-foreground hover:text-foreground">
+                  Partner Login
+                </WouterLink>
+                <WouterLink href="/register" className="text-sm text-muted-foreground hover:text-foreground">
+                  Join Network
+                </WouterLink>
+              </div>
+            </div>
+
+            {/* Legal */}
+            <div>
+              <h4 className="font-semibold mb-4">Legal</h4>
+              <div className="flex flex-col gap-2">
+                <WouterLink href="/privacy-policy" className="text-sm text-muted-foreground hover:text-foreground">
+                  Privacy Policy
+                </WouterLink>
+                <WouterLink href="/disclaimer" className="text-sm text-muted-foreground hover:text-foreground">
+                  Disclaimer
+                </WouterLink>
+                <WouterLink href="/terms-and-conditions" className="text-sm text-muted-foreground hover:text-foreground">
+                  Terms and Conditions
+                </WouterLink>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Bar */}
+          <div className="pt-8 border-t flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="text-sm text-muted-foreground">
-              Authorized Partner Network for PM Surya Ghar Yojana
+              2024 Divyanshi Digital Services Pvt. Ltd. All rights reserved.
             </div>
-            <div className="flex items-center gap-4">
-              <WouterLink href="/login" className="text-sm text-muted-foreground hover:text-foreground">
-                Partner Login
-              </WouterLink>
-              <WouterLink href="/register" className="text-sm text-muted-foreground hover:text-foreground">
-                Join Network
-              </WouterLink>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <span>Powering India with Solar Energy</span>
             </div>
           </div>
         </div>

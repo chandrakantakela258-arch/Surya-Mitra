@@ -40,6 +40,9 @@ import AdminProducts from "@/pages/admin/products";
 import AdminOrders from "@/pages/admin/orders";
 import AdminFeedback from "@/pages/admin/feedback";
 import ProfilePage from "@/pages/profile";
+import PrivacyPolicyPage from "@/pages/privacy-policy";
+import DisclaimerPage from "@/pages/disclaimer";
+import TermsAndConditionsPage from "@/pages/terms-and-conditions";
 
 function LoadingScreen() {
   return (
@@ -312,6 +315,15 @@ function PublicRouter() {
       </Route>
       <Route path="/subsidy-calculator">
         <SubsidyCalculatorPage />
+      </Route>
+      <Route path="/privacy-policy">
+        <PrivacyPolicyPage />
+      </Route>
+      <Route path="/disclaimer">
+        <DisclaimerPage />
+      </Route>
+      <Route path="/terms-and-conditions">
+        <TermsAndConditionsPage />
       </Route>
       <Route path="/login">
         {user ? (
