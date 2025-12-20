@@ -75,6 +75,10 @@ export const customers = pgTable("customers", {
   longitude: text("longitude"),
   installationDate: timestamp("installation_date"),
   
+  // Site Media (uploaded by DDP)
+  sitePictures: text("site_pictures").array(), // 6 pictures from all angles
+  siteVideo: text("site_video"), // 9:16 Instagram-style video URL (max 60 seconds)
+  
   // Timestamps
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
