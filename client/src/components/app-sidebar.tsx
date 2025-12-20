@@ -23,6 +23,8 @@ import {
   Award,
   Zap,
   ChevronRight,
+  Gift,
+  Trophy,
 } from "lucide-react";
 import { FeedbackDialog } from "@/components/feedback-dialog";
 import { ChatbotAssistant } from "@/components/chatbot-assistant";
@@ -114,6 +116,13 @@ const bdpMenuSections: MenuSection[] = [
     ],
   },
   {
+    label: "Growth",
+    items: [
+      { title: "Referrals", url: "/referrals", icon: Gift, highlight: true },
+      { title: "Leaderboard", url: "/leaderboard", icon: Trophy },
+    ],
+  },
+  {
     label: "Tools",
     items: [
       { title: "My Profile", url: "/profile", icon: User },
@@ -142,6 +151,13 @@ const ddpMenuSections: MenuSection[] = [
     items: [
       { title: "Store", url: "/ddp/store", icon: ShoppingCart },
       { title: "Earnings", url: "/ddp/earnings", icon: Wallet },
+    ],
+  },
+  {
+    label: "Growth",
+    items: [
+      { title: "Referrals", url: "/referrals", icon: Gift, highlight: true },
+      { title: "Leaderboard", url: "/leaderboard", icon: Trophy },
     ],
   },
   {

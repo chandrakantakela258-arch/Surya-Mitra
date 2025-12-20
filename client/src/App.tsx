@@ -45,6 +45,10 @@ import PrivacyPolicyPage from "@/pages/privacy-policy";
 import DisclaimerPage from "@/pages/disclaimer";
 import TermsAndConditionsPage from "@/pages/terms-and-conditions";
 import NotificationsPage from "@/pages/notifications";
+import NewsPage from "@/pages/news";
+import PanelComparisonPage from "@/pages/panel-comparison";
+import LeaderboardPage from "@/pages/leaderboard";
+import ReferralsPage from "@/pages/referrals";
 
 function LoadingScreen() {
   return (
@@ -309,6 +313,13 @@ function AuthenticatedRoutes() {
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
+      <Route path="/referrals">
+        <ProtectedRoute allowedRoles={["bdp", "ddp", "admin"]}>
+          <DashboardLayout>
+            <ReferralsPage />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
 
       {/* Fallback */}
       <Route component={NotFound} />
@@ -340,6 +351,15 @@ function PublicRouter() {
       </Route>
       <Route path="/terms-and-conditions">
         <TermsAndConditionsPage />
+      </Route>
+      <Route path="/news">
+        <NewsPage />
+      </Route>
+      <Route path="/panels">
+        <PanelComparisonPage />
+      </Route>
+      <Route path="/leaderboard">
+        <LeaderboardPage />
       </Route>
       <Route path="/login">
         {user ? (

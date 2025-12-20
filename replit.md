@@ -95,6 +95,42 @@ DDPs can collect payments from customers for solar products and services via the
 - Secure checkout via Razorpay
 - Order history and status tracking
 
+### Partner Engagement Features (New)
+
+**1. News & Updates Section**
+- Public news feed with categories (news, update, announcement, policy)
+- View count tracking and tags support
+- Admin management for creating/editing/publishing posts
+- Route: `/news`
+
+**2. Panel Comparison Tool**
+- Compare DCR vs Non-DCR solar panels
+- View specifications: capacity, efficiency, technology, warranty
+- Subsidy eligibility indicator
+- Route: `/panels`
+
+**3. Partner Leaderboard**
+- Monthly, quarterly, and yearly rankings
+- Points system: 10 pts/installation, 20 pts/referral, 5 pts/kW
+- Badges: Gold, Silver, Bronze, Rising Star
+- Route: `/leaderboard`
+
+**4. Referral Program**
+- Unique referral codes per partner
+- Reward structure: Rs 1,000 for customer referrals, Rs 2,000 for partner referrals
+- Referral tracking and status management
+- Route: `/referrals` (protected, partner dashboard)
+
+**5. Installation Map View**
+- Geographic visualization of completed installations
+- State/district grouping with count statistics
+- Admin can update customer coordinates
+
+**6. Notification Templates**
+- Admin-managed SMS/Email/WhatsApp templates
+- Trigger-based automation (status changes, milestones)
+- Variable placeholders for personalization
+
 ## System Architecture
 
 ### Frontend Architecture

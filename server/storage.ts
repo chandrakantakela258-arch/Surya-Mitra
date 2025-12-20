@@ -16,6 +16,11 @@ import {
   chatbotFaq,
   incentiveTargets,
   performanceMetrics,
+  newsPosts,
+  panelModels,
+  leaderboard,
+  referrals,
+  notificationTemplates,
   type User, 
   type InsertUser, 
   type Customer, 
@@ -50,6 +55,16 @@ import {
   type InsertIncentiveTarget,
   type PerformanceMetrics,
   type InsertPerformanceMetrics,
+  type NewsPost,
+  type InsertNewsPost,
+  type PanelModel,
+  type InsertPanelModel,
+  type Leaderboard,
+  type InsertLeaderboard,
+  type Referral,
+  type InsertReferral,
+  type NotificationTemplate,
+  type InsertNotificationTemplate,
   installationMilestones,
   calculateCommission,
   calculateBdpCommission,
@@ -216,6 +231,50 @@ export interface IStorage {
     bonusCommission: number;
     currentMonthEarnings: number;
   }>;
+  
+  // News & Updates operations
+  getAllNewsPosts(): Promise<NewsPost[]>;
+  getPublishedNewsPosts(): Promise<NewsPost[]>;
+  getNewsPost(id: string): Promise<NewsPost | undefined>;
+  getNewsPostBySlug(slug: string): Promise<NewsPost | undefined>;
+  createNewsPost(post: InsertNewsPost): Promise<NewsPost>;
+  updateNewsPost(id: string, data: Partial<NewsPost>): Promise<NewsPost | undefined>;
+  deleteNewsPost(id: string): Promise<boolean>;
+  incrementNewsViewCount(id: string): Promise<void>;
+  
+  // Panel Models operations
+  getAllPanelModels(): Promise<PanelModel[]>;
+  getActivePanelModels(): Promise<PanelModel[]>;
+  getPanelModel(id: string): Promise<PanelModel | undefined>;
+  createPanelModel(model: InsertPanelModel): Promise<PanelModel>;
+  updatePanelModel(id: string, data: Partial<PanelModel>): Promise<PanelModel | undefined>;
+  deletePanelModel(id: string): Promise<boolean>;
+  
+  // Leaderboard operations
+  getLeaderboard(period: string, year: number, month?: number): Promise<(Leaderboard & { partner?: User })[]>;
+  updateLeaderboard(period: string, year: number, month?: number): Promise<void>;
+  
+  // Referral operations
+  getReferralsByReferrerId(referrerId: string): Promise<Referral[]>;
+  getReferralByCode(code: string): Promise<Referral | undefined>;
+  createReferral(referral: InsertReferral): Promise<Referral>;
+  updateReferralStatus(id: string, status: string, conversionDate?: Date): Promise<Referral | undefined>;
+  generateReferralCode(partnerId: string): Promise<string>;
+  getUserByReferralCode(code: string): Promise<User | undefined>;
+  updateUserReferralCode(userId: string, code: string): Promise<User | undefined>;
+  
+  // Notification Template operations
+  getAllNotificationTemplates(): Promise<NotificationTemplate[]>;
+  getActiveNotificationTemplates(): Promise<NotificationTemplate[]>;
+  getNotificationTemplateByTrigger(trigger: string, triggerValue?: string): Promise<NotificationTemplate[]>;
+  createNotificationTemplate(template: InsertNotificationTemplate): Promise<NotificationTemplate>;
+  updateNotificationTemplate(id: string, data: Partial<NotificationTemplate>): Promise<NotificationTemplate | undefined>;
+  deleteNotificationTemplate(id: string): Promise<boolean>;
+  
+  // Map data operations
+  getInstallationLocations(): Promise<{ state: string; district: string; count: number; latitude?: string; longitude?: string }[]>;
+  getCustomersWithLocations(): Promise<Customer[]>;
+  updateCustomerLocation(id: string, latitude: string, longitude: string): Promise<Customer | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1253,6 +1312,310 @@ export class DatabaseStorage implements IStorage {
       bonusCommission,
       currentMonthEarnings,
     };
+  }
+
+  // ===== NEWS & UPDATES OPERATIONS =====
+  async getAllNewsPosts(): Promise<NewsPost[]> {
+    return await db.select().from(newsPosts).orderBy(desc(newsPosts.createdAt));
+  }
+
+  async getPublishedNewsPosts(): Promise<NewsPost[]> {
+    return await db.select().from(newsPosts)
+      .where(eq(newsPosts.isPublished, "true"))
+      .orderBy(desc(newsPosts.publishedAt));
+  }
+
+  async getNewsPost(id: string): Promise<NewsPost | undefined> {
+    const [post] = await db.select().from(newsPosts).where(eq(newsPosts.id, id));
+    return post || undefined;
+  }
+
+  async getNewsPostBySlug(slug: string): Promise<NewsPost | undefined> {
+    const [post] = await db.select().from(newsPosts).where(eq(newsPosts.slug, slug));
+    return post || undefined;
+  }
+
+  async createNewsPost(post: InsertNewsPost): Promise<NewsPost> {
+    const [created] = await db.insert(newsPosts).values(post).returning();
+    return created;
+  }
+
+  async updateNewsPost(id: string, data: Partial<NewsPost>): Promise<NewsPost | undefined> {
+    const [updated] = await db.update(newsPosts)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(newsPosts.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteNewsPost(id: string): Promise<boolean> {
+    const result = await db.delete(newsPosts).where(eq(newsPosts.id, id));
+    return true;
+  }
+
+  async incrementNewsViewCount(id: string): Promise<void> {
+    await db.update(newsPosts)
+      .set({ viewCount: sql`COALESCE(${newsPosts.viewCount}, 0) + 1` })
+      .where(eq(newsPosts.id, id));
+  }
+
+  // ===== PANEL MODELS OPERATIONS =====
+  async getAllPanelModels(): Promise<PanelModel[]> {
+    return await db.select().from(panelModels).orderBy(panelModels.sortOrder);
+  }
+
+  async getActivePanelModels(): Promise<PanelModel[]> {
+    return await db.select().from(panelModels)
+      .where(eq(panelModels.isActive, "active"))
+      .orderBy(panelModels.sortOrder);
+  }
+
+  async getPanelModel(id: string): Promise<PanelModel | undefined> {
+    const [model] = await db.select().from(panelModels).where(eq(panelModels.id, id));
+    return model || undefined;
+  }
+
+  async createPanelModel(model: InsertPanelModel): Promise<PanelModel> {
+    const [created] = await db.insert(panelModels).values(model).returning();
+    return created;
+  }
+
+  async updatePanelModel(id: string, data: Partial<PanelModel>): Promise<PanelModel | undefined> {
+    const [updated] = await db.update(panelModels)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(panelModels.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deletePanelModel(id: string): Promise<boolean> {
+    await db.delete(panelModels).where(eq(panelModels.id, id));
+    return true;
+  }
+
+  // ===== LEADERBOARD OPERATIONS =====
+  async getLeaderboard(period: string, year: number, month?: number): Promise<(Leaderboard & { partner?: User })[]> {
+    let conditions = and(
+      eq(leaderboard.period, period),
+      eq(leaderboard.year, year)
+    );
+    
+    if (month !== undefined) {
+      conditions = and(conditions, eq(leaderboard.month, month));
+    }
+    
+    const entries = await db.select().from(leaderboard)
+      .where(conditions!)
+      .orderBy(leaderboard.rank);
+    
+    // Fetch partner details for each entry
+    const result: (Leaderboard & { partner?: User })[] = [];
+    for (const entry of entries) {
+      const partner = await this.getUser(entry.partnerId);
+      result.push({ ...entry, partner });
+    }
+    
+    return result;
+  }
+
+  async updateLeaderboard(period: string, year: number, month?: number): Promise<void> {
+    // Get all approved partners with their performance
+    const partners = await db.select().from(users)
+      .where(and(
+        eq(users.status, "approved"),
+        inArray(users.role, ["ddp", "bdp"])
+      ));
+    
+    // Calculate points and rankings for each partner
+    const rankings: { partnerId: string; partnerType: string; points: number; installations: number; capacity: number; commission: number; referrals: number }[] = [];
+    
+    for (const partner of partners) {
+      const commissionData = await this.getCommissionSummaryByPartnerId(partner.id, partner.role);
+      const referralsCount = await db.select().from(referrals)
+        .where(and(
+          eq(referrals.referrerId, partner.id),
+          eq(referrals.status, "converted")
+        ));
+      
+      // Points calculation: installations * 10 + capacity * 5 + referrals * 20
+      const points = (commissionData.totalInstallations * 10) + (referralsCount.length * 20);
+      
+      rankings.push({
+        partnerId: partner.id,
+        partnerType: partner.role,
+        points,
+        installations: commissionData.totalInstallations,
+        capacity: 0, // Will be calculated from performance metrics if needed
+        commission: commissionData.totalEarned,
+        referrals: referralsCount.length
+      });
+    }
+    
+    // Sort by points descending
+    rankings.sort((a, b) => b.points - a.points);
+    
+    // Delete existing leaderboard entries for this period
+    let deleteConditions = and(
+      eq(leaderboard.period, period),
+      eq(leaderboard.year, year)
+    );
+    if (month !== undefined) {
+      deleteConditions = and(deleteConditions, eq(leaderboard.month, month));
+    }
+    await db.delete(leaderboard).where(deleteConditions!);
+    
+    // Insert new rankings
+    for (let i = 0; i < rankings.length; i++) {
+      const r = rankings[i];
+      let badge: string | null = null;
+      if (i === 0) badge = "gold";
+      else if (i === 1) badge = "silver";
+      else if (i === 2) badge = "bronze";
+      else if (i < 10) badge = "rising_star";
+      
+      await db.insert(leaderboard).values({
+        partnerId: r.partnerId,
+        partnerType: r.partnerType,
+        period,
+        year,
+        month: month || null,
+        rank: i + 1,
+        points: r.points,
+        totalInstallations: r.installations,
+        totalCapacityKw: r.capacity,
+        totalCommission: r.commission,
+        totalReferrals: r.referrals,
+        badge
+      });
+    }
+  }
+
+  // ===== REFERRAL OPERATIONS =====
+  async getReferralsByReferrerId(referrerId: string): Promise<Referral[]> {
+    return await db.select().from(referrals)
+      .where(eq(referrals.referrerId, referrerId))
+      .orderBy(desc(referrals.createdAt));
+  }
+
+  async getReferralByCode(code: string): Promise<Referral | undefined> {
+    const [referral] = await db.select().from(referrals)
+      .where(eq(referrals.referralCode, code));
+    return referral || undefined;
+  }
+
+  async createReferral(referral: InsertReferral): Promise<Referral> {
+    const [created] = await db.insert(referrals).values(referral).returning();
+    return created;
+  }
+
+  async updateReferralStatus(id: string, status: string, conversionDate?: Date): Promise<Referral | undefined> {
+    const updateData: any = { status };
+    if (conversionDate) {
+      updateData.conversionDate = conversionDate;
+    }
+    const [updated] = await db.update(referrals)
+      .set(updateData)
+      .where(eq(referrals.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async generateReferralCode(partnerId: string): Promise<string> {
+    // Generate a unique referral code
+    const partner = await this.getUser(partnerId);
+    const prefix = partner?.name?.substring(0, 3).toUpperCase() || "REF";
+    const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+    return `${prefix}${randomPart}`;
+  }
+
+  async getUserByReferralCode(code: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users)
+      .where(eq(users.referralCode, code));
+    return user || undefined;
+  }
+
+  async updateUserReferralCode(userId: string, code: string): Promise<User | undefined> {
+    const [updated] = await db.update(users)
+      .set({ referralCode: code })
+      .where(eq(users.id, userId))
+      .returning();
+    return updated || undefined;
+  }
+
+  // ===== NOTIFICATION TEMPLATE OPERATIONS =====
+  async getAllNotificationTemplates(): Promise<NotificationTemplate[]> {
+    return await db.select().from(notificationTemplates).orderBy(notificationTemplates.name);
+  }
+
+  async getActiveNotificationTemplates(): Promise<NotificationTemplate[]> {
+    return await db.select().from(notificationTemplates)
+      .where(eq(notificationTemplates.isActive, "true"));
+  }
+
+  async getNotificationTemplateByTrigger(trigger: string, triggerValue?: string): Promise<NotificationTemplate[]> {
+    let conditions = eq(notificationTemplates.trigger, trigger);
+    if (triggerValue) {
+      conditions = and(conditions, eq(notificationTemplates.triggerValue, triggerValue))!;
+    }
+    return await db.select().from(notificationTemplates)
+      .where(and(conditions, eq(notificationTemplates.isActive, "true")));
+  }
+
+  async createNotificationTemplate(template: InsertNotificationTemplate): Promise<NotificationTemplate> {
+    const [created] = await db.insert(notificationTemplates).values(template).returning();
+    return created;
+  }
+
+  async updateNotificationTemplate(id: string, data: Partial<NotificationTemplate>): Promise<NotificationTemplate | undefined> {
+    const [updated] = await db.update(notificationTemplates)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(notificationTemplates.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteNotificationTemplate(id: string): Promise<boolean> {
+    await db.delete(notificationTemplates).where(eq(notificationTemplates.id, id));
+    return true;
+  }
+
+  // ===== MAP DATA OPERATIONS =====
+  async getInstallationLocations(): Promise<{ state: string; district: string; count: number; latitude?: string; longitude?: string }[]> {
+    // Group customers by state and district
+    const result = await db.select({
+      state: customers.state,
+      district: customers.district,
+      count: sql<number>`COUNT(*)::int`,
+      latitude: sql<string>`MAX(${customers.latitude})`,
+      longitude: sql<string>`MAX(${customers.longitude})`
+    })
+    .from(customers)
+    .where(eq(customers.status, "completed"))
+    .groupBy(customers.state, customers.district);
+    
+    return result.map(r => ({
+      state: r.state,
+      district: r.district,
+      count: r.count,
+      latitude: r.latitude || undefined,
+      longitude: r.longitude || undefined
+    }));
+  }
+
+  async getCustomersWithLocations(): Promise<Customer[]> {
+    return await db.select().from(customers)
+      .where(and(
+        eq(customers.status, "completed"),
+        sql`${customers.latitude} IS NOT NULL`
+      ));
+  }
+
+  async updateCustomerLocation(id: string, latitude: string, longitude: string): Promise<Customer | undefined> {
+    const [updated] = await db.update(customers)
+      .set({ latitude, longitude, updatedAt: new Date() })
+      .where(eq(customers.id, id))
+      .returning();
+    return updated || undefined;
   }
 }
 

@@ -1879,5 +1879,356 @@ export async function registerRoutes(
     }
   });
 
+  // ===== NEWS & UPDATES ROUTES =====
+  
+  // Public: Get published news
+  app.get("/api/public/news", async (req, res) => {
+    try {
+      const posts = await storage.getPublishedNewsPosts();
+      res.json(posts);
+    } catch (error) {
+      console.error("Get published news error:", error);
+      res.status(500).json({ message: "Failed to get news" });
+    }
+  });
+
+  // Public: Get single news post by slug
+  app.get("/api/public/news/:slug", async (req, res) => {
+    try {
+      const post = await storage.getNewsPostBySlug(req.params.slug);
+      if (!post || post.isPublished !== "true") {
+        return res.status(404).json({ message: "News post not found" });
+      }
+      await storage.incrementNewsViewCount(post.id);
+      res.json(post);
+    } catch (error) {
+      console.error("Get news post error:", error);
+      res.status(500).json({ message: "Failed to get news post" });
+    }
+  });
+
+  // Admin: Get all news posts
+  app.get("/api/admin/news", requireAdmin, async (req, res) => {
+    try {
+      const posts = await storage.getAllNewsPosts();
+      res.json(posts);
+    } catch (error) {
+      console.error("Get all news error:", error);
+      res.status(500).json({ message: "Failed to get news" });
+    }
+  });
+
+  // Admin: Create news post
+  app.post("/api/admin/news", requireAdmin, async (req, res) => {
+    try {
+      const { title, summary, content, category, imageUrl, tags, isPublished } = req.body;
+      const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      const publishedValue = isPublished === true || isPublished === "true" ? "true" : "false";
+      const post = await storage.createNewsPost({
+        title,
+        slug: `${slug}-${Date.now()}`,
+        summary,
+        content,
+        category: category || "news",
+        imageUrl,
+        authorId: req.user?.id,
+        isPublished: publishedValue,
+        publishedAt: publishedValue === "true" ? new Date() : null,
+        tags: tags || [],
+      });
+      res.status(201).json(post);
+    } catch (error) {
+      console.error("Create news error:", error);
+      res.status(500).json({ message: "Failed to create news post" });
+    }
+  });
+
+  // Admin: Update news post
+  app.patch("/api/admin/news/:id", requireAdmin, async (req, res) => {
+    try {
+      const data = { ...req.body };
+      if (data.isPublished !== undefined) {
+        data.isPublished = data.isPublished === true || data.isPublished === "true" ? "true" : "false";
+      }
+      if (data.isPublished === "true" && !data.publishedAt) {
+        data.publishedAt = new Date();
+      }
+      const post = await storage.updateNewsPost(req.params.id, data);
+      if (!post) {
+        return res.status(404).json({ message: "News post not found" });
+      }
+      res.json(post);
+    } catch (error) {
+      console.error("Update news error:", error);
+      res.status(500).json({ message: "Failed to update news post" });
+    }
+  });
+
+  // Admin: Delete news post
+  app.delete("/api/admin/news/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteNewsPost(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete news error:", error);
+      res.status(500).json({ message: "Failed to delete news post" });
+    }
+  });
+
+  // ===== PANEL COMPARISON ROUTES =====
+  
+  // Public: Get active panel models for comparison
+  app.get("/api/public/panels", async (req, res) => {
+    try {
+      const models = await storage.getActivePanelModels();
+      res.json(models);
+    } catch (error) {
+      console.error("Get panels error:", error);
+      res.status(500).json({ message: "Failed to get panel models" });
+    }
+  });
+
+  // Admin: Get all panel models
+  app.get("/api/admin/panels", requireAdmin, async (req, res) => {
+    try {
+      const models = await storage.getAllPanelModels();
+      res.json(models);
+    } catch (error) {
+      console.error("Get all panels error:", error);
+      res.status(500).json({ message: "Failed to get panel models" });
+    }
+  });
+
+  // Admin: Create panel model
+  app.post("/api/admin/panels", requireAdmin, async (req, res) => {
+    try {
+      const model = await storage.createPanelModel(req.body);
+      res.status(201).json(model);
+    } catch (error) {
+      console.error("Create panel error:", error);
+      res.status(500).json({ message: "Failed to create panel model" });
+    }
+  });
+
+  // Admin: Update panel model
+  app.patch("/api/admin/panels/:id", requireAdmin, async (req, res) => {
+    try {
+      const model = await storage.updatePanelModel(req.params.id, req.body);
+      if (!model) {
+        return res.status(404).json({ message: "Panel model not found" });
+      }
+      res.json(model);
+    } catch (error) {
+      console.error("Update panel error:", error);
+      res.status(500).json({ message: "Failed to update panel model" });
+    }
+  });
+
+  // Admin: Delete panel model
+  app.delete("/api/admin/panels/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deletePanelModel(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete panel error:", error);
+      res.status(500).json({ message: "Failed to delete panel model" });
+    }
+  });
+
+  // ===== LEADERBOARD ROUTES =====
+  
+  // Public/Partner: Get leaderboard
+  app.get("/api/leaderboard", async (req, res) => {
+    try {
+      const { period = "monthly", year, month } = req.query;
+      const currentYear = year ? parseInt(year as string) : new Date().getFullYear();
+      const currentMonth = month ? parseInt(month as string) : new Date().getMonth() + 1;
+      
+      const entries = await storage.getLeaderboard(
+        period as string,
+        currentYear,
+        period === "monthly" ? currentMonth : undefined
+      );
+      res.json(entries);
+    } catch (error) {
+      console.error("Get leaderboard error:", error);
+      res.status(500).json({ message: "Failed to get leaderboard" });
+    }
+  });
+
+  // Admin: Refresh leaderboard
+  app.post("/api/admin/leaderboard/refresh", requireAdmin, async (req, res) => {
+    try {
+      const { period = "monthly" } = req.body;
+      const year = new Date().getFullYear();
+      const month = new Date().getMonth() + 1;
+      
+      await storage.updateLeaderboard(period, year, period === "monthly" ? month : undefined);
+      res.json({ success: true, message: "Leaderboard refreshed" });
+    } catch (error) {
+      console.error("Refresh leaderboard error:", error);
+      res.status(500).json({ message: "Failed to refresh leaderboard" });
+    }
+  });
+
+  // ===== REFERRAL ROUTES =====
+  
+  // Partner: Get my referrals
+  app.get("/api/referrals", requireAuth, async (req, res) => {
+    try {
+      const referrals = await storage.getReferralsByReferrerId(req.user!.id);
+      res.json(referrals);
+    } catch (error) {
+      console.error("Get referrals error:", error);
+      res.status(500).json({ message: "Failed to get referrals" });
+    }
+  });
+
+  // Partner: Get or generate my referral code
+  app.get("/api/referral-code", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user!.id);
+      if (user?.referralCode) {
+        return res.json({ code: user.referralCode });
+      }
+      
+      // Generate a new code
+      const code = await storage.generateReferralCode(req.user!.id);
+      await storage.updateUserReferralCode(req.user!.id, code);
+      res.json({ code });
+    } catch (error) {
+      console.error("Get referral code error:", error);
+      res.status(500).json({ message: "Failed to get referral code" });
+    }
+  });
+
+  // Public: Validate referral code
+  app.get("/api/public/validate-referral/:code", async (req, res) => {
+    try {
+      const user = await storage.getUserByReferralCode(req.params.code);
+      if (!user) {
+        return res.status(404).json({ valid: false, message: "Invalid referral code" });
+      }
+      res.json({ valid: true, referrerName: user.name, referrerId: user.id });
+    } catch (error) {
+      console.error("Validate referral error:", error);
+      res.status(500).json({ message: "Failed to validate referral code" });
+    }
+  });
+
+  // Partner: Create referral tracking
+  app.post("/api/referrals", requireAuth, async (req, res) => {
+    try {
+      const { referredType, referredCustomerId, referredPartnerId } = req.body;
+      const user = await storage.getUser(req.user!.id);
+      
+      if (!user?.referralCode) {
+        return res.status(400).json({ message: "You need a referral code first" });
+      }
+      
+      const referral = await storage.createReferral({
+        referrerId: req.user!.id,
+        referredType,
+        referredCustomerId,
+        referredPartnerId,
+        referralCode: user.referralCode,
+        status: "pending",
+        rewardAmount: referredType === "customer" ? 1000 : 2000, // Rs 1000 for customer, Rs 2000 for partner
+      });
+      res.status(201).json(referral);
+    } catch (error) {
+      console.error("Create referral error:", error);
+      res.status(500).json({ message: "Failed to create referral" });
+    }
+  });
+
+  // ===== MAP VIEW ROUTES =====
+  
+  // Public: Get installation locations for map
+  app.get("/api/public/installations-map", async (req, res) => {
+    try {
+      const locations = await storage.getInstallationLocations();
+      res.json(locations);
+    } catch (error) {
+      console.error("Get installations map error:", error);
+      res.status(500).json({ message: "Failed to get installation locations" });
+    }
+  });
+
+  // Partner: Get detailed installations for their customers
+  app.get("/api/installations-map", requireAuth, async (req, res) => {
+    try {
+      const customers = await storage.getCustomersWithLocations();
+      res.json(customers);
+    } catch (error) {
+      console.error("Get installations error:", error);
+      res.status(500).json({ message: "Failed to get installations" });
+    }
+  });
+
+  // Admin: Update customer location
+  app.patch("/api/admin/customers/:id/location", requireAdmin, async (req, res) => {
+    try {
+      const { latitude, longitude } = req.body;
+      const customer = await storage.updateCustomerLocation(req.params.id, latitude, longitude);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      res.json(customer);
+    } catch (error) {
+      console.error("Update location error:", error);
+      res.status(500).json({ message: "Failed to update location" });
+    }
+  });
+
+  // ===== NOTIFICATION TEMPLATE ROUTES =====
+  
+  // Admin: Get all notification templates
+  app.get("/api/admin/notification-templates", requireAdmin, async (req, res) => {
+    try {
+      const templates = await storage.getAllNotificationTemplates();
+      res.json(templates);
+    } catch (error) {
+      console.error("Get templates error:", error);
+      res.status(500).json({ message: "Failed to get notification templates" });
+    }
+  });
+
+  // Admin: Create notification template
+  app.post("/api/admin/notification-templates", requireAdmin, async (req, res) => {
+    try {
+      const template = await storage.createNotificationTemplate(req.body);
+      res.status(201).json(template);
+    } catch (error) {
+      console.error("Create template error:", error);
+      res.status(500).json({ message: "Failed to create notification template" });
+    }
+  });
+
+  // Admin: Update notification template
+  app.patch("/api/admin/notification-templates/:id", requireAdmin, async (req, res) => {
+    try {
+      const template = await storage.updateNotificationTemplate(req.params.id, req.body);
+      if (!template) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+      res.json(template);
+    } catch (error) {
+      console.error("Update template error:", error);
+      res.status(500).json({ message: "Failed to update notification template" });
+    }
+  });
+
+  // Admin: Delete notification template
+  app.delete("/api/admin/notification-templates/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteNotificationTemplate(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete template error:", error);
+      res.status(500).json({ message: "Failed to delete notification template" });
+    }
+  });
+
   return httpServer;
 }

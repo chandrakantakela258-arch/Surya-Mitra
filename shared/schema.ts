@@ -1,5 +1,5 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, decimal, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -17,6 +17,7 @@ export const users = pgTable("users", {
   address: text("address"),
   status: text("status").notNull().default("pending"), // pending, approved, rejected
   parentId: varchar("parent_id"), // For DDP, this is the BDP who onboarded them
+  referralCode: text("referral_code").unique(), // Unique referral code for referral program
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -68,6 +69,11 @@ export const customers = pgTable("customers", {
   ifscCode: text("ifsc_code"),
   bankName: text("bank_name"),
   upiId: text("upi_id"),
+  
+  // Location for map view
+  latitude: text("latitude"),
+  longitude: text("longitude"),
+  installationDate: timestamp("installation_date"),
   
   // Timestamps
   createdAt: timestamp("created_at").defaultNow(),
@@ -416,6 +422,127 @@ export const feedbackRelations = relations(feedback, ({ one }) => ({
   }),
 }));
 
+// ===== NEW FEATURES TABLES =====
+
+// 1. News & Updates Section
+export const newsPosts = pgTable("news_posts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  slug: text("slug").notNull().unique(),
+  summary: text("summary").notNull(),
+  content: text("content").notNull(),
+  category: text("category").notNull().default("news"), // news, update, announcement, policy
+  imageUrl: text("image_url"),
+  authorId: varchar("author_id"),
+  isPublished: text("is_published").default("false"),
+  publishedAt: timestamp("published_at"),
+  tags: text("tags").array(),
+  viewCount: integer("view_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const newsPostsRelations = relations(newsPosts, ({ one }) => ({
+  author: one(users, {
+    fields: [newsPosts.authorId],
+    references: [users.id],
+  }),
+}));
+
+// 2. Panel Models for Comparison Tool
+export const panelModels = pgTable("panel_models", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  brand: text("brand").notNull(),
+  type: text("type").notNull().default("dcr"), // dcr, non_dcr
+  capacityWatt: integer("capacity_watt").notNull(), // Wattage per panel
+  efficiency: text("efficiency"), // e.g., "21.5%"
+  warranty: text("warranty"), // e.g., "25 years"
+  pricePerWatt: integer("price_per_watt"), // in INR
+  dimensions: text("dimensions"), // e.g., "2000mm x 1000mm x 40mm"
+  weight: text("weight"), // e.g., "22 kg"
+  technology: text("technology"), // Mono PERC, Poly, Bifacial, etc.
+  features: text("features").array(), // Array of feature strings
+  imageUrl: text("image_url"),
+  specifications: text("specifications"), // JSON string with detailed specs
+  isActive: text("is_active").default("active"),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// 3. Partner Leaderboard (uses existing performanceMetrics, add ranking table)
+export const leaderboard = pgTable("leaderboard", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  partnerId: varchar("partner_id").notNull(),
+  partnerType: text("partner_type").notNull().default("ddp"),
+  period: text("period").notNull(), // monthly, quarterly, yearly
+  month: integer("month"),
+  quarter: integer("quarter"),
+  year: integer("year").notNull(),
+  totalInstallations: integer("total_installations").notNull().default(0),
+  totalCapacityKw: integer("total_capacity_kw").notNull().default(0),
+  totalCommission: integer("total_commission").notNull().default(0),
+  totalReferrals: integer("total_referrals").notNull().default(0),
+  rank: integer("rank").notNull(),
+  badge: text("badge"), // gold, silver, bronze, rising_star
+  points: integer("points").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const leaderboardRelations = relations(leaderboard, ({ one }) => ({
+  partner: one(users, {
+    fields: [leaderboard.partnerId],
+    references: [users.id],
+  }),
+}));
+
+// 4. Referral Program
+export const referrals = pgTable("referrals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  referrerId: varchar("referrer_id").notNull(), // Partner who made the referral
+  referredType: text("referred_type").notNull(), // customer, partner
+  referredCustomerId: varchar("referred_customer_id"), // If referral is a customer
+  referredPartnerId: varchar("referred_partner_id"), // If referral is a partner
+  referralCode: text("referral_code").notNull(),
+  status: text("status").notNull().default("pending"), // pending, converted, expired
+  rewardAmount: integer("reward_amount"), // Reward in INR
+  rewardStatus: text("reward_status").default("pending"), // pending, paid
+  conversionDate: timestamp("conversion_date"),
+  expiresAt: timestamp("expires_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const referralsRelations = relations(referrals, ({ one }) => ({
+  referrer: one(users, {
+    fields: [referrals.referrerId],
+    references: [users.id],
+  }),
+  referredCustomer: one(customers, {
+    fields: [referrals.referredCustomerId],
+    references: [customers.id],
+  }),
+  referredPartner: one(users, {
+    fields: [referrals.referredPartnerId],
+    references: [users.id],
+  }),
+}));
+
+// 5. Notification Templates for automated notifications
+export const notificationTemplates = pgTable("notification_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  trigger: text("trigger").notNull(), // status_change, milestone_complete, referral_converted
+  triggerValue: text("trigger_value"), // e.g., "approved", "completed"
+  channel: text("channel").notNull(), // email, sms, whatsapp, all
+  subject: text("subject"), // For email
+  template: text("template").notNull(), // Message template with placeholders
+  isActive: text("is_active").default("true"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -504,6 +631,35 @@ export const insertChatbotFaqSchema = createInsertSchema(chatbotFaq).omit({
   createdAt: true,
 });
 
+export const insertNewsPostSchema = createInsertSchema(newsPosts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  viewCount: true,
+});
+
+export const insertPanelModelSchema = createInsertSchema(panelModels).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertLeaderboardSchema = createInsertSchema(leaderboard).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertReferralSchema = createInsertSchema(referrals).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertNotificationTemplateSchema = createInsertSchema(notificationTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertFeedbackSchema = createInsertSchema(feedback).omit({
   id: true,
   createdAt: true,
@@ -590,6 +746,16 @@ export type InsertIncentiveTarget = z.infer<typeof insertIncentiveTargetSchema>;
 export type IncentiveTarget = typeof incentiveTargets.$inferSelect;
 export type InsertPerformanceMetrics = z.infer<typeof insertPerformanceMetricsSchema>;
 export type PerformanceMetrics = typeof performanceMetrics.$inferSelect;
+export type InsertNewsPost = z.infer<typeof insertNewsPostSchema>;
+export type NewsPost = typeof newsPosts.$inferSelect;
+export type InsertPanelModel = z.infer<typeof insertPanelModelSchema>;
+export type PanelModel = typeof panelModels.$inferSelect;
+export type InsertLeaderboard = z.infer<typeof insertLeaderboardSchema>;
+export type Leaderboard = typeof leaderboard.$inferSelect;
+export type InsertReferral = z.infer<typeof insertReferralSchema>;
+export type Referral = typeof referrals.$inferSelect;
+export type InsertNotificationTemplate = z.infer<typeof insertNotificationTemplateSchema>;
+export type NotificationTemplate = typeof notificationTemplates.$inferSelect;
 
 // Commission source types
 export const commissionSources = [
