@@ -40,7 +40,6 @@ import AdminProducts from "@/pages/admin/products";
 import AdminOrders from "@/pages/admin/orders";
 import AdminFeedback from "@/pages/admin/feedback";
 import ProfilePage from "@/pages/profile";
-import NotificationsPage from "@/pages/notifications";
 import PrivacyPolicyPage from "@/pages/privacy-policy";
 import DisclaimerPage from "@/pages/disclaimer";
 import TermsAndConditionsPage from "@/pages/terms-and-conditions";
@@ -291,13 +290,6 @@ function AuthenticatedRoutes() {
         <ProtectedRoute allowedRoles={["bdp", "ddp"]}>
           <DashboardLayout>
             <ProfilePage />
-          </DashboardLayout>
-        </ProtectedRoute>
-      </Route>
-      <Route path="/notifications">
-        <ProtectedRoute>
-          <DashboardLayout>
-            <NotificationsPage />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
