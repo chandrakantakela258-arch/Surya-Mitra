@@ -25,6 +25,7 @@ import {
   ChevronRight,
   Gift,
   Trophy,
+  Wrench,
 } from "lucide-react";
 import { FeedbackDialog } from "@/components/feedback-dialog";
 import { ChatbotAssistant } from "@/components/chatbot-assistant";
@@ -88,6 +89,7 @@ const adminMenuSections: MenuSection[] = [
     label: "Tools",
     items: [
       { title: "User Feedback", url: "/admin/feedback", icon: MessageSquare },
+      { title: "Vendor Approvals", url: "/admin/vendors", icon: Wrench },
       { title: "Notifications", url: "/admin/notifications", icon: Bell },
       { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },
     ],
