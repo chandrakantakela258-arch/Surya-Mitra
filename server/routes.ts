@@ -2230,5 +2230,60 @@ export async function registerRoutes(
     }
   });
 
+  // Admin: Test notification
+  app.post("/api/admin/test-notification", requireAdmin, async (req, res) => {
+    try {
+      const { phone, email, message } = req.body;
+      
+      if (!message) {
+        return res.status(400).json({ message: "Message is required" });
+      }
+      
+      const results: { sms?: string; whatsapp?: string; email?: string } = {};
+      
+      if (phone) {
+        try {
+          await notificationService.sendSMS(phone, message);
+          results.sms = "sent";
+        } catch (err) {
+          results.sms = "failed";
+          console.error("Test SMS error:", err);
+        }
+        
+        try {
+          await notificationService.sendWhatsAppMessage(phone, message);
+          results.whatsapp = "sent";
+        } catch (err) {
+          results.whatsapp = "failed";
+          console.error("Test WhatsApp error:", err);
+        }
+      }
+      
+      if (email) {
+        try {
+          await notificationService.sendEmail(
+            email,
+            "Test Notification - Divyanshi Solar",
+            `<div style="font-family: Arial, sans-serif; padding: 20px;">
+              <h2>Test Notification</h2>
+              <p>${message}</p>
+              <hr />
+              <p style="color: #666; font-size: 12px;">This is a test notification from Divyanshi Solar.</p>
+            </div>`
+          );
+          results.email = "sent";
+        } catch (err) {
+          results.email = "failed";
+          console.error("Test email error:", err);
+        }
+      }
+      
+      res.json({ success: true, results });
+    } catch (error) {
+      console.error("Test notification error:", error);
+      res.status(500).json({ message: "Failed to send test notification" });
+    }
+  });
+
   return httpServer;
 }

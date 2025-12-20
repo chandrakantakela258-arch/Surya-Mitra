@@ -88,6 +88,7 @@ const adminMenuSections: MenuSection[] = [
     label: "Tools",
     items: [
       { title: "User Feedback", url: "/admin/feedback", icon: MessageSquare },
+      { title: "Notifications", url: "/admin/notifications", icon: Bell },
       { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },
     ],
   },

@@ -40,6 +40,7 @@ import AdminPayouts from "@/pages/admin/payouts";
 import AdminProducts from "@/pages/admin/products";
 import AdminOrders from "@/pages/admin/orders";
 import AdminFeedback from "@/pages/admin/feedback";
+import AdminNotificationSettings from "@/pages/admin/notifications-settings";
 import ProfilePage from "@/pages/profile";
 import PrivacyPolicyPage from "@/pages/privacy-policy";
 import DisclaimerPage from "@/pages/disclaimer";
@@ -185,6 +186,13 @@ function AuthenticatedRoutes() {
         <ProtectedRoute allowedRoles={["admin"]}>
           <DashboardLayout>
             <AdminFeedback />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/notifications">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminNotificationSettings />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
