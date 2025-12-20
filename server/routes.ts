@@ -868,44 +868,93 @@ export async function registerRoutes(
           customer.ddpId
         );
         
-        // If installation is complete, create commission for the DDP
+        // If installation is complete, create commission for the DDP and/or Customer Partner
         // Skip commission for independent/direct website registrations (no referral code)
         if (milestone.milestone === "installation_complete") {
           // Only create commission if customer was referred (not direct website registration)
           const isIndependentCustomer = customer.source === "website_direct";
           
           if (!isIndependentCustomer) {
-            const commissions = await storage.createCommissionForCustomer(customer.id, customer.ddpId);
-            
-            // Notify about commission earned via WhatsApp/Email
-            if (commissions.ddpCommission) {
-              const ddp = await storage.getUser(customer.ddpId);
-              if (ddp) {
-                await notificationService.notifyCommissionEarned(
-                  customer.ddpId,
-                  ddp.phone,
-                  ddp.email,
-                  commissions.ddpCommission.commissionAmount || 0,
-                  "solar installation",
-                  customer.name
+            // Check if referred by a Customer Partner
+            if (customer.referrerCustomerId) {
+              // Customer was referred by a Customer Partner
+              // Only create commission if capacity is 3kW or above
+              const capacity = parseInt(customer.proposedCapacity || "0");
+              if (capacity >= 3) {
+                // Find the Customer Partner user by their linkedCustomerId
+                const allUsers = await storage.getAllPartners();
+                const customerPartner = allUsers.find(
+                  u => u.role === "customer_partner" && u.linkedCustomerId === customer.referrerCustomerId
                 );
-              }
-            }
-            
-            // Also notify BDP if exists
-            if (commissions.bdpCommission) {
-              const ddp = await storage.getUser(customer.ddpId);
-              if (ddp?.parentId) {
-                const bdp = await storage.getUser(ddp.parentId);
-                if (bdp) {
+                
+                if (customerPartner) {
+                  // Create Rs 10,000 referral commission for Customer Partner
+                  await storage.createCommission({
+                    partnerId: customerPartner.id,
+                    partnerType: "customer_partner",
+                    customerId: customer.id,
+                    capacityKw: capacity,
+                    commissionAmount: 10000, // Fixed Rs 10,000 for customer referrals
+                    panelType: customer.panelType || "dcr",
+                    status: "pending",
+                    commissionType: "customer_referral",
+                  });
+                  
+                  // Notify customer partner
                   await notificationService.notifyCommissionEarned(
-                    bdp.id,
-                    bdp.phone,
-                    bdp.email,
-                    commissions.bdpCommission.commissionAmount || 0,
-                    "solar installation (via partner)",
+                    customerPartner.id,
+                    customerPartner.phone,
+                    customerPartner.email,
+                    10000,
+                    "customer referral",
                     customer.name
                   );
+                  
+                  // Update referral status if exists
+                  const referrals = await storage.getReferralsByReferrerId(customerPartner.id);
+                  const referral = referrals.find(r => r.referredPhone === customer.phone);
+                  if (referral) {
+                    await storage.updateReferral(referral.id, { 
+                      status: "converted",
+                      rewardAmount: 10000,
+                    });
+                  }
+                }
+              }
+            } else {
+              // Original BDP/DDP commission logic (for non-customer-partner referrals)
+              const commissions = await storage.createCommissionForCustomer(customer.id, customer.ddpId);
+              
+              // Notify about commission earned via WhatsApp/Email
+              if (commissions.ddpCommission) {
+                const ddp = await storage.getUser(customer.ddpId);
+                if (ddp) {
+                  await notificationService.notifyCommissionEarned(
+                    customer.ddpId,
+                    ddp.phone,
+                    ddp.email,
+                    commissions.ddpCommission.commissionAmount || 0,
+                    "solar installation",
+                    customer.name
+                  );
+                }
+              }
+              
+              // Also notify BDP if exists
+              if (commissions.bdpCommission) {
+                const ddp = await storage.getUser(customer.ddpId);
+                if (ddp?.parentId) {
+                  const bdp = await storage.getUser(ddp.parentId);
+                  if (bdp) {
+                    await notificationService.notifyCommissionEarned(
+                      bdp.id,
+                      bdp.phone,
+                      bdp.email,
+                      commissions.bdpCommission.commissionAmount || 0,
+                      "solar installation (via partner)",
+                      customer.name
+                    );
+                  }
                 }
               }
             }

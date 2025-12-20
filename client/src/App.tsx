@@ -56,6 +56,10 @@ import InstallationMap from "@/pages/installation-map";
 import NetworkMap from "@/pages/network-map";
 import VendorRegistration from "@/pages/vendor-registration";
 import CustomerRegistration from "@/pages/customer-registration";
+import CustomerPartnerDashboard from "@/pages/customer-partner/dashboard";
+import CustomerPartnerReferrals from "@/pages/customer-partner/referrals";
+import CustomerPartnerEarnings from "@/pages/customer-partner/earnings";
+import CustomerPartnerProfile from "@/pages/customer-partner/profile";
 import { MobileNav } from "@/components/mobile-nav";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 
@@ -89,6 +93,8 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
         setShouldRedirect("/admin/dashboard");
       } else if (user.role === "bdp") {
         setShouldRedirect("/bdp/dashboard");
+      } else if (user.role === "customer_partner") {
+        setShouldRedirect("/customer-partner/dashboard");
       } else {
         setShouldRedirect("/ddp/dashboard");
       }
@@ -322,6 +328,36 @@ function AuthenticatedRoutes() {
         </ProtectedRoute>
       </Route>
 
+      {/* Customer Partner Routes */}
+      <Route path="/customer-partner/dashboard">
+        <ProtectedRoute allowedRoles={["customer_partner"]}>
+          <DashboardLayout>
+            <CustomerPartnerDashboard />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/customer-partner/referrals">
+        <ProtectedRoute allowedRoles={["customer_partner"]}>
+          <DashboardLayout>
+            <CustomerPartnerReferrals />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/customer-partner/earnings">
+        <ProtectedRoute allowedRoles={["customer_partner"]}>
+          <DashboardLayout>
+            <CustomerPartnerEarnings />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/customer-partner/profile">
+        <ProtectedRoute allowedRoles={["customer_partner"]}>
+          <DashboardLayout>
+            <CustomerPartnerProfile />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+
       {/* Shared Routes */}
       <Route path="/calculator">
         <ProtectedRoute>
@@ -341,13 +377,6 @@ function AuthenticatedRoutes() {
         <ProtectedRoute allowedRoles={["bdp", "ddp", "admin"]}>
           <DashboardLayout>
             <NotificationsPage />
-          </DashboardLayout>
-        </ProtectedRoute>
-      </Route>
-      <Route path="/referrals">
-        <ProtectedRoute allowedRoles={["bdp", "ddp", "admin"]}>
-          <DashboardLayout>
-            <ReferralsPage />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
@@ -412,14 +441,24 @@ function PublicRouter() {
       </Route>
       <Route path="/login">
         {user ? (
-          <Redirect to={user.role === "admin" ? "/admin/dashboard" : user.role === "bdp" ? "/bdp/dashboard" : "/ddp/dashboard"} />
+          <Redirect to={
+            user.role === "admin" ? "/admin/dashboard" : 
+            user.role === "bdp" ? "/bdp/dashboard" : 
+            user.role === "customer_partner" ? "/customer-partner/dashboard" :
+            "/ddp/dashboard"
+          } />
         ) : (
           <LoginPage />
         )}
       </Route>
       <Route path="/register">
         {user ? (
-          <Redirect to={user.role === "admin" ? "/admin/dashboard" : user.role === "bdp" ? "/bdp/dashboard" : "/ddp/dashboard"} />
+          <Redirect to={
+            user.role === "admin" ? "/admin/dashboard" : 
+            user.role === "bdp" ? "/bdp/dashboard" : 
+            user.role === "customer_partner" ? "/customer-partner/dashboard" :
+            "/ddp/dashboard"
+          } />
         ) : (
           <RegisterPage />
         )}

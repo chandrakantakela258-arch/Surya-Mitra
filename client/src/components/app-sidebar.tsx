@@ -122,7 +122,6 @@ const bdpMenuSections: MenuSection[] = [
   {
     label: "Growth",
     items: [
-      { title: "Referrals", url: "/referrals", icon: Gift, highlight: true },
       { title: "Leaderboard", url: "/leaderboard", icon: Trophy },
     ],
   },
@@ -160,7 +159,6 @@ const ddpMenuSections: MenuSection[] = [
   {
     label: "Growth",
     items: [
-      { title: "Referrals", url: "/referrals", icon: Gift, highlight: true },
       { title: "Leaderboard", url: "/leaderboard", icon: Trophy },
     ],
   },
@@ -168,6 +166,29 @@ const ddpMenuSections: MenuSection[] = [
     label: "Tools",
     items: [
       { title: "My Profile", url: "/profile", icon: User },
+      { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },
+    ],
+  },
+];
+
+const customerPartnerMenuSections: MenuSection[] = [
+  {
+    label: "Overview",
+    items: [
+      { title: "Dashboard", url: "/customer-partner/dashboard", icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: "Referrals",
+    items: [
+      { title: "My Referrals", url: "/customer-partner/referrals", icon: Users },
+      { title: "Earnings", url: "/customer-partner/earnings", icon: Wallet },
+    ],
+  },
+  {
+    label: "Tools",
+    items: [
+      { title: "My Profile", url: "/customer-partner/profile", icon: User },
       { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },
     ],
   },
@@ -187,7 +208,9 @@ export function AppSidebar() {
 
   // Fetch stats based on role
   const { data: stats } = useQuery<any>({
-    queryKey: user?.role === "bdp" ? ["/api/bdp/stats"] : ["/api/ddp/stats"],
+    queryKey: user?.role === "bdp" ? ["/api/bdp/stats"] : 
+              user?.role === "customer_partner" ? ["/api/customer-partner/stats"] : 
+              ["/api/ddp/stats"],
     enabled: !!user && user.role !== "admin",
   });
 
@@ -195,6 +218,8 @@ export function AppSidebar() {
     ? adminMenuSections 
     : user?.role === "bdp" 
     ? bdpMenuSections 
+    : user?.role === "customer_partner"
+    ? customerPartnerMenuSections
     : ddpMenuSections;
 
   const unreadCount = notificationData?.count || 0;
@@ -226,6 +251,7 @@ export function AppSidebar() {
       case "admin": return "Administrator";
       case "bdp": return "Business Development Partner";
       case "ddp": return "District Development Partner";
+      case "customer_partner": return "Customer Partner";
       default: return "Partner";
     }
   };
@@ -259,6 +285,17 @@ export function AppSidebar() {
                 <div className="text-center">
                   <p className="text-lg font-bold">{stats.totalCustomers || 0}</p>
                   <p className="text-[10px] text-muted-foreground">Customers</p>
+                </div>
+              </>
+            ) : user?.role === "customer_partner" ? (
+              <>
+                <div className="text-center">
+                  <p className="text-lg font-bold">{stats.totalReferrals || 0}</p>
+                  <p className="text-[10px] text-muted-foreground">Referrals</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold">{stats.eligibleReferrals || 0}</p>
+                  <p className="text-[10px] text-muted-foreground">Eligible</p>
                 </div>
               </>
             ) : (
