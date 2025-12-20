@@ -138,8 +138,9 @@ DDPs can collect payments from customers for solar products and services via the
 - Self-service customer registration form accessible at `/customer-registration` or `/register-solar`
 - Collects customer details: name, phone, email, address, roof type, panel type, capacity
 - Displays real-time subsidy and savings estimates based on selections
-- Automatic DDP assignment based on referral codes or random selection
-- Referral tracking when customers use partner referral codes
+- **Independent registrations**: Customers without referral codes are marked as "website_direct" - NO commission is generated for anyone
+- **Referred registrations**: Customers with valid referral codes are marked as "website_referral" - commission is generated for the referring partner
+- Automatic DDP assignment for tracking purposes (even for independent customers)
 - Success page with confirmation and next steps
 - Route: `/customer-registration`, `/register-solar`
 

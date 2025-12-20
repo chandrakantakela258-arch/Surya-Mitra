@@ -857,38 +857,44 @@ export async function registerRoutes(
         );
         
         // If installation is complete, create commission for the DDP
+        // Skip commission for independent/direct website registrations (no referral code)
         if (milestone.milestone === "installation_complete") {
-          const commissions = await storage.createCommissionForCustomer(customer.id, customer.ddpId);
+          // Only create commission if customer was referred (not direct website registration)
+          const isIndependentCustomer = customer.source === "website_direct";
           
-          // Notify about commission earned via WhatsApp/Email
-          if (commissions.ddpCommission) {
-            const ddp = await storage.getUser(customer.ddpId);
-            if (ddp) {
-              await notificationService.notifyCommissionEarned(
-                customer.ddpId,
-                ddp.phone,
-                ddp.email,
-                commissions.ddpCommission.commissionAmount || 0,
-                "solar installation",
-                customer.name
-              );
-            }
-          }
-          
-          // Also notify BDP if exists
-          if (commissions.bdpCommission) {
-            const ddp = await storage.getUser(customer.ddpId);
-            if (ddp?.parentId) {
-              const bdp = await storage.getUser(ddp.parentId);
-              if (bdp) {
+          if (!isIndependentCustomer) {
+            const commissions = await storage.createCommissionForCustomer(customer.id, customer.ddpId);
+            
+            // Notify about commission earned via WhatsApp/Email
+            if (commissions.ddpCommission) {
+              const ddp = await storage.getUser(customer.ddpId);
+              if (ddp) {
                 await notificationService.notifyCommissionEarned(
-                  bdp.id,
-                  bdp.phone,
-                  bdp.email,
-                  commissions.bdpCommission.commissionAmount || 0,
-                  "solar installation (via partner)",
+                  customer.ddpId,
+                  ddp.phone,
+                  ddp.email,
+                  commissions.ddpCommission.commissionAmount || 0,
+                  "solar installation",
                   customer.name
                 );
+              }
+            }
+            
+            // Also notify BDP if exists
+            if (commissions.bdpCommission) {
+              const ddp = await storage.getUser(customer.ddpId);
+              if (ddp?.parentId) {
+                const bdp = await storage.getUser(ddp.parentId);
+                if (bdp) {
+                  await notificationService.notifyCommissionEarned(
+                    bdp.id,
+                    bdp.phone,
+                    bdp.email,
+                    commissions.bdpCommission.commissionAmount || 0,
+                    "solar installation (via partner)",
+                    customer.name
+                  );
+                }
               }
             }
           }
@@ -1959,13 +1965,16 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid phone number" });
       }
       
-      // Find a DDP to assign based on referral code or random assignment
+      // Check if customer used a referral code
       let ddpId: string | null = null;
+      let isIndependent = true; // Default: no commission sharing
       
-      if (referralCode) {
+      if (referralCode && referralCode.trim()) {
         // Find user with this referral code
-        const referrer = await storage.getUserByReferralCode(referralCode);
+        const referrer = await storage.getUserByReferralCode(referralCode.trim());
         if (referrer && (referrer.role === "ddp" || referrer.role === "bdp")) {
+          isIndependent = false; // Referred customer - commission will be shared
+          
           if (referrer.role === "ddp") {
             ddpId = referrer.id;
           } else {
@@ -1987,22 +1996,16 @@ export async function registerRoutes(
         }
       }
       
-      // If no DDP assigned via referral, find the first available DDP
+      // For independent customers (no valid referral), still need to assign a DDP for tracking
+      // but mark as independent so no commission is generated
       if (!ddpId) {
-        const adminStats = await storage.getAdminStats();
-        if (adminStats.totalDDPs === 0) {
-          return res.status(400).json({ message: "No partners available. Please try again later." });
-        }
-        
-        // Get all DDPs using admin getAllPartners endpoint
         const allPartners = await storage.getAllPartners();
         const activeDDPs = allPartners.filter(p => p.role === "ddp" && p.status === "active");
         
         if (activeDDPs.length > 0) {
-          // Assign to a random active DDP
+          // Assign to a random active DDP for tracking purposes only
           ddpId = activeDDPs[Math.floor(Math.random() * activeDDPs.length)].id;
         } else {
-          // Fallback to any DDP
           const anyDDP = allPartners.find(p => p.role === "ddp");
           if (anyDDP) {
             ddpId = anyDDP.id;
@@ -2012,7 +2015,8 @@ export async function registerRoutes(
         }
       }
       
-      // Create the customer
+      // Create the customer - independent customers have source "website_direct" (no commission)
+      // Referred customers have source "website_referral" (commission eligible)
       const customer = await storage.createCustomer({
         name,
         phone,
@@ -2027,7 +2031,7 @@ export async function registerRoutes(
         monthlyBill: monthlyBill || null,
         ddpId,
         status: "pending",
-        source: "website",
+        source: isIndependent ? "website_direct" : "website_referral",
       });
       
       res.status(201).json({ 
