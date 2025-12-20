@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
+import logoImage from "@assets/88720521_logo_1766219255006.png";
 import { SiLinkedin, SiX, SiFacebook, SiInstagram } from "react-icons/si";
 import { 
   Sun, 
@@ -55,14 +56,12 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-4 h-16">
             {/* Logo */}
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 bg-gradient-to-br from-amber-400 via-orange-500 to-amber-600 rounded-xl flex items-center justify-center shadow-md">
-                <Sun className="w-6 h-6 text-white" />
-              </div>
-              <div className="hidden sm:flex flex-col">
-                <span className="font-bold text-lg tracking-tight">DivyanshiSolar</span>
-                <span className="text-[10px] text-muted-foreground -mt-0.5">Powering India's Solar Future</span>
-              </div>
+            <div className="flex items-center">
+              <img 
+                src={logoImage} 
+                alt="Divyanshi Solar - Powering Every Home" 
+                className="h-12 sm:h-14 w-auto object-contain"
+              />
             </div>
 
             {/* Desktop Navigation */}
