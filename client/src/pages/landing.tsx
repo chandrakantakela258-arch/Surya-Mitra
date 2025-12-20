@@ -112,7 +112,6 @@ export default function LandingPage() {
 
             {/* Right Side Actions */}
             <div className="flex items-center gap-2">
-              <ThemeToggle />
               <WouterLink href="/login">
                 <Button variant="ghost" size="sm" data-testid="button-login">
                   Login
