@@ -13,7 +13,8 @@ import {
   IndianRupee, 
   FileText, 
   Users, 
-  CheckCircle2, 
+  CheckCircle2,
+  CheckCircle, 
   ArrowRight,
   Leaf,
   Home,
@@ -35,7 +36,9 @@ import {
   ChevronDown,
   Globe,
   Award,
-  Headphones
+  Headphones,
+  AlertTriangle,
+  Clock
 } from "lucide-react";
 import { useState } from "react";
 
@@ -292,6 +295,158 @@ export default function LandingPage() {
               </CardContent>
             </Card>
           </div>
+        </div>
+      </section>
+
+      {/* Why Solar is Essential Section */}
+      <section className="py-20 bg-gradient-to-b from-primary/5 to-background">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 bg-destructive/10 text-destructive px-4 py-2 rounded-full text-sm font-medium mb-6">
+              <AlertTriangle className="w-4 h-4" />
+              India's Energy Challenge
+            </div>
+            <h2 className="text-3xl font-bold mb-4">Why Every Indian Home Needs Solar</h2>
+            <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+              With rising electricity costs and growing energy demands, rooftop solar is no longer optional—it's essential for India's energy security and your family's financial future.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+            <Card className="border-l-4 border-l-destructive">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-destructive/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <TrendingUp className="w-6 h-6 text-destructive" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg mb-2">Rising Electricity Costs</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Electricity tariffs have increased by 30-50% in the last 5 years across most Indian states. Solar locks in your energy costs for 25+ years.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-orange-500">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-orange-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Zap className="w-6 h-6 text-orange-500" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg mb-2">Growing Energy Demand</h3>
+                    <p className="text-sm text-muted-foreground">
+                      With EVs, ACs, and smart appliances, household energy consumption is doubling every decade. Solar ensures you're prepared.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-yellow-500">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-yellow-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Clock className="w-6 h-6 text-yellow-500" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg mb-2">Limited Time Subsidy</h3>
+                    <p className="text-sm text-muted-foreground">
+                      PM Surya Ghar Yojana offers up to Rs 78,000 subsidy only until 2027. After that, you pay full price for the same system.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-primary">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <IndianRupee className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg mb-2">Earn From Surplus Power</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Net metering allows you to sell excess electricity back to the grid. Turn your rooftop into a passive income source.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-green-500">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Leaf className="w-6 h-6 text-green-500" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg mb-2">720 Million Tonnes CO2 Saved</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Over 25 years, PM Surya Ghar installations will reduce carbon emissions equivalent to planting 3 billion trees.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-blue-500">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Users className="w-6 h-6 text-blue-500" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg mb-2">17 Lakh Jobs Created</h3>
+                    <p className="text-sm text-muted-foreground">
+                      The solar revolution is creating employment across manufacturing, installation, and maintenance sectors nationwide.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="bg-primary/5 border-primary/20">
+            <CardContent className="p-8">
+              <div className="grid md:grid-cols-2 gap-8 items-center">
+                <div>
+                  <h3 className="text-2xl font-bold mb-4">The Math is Simple</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
+                      <span><strong>300+ units free</strong> electricity per month with 3kW system</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
+                      <span><strong>Rs 3,000-5,000</strong> monthly savings on electricity bills</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
+                      <span><strong>4-5 years payback</strong> period after subsidy</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
+                      <span><strong>Rs 15-20 lakh savings</strong> over 25-year panel life</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-5xl font-bold text-primary mb-2">10 Lakh+</div>
+                  <div className="text-lg text-muted-foreground mb-4">Indian Homes Already Solar Powered</div>
+                  <WouterLink href="/subsidy-calculator">
+                    <Button size="lg" className="gap-2" data-testid="button-check-savings">
+                      <Calculator className="w-5 h-5" />
+                      Calculate Your Savings
+                    </Button>
+                  </WouterLink>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </section>
 
