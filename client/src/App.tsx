@@ -44,6 +44,7 @@ import ProfilePage from "@/pages/profile";
 import PrivacyPolicyPage from "@/pages/privacy-policy";
 import DisclaimerPage from "@/pages/disclaimer";
 import TermsAndConditionsPage from "@/pages/terms-and-conditions";
+import NotificationsPage from "@/pages/notifications";
 
 function LoadingScreen() {
   return (
@@ -298,6 +299,13 @@ function AuthenticatedRoutes() {
         <ProtectedRoute allowedRoles={["bdp", "ddp"]}>
           <DashboardLayout>
             <ProfilePage />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/notifications">
+        <ProtectedRoute allowedRoles={["bdp", "ddp", "admin"]}>
+          <DashboardLayout>
+            <NotificationsPage />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
