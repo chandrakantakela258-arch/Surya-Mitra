@@ -3,7 +3,7 @@ import { pgTable, text, varchar, timestamp, integer, decimal, boolean } from "dr
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// User roles: admin, bdp (Business Development Partner), ddp (District Development Partner)
+// User roles: admin, bdp (Business Development Partner), ddp (District Development Partner), customer_partner
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
@@ -11,13 +11,14 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   email: text("email").notNull(),
   phone: text("phone").notNull(),
-  role: text("role").notNull().default("ddp"), // admin, bdp, ddp
+  role: text("role").notNull().default("ddp"), // admin, bdp, ddp, customer_partner
   district: text("district"),
   state: text("state"),
   address: text("address"),
   status: text("status").notNull().default("pending"), // pending, approved, rejected
   parentId: varchar("parent_id"), // For DDP, this is the BDP who onboarded them
   referralCode: text("referral_code").unique(), // Unique referral code for referral program
+  linkedCustomerId: varchar("linked_customer_id"), // For customer_partner, links to their customer record
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -83,6 +84,10 @@ export const customers = pgTable("customers", {
   leadScore: integer("lead_score"), // 0-100 score
   leadScoreDetails: text("lead_score_details"), // JSON with scoring breakdown
   leadScoreUpdatedAt: timestamp("lead_score_updated_at"),
+  
+  // Customer Source and Referral Tracking
+  source: text("source"), // website_direct, website_referral, partner (null means partner-added)
+  referrerCustomerId: varchar("referrer_customer_id"), // For customer-to-customer referrals
   
   // Timestamps
   createdAt: timestamp("created_at").defaultNow(),
@@ -507,9 +512,14 @@ export const leaderboardRelations = relations(leaderboard, ({ one }) => ({
   }),
 }));
 
-// 4. Referral Program
-// Partner referral rewards are earned when the referred partner completes 15 successful installations
+// 4. Referral Program - Customer Partners Only
+// Customer Partner referral rewards:
+// - Customer Referral: Rs 10,000 for each successful installation of 3kW+ plant they refer
+// - Partner Referral: Rs 10,000 when referred partner completes 15 successful installations
+export const CUSTOMER_REFERRAL_REWARD = 10000; // Rs 10,000 per successful 3kW+ installation
+export const PARTNER_REFERRAL_REWARD = 10000; // Rs 10,000 when partner completes 15 installations
 export const PARTNER_REFERRAL_THRESHOLD = 15; // Installations required for partner referral reward
+export const MINIMUM_CAPACITY_FOR_REFERRAL = 3; // Minimum 3kW for customer referral reward
 
 export const referrals = pgTable("referrals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
