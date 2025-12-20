@@ -13,9 +13,18 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Search, Phone, MapPin, Zap, Calendar, MoreVertical, CheckCircle, Clock, FileCheck, Truck, PartyPopper } from "lucide-react";
+import { Search, Phone, MapPin, Zap, Calendar, MoreVertical, CheckCircle, Clock, FileCheck, Truck, PartyPopper, Eye } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { CustomerJourneyMini } from "@/components/customer-journey-tracker";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import { CustomerJourneyTracker } from "@/components/customer-journey-tracker";
 import type { Customer } from "@shared/schema";
 
 function formatINR(amount: number): string {
@@ -30,6 +39,7 @@ export default function AdminCustomers() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [panelFilter, setPanelFilter] = useState<string>("all");
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const { toast } = useToast();
 
   const { data: customers, isLoading } = useQuery<Customer[]>({
@@ -205,6 +215,9 @@ export default function AdminCustomers() {
                           </span>
                         )}
                       </div>
+                      <div className="mt-2 max-w-[200px]">
+                        <CustomerJourneyMini customerId={customer.id} />
+                      </div>
                     </div>
                     
                     <div className="flex items-start gap-4">
@@ -256,6 +269,14 @@ export default function AdminCustomers() {
                             <PartyPopper className="w-4 h-4 mr-2 text-green-500" />
                             Mark as Completed
                           </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => setSelectedCustomer(customer)}
+                            data-testid={`button-view-journey-${customer.id}`}
+                          >
+                            <Eye className="w-4 h-4 mr-2" />
+                            View Journey
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -268,6 +289,26 @@ export default function AdminCustomers() {
           </div>
         </CardContent>
       </Card>
+
+      <Sheet open={!!selectedCustomer} onOpenChange={(open) => !open && setSelectedCustomer(null)}>
+        <SheetContent className="sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Customer Journey</SheetTitle>
+            <SheetDescription>
+              View installation progress and milestones
+            </SheetDescription>
+          </SheetHeader>
+          {selectedCustomer && (
+            <div className="mt-6">
+              <CustomerJourneyTracker 
+                customerId={selectedCustomer.id} 
+                customerName={selectedCustomer.name}
+                showActions={false}
+              />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
