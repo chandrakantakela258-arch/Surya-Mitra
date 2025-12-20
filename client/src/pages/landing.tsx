@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { SiLinkedin, SiX, SiFacebook, SiInstagram } from "react-icons/si";
 import { 
   Sun, 
   Zap, 
@@ -1108,6 +1109,46 @@ export default function LandingPage() {
                 </WouterLink>
               </div>
             </div>
+          </div>
+
+          {/* Social Media */}
+          <div className="flex justify-center gap-4 mb-8">
+            <a 
+              href="https://www.linkedin.com/in/chandrakant-akela-a1479a18" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-colors"
+              data-testid="link-linkedin"
+            >
+              <SiLinkedin className="w-5 h-5" />
+            </a>
+            <a 
+              href="https://x.com/chandu532" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-colors"
+              data-testid="link-twitter"
+            >
+              <SiX className="w-5 h-5" />
+            </a>
+            <a 
+              href="https://www.facebook.com/nayabharatdivyanshi" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-colors"
+              data-testid="link-facebook"
+            >
+              <SiFacebook className="w-5 h-5" />
+            </a>
+            <a 
+              href="https://www.instagram.com/chandu532/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-colors"
+              data-testid="link-instagram"
+            >
+              <SiInstagram className="w-5 h-5" />
+            </a>
           </div>
 
           {/* Bottom Bar */}
