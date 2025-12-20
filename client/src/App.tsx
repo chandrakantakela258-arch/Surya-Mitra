@@ -136,7 +136,6 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
         </div>
         <MobileNav />
         <PWAInstallPrompt />
-        <ChatbotAssistant />
         {user && (user.role === "bdp" || user.role === "ddp") && (
           <OnboardingTutorial userRole={user.role} />
         )}
