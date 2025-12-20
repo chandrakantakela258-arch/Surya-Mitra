@@ -49,7 +49,9 @@ async function requireDDP(req: Request, res: Response, next: NextFunction) {
 }
 
 async function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  console.log("requireAdmin - session:", req.session, "sessionId:", req.sessionID, "cookies:", req.headers.cookie);
   if (!req.session.userId) {
+    console.log("requireAdmin - No userId in session");
     return res.status(401).json({ message: "Not authenticated" });
   }
   const user = await storage.getUser(req.session.userId);
@@ -82,7 +84,7 @@ export async function registerRoutes(
       cookie: {
         secure: process.env.NODE_ENV === "production",
         httpOnly: true,
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        sameSite: "lax",
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
       },
     })
