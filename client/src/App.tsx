@@ -50,6 +50,7 @@ import NewsPage from "@/pages/news";
 import PanelComparisonPage from "@/pages/panel-comparison";
 import LeaderboardPage from "@/pages/leaderboard";
 import ReferralsPage from "@/pages/referrals";
+import InstallationMap from "@/pages/installation-map";
 
 function LoadingScreen() {
   return (
@@ -368,6 +369,9 @@ function PublicRouter() {
       </Route>
       <Route path="/leaderboard">
         <LeaderboardPage />
+      </Route>
+      <Route path="/installations">
+        <InstallationMap />
       </Route>
       <Route path="/login">
         {user ? (

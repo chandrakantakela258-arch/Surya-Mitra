@@ -2334,8 +2334,23 @@ export async function registerRoutes(
   // Public: Get installation locations for map
   app.get("/api/public/installations-map", async (req, res) => {
     try {
-      const locations = await storage.getInstallationLocations();
-      res.json(locations);
+      const installations = await storage.getCustomersWithLocations();
+      // Return customer data with media but exclude sensitive fields
+      const publicData = installations.map(c => ({
+        id: c.id,
+        state: c.state,
+        district: c.district,
+        address: c.address,
+        proposedCapacity: c.proposedCapacity,
+        panelType: c.panelType,
+        latitude: c.latitude,
+        longitude: c.longitude,
+        installationDate: c.installationDate,
+        sitePictures: c.sitePictures,
+        siteVideo: c.siteVideo,
+        status: c.status,
+      }));
+      res.json(publicData);
     } catch (error) {
       console.error("Get installations map error:", error);
       res.status(500).json({ message: "Failed to get installation locations" });
