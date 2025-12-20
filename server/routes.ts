@@ -573,7 +573,9 @@ export async function registerRoutes(
   // Get all partners (BDPs and DDPs)
   app.get("/api/admin/partners", requireAdmin, async (req, res) => {
     try {
+      console.log("Fetching all partners for admin...");
       const partners = await storage.getAllPartners();
+      console.log(`Found ${partners.length} partners`);
       res.json(partners.map((p) => ({ ...p, password: undefined })));
     } catch (error) {
       console.error("Get all partners error:", error);
