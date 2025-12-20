@@ -108,6 +108,15 @@ export default function LandingPage() {
                   Vendor
                 </button>
               </WouterLink>
+              <WouterLink href="/customer-registration">
+                <button 
+                  className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-all duration-200"
+                  data-testid="nav-customer-registration"
+                >
+                  <ClipboardList className="w-4 h-4" />
+                  Register for Solar
+                </button>
+              </WouterLink>
             </nav>
 
             {/* Right Side Actions */}
@@ -173,6 +182,15 @@ export default function LandingPage() {
                   >
                     <Store className="w-4 h-4 text-orange-500" />
                     Vendor Registration
+                  </div>
+                </WouterLink>
+                <WouterLink href="/customer-registration" onClick={() => setMobileMenuOpen(false)}>
+                  <div 
+                    className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium bg-primary/10 text-primary transition-colors text-left col-span-2"
+                    data-testid="mobile-nav-customer-registration"
+                  >
+                    <ClipboardList className="w-4 h-4" />
+                    Register for Solar Installation
                   </div>
                 </WouterLink>
               </div>

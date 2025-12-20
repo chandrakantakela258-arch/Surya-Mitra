@@ -55,6 +55,7 @@ import ReferralsPage from "@/pages/referrals";
 import InstallationMap from "@/pages/installation-map";
 import NetworkMap from "@/pages/network-map";
 import VendorRegistration from "@/pages/vendor-registration";
+import CustomerRegistration from "@/pages/customer-registration";
 import { MobileNav } from "@/components/mobile-nav";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 
@@ -402,6 +403,12 @@ function PublicRouter() {
       </Route>
       <Route path="/vendor-registration">
         <VendorRegistration />
+      </Route>
+      <Route path="/customer-registration">
+        <CustomerRegistration />
+      </Route>
+      <Route path="/register-solar">
+        <CustomerRegistration />
       </Route>
       <Route path="/login">
         {user ? (

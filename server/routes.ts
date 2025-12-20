@@ -1942,6 +1942,104 @@ export async function registerRoutes(
     }
   });
 
+  // ============ PUBLIC CUSTOMER REGISTRATION ============
+  
+  // Public: Register as a customer (no authentication required)
+  app.post("/api/public/customer-registration", async (req, res) => {
+    try {
+      const { name, phone, email, address, district, state, pincode, roofType, panelType, proposedCapacity, monthlyBill, referralCode } = req.body;
+      
+      // Validate required fields
+      if (!name || !phone || !address || !district || !state || !pincode || !roofType || !panelType || !proposedCapacity) {
+        return res.status(400).json({ message: "Please fill all required fields" });
+      }
+      
+      // Check if phone number is valid (10 digits)
+      if (!/^\d{10}$/.test(phone.replace(/\D/g, '').slice(-10))) {
+        return res.status(400).json({ message: "Invalid phone number" });
+      }
+      
+      // Find a DDP to assign based on referral code or random assignment
+      let ddpId: string | null = null;
+      
+      if (referralCode) {
+        // Find user with this referral code
+        const referrer = await storage.getUserByReferralCode(referralCode);
+        if (referrer && (referrer.role === "ddp" || referrer.role === "bdp")) {
+          if (referrer.role === "ddp") {
+            ddpId = referrer.id;
+          } else {
+            // For BDP referral, find any DDP under this BDP
+            const ddps = await storage.getPartnersByParentId(referrer.id);
+            if (ddps.length > 0) {
+              ddpId = ddps[0].id;
+            }
+          }
+          
+          // Track referral
+          await storage.createReferral({
+            referrerId: referrer.id,
+            referredType: "customer",
+            referredName: name,
+            referredPhone: phone,
+            status: "pending",
+          });
+        }
+      }
+      
+      // If no DDP assigned via referral, find the first available DDP
+      if (!ddpId) {
+        const adminStats = await storage.getAdminStats();
+        if (adminStats.totalDDPs === 0) {
+          return res.status(400).json({ message: "No partners available. Please try again later." });
+        }
+        
+        // Get all DDPs using admin getAllPartners endpoint
+        const allPartners = await storage.getAllPartners();
+        const activeDDPs = allPartners.filter(p => p.role === "ddp" && p.status === "active");
+        
+        if (activeDDPs.length > 0) {
+          // Assign to a random active DDP
+          ddpId = activeDDPs[Math.floor(Math.random() * activeDDPs.length)].id;
+        } else {
+          // Fallback to any DDP
+          const anyDDP = allPartners.find(p => p.role === "ddp");
+          if (anyDDP) {
+            ddpId = anyDDP.id;
+          } else {
+            return res.status(400).json({ message: "No partners available. Please try again later." });
+          }
+        }
+      }
+      
+      // Create the customer
+      const customer = await storage.createCustomer({
+        name,
+        phone,
+        email: email || null,
+        address,
+        district,
+        state,
+        pincode,
+        roofType,
+        panelType,
+        proposedCapacity,
+        monthlyBill: monthlyBill || null,
+        ddpId,
+        status: "pending",
+        source: "website",
+      });
+      
+      res.status(201).json({ 
+        message: "Registration successful! Our partner will contact you within 24-48 hours.",
+        customerId: customer.id 
+      });
+    } catch (error) {
+      console.error("Public customer registration error:", error);
+      res.status(500).json({ message: "Registration failed. Please try again." });
+    }
+  });
+
   // ============ FEEDBACK ROUTES ============
   
   // Submit feedback (public - for anonymous users and landing page)

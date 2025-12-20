@@ -134,7 +134,16 @@ DDPs can collect payments from customers for solar products and services via the
 - Trigger-based automation (status changes, milestones)
 - Variable placeholders for personalization
 
-**7. AI-Powered Lead Scoring**
+**7. Public Customer Registration**
+- Self-service customer registration form accessible at `/customer-registration` or `/register-solar`
+- Collects customer details: name, phone, email, address, roof type, panel type, capacity
+- Displays real-time subsidy and savings estimates based on selections
+- Automatic DDP assignment based on referral codes or random selection
+- Referral tracking when customers use partner referral codes
+- Success page with confirmation and next steps
+- Route: `/customer-registration`, `/register-solar`
+
+**8. AI-Powered Lead Scoring**
 - Uses OpenAI (via Replit AI Integrations) to analyze customer conversion potential
 - Scoring factors (total 100 points):
   - Capacity (20 pts): Higher capacity = more revenue potential
