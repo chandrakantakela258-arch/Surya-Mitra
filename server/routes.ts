@@ -1580,13 +1580,36 @@ export async function registerRoutes(
 
   // ============ FEEDBACK ROUTES ============
   
+  // Submit feedback (public - for anonymous users and landing page)
+  app.post("/api/public/feedback", async (req, res) => {
+    try {
+      const validatedData = insertFeedbackSchema.parse(req.body);
+      
+      const feedback = await storage.createFeedback({
+        ...validatedData,
+        userId: null, // Anonymous submission
+      });
+      
+      res.status(201).json(feedback);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      console.error("Create public feedback error:", error);
+      res.status(500).json({ message: "Failed to submit feedback" });
+    }
+  });
+  
   // Submit feedback (authenticated users)
   app.post("/api/feedback", requireAuth, async (req, res) => {
     try {
       const validatedData = insertFeedbackSchema.omit({ userId: true }).parse(req.body);
+      const user = await storage.getUser(req.session.userId!);
       
       const feedback = await storage.createFeedback({
         userId: req.session.userId!,
+        userEmail: user?.email,
+        userName: user?.name,
         ...validatedData,
       });
       
