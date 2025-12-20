@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { storage } from "./storage";
+import bcrypt from "bcrypt";
 import path from "path";
 
 const app = express();
@@ -15,9 +16,10 @@ async function seedAdminUser() {
   try {
     const existingAdmin = await storage.getUserByUsername("admin");
     if (!existingAdmin) {
+      const hashedPassword = await bcrypt.hash("admin123", 10);
       await storage.createUser({
         username: "admin",
-        password: "admin123",
+        password: hashedPassword,
         name: "System Admin",
         email: "admin@divyanshisolar.com",
         phone: "9999999999",
@@ -28,7 +30,7 @@ async function seedAdminUser() {
         status: "approved",
         parentId: null,
       });
-      console.log("Admin user created successfully");
+      console.log("Admin user created successfully with hashed password");
     }
   } catch (error) {
     console.error("Error seeding admin user:", error);

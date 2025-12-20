@@ -13,6 +13,10 @@ The application follows a multi-role hierarchy:
 
 Preferred communication style: Simple, everyday language.
 
+## Security Notes
+
+**Password Security**: Passwords are now hashed using bcrypt (10 salt rounds). The system supports legacy plain-text passwords for backwards compatibility - when a user with a plain-text password logs in successfully, their password is automatically upgraded to a bcrypt hash.
+
 ## Business Rules
 
 ### Panel Types & Capacity Options

@@ -64,6 +64,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUserStatus(id: string, status: string): Promise<User | undefined>;
+  updateUserPassword(id: string, password: string): Promise<User | undefined>;
   
   // BDP operations - get their DDPs
   getPartnersByParentId(parentId: string): Promise<User[]>;
@@ -240,6 +241,15 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db
       .update(users)
       .set({ status })
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
+  }
+
+  async updateUserPassword(id: string, password: string): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ password })
       .where(eq(users.id, id))
       .returning();
     return user || undefined;

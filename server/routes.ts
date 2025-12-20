@@ -2,11 +2,14 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
+import bcrypt from "bcrypt";
 import { pool } from "./db";
 import { storage } from "./storage";
 import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSchema, updateFeedbackStatusSchema, inverterCommission } from "@shared/schema";
 import { z } from "zod";
 import { notificationService } from "./notification-service";
+
+const SALT_ROUNDS = 10;
 
 const PgSession = connectPgSimple(session);
 
@@ -105,7 +108,9 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Username already exists" });
       }
       
-      const user = await storage.createUser(data);
+      // Hash the password before storing
+      const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
+      const user = await storage.createUser({ ...data, password: hashedPassword });
       req.session.userId = user.id;
       
       res.json({ user: { ...user, password: undefined } });
@@ -125,8 +130,29 @@ export async function registerRoutes(
       console.log("Login attempt for:", data.username);
       
       const user = await storage.getUserByUsername(data.username);
-      if (!user || user.password !== data.password) {
-        console.log("Login failed - invalid credentials");
+      if (!user) {
+        console.log("Login failed - user not found");
+        return res.status(401).json({ message: "Invalid username or password" });
+      }
+      
+      // Compare password using bcrypt (supports both hashed and plain text for migration)
+      let isValidPassword = false;
+      if (user.password.startsWith("$2")) {
+        // Password is hashed with bcrypt
+        isValidPassword = await bcrypt.compare(data.password, user.password);
+      } else {
+        // Legacy plain text password - compare directly and upgrade
+        isValidPassword = user.password === data.password;
+        if (isValidPassword) {
+          // Upgrade to hashed password
+          const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
+          await storage.updateUserPassword(user.id, hashedPassword);
+          console.log("Upgraded password to bcrypt hash for user:", user.username);
+        }
+      }
+      
+      if (!isValidPassword) {
+        console.log("Login failed - invalid password");
         return res.status(401).json({ message: "Invalid username or password" });
       }
       
