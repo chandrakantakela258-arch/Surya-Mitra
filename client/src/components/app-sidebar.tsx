@@ -86,7 +86,13 @@ const adminMenuSections: MenuSection[] = [
       { title: "Orders", url: "/admin/orders", icon: ShoppingCart },
       { title: "Commission Payouts", url: "/admin/payouts", icon: Wallet },
       { title: "Site Expenses", url: "/admin/site-expenses", icon: FileText },
-      { title: "Bank Loan Submissions", url: "/admin/bank-loan-submissions", icon: Landmark },
+    ],
+  },
+  {
+    label: "Customer Journey",
+    items: [
+      { title: "Step 1: File Submission", url: "/admin/customer-file-submissions", icon: FileText },
+      { title: "Step 2: Bank Loan", url: "/admin/bank-loan-submissions", icon: Landmark },
     ],
   },
   {

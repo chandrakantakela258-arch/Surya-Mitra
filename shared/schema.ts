@@ -1203,5 +1203,38 @@ export const bankLoanStatuses = [
   { value: "disbursed", label: "Disbursed" },
 ];
 
+// Customer File Submission statuses (Step 1 of Customer Journey)
+export const customerFileStatuses = [
+  { value: "submitted", label: "Submitted" },
+  { value: "under_review", label: "Under Review" },
+  { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" },
+  { value: "resubmission_required", label: "Resubmission Required" },
+];
+
+// Customer File Submissions - PM Surya Ghar (Step 1 of Customer Journey)
+export const customerFileSubmissions = pgTable("customer_file_submissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").references(() => customers.id),
+  customerName: text("customer_name").notNull(),
+  consumerNo: text("consumer_no").notNull(),
+  billHolderName: text("bill_holder_name").notNull(),
+  loanApplied: boolean("loan_applied").default(false),
+  submissionDate: timestamp("submission_date").notNull(),
+  status: text("status").default("submitted"),
+  remarks: text("remarks"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertCustomerFileSubmissionSchema = createInsertSchema(customerFileSubmissions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertCustomerFileSubmission = z.infer<typeof insertCustomerFileSubmissionSchema>;
+export type CustomerFileSubmission = typeof customerFileSubmissions.$inferSelect;
+
 // Re-export chat models for OpenAI integration
 export * from "./models/chat";

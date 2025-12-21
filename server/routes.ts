@@ -3174,7 +3174,186 @@ export async function registerRoutes(
     }
   });
 
-  // ==================== BANK LOAN SUBMISSION ROUTES ====================
+  // ==================== CUSTOMER FILE SUBMISSION ROUTES (Step 1 of Customer Journey) ====================
+  
+  // Admin: Get all customer file submissions
+  app.get("/api/admin/customer-file-submissions", requireAdmin, async (req, res) => {
+    try {
+      const submissions = await storage.getCustomerFileSubmissions();
+      res.json(submissions);
+    } catch (error) {
+      console.error("Get customer file submissions error:", error);
+      res.status(500).json({ message: "Failed to get customer file submissions" });
+    }
+  });
+  
+  // Admin: Get customer file submission by ID
+  app.get("/api/admin/customer-file-submissions/:id", requireAdmin, async (req, res) => {
+    try {
+      const submission = await storage.getCustomerFileSubmission(req.params.id);
+      if (!submission) {
+        return res.status(404).json({ message: "Customer file submission not found" });
+      }
+      res.json(submission);
+    } catch (error) {
+      console.error("Get customer file submission error:", error);
+      res.status(500).json({ message: "Failed to get customer file submission" });
+    }
+  });
+  
+  // Admin: Create customer file submission
+  app.post("/api/admin/customer-file-submissions", requireAdmin, async (req, res) => {
+    try {
+      const { customerId, customerName, consumerNo, billHolderName, loanApplied, submissionDate, remarks } = req.body;
+      
+      // Validate required fields
+      if (!customerName || typeof customerName !== "string" || customerName.trim() === "") {
+        return res.status(400).json({ message: "Customer name is required" });
+      }
+      if (!consumerNo || typeof consumerNo !== "string" || consumerNo.trim() === "") {
+        return res.status(400).json({ message: "Consumer number is required" });
+      }
+      if (!billHolderName || typeof billHolderName !== "string" || billHolderName.trim() === "") {
+        return res.status(400).json({ message: "Bill holder name is required" });
+      }
+      if (!submissionDate) {
+        return res.status(400).json({ message: "Submission date is required" });
+      }
+      
+      // Validate date
+      const parsedDate = new Date(submissionDate);
+      if (isNaN(parsedDate.getTime())) {
+        return res.status(400).json({ message: "Invalid submission date format" });
+      }
+      
+      // If customerId is provided, verify customer exists
+      if (customerId) {
+        const customer = await storage.getCustomer(customerId);
+        if (!customer) {
+          return res.status(404).json({ message: "Customer not found" });
+        }
+      }
+      
+      // Properly convert loanApplied to boolean (handles string "false", "0", etc.)
+      const parseLoanApplied = (value: any): boolean => {
+        if (typeof value === "boolean") return value;
+        if (typeof value === "string") {
+          const lower = value.toLowerCase().trim();
+          return lower === "true" || lower === "1" || lower === "yes";
+        }
+        return Boolean(value);
+      };
+      
+      const submission = await storage.createCustomerFileSubmission({
+        customerId: customerId || null,
+        customerName: customerName.trim(),
+        consumerNo: consumerNo.trim(),
+        billHolderName: billHolderName.trim(),
+        loanApplied: parseLoanApplied(loanApplied),
+        submissionDate: parsedDate,
+        remarks: remarks ? String(remarks).trim() : null,
+        status: "submitted",
+      });
+      
+      res.status(201).json(submission);
+    } catch (error) {
+      console.error("Create customer file submission error:", error);
+      res.status(500).json({ message: "Failed to create customer file submission" });
+    }
+  });
+  
+  // Admin: Update customer file submission
+  app.patch("/api/admin/customer-file-submissions/:id", requireAdmin, async (req, res) => {
+    try {
+      const { customerName, consumerNo, billHolderName, loanApplied, submissionDate, status, remarks } = req.body;
+      
+      // Valid status values
+      const validStatuses = ["submitted", "under_review", "approved", "rejected", "resubmission_required"];
+      
+      // Build update object with proper type conversions and validation
+      const updateData: Record<string, any> = {};
+      
+      if (customerName !== undefined) {
+        if (typeof customerName !== "string" || customerName.trim() === "") {
+          return res.status(400).json({ message: "Customer name must be a non-empty string" });
+        }
+        updateData.customerName = customerName.trim();
+      }
+      if (consumerNo !== undefined) {
+        if (typeof consumerNo !== "string" || consumerNo.trim() === "") {
+          return res.status(400).json({ message: "Consumer number must be a non-empty string" });
+        }
+        updateData.consumerNo = consumerNo.trim();
+      }
+      if (billHolderName !== undefined) {
+        if (typeof billHolderName !== "string" || billHolderName.trim() === "") {
+          return res.status(400).json({ message: "Bill holder name must be a non-empty string" });
+        }
+        updateData.billHolderName = billHolderName.trim();
+      }
+      if (loanApplied !== undefined) {
+        // Properly convert loanApplied to boolean (handles string "false", "0", etc.)
+        const parseLoanApplied = (value: any): boolean => {
+          if (typeof value === "boolean") return value;
+          if (typeof value === "string") {
+            const lower = value.toLowerCase().trim();
+            return lower === "true" || lower === "1" || lower === "yes";
+          }
+          return Boolean(value);
+        };
+        updateData.loanApplied = parseLoanApplied(loanApplied);
+      }
+      if (submissionDate !== undefined) {
+        const parsedDate = new Date(submissionDate);
+        if (isNaN(parsedDate.getTime())) {
+          return res.status(400).json({ message: "Invalid submission date format" });
+        }
+        updateData.submissionDate = parsedDate;
+      }
+      if (status !== undefined) {
+        if (!validStatuses.includes(status)) {
+          return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
+        }
+        updateData.status = status;
+      }
+      if (remarks !== undefined) {
+        updateData.remarks = remarks ? String(remarks).trim() : null;
+      }
+      
+      const submission = await storage.updateCustomerFileSubmission(req.params.id, updateData);
+      if (!submission) {
+        return res.status(404).json({ message: "Customer file submission not found" });
+      }
+      res.json(submission);
+    } catch (error) {
+      console.error("Update customer file submission error:", error);
+      res.status(500).json({ message: "Failed to update customer file submission" });
+    }
+  });
+  
+  // Admin: Delete customer file submission
+  app.delete("/api/admin/customer-file-submissions/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteCustomerFileSubmission(req.params.id);
+      res.json({ message: "Customer file submission deleted" });
+    } catch (error) {
+      console.error("Delete customer file submission error:", error);
+      res.status(500).json({ message: "Failed to delete customer file submission" });
+    }
+  });
+  
+  // Admin: Get customer file submissions by customer ID
+  app.get("/api/admin/customers/:customerId/customer-file-submissions", requireAdmin, async (req, res) => {
+    try {
+      const submissions = await storage.getCustomerFileSubmissionsByCustomerId(req.params.customerId);
+      res.json(submissions);
+    } catch (error) {
+      console.error("Get customer file submissions by customer error:", error);
+      res.status(500).json({ message: "Failed to get customer file submissions" });
+    }
+  });
+
+  // ==================== BANK LOAN SUBMISSION ROUTES (Step 2 of Customer Journey) ====================
   
   // Admin: Get all bank loan submissions
   app.get("/api/admin/bank-loan-submissions", requireAdmin, async (req, res) => {

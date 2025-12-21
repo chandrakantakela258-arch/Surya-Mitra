@@ -24,6 +24,7 @@ import {
   vendors,
   siteExpenses,
   bankLoanSubmissions,
+  customerFileSubmissions,
   passwordResetOtps,
   type User, 
   type InsertUser, 
@@ -75,6 +76,8 @@ import {
   type InsertSiteExpense,
   type BankLoanSubmission,
   type InsertBankLoanSubmission,
+  type CustomerFileSubmission,
+  type InsertCustomerFileSubmission,
   type PasswordResetOtp,
   type InsertPasswordResetOtp,
   installationMilestones,
@@ -322,6 +325,14 @@ export interface IStorage {
   getBankLoanSubmissionsByCustomerId(customerId: string): Promise<BankLoanSubmission[]>;
   updateBankLoanSubmission(id: string, data: Partial<BankLoanSubmission>): Promise<BankLoanSubmission | undefined>;
   deleteBankLoanSubmission(id: string): Promise<void>;
+  
+  // Customer File Submission operations (Step 1 of Customer Journey)
+  createCustomerFileSubmission(submission: InsertCustomerFileSubmission): Promise<CustomerFileSubmission>;
+  getCustomerFileSubmissions(): Promise<CustomerFileSubmission[]>;
+  getCustomerFileSubmission(id: string): Promise<CustomerFileSubmission | undefined>;
+  getCustomerFileSubmissionsByCustomerId(customerId: string): Promise<CustomerFileSubmission[]>;
+  updateCustomerFileSubmission(id: string, data: Partial<CustomerFileSubmission>): Promise<CustomerFileSubmission | undefined>;
+  deleteCustomerFileSubmission(id: string): Promise<void>;
   
   // Password Reset OTP operations
   createPasswordResetOtp(otp: InsertPasswordResetOtp): Promise<PasswordResetOtp>;
@@ -1965,6 +1976,39 @@ export class DatabaseStorage implements IStorage {
   async deleteExpiredPasswordResetOtps(): Promise<void> {
     await db.delete(passwordResetOtps)
       .where(sql`${passwordResetOtps.expiresAt} < NOW()`);
+  }
+  
+  // Customer File Submission operations (Step 1 of Customer Journey)
+  async createCustomerFileSubmission(submission: InsertCustomerFileSubmission): Promise<CustomerFileSubmission> {
+    const [created] = await db.insert(customerFileSubmissions).values(submission).returning();
+    return created;
+  }
+  
+  async getCustomerFileSubmissions(): Promise<CustomerFileSubmission[]> {
+    return await db.select().from(customerFileSubmissions).orderBy(desc(customerFileSubmissions.createdAt));
+  }
+  
+  async getCustomerFileSubmission(id: string): Promise<CustomerFileSubmission | undefined> {
+    const [submission] = await db.select().from(customerFileSubmissions).where(eq(customerFileSubmissions.id, id));
+    return submission || undefined;
+  }
+  
+  async getCustomerFileSubmissionsByCustomerId(customerId: string): Promise<CustomerFileSubmission[]> {
+    return await db.select().from(customerFileSubmissions)
+      .where(eq(customerFileSubmissions.customerId, customerId))
+      .orderBy(desc(customerFileSubmissions.createdAt));
+  }
+  
+  async updateCustomerFileSubmission(id: string, data: Partial<CustomerFileSubmission>): Promise<CustomerFileSubmission | undefined> {
+    const [updated] = await db.update(customerFileSubmissions)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(customerFileSubmissions.id, id))
+      .returning();
+    return updated || undefined;
+  }
+  
+  async deleteCustomerFileSubmission(id: string): Promise<void> {
+    await db.delete(customerFileSubmissions).where(eq(customerFileSubmissions.id, id));
   }
 }
 
