@@ -24,8 +24,11 @@ function SubsidyEstimateCard({ capacity, panelType, customerType = "residential"
 }) {
   const capacityNum = parseFloat(capacity || "0") || 0;
   const isNonDcr = panelType === "non_dcr";
-  const isResidential = customerType === "residential";
-  const isSubsidyEligible = isResidential && !isNonDcr;
+  const customerTypeLabel = customerType === "commercial" ? "Commercial" : customerType === "industrial" ? "Industrial" : "Residential";
+  const electricityRate = customerType === "industrial" ? 9 : customerType === "commercial" ? 8 : 7;
+  
+  // Calculate subsidy result to get subsidyEligible flag
+  const result = calculateSubsidy(capacityNum, "", panelType, "hybrid", customerType as "residential" | "commercial" | "industrial");
   
   if (capacityNum <= 0) {
     return (
@@ -33,20 +36,17 @@ function SubsidyEstimateCard({ capacity, panelType, customerType = "residential"
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <IndianRupee className="w-5 h-5 text-primary" />
-            {isSubsidyEligible ? "Subsidy Estimate" : "Cost Estimate"}
+            {result.subsidyEligible ? "Subsidy Estimate" : "Cost Estimate"}
           </CardTitle>
           <CardDescription>
-            Select proposed capacity above to see {isSubsidyEligible ? "subsidy" : "cost"} calculation
+            Select proposed capacity above to see {result.subsidyEligible ? "subsidy" : "cost"} calculation
           </CardDescription>
         </CardHeader>
       </Card>
     );
   }
   
-  const result = calculateSubsidy(capacityNum, "", panelType, "hybrid", customerType as "residential" | "commercial" | "industrial");
-  
-  if (!isSubsidyEligible) {
-    const customerTypeLabel = customerType === "commercial" ? "Commercial" : customerType === "industrial" ? "Industrial" : "Residential";
+  if (!result.subsidyEligible) {
     return (
       <div className="space-y-4">
         <Card className="bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800">
@@ -67,7 +67,9 @@ function SubsidyEstimateCard({ capacity, panelType, customerType = "residential"
                 <p className="text-sm text-muted-foreground">Customer Pays</p>
                 <p className="text-xl font-semibold font-mono text-primary">{formatINR(result.netCost)}</p>
                 <p className="text-xs text-muted-foreground">
-                  {isResidential && !isNonDcr ? "No subsidy for commercial/industrial" : "No government subsidy"}
+                  {customerType !== "residential" 
+                    ? `${customerTypeLabel} installations not subsidy-eligible` 
+                    : "Non-DCR panels not subsidy-eligible"}
                 </p>
               </div>
             </div>
@@ -96,34 +98,44 @@ function SubsidyEstimateCard({ capacity, panelType, customerType = "residential"
               </div>
             </div>
             <p className="text-xs text-muted-foreground text-center mt-2">
-              4 units/kW/day at Rs {customerType === "industrial" ? 9 : customerType === "commercial" ? 8 : 7}/unit ({customerTypeLabel} rate)
+              4 units/kW/day at Rs {electricityRate}/unit ({customerTypeLabel} rate)
             </p>
           </CardContent>
         </Card>
         
-        {/* EMI with Power Saving Adjustment */}
+        {/* EMI Comparison Table */}
         <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
           <CardContent className="pt-4 space-y-3">
-            <div className="grid grid-cols-2 gap-3 text-center">
-              <div className="p-2 bg-background rounded-lg">
-                <p className="text-xs text-muted-foreground">Monthly EMI</p>
-                <p className="text-lg font-bold text-blue-600">{formatINR(result.emiMonthly)}</p>
-              </div>
-              <div className="p-2 bg-background rounded-lg">
-                <p className="text-xs text-muted-foreground">- Power Savings</p>
-                <p className="text-lg font-bold text-green-600">- {formatINR(result.monthlySavings)}</p>
-              </div>
+            <p className="text-sm font-medium text-center text-blue-700 dark:text-blue-300">EMI Options (10% Interest)</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b">
+                    <th className="py-1 px-2 text-left">Tenure</th>
+                    <th className="py-1 px-2 text-right">EMI</th>
+                    <th className="py-1 px-2 text-right">Effective</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { months: 36, emi: result.emi36Months },
+                    { months: 48, emi: result.emi48Months },
+                    { months: 60, emi: result.emi60Months },
+                    { months: 72, emi: result.emi72Months },
+                    { months: 84, emi: result.emi84Months },
+                  ].map(({ months, emi }) => (
+                    <tr key={months} className="border-b">
+                      <td className="py-1 px-2">{months}M</td>
+                      <td className="py-1 px-2 text-right font-mono">{formatINR(emi)}</td>
+                      <td className="py-1 px-2 text-right font-mono text-green-600">
+                        {result.monthlySavings >= emi ? "FREE!" : formatINR(emi - result.monthlySavings)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <div className="p-3 bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/50 dark:to-emerald-900/50 rounded-lg text-center">
-              <p className="text-sm text-muted-foreground">Effective Monthly Payment</p>
-              <p className="text-2xl font-bold text-primary">
-                {result.monthlySavings >= result.emiMonthly 
-                  ? formatINR(0) + " (FREE!)"
-                  : formatINR(result.emiMonthly - result.monthlySavings)}
-              </p>
-              <p className="text-xs text-muted-foreground">Your actual pocket expense after power savings</p>
-            </div>
-            <p className="text-xs text-muted-foreground text-center">10% interest for 5 years | Payback: {result.paybackYears} years</p>
+            <p className="text-xs text-muted-foreground text-center">Effective = EMI - Power Savings | Payback: {result.paybackYears} years</p>
           </CardContent>
         </Card>
       </div>
@@ -136,21 +148,29 @@ function SubsidyEstimateCard({ capacity, panelType, customerType = "residential"
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg text-green-700 dark:text-green-300">
             <TrendingDown className="w-5 h-5" />
-            Subsidy Estimate for {capacityNum} kW DCR System
+            Subsidy Estimate for {capacityNum} kW Residential DCR System
           </CardTitle>
+          {capacityNum > 3 && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+              Note: Government subsidy is capped at 3 kW (Rs 78,000 max). Capacity beyond 3 kW is at full price.
+            </p>
+          )}
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
             <div className="p-3 bg-background rounded-lg">
               <p className="text-sm text-muted-foreground">System Cost</p>
               <p className="text-xl font-semibold font-mono">{formatINR(result.totalCost)}</p>
-              <p className="text-xs text-muted-foreground">with 3-in-1 Hybrid Inverter</p>
+              <p className="text-xs text-muted-foreground">Rs {result.ratePerWatt}/Watt</p>
             </div>
             <div className="p-3 bg-green-100 dark:bg-green-900/50 rounded-lg">
               <p className="text-sm text-green-600 dark:text-green-400">Government Subsidy</p>
               <p className="text-xl font-semibold font-mono text-green-600 dark:text-green-400">
-                - {formatINR(result.centralSubsidy)}
+                - {formatINR(result.totalSubsidy)}
               </p>
+              {capacityNum > 3 && (
+                <p className="text-xs text-muted-foreground">Capped at 3 kW</p>
+              )}
             </div>
             <div className="p-3 bg-background rounded-lg">
               <p className="text-sm text-muted-foreground">Customer Pays</p>
@@ -181,33 +201,43 @@ function SubsidyEstimateCard({ capacity, panelType, customerType = "residential"
               <p className="text-xs text-muted-foreground">Annual Savings</p>
             </div>
           </div>
-          <p className="text-xs text-muted-foreground text-center mt-2">4 units/kW/day at Rs 7/unit</p>
+          <p className="text-xs text-muted-foreground text-center mt-2">4 units/kW/day at Rs 7/unit (Residential rate)</p>
         </CardContent>
       </Card>
       
-      {/* EMI with Power Saving Adjustment */}
+      {/* EMI Comparison Table */}
       <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
         <CardContent className="pt-4 space-y-3">
-          <div className="grid grid-cols-2 gap-3 text-center">
-            <div className="p-2 bg-background rounded-lg">
-              <p className="text-xs text-muted-foreground">Monthly EMI</p>
-              <p className="text-lg font-bold text-blue-600">{formatINR(result.emiMonthly)}</p>
-            </div>
-            <div className="p-2 bg-background rounded-lg">
-              <p className="text-xs text-muted-foreground">- Power Savings</p>
-              <p className="text-lg font-bold text-green-600">- {formatINR(result.monthlySavings)}</p>
-            </div>
+          <p className="text-sm font-medium text-center text-blue-700 dark:text-blue-300">EMI Options (10% Interest)</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b">
+                  <th className="py-1 px-2 text-left">Tenure</th>
+                  <th className="py-1 px-2 text-right">EMI</th>
+                  <th className="py-1 px-2 text-right">Effective</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { months: 36, emi: result.emi36Months },
+                  { months: 48, emi: result.emi48Months },
+                  { months: 60, emi: result.emi60Months },
+                  { months: 72, emi: result.emi72Months },
+                  { months: 84, emi: result.emi84Months },
+                ].map(({ months, emi }) => (
+                  <tr key={months} className="border-b">
+                    <td className="py-1 px-2">{months}M ({months / 12}Y)</td>
+                    <td className="py-1 px-2 text-right font-mono">{formatINR(emi)}</td>
+                    <td className="py-1 px-2 text-right font-mono text-green-600">
+                      {result.monthlySavings >= emi ? "FREE!" : formatINR(emi - result.monthlySavings)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <div className="p-3 bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/50 dark:to-emerald-900/50 rounded-lg text-center">
-            <p className="text-sm text-muted-foreground">Effective Monthly Payment</p>
-            <p className="text-2xl font-bold text-primary">
-              {result.monthlySavings >= result.emiMonthly 
-                ? formatINR(0) + " (FREE!)"
-                : formatINR(result.emiMonthly - result.monthlySavings)}
-            </p>
-            <p className="text-xs text-muted-foreground">Your actual pocket expense after power savings</p>
-          </div>
-          <p className="text-xs text-muted-foreground text-center">10% interest for 5 years | Payback: {result.paybackYears} years</p>
+          <p className="text-xs text-muted-foreground text-center">Effective = EMI - Power Savings | Payback: {result.paybackYears} years</p>
         </CardContent>
       </Card>
       
