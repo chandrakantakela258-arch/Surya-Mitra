@@ -101,6 +101,9 @@ import {
   type SiteSurvey,
   type InsertSiteSurvey,
   siteSurveys,
+  type MeterInstallationReport,
+  type InsertMeterInstallationReport,
+  meterInstallationReports,
   installationMilestones,
   calculateCommission,
   calculateBdpCommission,
@@ -2444,6 +2447,77 @@ export class DatabaseStorage implements IStorage {
     const surveys = await db.select().from(siteSurveys);
     const count = surveys.length + 1;
     return `SRV-${year}${month}-${String(count).padStart(4, '0')}`;
+  }
+
+  // Step 10: Meter Installation Reports (Grid Connection)
+  async getMeterInstallationReports(): Promise<MeterInstallationReport[]> {
+    return await db.select().from(meterInstallationReports).orderBy(desc(meterInstallationReports.createdAt));
+  }
+
+  async getMeterInstallationReport(id: string): Promise<MeterInstallationReport | undefined> {
+    const [report] = await db.select().from(meterInstallationReports).where(eq(meterInstallationReports.id, id));
+    return report || undefined;
+  }
+
+  async getMeterInstallationReportByCustomerId(customerId: string): Promise<MeterInstallationReport | undefined> {
+    const [report] = await db.select().from(meterInstallationReports)
+      .where(eq(meterInstallationReports.customerId, customerId));
+    return report || undefined;
+  }
+
+  async createMeterInstallationReport(data: any): Promise<MeterInstallationReport> {
+    const insertData: any = { ...data };
+    if (data.meterInstallationDate && typeof data.meterInstallationDate === 'string') {
+      insertData.meterInstallationDate = new Date(data.meterInstallationDate);
+    }
+    if (data.gridConnectionDate && typeof data.gridConnectionDate === 'string') {
+      insertData.gridConnectionDate = new Date(data.gridConnectionDate);
+    }
+    if (data.synchronizationDate && typeof data.synchronizationDate === 'string') {
+      insertData.synchronizationDate = new Date(data.synchronizationDate);
+    }
+    if (data.discomApprovalDate && typeof data.discomApprovalDate === 'string') {
+      insertData.discomApprovalDate = new Date(data.discomApprovalDate);
+    }
+    if (data.numberOfPanels) insertData.numberOfPanels = parseInt(data.numberOfPanels);
+    
+    const [report] = await db.insert(meterInstallationReports).values(insertData).returning();
+    return report;
+  }
+
+  async updateMeterInstallationReport(id: string, data: Partial<MeterInstallationReport>): Promise<MeterInstallationReport | undefined> {
+    const updateData: any = { ...data, updatedAt: new Date() };
+    if (data.meterInstallationDate && typeof data.meterInstallationDate === 'string') {
+      updateData.meterInstallationDate = new Date(data.meterInstallationDate);
+    }
+    if (data.gridConnectionDate && typeof data.gridConnectionDate === 'string') {
+      updateData.gridConnectionDate = new Date(data.gridConnectionDate);
+    }
+    if (data.synchronizationDate && typeof data.synchronizationDate === 'string') {
+      updateData.synchronizationDate = new Date(data.synchronizationDate);
+    }
+    if (data.discomApprovalDate && typeof data.discomApprovalDate === 'string') {
+      updateData.discomApprovalDate = new Date(data.discomApprovalDate);
+    }
+    if (updateData.numberOfPanels) updateData.numberOfPanels = parseInt(updateData.numberOfPanels);
+    
+    const [updated] = await db.update(meterInstallationReports)
+      .set(updateData)
+      .where(eq(meterInstallationReports.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteMeterInstallationReport(id: string): Promise<void> {
+    await db.delete(meterInstallationReports).where(eq(meterInstallationReports.id, id));
+  }
+
+  async generateMeterInstallationReportNumber(): Promise<string> {
+    const year = new Date().getFullYear();
+    const month = String(new Date().getMonth() + 1).padStart(2, '0');
+    const reports = await db.select().from(meterInstallationReports);
+    const count = reports.length + 1;
+    return `MIR-${year}${month}-${String(count).padStart(4, '0')}`;
   }
 }
 

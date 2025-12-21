@@ -1275,6 +1275,116 @@ export const insertSiteSurveySchema = createInsertSchema(siteSurveys).omit({
 export type InsertSiteSurvey = z.infer<typeof insertSiteSurveySchema>;
 export type SiteSurvey = typeof siteSurveys.$inferSelect;
 
+// Step 10: Meter Installation Completion Reports - Grid Connection
+export const meterInstallationReports = pgTable("meter_installation_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  reportNumber: text("report_number").notNull().unique(),
+  customerId: varchar("customer_id").references(() => customers.id).notNull(),
+  completionReportId: varchar("completion_report_id").references(() => completionReports.id),
+  
+  // Customer & Site Info
+  customerName: text("customer_name").notNull(),
+  customerPhone: text("customer_phone"),
+  siteAddress: text("site_address").notNull(),
+  district: text("district"),
+  state: text("state"),
+  pincode: text("pincode"),
+  
+  // Installation Details
+  installedCapacity: text("installed_capacity"), // kW
+  panelType: text("panel_type"), // DCR, Non-DCR
+  inverterType: text("inverter_type"), // On-grid, Hybrid 3-in-1
+  numberOfPanels: integer("number_of_panels"),
+  
+  // Meter Details
+  oldMeterNumber: text("old_meter_number"),
+  oldMeterReading: text("old_meter_reading"),
+  newMeterNumber: text("new_meter_number"),
+  newMeterType: text("new_meter_type"), // Net Meter, Bi-directional, Smart Meter
+  newMeterMake: text("new_meter_make"),
+  newMeterModel: text("new_meter_model"),
+  meterSerialNumber: text("meter_serial_number"),
+  meterInstallationDate: timestamp("meter_installation_date"),
+  initialMeterReading: text("initial_meter_reading"),
+  ctRatio: text("ct_ratio"), // Current Transformer ratio if applicable
+  
+  // Grid Connection Details
+  discomName: text("discom_name"),
+  discomDivision: text("discom_division"),
+  consumerNumber: text("consumer_number"),
+  sanctionedLoad: text("sanctioned_load"), // kW
+  connectionType: text("connection_type"), // Single phase, Three phase
+  supplyVoltage: text("supply_voltage"), // 230V, 415V
+  gridConnectionDate: timestamp("grid_connection_date"),
+  synchronizationDate: timestamp("synchronization_date"),
+  
+  // Discom Representative Details
+  discomRepName: text("discom_rep_name"),
+  discomRepDesignation: text("discom_rep_designation"),
+  discomRepPhone: text("discom_rep_phone"),
+  discomRepEmployeeId: text("discom_rep_employee_id"),
+  
+  // Technical Parameters
+  dcCapacity: text("dc_capacity"), // kWp
+  acCapacity: text("ac_capacity"), // kW
+  dcAcRatio: text("dc_ac_ratio"),
+  tiltAngle: text("tilt_angle"), // degrees
+  azimuthAngle: text("azimuth_angle"), // degrees
+  arrayConfiguration: text("array_configuration"),
+  
+  // Safety & Compliance
+  earthingCompleted: boolean("earthing_completed").default(false),
+  lightningArresterInstalled: boolean("lightning_arrester_installed").default(false),
+  acdbInstalled: boolean("acdb_installed").default(false),
+  dcdbInstalled: boolean("dcdb_installed").default(false),
+  mcbRating: text("mcb_rating"),
+  spdInstalled: boolean("spd_installed").default(false), // Surge Protection Device
+  
+  // Testing Results
+  gridSyncTestPassed: boolean("grid_sync_test_passed").default(false),
+  antiIslandingTestPassed: boolean("anti_islanding_test_passed").default(false),
+  powerQualityTestPassed: boolean("power_quality_test_passed").default(false),
+  exportLimitSet: boolean("export_limit_set").default(false),
+  exportLimitValue: text("export_limit_value"), // kW
+  
+  // Documentation
+  meterPhotos: text("meter_photos").array(), // URLs
+  connectionPhotos: text("connection_photos").array(),
+  testReportPhotos: text("test_report_photos").array(),
+  discomCertificateUrl: text("discom_certificate_url"),
+  netMeteringAgreementUrl: text("net_metering_agreement_url"),
+  
+  // Status & Approval
+  status: text("status").default("pending"), // pending, meter_installed, testing, grid_connected, completed, rejected
+  discomApprovalStatus: text("discom_approval_status").default("pending"), // pending, approved, rejected
+  discomApprovalDate: timestamp("discom_approval_date"),
+  rejectionReason: text("rejection_reason"),
+  
+  // Additional Info
+  expectedGeneration: text("expected_generation"), // kWh/year
+  warrantyPeriod: text("warranty_period"), // years
+  maintenanceSchedule: text("maintenance_schedule"),
+  remarks: text("remarks"),
+  
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertMeterInstallationReportSchema = createInsertSchema(meterInstallationReports).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  meterInstallationDate: z.string().optional(),
+  gridConnectionDate: z.string().optional(),
+  synchronizationDate: z.string().optional(),
+  discomApprovalDate: z.string().optional(),
+});
+
+export type InsertMeterInstallationReport = z.infer<typeof insertMeterInstallationReportSchema>;
+export type MeterInstallationReport = typeof meterInstallationReports.$inferSelect;
+
 // Password Reset OTPs - Store OTPs for password reset
 export const passwordResetOtps = pgTable("password_reset_otps", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
