@@ -6,16 +6,31 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Building2, Check, X, Search, Phone, Mail, MapPin } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Users, Building2, Check, X, Search, Phone, Mail, MapPin, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { User } from "@shared/schema";
+import { indianStates } from "@shared/schema";
 
 export default function AdminPartners() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [deletePartnerId, setDeletePartnerId] = useState<string | null>(null);
+  const [newPartner, setNewPartner] = useState({
+    username: "",
+    password: "",
+    name: "",
+    email: "",
+    phone: "",
+    role: "ddp",
+    state: "",
+    district: "",
+  });
 
   const { data: partners, isLoading } = useQuery<User[]>({
     queryKey: ["/api/admin/partners"],
@@ -34,6 +49,45 @@ export default function AdminPartners() {
       toast({ title: "Failed to update status", description: error.message, variant: "destructive" });
     },
   });
+
+  const createPartnerMutation = useMutation({
+    mutationFn: async (data: typeof newPartner) => {
+      return apiRequest("POST", "/api/admin/partners", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/partners"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      toast({ title: "Partner created successfully" });
+      setShowAddDialog(false);
+      setNewPartner({ username: "", password: "", name: "", email: "", phone: "", role: "ddp", state: "", district: "" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to create partner", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deletePartnerMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/admin/partners/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/partners"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      toast({ title: "Partner deleted successfully" });
+      setDeletePartnerId(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to delete partner", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleCreatePartner = () => {
+    if (!newPartner.username || !newPartner.password || !newPartner.name || !newPartner.phone) {
+      toast({ title: "Please fill all required fields", variant: "destructive" });
+      return;
+    }
+    createPartnerMutation.mutate(newPartner);
+  };
 
   const filteredPartners = partners?.filter((partner) => {
     const matchesSearch = partner.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -63,9 +117,113 @@ export default function AdminPartners() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold" data-testid="text-page-title">Partner Management</h1>
-        <p className="text-muted-foreground">Manage BDPs and DDPs</p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold" data-testid="text-page-title">Partner Management</h1>
+          <p className="text-muted-foreground">Manage BDPs and DDPs</p>
+        </div>
+        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+          <DialogTrigger asChild>
+            <Button data-testid="button-add-partner">
+              <Plus className="w-4 h-4 mr-2" /> Add Partner
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Add New Partner</DialogTitle>
+              <DialogDescription>Create a new BDP or DDP partner account.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Role *</Label>
+                <Select value={newPartner.role} onValueChange={(v) => setNewPartner({ ...newPartner, role: v })}>
+                  <SelectTrigger data-testid="select-new-role">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bdp">BDP (Business Development Partner)</SelectItem>
+                    <SelectItem value="ddp">DDP (District Development Partner)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Full Name *</Label>
+                <Input
+                  value={newPartner.name}
+                  onChange={(e) => setNewPartner({ ...newPartner, name: e.target.value })}
+                  placeholder="Enter full name"
+                  data-testid="input-new-name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Username *</Label>
+                <Input
+                  value={newPartner.username}
+                  onChange={(e) => setNewPartner({ ...newPartner, username: e.target.value })}
+                  placeholder="Enter username"
+                  data-testid="input-new-username"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Password *</Label>
+                <Input
+                  type="password"
+                  value={newPartner.password}
+                  onChange={(e) => setNewPartner({ ...newPartner, password: e.target.value })}
+                  placeholder="Enter password"
+                  data-testid="input-new-password"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Phone *</Label>
+                <Input
+                  value={newPartner.phone}
+                  onChange={(e) => setNewPartner({ ...newPartner, phone: e.target.value })}
+                  placeholder="Enter phone number"
+                  data-testid="input-new-phone"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={newPartner.email}
+                  onChange={(e) => setNewPartner({ ...newPartner, email: e.target.value })}
+                  placeholder="Enter email"
+                  data-testid="input-new-email"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>State</Label>
+                <Select value={newPartner.state} onValueChange={(v) => setNewPartner({ ...newPartner, state: v })}>
+                  <SelectTrigger data-testid="select-new-state">
+                    <SelectValue placeholder="Select state" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {indianStates.map((state) => (
+                      <SelectItem key={state} value={state}>{state}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>District</Label>
+                <Input
+                  value={newPartner.district}
+                  onChange={(e) => setNewPartner({ ...newPartner, district: e.target.value })}
+                  placeholder="Enter district"
+                  data-testid="input-new-district"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancel</Button>
+              <Button onClick={handleCreatePartner} disabled={createPartnerMutation.isPending} data-testid="button-create-partner">
+                {createPartnerMutation.isPending ? "Creating..." : "Create Partner"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -184,27 +342,37 @@ export default function AdminPartners() {
                       </div>
                     </div>
                     
-                    {partner.status === "pending" && (
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => updateStatusMutation.mutate({ id: partner.id, status: "approved" })}
-                          disabled={updateStatusMutation.isPending}
-                          data-testid={`button-approve-${partner.id}`}
-                        >
-                          <Check className="w-4 h-4 mr-1" /> Approve
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => updateStatusMutation.mutate({ id: partner.id, status: "rejected" })}
-                          disabled={updateStatusMutation.isPending}
-                          data-testid={`button-reject-${partner.id}`}
-                        >
-                          <X className="w-4 h-4 mr-1" /> Reject
-                        </Button>
-                      </div>
-                    )}
+                    <div className="flex gap-2">
+                      {partner.status === "pending" && (
+                        <>
+                          <Button
+                            size="sm"
+                            onClick={() => updateStatusMutation.mutate({ id: partner.id, status: "approved" })}
+                            disabled={updateStatusMutation.isPending}
+                            data-testid={`button-approve-${partner.id}`}
+                          >
+                            <Check className="w-4 h-4 mr-1" /> Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => updateStatusMutation.mutate({ id: partner.id, status: "rejected" })}
+                            disabled={updateStatusMutation.isPending}
+                            data-testid={`button-reject-${partner.id}`}
+                          >
+                            <X className="w-4 h-4 mr-1" /> Reject
+                          </Button>
+                        </>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setDeletePartnerId(partner.id)}
+                        data-testid={`button-delete-${partner.id}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))
@@ -214,6 +382,29 @@ export default function AdminPartners() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deletePartnerId} onOpenChange={(open) => !open && setDeletePartnerId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Partner</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this partner? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeletePartnerId(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => deletePartnerId && deletePartnerMutation.mutate(deletePartnerId)}
+              disabled={deletePartnerMutation.isPending}
+              data-testid="button-confirm-delete"
+            >
+              {deletePartnerMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

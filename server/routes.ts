@@ -1870,6 +1870,76 @@ export async function registerRoutes(
     }
   });
 
+  // Admin: Create new partner (BDP or DDP)
+  app.post("/api/admin/partners", requireAdmin, async (req, res) => {
+    try {
+      const data = registerUserSchema.parse(req.body);
+      
+      // Check if username exists
+      const existingUsername = await storage.getUserByUsername(data.username);
+      if (existingUsername) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+      
+      // Check if phone number is already registered
+      if (data.phone) {
+        const existingPhone = await storage.getUserByPhone(data.phone);
+        if (existingPhone) {
+          return res.status(400).json({ message: "This mobile number is already registered with another partner account" });
+        }
+      }
+      
+      // Check if email is already registered
+      if (data.email) {
+        const existingEmail = await storage.getUserByEmail(data.email);
+        if (existingEmail) {
+          return res.status(400).json({ message: "This email is already registered with another partner account" });
+        }
+      }
+      
+      // Hash password
+      const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
+      
+      const partner = await storage.createUser({
+        ...data,
+        password: hashedPassword,
+        status: "approved", // Admin-created partners are auto-approved
+      });
+      
+      res.status(201).json({ ...partner, password: undefined });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      console.error("Create partner error:", error);
+      res.status(500).json({ message: "Failed to create partner" });
+    }
+  });
+
+  // Admin: Delete partner
+  app.delete("/api/admin/partners/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Check if partner exists
+      const partner = await storage.getUser(id);
+      if (!partner) {
+        return res.status(404).json({ message: "Partner not found" });
+      }
+      
+      // Prevent deleting admin accounts
+      if (partner.role === "admin") {
+        return res.status(403).json({ message: "Cannot delete admin accounts" });
+      }
+      
+      await storage.deleteUser(id);
+      res.json({ message: "Partner deleted successfully" });
+    } catch (error) {
+      console.error("Delete partner error:", error);
+      res.status(500).json({ message: "Failed to delete partner" });
+    }
+  });
+
   // Get all customers
   app.get("/api/admin/customers", requireAdmin, async (req, res) => {
     try {
