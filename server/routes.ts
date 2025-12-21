@@ -4249,6 +4249,241 @@ export async function registerRoutes(
     }
   });
 
+  // ==================== STEP 7: SITE EXECUTION ORDERS ====================
+  
+  // Admin: Get all site execution orders
+  app.get("/api/admin/site-execution-orders", requireAdmin, async (req, res) => {
+    try {
+      const orders = await storage.getSiteExecutionOrders();
+      res.json(orders);
+    } catch (error) {
+      console.error("Get site execution orders error:", error);
+      res.status(500).json({ message: "Failed to get site execution orders" });
+    }
+  });
+  
+  // Admin: Get site execution order by ID
+  app.get("/api/admin/site-execution-orders/:id", requireAdmin, async (req, res) => {
+    try {
+      const order = await storage.getSiteExecutionOrder(req.params.id);
+      if (!order) {
+        return res.status(404).json({ message: "Site execution order not found" });
+      }
+      res.json(order);
+    } catch (error) {
+      console.error("Get site execution order error:", error);
+      res.status(500).json({ message: "Failed to get site execution order" });
+    }
+  });
+  
+  // Admin: Create site execution order
+  app.post("/api/admin/site-execution-orders", requireAdmin, async (req, res) => {
+    try {
+      const { 
+        customerId, vendorId, purchaseOrderId, deliveryId,
+        customerName, customerPhone, siteAddress, district, state, pincode,
+        vendorName, vendorContactPerson, vendorPhone,
+        scheduledStartDate, scheduledEndDate, actualStartDate, actualEndDate, estimatedDuration,
+        crewLeadName, crewLeadPhone, crewSize, crewMembers,
+        scopeOfWork, workDescription, panelType, panelCapacity, inverterType, numberOfPanels,
+        requiredMaterials, requiredTools, specialInstructions,
+        safetyChecklistCompleted, safetyNotes, permitsRequired, permitsObtained,
+        status, progressPercentage, progressNotes,
+        qualityCheckCompleted, qualityCheckNotes, qualityCheckDate, qualityCheckedBy,
+        completionCertificate, completionPhotos, customerSignoff, customerSignoffDate,
+        customerFeedback, customerRating, holdReason, cancelReason, remarks
+      } = req.body;
+      
+      // Validate required fields
+      if (!customerName || typeof customerName !== "string" || customerName.trim() === "") {
+        return res.status(400).json({ message: "Customer name is required" });
+      }
+      if (!siteAddress || typeof siteAddress !== "string" || siteAddress.trim() === "") {
+        return res.status(400).json({ message: "Site address is required" });
+      }
+      if (!scheduledStartDate) {
+        return res.status(400).json({ message: "Scheduled start date is required" });
+      }
+      
+      // Validate scheduled start date
+      const parsedStartDate = new Date(scheduledStartDate);
+      if (isNaN(parsedStartDate.getTime())) {
+        return res.status(400).json({ message: "Invalid scheduled start date format" });
+      }
+      
+      // Validate status if provided
+      const validStatuses = ["draft", "assigned", "in_progress", "completed", "on_hold", "cancelled"];
+      if (status && !validStatuses.includes(status)) {
+        return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
+      }
+      
+      // Validate customer if provided
+      if (customerId) {
+        const customer = await storage.getCustomer(customerId);
+        if (!customer) {
+          return res.status(404).json({ message: "Customer not found" });
+        }
+      }
+      
+      // Validate vendor if provided
+      if (vendorId) {
+        const vendor = await storage.getVendor(vendorId);
+        if (!vendor) {
+          return res.status(404).json({ message: "Vendor not found" });
+        }
+      }
+      
+      // Generate order number
+      const orderNumber = await storage.generateExecutionOrderNumber();
+      
+      const order = await storage.createSiteExecutionOrder({
+        orderNumber,
+        customerId: customerId || null,
+        vendorId: vendorId || null,
+        purchaseOrderId: purchaseOrderId || null,
+        deliveryId: deliveryId || null,
+        customerName: customerName.trim(),
+        customerPhone: customerPhone || null,
+        siteAddress: siteAddress.trim(),
+        district: district || null,
+        state: state || null,
+        pincode: pincode || null,
+        vendorName: vendorName || null,
+        vendorContactPerson: vendorContactPerson || null,
+        vendorPhone: vendorPhone || null,
+        scheduledStartDate: parsedStartDate,
+        scheduledEndDate: scheduledEndDate ? new Date(scheduledEndDate) : null,
+        actualStartDate: actualStartDate ? new Date(actualStartDate) : null,
+        actualEndDate: actualEndDate ? new Date(actualEndDate) : null,
+        estimatedDuration: estimatedDuration ? parseInt(estimatedDuration) : null,
+        crewLeadName: crewLeadName || null,
+        crewLeadPhone: crewLeadPhone || null,
+        crewSize: crewSize ? parseInt(crewSize) : null,
+        crewMembers: crewMembers || null,
+        scopeOfWork: scopeOfWork || null,
+        workDescription: workDescription || null,
+        panelType: panelType || null,
+        panelCapacity: panelCapacity || null,
+        inverterType: inverterType || null,
+        numberOfPanels: numberOfPanels ? parseInt(numberOfPanels) : null,
+        requiredMaterials: requiredMaterials || null,
+        requiredTools: requiredTools || null,
+        specialInstructions: specialInstructions || null,
+        safetyChecklistCompleted: safetyChecklistCompleted || false,
+        safetyNotes: safetyNotes || null,
+        permitsRequired: permitsRequired || null,
+        permitsObtained: permitsObtained || false,
+        status: status || "draft",
+        progressPercentage: progressPercentage ? parseInt(progressPercentage) : 0,
+        progressNotes: progressNotes || null,
+        qualityCheckCompleted: qualityCheckCompleted || false,
+        qualityCheckNotes: qualityCheckNotes || null,
+        qualityCheckDate: qualityCheckDate ? new Date(qualityCheckDate) : null,
+        qualityCheckedBy: qualityCheckedBy || null,
+        completionCertificate: completionCertificate || null,
+        completionPhotos: completionPhotos || null,
+        customerSignoff: customerSignoff || null,
+        customerSignoffDate: customerSignoffDate ? new Date(customerSignoffDate) : null,
+        customerFeedback: customerFeedback || null,
+        customerRating: customerRating ? parseInt(customerRating) : null,
+        holdReason: holdReason || null,
+        cancelReason: cancelReason || null,
+        remarks: remarks || null,
+        createdBy: (req as any).user?.id || null,
+      });
+      
+      res.status(201).json(order);
+    } catch (error) {
+      console.error("Create site execution order error:", error);
+      res.status(500).json({ message: "Failed to create site execution order" });
+    }
+  });
+  
+  // Admin: Update site execution order
+  app.patch("/api/admin/site-execution-orders/:id", requireAdmin, async (req, res) => {
+    try {
+      const validStatuses = ["draft", "assigned", "in_progress", "completed", "on_hold", "cancelled"];
+      
+      const updateData: Record<string, any> = {};
+      
+      const stringFields = ["customerName", "customerPhone", "siteAddress", "district", "state", "pincode",
+        "vendorName", "vendorContactPerson", "vendorPhone", "crewLeadName", "crewLeadPhone",
+        "scopeOfWork", "workDescription", "panelType", "panelCapacity", "inverterType",
+        "specialInstructions", "safetyNotes", "progressNotes", "qualityCheckNotes", "qualityCheckedBy",
+        "completionCertificate", "customerSignoff", "customerFeedback", "holdReason", "cancelReason", "remarks"];
+      const dateFields = ["scheduledStartDate", "scheduledEndDate", "actualStartDate", "actualEndDate", 
+        "qualityCheckDate", "customerSignoffDate"];
+      const arrayFields = ["crewMembers", "requiredMaterials", "requiredTools", "permitsRequired", "completionPhotos"];
+      const intFields = ["estimatedDuration", "crewSize", "numberOfPanels", "progressPercentage", "customerRating"];
+      const boolFields = ["safetyChecklistCompleted", "permitsObtained", "qualityCheckCompleted"];
+      
+      for (const field of stringFields) {
+        if (req.body[field] !== undefined) {
+          updateData[field] = req.body[field] ? String(req.body[field]).trim() : null;
+        }
+      }
+      
+      for (const field of dateFields) {
+        if (req.body[field] !== undefined) {
+          if (req.body[field]) {
+            const parsedDate = new Date(req.body[field]);
+            if (isNaN(parsedDate.getTime())) {
+              return res.status(400).json({ message: `Invalid ${field} format` });
+            }
+            updateData[field] = parsedDate;
+          } else {
+            updateData[field] = null;
+          }
+        }
+      }
+      
+      for (const field of arrayFields) {
+        if (req.body[field] !== undefined) {
+          updateData[field] = req.body[field] || null;
+        }
+      }
+      
+      for (const field of intFields) {
+        if (req.body[field] !== undefined) {
+          updateData[field] = req.body[field] !== null && req.body[field] !== "" ? parseInt(req.body[field]) : null;
+        }
+      }
+      
+      for (const field of boolFields) {
+        if (req.body[field] !== undefined) {
+          updateData[field] = Boolean(req.body[field]);
+        }
+      }
+      
+      if (req.body.status !== undefined) {
+        if (!validStatuses.includes(req.body.status)) {
+          return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
+        }
+        updateData.status = req.body.status;
+      }
+      
+      const order = await storage.updateSiteExecutionOrder(req.params.id, updateData);
+      if (!order) {
+        return res.status(404).json({ message: "Site execution order not found" });
+      }
+      res.json(order);
+    } catch (error) {
+      console.error("Update site execution order error:", error);
+      res.status(500).json({ message: "Failed to update site execution order" });
+    }
+  });
+  
+  // Admin: Delete site execution order
+  app.delete("/api/admin/site-execution-orders/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteSiteExecutionOrder(req.params.id);
+      res.json({ message: "Site execution order deleted" });
+    } catch (error) {
+      console.error("Delete site execution order error:", error);
+      res.status(500).json({ message: "Failed to delete site execution order" });
+    }
+  });
+
   // ==================== CUSTOMER PARTNER ROUTES ====================
   
   // Lookup customer eligibility for Customer Partner registration
