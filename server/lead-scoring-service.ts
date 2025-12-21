@@ -66,22 +66,32 @@ Respond in this exact JSON format:
 }`;
 
   try {
+    console.log("Calling OpenAI for lead scoring...");
+    console.log("Base URL:", process.env.AI_INTEGRATIONS_OPENAI_BASE_URL);
+    console.log("API Key configured:", !!process.env.AI_INTEGRATIONS_OPENAI_API_KEY);
+    
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4.1-mini",
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
       max_completion_tokens: 1024,
     });
 
+    console.log("OpenAI response received");
     const content = response.choices[0]?.message?.content;
     if (!content) {
+      console.error("No content in OpenAI response");
       throw new Error("No response from AI");
     }
 
+    console.log("Parsing OpenAI response...");
     const result = JSON.parse(content) as LeadScoreResult;
+    console.log("Lead score calculated:", result.score);
     return result;
-  } catch (error) {
-    console.error("Lead scoring error:", error);
+  } catch (error: any) {
+    console.error("Lead scoring OpenAI error:", error?.message || error);
+    console.error("Full error:", JSON.stringify(error, null, 2));
+    console.log("Using fallback scoring...");
     return calculateFallbackScore(customer);
   }
 }
