@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Search, Phone, MapPin, Zap, Calendar, MoreVertical, CheckCircle, Clock, FileCheck, Truck, PartyPopper, Eye, Camera, Video, Play, X, Image } from "lucide-react";
+import { Search, Phone, MapPin, Zap, Calendar, MoreVertical, CheckCircle, Clock, FileCheck, Truck, PartyPopper, Eye, Camera, Video, Play, X, Image, Smartphone, ShieldOff } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { CustomerJourneyMini } from "@/components/customer-journey-tracker";
@@ -76,6 +76,28 @@ export default function AdminCustomers() {
       toast({
         title: "Error",
         description: "Failed to update customer status.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const togglePortalMutation = useMutation({
+    mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
+      return apiRequest("PATCH", `/api/admin/customers/${id}/portal`, { portalEnabled: enabled });
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/customers"] });
+      toast({
+        title: variables.enabled ? "Portal Enabled" : "Portal Disabled",
+        description: variables.enabled 
+          ? "Customer can now track their installation via OTP login."
+          : "Customer portal access has been disabled.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update portal access.",
         variant: "destructive",
       });
     },
@@ -343,6 +365,27 @@ export default function AdminCustomers() {
                           >
                             <Eye className="w-4 h-4 mr-2" />
                             View Journey
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => togglePortalMutation.mutate({ 
+                              id: customer.id, 
+                              enabled: !customer.portalEnabled 
+                            })}
+                            disabled={togglePortalMutation.isPending}
+                            data-testid={`button-toggle-portal-${customer.id}`}
+                          >
+                            {customer.portalEnabled ? (
+                              <>
+                                <ShieldOff className="w-4 h-4 mr-2 text-red-500" />
+                                Disable Portal Access
+                              </>
+                            ) : (
+                              <>
+                                <Smartphone className="w-4 h-4 mr-2 text-green-500" />
+                                Enable Portal Access
+                              </>
+                            )}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

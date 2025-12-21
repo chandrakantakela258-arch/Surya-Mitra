@@ -583,6 +583,82 @@ export async function registerRoutes(
     }
   });
   
+  // Get customer installation progress (milestones) - alias for frontend
+  app.get("/api/customer-portal/progress", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const sessionToken = authHeader.substring(7);
+      const session = await storage.getCustomerSessionByToken(sessionToken);
+      
+      if (!session || new Date(session.expiresAt) < new Date()) {
+        // Delete expired session
+        if (session) {
+          await storage.deleteCustomerSession(sessionToken);
+        }
+        return res.status(401).json({ message: "Session expired" });
+      }
+      
+      const customer = await storage.getCustomer(session.customerId);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      
+      // Get milestones visible to customer only (server-side filtering)
+      const allMilestones = await storage.getMilestonesByCustomerId(session.customerId);
+      const visibleMilestones = allMilestones.filter(m => m.visibleToCustomer !== false);
+      
+      // Calculate progress
+      const completedMilestones = visibleMilestones.filter(m => m.status === "completed");
+      const totalSteps = visibleMilestones.length || 1;
+      const currentStep = completedMilestones.length;
+      const percentComplete = Math.round((currentStep / totalSteps) * 100);
+      
+      // Sanitize milestones to hide internal notes
+      const sanitizedMilestones = visibleMilestones.map(m => ({
+        id: m.id,
+        title: m.milestone,
+        description: m.notes,
+        status: m.status,
+        completedAt: m.completedAt,
+        visibleToCustomer: m.visibleToCustomer,
+        documents: m.documents,
+      }));
+      
+      res.json({
+        customer: {
+          id: customer.id,
+          name: customer.name,
+          phone: customer.phone,
+          email: customer.email,
+          address: customer.address,
+          district: customer.district,
+          state: customer.state,
+          pincode: customer.pincode,
+          capacity: customer.proposedCapacity,
+          panelType: customer.panelType,
+          customerType: customer.customerType || "residential",
+          status: customer.status,
+          latitude: customer.latitude,
+          longitude: customer.longitude,
+          subsidyAmount: customer.subsidyAmount || 0,
+          createdAt: customer.createdAt,
+          portalStatus: customer.portalEnabled ? "active" : "disabled",
+        },
+        milestones: sanitizedMilestones,
+        currentStep,
+        totalSteps,
+        percentComplete,
+      });
+    } catch (error) {
+      console.error("Customer portal progress error:", error);
+      res.status(500).json({ message: "Failed to get progress" });
+    }
+  });
+
   // Get customer installation progress (milestones)
   app.get("/api/customer-portal/installation-progress", async (req, res) => {
     try {
@@ -1617,6 +1693,28 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Admin update customer status error:", error);
       res.status(500).json({ message: "Failed to update customer status" });
+    }
+  });
+
+  // Admin toggle customer portal access
+  app.patch("/api/admin/customers/:id/portal", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { portalEnabled } = req.body;
+      
+      if (typeof portalEnabled !== "boolean") {
+        return res.status(400).json({ message: "portalEnabled must be a boolean" });
+      }
+      
+      const customer = await storage.updateCustomer(id, { portalEnabled });
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      
+      res.json(customer);
+    } catch (error) {
+      console.error("Admin toggle customer portal error:", error);
+      res.status(500).json({ message: "Failed to update portal access" });
     }
   });
 
