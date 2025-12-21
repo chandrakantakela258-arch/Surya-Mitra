@@ -50,8 +50,13 @@ export default function DDPCustomers() {
       toast({ title: "Lead score calculated using AI" });
       setScoringCustomerId(null);
     },
-    onError: () => {
-      toast({ title: "Failed to calculate lead score", variant: "destructive" });
+    onError: (error: any) => {
+      console.error("Lead score error:", error);
+      toast({ 
+        title: "Failed to calculate lead score", 
+        description: error?.message || "Please try again",
+        variant: "destructive" 
+      });
       setScoringCustomerId(null);
     },
   });
