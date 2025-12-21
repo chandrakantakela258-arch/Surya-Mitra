@@ -62,6 +62,7 @@ import CustomerPartnerReferrals from "@/pages/customer-partner/referrals";
 import CustomerPartnerEarnings from "@/pages/customer-partner/earnings";
 import CustomerPartnerProfile from "@/pages/customer-partner/profile";
 import CustomerPartnerRegisterPage from "@/pages/customer-partner-register";
+import ForgotPasswordPage from "@/pages/forgot-password";
 import { MobileNav } from "@/components/mobile-nav";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 
@@ -461,6 +462,18 @@ function PublicRouter() {
           } />
         ) : (
           <LoginPage />
+        )}
+      </Route>
+      <Route path="/forgot-password">
+        {user ? (
+          <Redirect to={
+            user.role === "admin" ? "/admin/dashboard" : 
+            user.role === "bdp" ? "/bdp/dashboard" : 
+            user.role === "customer_partner" ? "/customer-partner/dashboard" :
+            "/ddp/dashboard"
+          } />
+        ) : (
+          <ForgotPasswordPage />
         )}
       </Route>
       <Route path="/register">

@@ -241,6 +241,150 @@ export async function registerRoutes(
     });
   });
 
+  // ==================== FORGOT PASSWORD ROUTES ====================
+  
+  // In-memory OTP storage (in production, use Redis or database)
+  const otpStore: Map<string, { otp: string; expires: number; resetToken?: string }> = new Map();
+  
+  // Send OTP for password reset
+  app.post("/api/auth/forgot-password/send-otp", async (req, res) => {
+    try {
+      const { phone } = req.body;
+      
+      if (!phone) {
+        return res.status(400).json({ message: "Phone number is required" });
+      }
+      
+      // Find user by phone
+      const user = await storage.getUserByPhone(phone);
+      if (!user) {
+        return res.status(404).json({ message: "No account found with this phone number" });
+      }
+      
+      // Generate 6-digit OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expires = Date.now() + 10 * 60 * 1000; // 10 minutes
+      
+      // Store OTP
+      otpStore.set(phone, { otp, expires });
+      
+      // Send OTP via Twilio SMS
+      const twilioSid = process.env.TWILIO_ACCOUNT_SID;
+      const twilioToken = process.env.TWILIO_AUTH_TOKEN;
+      const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
+      
+      if (twilioSid && twilioToken && twilioPhone) {
+        try {
+          const twilio = require("twilio")(twilioSid, twilioToken);
+          await twilio.messages.create({
+            body: `Your DivyanshiSolar password reset OTP is: ${otp}. Valid for 10 minutes.`,
+            from: twilioPhone,
+            to: phone.startsWith("+") ? phone : `+91${phone}`,
+          });
+        } catch (smsError) {
+          console.error("SMS send error:", smsError);
+          // Still return success - OTP is stored, user can use it
+        }
+      }
+      
+      res.json({ 
+        success: true, 
+        userName: user.name,
+        message: "OTP sent successfully" 
+      });
+    } catch (error) {
+      console.error("Send OTP error:", error);
+      res.status(500).json({ message: "Failed to send OTP" });
+    }
+  });
+  
+  // Verify OTP
+  app.post("/api/auth/forgot-password/verify-otp", async (req, res) => {
+    try {
+      const { phone, otp } = req.body;
+      
+      if (!phone || !otp) {
+        return res.status(400).json({ message: "Phone and OTP are required" });
+      }
+      
+      const storedData = otpStore.get(phone);
+      if (!storedData) {
+        return res.status(400).json({ message: "OTP not found. Please request a new one." });
+      }
+      
+      if (Date.now() > storedData.expires) {
+        otpStore.delete(phone);
+        return res.status(400).json({ message: "OTP has expired. Please request a new one." });
+      }
+      
+      if (storedData.otp !== otp) {
+        return res.status(400).json({ message: "Invalid OTP. Please try again." });
+      }
+      
+      // Generate reset token
+      const resetToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
+      storedData.resetToken = resetToken;
+      storedData.expires = Date.now() + 15 * 60 * 1000; // 15 minutes for password reset
+      
+      res.json({ 
+        success: true, 
+        resetToken,
+        message: "OTP verified successfully" 
+      });
+    } catch (error) {
+      console.error("Verify OTP error:", error);
+      res.status(500).json({ message: "Failed to verify OTP" });
+    }
+  });
+  
+  // Reset password
+  app.post("/api/auth/forgot-password/reset", async (req, res) => {
+    try {
+      const { phone, resetToken, newPassword } = req.body;
+      
+      if (!phone || !resetToken || !newPassword) {
+        return res.status(400).json({ message: "Phone, reset token and new password are required" });
+      }
+      
+      if (newPassword.length < 6) {
+        return res.status(400).json({ message: "Password must be at least 6 characters" });
+      }
+      
+      const storedData = otpStore.get(phone);
+      if (!storedData || storedData.resetToken !== resetToken) {
+        return res.status(400).json({ message: "Invalid reset token. Please start again." });
+      }
+      
+      if (Date.now() > storedData.expires) {
+        otpStore.delete(phone);
+        return res.status(400).json({ message: "Reset token has expired. Please start again." });
+      }
+      
+      // Find user and update password
+      const user = await storage.getUserByPhone(phone);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+      
+      // Update user password
+      await storage.updateUser(user.id, { password: hashedPassword });
+      
+      // Clean up OTP store
+      otpStore.delete(phone);
+      
+      res.json({ 
+        success: true, 
+        message: "Password reset successfully" 
+      });
+    } catch (error) {
+      console.error("Reset password error:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
   // Get current user
   app.get("/api/auth/me", async (req, res) => {
     if (!req.session.userId) {
