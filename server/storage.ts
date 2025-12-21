@@ -98,6 +98,9 @@ import {
   type SiteExecutionCompletionReport,
   type InsertSiteExecutionCompletionReport,
   siteExecutionCompletionReports,
+  type SiteSurvey,
+  type InsertSiteSurvey,
+  siteSurveys,
   installationMilestones,
   calculateCommission,
   calculateBdpCommission,
@@ -2377,6 +2380,70 @@ export class DatabaseStorage implements IStorage {
     const reports = await db.select().from(siteExecutionCompletionReports);
     const count = reports.length + 1;
     return `CRP-${year}${month}-${String(count).padStart(4, '0')}`;
+  }
+
+  // Step 3: Site Surveys operations
+  async createSiteSurvey(survey: any): Promise<SiteSurvey> {
+    const surveyData = {
+      ...survey,
+      scheduledDate: survey.scheduledDate ? new Date(survey.scheduledDate) : new Date(),
+      actualDate: survey.actualDate ? new Date(survey.actualDate) : null,
+      bankSurveyDate: survey.bankSurveyDate ? new Date(survey.bankSurveyDate) : null,
+      discomSurveyDate: survey.discomSurveyDate ? new Date(survey.discomSurveyDate) : null,
+      roofArea: survey.roofArea ? parseInt(survey.roofArea) : null,
+    };
+    const [created] = await db.insert(siteSurveys).values(surveyData).returning();
+    return created;
+  }
+
+  async getSiteSurveys(): Promise<SiteSurvey[]> {
+    return await db.select().from(siteSurveys).orderBy(desc(siteSurveys.createdAt));
+  }
+
+  async getSiteSurvey(id: string): Promise<SiteSurvey | undefined> {
+    const [survey] = await db.select().from(siteSurveys).where(eq(siteSurveys.id, id));
+    return survey || undefined;
+  }
+
+  async getSiteSurveyByCustomerId(customerId: string): Promise<SiteSurvey | undefined> {
+    const [survey] = await db.select().from(siteSurveys)
+      .where(eq(siteSurveys.customerId, customerId));
+    return survey || undefined;
+  }
+
+  async updateSiteSurvey(id: string, data: Partial<SiteSurvey>): Promise<SiteSurvey | undefined> {
+    const updateData: any = { ...data, updatedAt: new Date() };
+    if (data.scheduledDate && typeof data.scheduledDate === 'string') {
+      updateData.scheduledDate = new Date(data.scheduledDate);
+    }
+    if (data.actualDate && typeof data.actualDate === 'string') {
+      updateData.actualDate = new Date(data.actualDate);
+    }
+    if (data.bankSurveyDate && typeof data.bankSurveyDate === 'string') {
+      updateData.bankSurveyDate = new Date(data.bankSurveyDate);
+    }
+    if (data.discomSurveyDate && typeof data.discomSurveyDate === 'string') {
+      updateData.discomSurveyDate = new Date(data.discomSurveyDate);
+    }
+    if (updateData.roofArea) updateData.roofArea = parseInt(updateData.roofArea);
+    
+    const [updated] = await db.update(siteSurveys)
+      .set(updateData)
+      .where(eq(siteSurveys.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteSiteSurvey(id: string): Promise<void> {
+    await db.delete(siteSurveys).where(eq(siteSurveys.id, id));
+  }
+
+  async generateSiteSurveyNumber(): Promise<string> {
+    const year = new Date().getFullYear();
+    const month = String(new Date().getMonth() + 1).padStart(2, '0');
+    const surveys = await db.select().from(siteSurveys);
+    const count = surveys.length + 1;
+    return `SRV-${year}${month}-${String(count).padStart(4, '0')}`;
   }
 }
 

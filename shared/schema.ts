@@ -1175,6 +1175,106 @@ export const insertBankLoanSubmissionSchema = createInsertSchema(bankLoanSubmiss
 export type InsertBankLoanSubmission = z.infer<typeof insertBankLoanSubmissionSchema>;
 export type BankLoanSubmission = typeof bankLoanSubmissions.$inferSelect;
 
+// Step 3: Site Surveys - Bank Staff and Discom Representative site visits
+export const siteSurveys = pgTable("site_surveys", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  surveyNumber: text("survey_number").notNull().unique(),
+  customerId: varchar("customer_id").references(() => customers.id).notNull(),
+  loanSubmissionId: varchar("loan_submission_id").references(() => bankLoanSubmissions.id),
+  
+  // Customer & Site Info
+  customerName: text("customer_name").notNull(),
+  customerPhone: text("customer_phone"),
+  siteAddress: text("site_address").notNull(),
+  district: text("district"),
+  state: text("state"),
+  pincode: text("pincode"),
+  
+  // Survey Scheduling
+  scheduledDate: timestamp("scheduled_date").notNull(),
+  actualDate: timestamp("actual_date"),
+  surveyTime: text("survey_time"),
+  
+  // Bank Staff Details
+  bankName: text("bank_name"),
+  bankBranch: text("bank_branch"),
+  bankStaffName: text("bank_staff_name"),
+  bankStaffDesignation: text("bank_staff_designation"),
+  bankStaffPhone: text("bank_staff_phone"),
+  bankSurveyCompleted: boolean("bank_survey_completed").default(false),
+  bankSurveyDate: timestamp("bank_survey_date"),
+  bankSurveyNotes: text("bank_survey_notes"),
+  bankApprovalStatus: text("bank_approval_status").default("pending"), // pending, approved, rejected
+  
+  // Discom Representative Details
+  discomName: text("discom_name"),
+  discomDivision: text("discom_division"),
+  discomRepName: text("discom_rep_name"),
+  discomRepDesignation: text("discom_rep_designation"),
+  discomRepPhone: text("discom_rep_phone"),
+  discomSurveyCompleted: boolean("discom_survey_completed").default(false),
+  discomSurveyDate: timestamp("discom_survey_date"),
+  discomSurveyNotes: text("discom_survey_notes"),
+  discomApprovalStatus: text("discom_approval_status").default("pending"), // pending, approved, rejected
+  
+  // Site Assessment
+  roofCondition: text("roof_condition"), // excellent, good, fair, poor
+  roofType: text("roof_type"), // RCC, tin, tile, etc.
+  roofArea: integer("roof_area"), // sq ft
+  shadowAnalysis: text("shadow_analysis"), // none, minimal, moderate, significant
+  structuralFeasibility: text("structural_feasibility"), // feasible, needs_reinforcement, not_feasible
+  electricalFeasibility: text("electrical_feasibility"), // feasible, needs_upgrade, not_feasible
+  
+  // Meter & Connection Details
+  existingMeterType: text("existing_meter_type"),
+  meterLocation: text("meter_location"),
+  sanctionedLoad: text("sanctioned_load"),
+  proposedCapacity: text("proposed_capacity"),
+  gridConnectionDistance: text("grid_connection_distance"),
+  
+  // Photo Uploads
+  roofPhotos: text("roof_photos").array(),
+  meterPhotos: text("meter_photos").array(),
+  sitePhotos: text("site_photos").array(),
+  
+  // Survey Outcome
+  status: text("status").default("scheduled"), // scheduled, in_progress, completed, cancelled
+  overallRecommendation: text("overall_recommendation"), // approved, conditional, rejected
+  recommendedCapacity: text("recommended_capacity"),
+  specialConditions: text("special_conditions"),
+  rejectionReason: text("rejection_reason"),
+  
+  remarks: text("remarks"),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const siteSurveysRelations = relations(siteSurveys, ({ one }) => ({
+  customer: one(customers, {
+    fields: [siteSurveys.customerId],
+    references: [customers.id],
+  }),
+  loanSubmission: one(bankLoanSubmissions, {
+    fields: [siteSurveys.loanSubmissionId],
+    references: [bankLoanSubmissions.id],
+  }),
+}));
+
+export const insertSiteSurveySchema = createInsertSchema(siteSurveys).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  scheduledDate: z.string().min(1, "Scheduled date is required"),
+  actualDate: z.string().optional(),
+  bankSurveyDate: z.string().optional(),
+  discomSurveyDate: z.string().optional(),
+});
+
+export type InsertSiteSurvey = z.infer<typeof insertSiteSurveySchema>;
+export type SiteSurvey = typeof siteSurveys.$inferSelect;
+
 // Password Reset OTPs - Store OTPs for password reset
 export const passwordResetOtps = pgTable("password_reset_otps", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
