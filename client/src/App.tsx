@@ -71,6 +71,7 @@ import InstallationMap from "@/pages/installation-map";
 import NetworkMap from "@/pages/network-map";
 import VendorRegistration from "@/pages/vendor-registration";
 import CustomerRegistration from "@/pages/customer-registration";
+import CustomerDashboard from "@/pages/customer-dashboard";
 import CustomerPartnerDashboard from "@/pages/customer-partner/dashboard";
 import CustomerPartnerReferrals from "@/pages/customer-partner/referrals";
 import CustomerPartnerEarnings from "@/pages/customer-partner/earnings";
@@ -560,6 +561,12 @@ function PublicRouter() {
       </Route>
       <Route path="/register-solar">
         <CustomerRegistration />
+      </Route>
+      <Route path="/my-installation">
+        <CustomerDashboard />
+      </Route>
+      <Route path="/track-installation">
+        <CustomerDashboard />
       </Route>
       <Route path="/customer-partner-register">
         <Redirect to="/register" />

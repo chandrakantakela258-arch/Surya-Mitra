@@ -42,7 +42,8 @@ import {
   Clock,
   MessageSquare,
   Map,
-  Store
+  Store,
+  Eye
 } from "lucide-react";
 import { useState } from "react";
 
@@ -117,6 +118,15 @@ export default function LandingPage() {
                   Customer Registration
                 </button>
               </WouterLink>
+              <WouterLink href="/my-installation">
+                <button 
+                  className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-200"
+                  data-testid="nav-track-installation"
+                >
+                  <Eye className="w-4 h-4 text-green-500" />
+                  Track Installation
+                </button>
+              </WouterLink>
             </nav>
 
             {/* Right Side Actions */}
@@ -186,11 +196,20 @@ export default function LandingPage() {
                 </WouterLink>
                 <WouterLink href="/customer-registration" onClick={() => setMobileMenuOpen(false)}>
                   <div 
-                    className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium bg-primary/10 text-primary transition-colors text-left col-span-2"
+                    className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium bg-primary/10 text-primary transition-colors text-left"
                     data-testid="mobile-nav-customer-registration"
                   >
                     <ClipboardList className="w-4 h-4" />
                     Customer Registration
+                  </div>
+                </WouterLink>
+                <WouterLink href="/my-installation" onClick={() => setMobileMenuOpen(false)}>
+                  <div 
+                    className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left"
+                    data-testid="mobile-nav-track-installation"
+                  >
+                    <Eye className="w-4 h-4 text-green-500" />
+                    Track Installation
                   </div>
                 </WouterLink>
               </div>
