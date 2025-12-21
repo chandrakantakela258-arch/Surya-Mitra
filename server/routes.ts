@@ -3386,8 +3386,24 @@ export async function registerRoutes(
       const user = (req as any).user;
       const { customerId, bankName, bankBranch, bankManagerName, bankManagerMobile, submissionDate, loanAmount, remarks } = req.body;
       
-      if (!customerId || !bankName || !bankBranch || !submissionDate) {
-        return res.status(400).json({ message: "Customer, bank name, branch, and submission date are required" });
+      // Validate required fields
+      if (!customerId || typeof customerId !== "string") {
+        return res.status(400).json({ message: "Customer ID is required" });
+      }
+      if (!bankName || typeof bankName !== "string" || bankName.trim() === "") {
+        return res.status(400).json({ message: "Bank name is required" });
+      }
+      if (!bankBranch || typeof bankBranch !== "string" || bankBranch.trim() === "") {
+        return res.status(400).json({ message: "Bank branch is required" });
+      }
+      if (!submissionDate) {
+        return res.status(400).json({ message: "Submission date is required" });
+      }
+      
+      // Validate date
+      const parsedDate = new Date(submissionDate);
+      if (isNaN(parsedDate.getTime())) {
+        return res.status(400).json({ message: "Invalid submission date format" });
       }
       
       // Verify customer exists
@@ -3398,13 +3414,13 @@ export async function registerRoutes(
       
       const submission = await storage.createBankLoanSubmission({
         customerId,
-        bankName,
-        bankBranch,
-        bankManagerName: bankManagerName || null,
-        bankManagerMobile: bankManagerMobile || null,
-        submissionDate: new Date(submissionDate),
-        loanAmount: loanAmount || null,
-        remarks: remarks || null,
+        bankName: bankName.trim(),
+        bankBranch: bankBranch.trim(),
+        bankManagerName: bankManagerName ? String(bankManagerName).trim() : null,
+        bankManagerMobile: bankManagerMobile ? String(bankManagerMobile).trim() : null,
+        submissionDate: parsedDate,
+        loanAmount: loanAmount ? String(loanAmount) : null,
+        remarks: remarks ? String(remarks).trim() : null,
         status: "submitted",
         createdBy: user.id,
       });
@@ -3419,7 +3435,53 @@ export async function registerRoutes(
   // Admin: Update bank loan submission
   app.patch("/api/admin/bank-loan-submissions/:id", requireAdmin, async (req, res) => {
     try {
-      const submission = await storage.updateBankLoanSubmission(req.params.id, req.body);
+      const { bankName, bankBranch, bankManagerName, bankManagerMobile, submissionDate, loanAmount, status, remarks } = req.body;
+      
+      // Valid status values
+      const validStatuses = ["submitted", "processing", "approved", "rejected", "disbursed"];
+      
+      // Build update object with proper validation
+      const updateData: Record<string, any> = {};
+      
+      if (bankName !== undefined) {
+        if (typeof bankName !== "string" || bankName.trim() === "") {
+          return res.status(400).json({ message: "Bank name must be a non-empty string" });
+        }
+        updateData.bankName = bankName.trim();
+      }
+      if (bankBranch !== undefined) {
+        if (typeof bankBranch !== "string" || bankBranch.trim() === "") {
+          return res.status(400).json({ message: "Bank branch must be a non-empty string" });
+        }
+        updateData.bankBranch = bankBranch.trim();
+      }
+      if (bankManagerName !== undefined) {
+        updateData.bankManagerName = bankManagerName ? String(bankManagerName).trim() : null;
+      }
+      if (bankManagerMobile !== undefined) {
+        updateData.bankManagerMobile = bankManagerMobile ? String(bankManagerMobile).trim() : null;
+      }
+      if (submissionDate !== undefined) {
+        const parsedDate = new Date(submissionDate);
+        if (isNaN(parsedDate.getTime())) {
+          return res.status(400).json({ message: "Invalid submission date format" });
+        }
+        updateData.submissionDate = parsedDate;
+      }
+      if (loanAmount !== undefined) {
+        updateData.loanAmount = loanAmount ? String(loanAmount) : null;
+      }
+      if (status !== undefined) {
+        if (!validStatuses.includes(status)) {
+          return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
+        }
+        updateData.status = status;
+      }
+      if (remarks !== undefined) {
+        updateData.remarks = remarks ? String(remarks).trim() : null;
+      }
+      
+      const submission = await storage.updateBankLoanSubmission(req.params.id, updateData);
       if (!submission) {
         return res.status(404).json({ message: "Bank loan submission not found" });
       }
