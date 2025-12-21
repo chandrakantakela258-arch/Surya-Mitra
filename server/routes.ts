@@ -8,7 +8,7 @@ import path from "path";
 import fs from "fs";
 import { pool } from "./db";
 import { storage } from "./storage";
-import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSchema, updateFeedbackStatusSchema, inverterCommission, insertVendorSchema, vendorStates } from "@shared/schema";
+import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSchema, updateFeedbackStatusSchema, inverterCommission, insertVendorSchema, vendorStates, insertSiteSurveySchema } from "@shared/schema";
 import { z } from "zod";
 import { notificationService } from "./notification-service";
 import { calculateLeadScore, type LeadScoreResult } from "./lead-scoring-service";
@@ -3545,50 +3545,41 @@ export async function registerRoutes(
   app.post("/api/admin/site-surveys", requireAdmin, async (req, res) => {
     try {
       const user = (req as any).user;
-      const { 
-        customerId, loanSubmissionId, customerName, customerPhone, siteAddress,
-        district, state, pincode, scheduledDate, surveyTime,
-        bankName, bankBranch, bankStaffName, bankStaffDesignation, bankStaffPhone,
-        discomName, discomDivision, discomRepName, discomRepDesignation, discomRepPhone,
-        remarks 
-      } = req.body;
       
-      if (!customerName || typeof customerName !== "string" || customerName.trim() === "") {
-        return res.status(400).json({ message: "Customer name is required" });
-      }
-      if (!siteAddress || typeof siteAddress !== "string" || siteAddress.trim() === "") {
-        return res.status(400).json({ message: "Site address is required" });
-      }
-      if (!scheduledDate) {
-        return res.status(400).json({ message: "Scheduled date is required" });
+      // Validate request body with Zod schema
+      const validationResult = insertSiteSurveySchema.safeParse(req.body);
+      if (!validationResult.success) {
+        const errors = validationResult.error.errors.map(e => e.message).join(", ");
+        return res.status(400).json({ message: errors });
       }
       
+      const data = validationResult.data;
       const surveyNumber = await storage.generateSiteSurveyNumber();
       
       const survey = await storage.createSiteSurvey({
         surveyNumber,
-        customerId: customerId || null,
-        loanSubmissionId: loanSubmissionId || null,
-        customerName: customerName.trim(),
-        customerPhone: customerPhone || null,
-        siteAddress: siteAddress.trim(),
-        district: district || null,
-        state: state || null,
-        pincode: pincode || null,
-        scheduledDate,
-        surveyTime: surveyTime || null,
-        bankName: bankName || null,
-        bankBranch: bankBranch || null,
-        bankStaffName: bankStaffName || null,
-        bankStaffDesignation: bankStaffDesignation || null,
-        bankStaffPhone: bankStaffPhone || null,
-        discomName: discomName || null,
-        discomDivision: discomDivision || null,
-        discomRepName: discomRepName || null,
-        discomRepDesignation: discomRepDesignation || null,
-        discomRepPhone: discomRepPhone || null,
+        customerId: data.customerId || null,
+        loanSubmissionId: data.loanSubmissionId || null,
+        customerName: data.customerName,
+        customerPhone: data.customerPhone || null,
+        siteAddress: data.siteAddress,
+        district: data.district || null,
+        state: data.state || null,
+        pincode: data.pincode || null,
+        scheduledDate: data.scheduledDate,
+        surveyTime: data.surveyTime || null,
+        bankName: data.bankName || null,
+        bankBranch: data.bankBranch || null,
+        bankStaffName: data.bankStaffName || null,
+        bankStaffDesignation: data.bankStaffDesignation || null,
+        bankStaffPhone: data.bankStaffPhone || null,
+        discomName: data.discomName || null,
+        discomDivision: data.discomDivision || null,
+        discomRepName: data.discomRepName || null,
+        discomRepDesignation: data.discomRepDesignation || null,
+        discomRepPhone: data.discomRepPhone || null,
         status: "scheduled",
-        remarks: remarks || null,
+        remarks: data.remarks || null,
         createdBy: user.id,
       });
       

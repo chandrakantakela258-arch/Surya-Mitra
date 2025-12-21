@@ -30,6 +30,7 @@ import {
   CheckCircle,
   Truck,
   FileCheck,
+  ClipboardList,
 } from "lucide-react";
 import { FeedbackDialog } from "@/components/feedback-dialog";
 import { ChatbotAssistant } from "@/components/chatbot-assistant";
@@ -96,12 +97,13 @@ const adminMenuSections: MenuSection[] = [
     items: [
       { title: "Step 1: File Submission", url: "/admin/customer-file-submissions", icon: FileText },
       { title: "Step 2: Bank Loan", url: "/admin/bank-loan-submissions", icon: Landmark },
-      { title: "Step 3: Loan Approval", url: "/admin/bank-loan-approvals", icon: CheckCircle },
-      { title: "Step 4: Disbursement", url: "/admin/loan-disbursements", icon: Wallet },
-      { title: "Step 5: Vendor PO", url: "/admin/vendor-purchase-orders", icon: ShoppingCart },
-      { title: "Step 6: Delivery", url: "/admin/goods-deliveries", icon: Truck },
-      { title: "Step 7: Installation", url: "/admin/site-execution-orders", icon: Wrench },
-      { title: "Step 8: Completion", url: "/admin/completion-reports", icon: FileCheck },
+      { title: "Step 3: Site Survey", url: "/admin/site-surveys", icon: ClipboardList },
+      { title: "Step 4: Loan Approval", url: "/admin/bank-loan-approvals", icon: CheckCircle },
+      { title: "Step 5: Disbursement", url: "/admin/loan-disbursements", icon: Wallet },
+      { title: "Step 6: Vendor PO", url: "/admin/vendor-purchase-orders", icon: ShoppingCart },
+      { title: "Step 7: Delivery", url: "/admin/goods-deliveries", icon: Truck },
+      { title: "Step 8: Installation", url: "/admin/site-execution-orders", icon: Wrench },
+      { title: "Step 9: Completion", url: "/admin/completion-reports", icon: FileCheck },
     ],
   },
   {

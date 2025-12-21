@@ -44,6 +44,7 @@ import AdminNotificationSettings from "@/pages/admin/notifications-settings";
 import AdminVendors from "@/pages/admin/vendors";
 import AdminSiteExpenses from "@/pages/admin/site-expenses";
 import AdminBankLoanSubmissions from "@/pages/admin/bank-loan-submissions";
+import AdminSiteSurveys from "@/pages/admin/site-surveys";
 import AdminBankLoanApprovals from "@/pages/admin/bank-loan-approvals";
 import AdminLoanDisbursements from "@/pages/admin/loan-disbursements";
 import AdminVendorPurchaseOrders from "@/pages/admin/vendor-purchase-orders";
@@ -240,6 +241,13 @@ function AuthenticatedRoutes() {
         <ProtectedRoute allowedRoles={["admin"]}>
           <DashboardLayout>
             <AdminBankLoanSubmissions />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/site-surveys">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminSiteSurveys />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
