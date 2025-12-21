@@ -1393,7 +1393,7 @@ export default function LandingPage() {
           <SiInstagram className="w-5 h-5" />
         </a>
         <a 
-          href="https://www.youtube.com/@divyanshisolar" 
+          href="https://www.youtube.com/@divyanshidigitalservicespv2324" 
           target="_blank" 
           rel="noopener noreferrer"
           className="w-10 h-10 bg-red-600 text-white rounded-l-md flex items-center justify-center hover:w-12 transition-all shadow-lg"
