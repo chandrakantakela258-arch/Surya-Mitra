@@ -2134,7 +2134,7 @@ export async function registerRoutes(
     }
   });
 
-  // Initialize Razorpay and process payout
+  // Initialize Razorpay and process payout using Composite API (direct HTTP call)
   app.post("/api/admin/payouts/process", requireAdmin, async (req, res) => {
     try {
       const { commissionId, partnerId, amount, mode = "IMPS" } = req.body;
@@ -2165,19 +2165,12 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Partner has not added bank account details" });
       }
       
-      // Initialize Razorpay
-      const Razorpay = require("razorpay");
-      const razorpay = new Razorpay({
-        key_id: keyId,
-        key_secret: keySecret,
-      });
-      
       // Create payout record first
       const payout = await storage.createPayout({
         partnerId,
         commissionId: commissionId || null,
         amount,
-        mode,
+        mode: mode.toUpperCase(),
         status: "processing",
         razorpayPayoutId: null,
         razorpayStatus: null,
@@ -2187,35 +2180,51 @@ export async function registerRoutes(
       });
       
       try {
-        // Use Composite API to create contact, fund account, and payout in one call
-        const razorpayPayout = await razorpay.payouts.create({
+        // Use direct HTTP call to Composite Payout API (SDK doesn't support this well)
+        const authHeader = 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+        const idempotencyKey = `payout_${payout.id}_${Date.now()}`;
+        
+        const payoutData = {
           account_number: accountNumber,
-          amount: amount * 100, // Convert to paisa
+          amount: Math.round(amount * 100), // Convert to paisa
           currency: "INR",
-          mode: mode,
+          mode: mode.toUpperCase(), // Must be uppercase: IMPS, NEFT, RTGS, UPI
           purpose: "payout",
-          fund_account: {
-            account_type: "bank_account",
-            bank_account: {
-              name: bankAccount.accountHolderName,
-              ifsc: bankAccount.ifscCode,
-              account_number: bankAccount.accountNumber,
-            },
-            contact: {
-              name: partner.name,
-              email: partner.email,
-              contact: partner.phone,
-              type: "vendor",
-            },
-          },
           queue_if_low_balance: true,
           reference_id: `PAY_${payout.id}`,
           narration: "Commission Payout",
-        }, {
-          headers: {
-            "X-Payout-Idempotency": `idempotency_${payout.id}`,
+          fund_account: {
+            account_type: "bank_account",
+            contact: {
+              name: partner.name,
+              email: partner.email || undefined,
+              contact: partner.phone,
+              type: "vendor",
+            },
+            bank_account: {
+              name: bankAccount.accountHolderName,
+              ifsc: bankAccount.ifscCode.toUpperCase(),
+              account_number: bankAccount.accountNumber,
+            },
           },
+        };
+        
+        const response = await fetch('https://api.razorpay.com/v1/payouts', {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json',
+            'X-Payout-Idempotency': idempotencyKey,
+          },
+          body: JSON.stringify(payoutData),
         });
+        
+        const razorpayPayout = await response.json();
+        
+        if (!response.ok) {
+          console.error("Razorpay payout error response:", razorpayPayout);
+          throw new Error(razorpayPayout.error?.description || razorpayPayout.message || "Razorpay API error");
+        }
         
         // Update payout with Razorpay response
         const updatedPayout = await storage.updatePayout(payout.id, {
