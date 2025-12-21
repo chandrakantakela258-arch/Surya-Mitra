@@ -1507,6 +1507,279 @@ export const insertPortalSubmissionReportSchema = createInsertSchema(portalSubmi
 export type InsertPortalSubmissionReport = z.infer<typeof insertPortalSubmissionReportSchema>;
 export type PortalSubmissionReport = typeof portalSubmissionReports.$inferSelect;
 
+// Remaining Payment Reports - Step 12: Customer Remaining Payment tracking after portal submission
+export const remainingPaymentReports = pgTable("remaining_payment_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  reportNumber: varchar("report_number").unique(),
+  
+  // Customer Details
+  customerId: varchar("customer_id").references(() => customers.id),
+  customerName: text("customer_name").notNull(),
+  customerPhone: text("customer_phone"),
+  customerEmail: text("customer_email"),
+  siteAddress: text("site_address"),
+  district: text("district"),
+  state: text("state"),
+  pincode: text("pincode"),
+  
+  // Installation Details
+  installedCapacity: text("installed_capacity"),
+  panelType: text("panel_type"),
+  consumerNumber: text("consumer_number"),
+  discomName: text("discom_name"),
+  
+  // Portal Reference
+  portalSubmissionReportId: varchar("portal_submission_report_id").references(() => portalSubmissionReports.id),
+  portalApplicationNumber: text("portal_application_number"),
+  completionDate: timestamp("completion_date"),
+  subsidyReceivedDate: timestamp("subsidy_received_date"),
+  subsidyAmount: integer("subsidy_amount"),
+  
+  // Total System Cost & Payment Breakdown
+  totalSystemCost: integer("total_system_cost"),
+  advancePaymentReceived: integer("advance_payment_received"),
+  advancePaymentDate: timestamp("advance_payment_date"),
+  subsidyAdjusted: integer("subsidy_adjusted"),
+  remainingPaymentAmount: integer("remaining_payment_amount"),
+  
+  // Remaining Payment Details
+  remainingPaymentDueDate: timestamp("remaining_payment_due_date"),
+  paymentReminderSent: boolean("payment_reminder_sent").default(false),
+  reminderSentDate: timestamp("reminder_sent_date"),
+  reminderCount: integer("reminder_count").default(0),
+  
+  // Payment Collection
+  paymentMode: text("payment_mode"), // cash, upi, neft, rtgs, cheque, razorpay
+  paymentReferenceNumber: text("payment_reference_number"),
+  paymentReceivedDate: timestamp("payment_received_date"),
+  paymentReceivedAmount: integer("payment_received_amount"),
+  paymentReceiptNumber: text("payment_receipt_number"),
+  paymentReceiptUrl: text("payment_receipt_url"),
+  
+  // Partial Payments (if applicable)
+  isPartialPayment: boolean("is_partial_payment").default(false),
+  partialPayments: text("partial_payments"), // JSON array of partial payment records
+  totalReceivedTillDate: integer("total_received_till_date"),
+  balanceAmount: integer("balance_amount"),
+  
+  // Status & Follow-up
+  status: text("status").default("pending"), // pending, reminder_sent, partially_paid, paid, overdue, waived
+  daysOverdue: integer("days_overdue").default(0),
+  lastFollowUpDate: timestamp("last_follow_up_date"),
+  nextFollowUpDate: timestamp("next_follow_up_date"),
+  followUpRemarks: text("follow_up_remarks"),
+  
+  // Commission Impact
+  commissionHeld: boolean("commission_held").default(true),
+  commissionReleaseDate: timestamp("commission_release_date"),
+  ddpCommissionAmount: integer("ddp_commission_amount"),
+  bdpCommissionAmount: integer("bdp_commission_amount"),
+  
+  // Additional Info
+  customerFeedback: text("customer_feedback"),
+  escalationRequired: boolean("escalation_required").default(false),
+  escalationReason: text("escalation_reason"),
+  remarks: text("remarks"),
+  
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertRemainingPaymentReportSchema = createInsertSchema(remainingPaymentReports).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  completionDate: z.string().optional(),
+  subsidyReceivedDate: z.string().optional(),
+  advancePaymentDate: z.string().optional(),
+  remainingPaymentDueDate: z.string().optional(),
+  reminderSentDate: z.string().optional(),
+  paymentReceivedDate: z.string().optional(),
+  lastFollowUpDate: z.string().optional(),
+  nextFollowUpDate: z.string().optional(),
+  commissionReleaseDate: z.string().optional(),
+});
+
+export type InsertRemainingPaymentReport = z.infer<typeof insertRemainingPaymentReportSchema>;
+export type RemainingPaymentReport = typeof remainingPaymentReports.$inferSelect;
+
+// Subsidy Application Reports - Step 13: Subsidy Application on PM Surya Ghar Portal
+export const subsidyApplicationReports = pgTable("subsidy_application_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  reportNumber: varchar("report_number").unique(),
+  
+  // Customer Details
+  customerId: varchar("customer_id").references(() => customers.id),
+  customerName: text("customer_name").notNull(),
+  customerPhone: text("customer_phone"),
+  customerEmail: text("customer_email"),
+  siteAddress: text("site_address"),
+  district: text("district"),
+  state: text("state"),
+  pincode: text("pincode"),
+  
+  // Installation Details
+  installedCapacity: text("installed_capacity"),
+  panelType: text("panel_type"),
+  consumerNumber: text("consumer_number"),
+  discomName: text("discom_name"),
+  
+  // Portal Details
+  portalRegistrationId: text("portal_registration_id"),
+  portalApplicationNumber: text("portal_application_number"),
+  completionCertificateNumber: text("completion_certificate_number"),
+  completionCertificateDate: timestamp("completion_certificate_date"),
+  netMeterNumber: text("net_meter_number"),
+  gridConnectionDate: timestamp("grid_connection_date"),
+  
+  // Subsidy Application Details
+  applicationDate: timestamp("application_date"),
+  subsidyScheme: text("subsidy_scheme").default("pm_surya_ghar"), // pm_surya_ghar, state_subsidy, combined
+  centralSubsidyAmount: integer("central_subsidy_amount"),
+  stateSubsidyAmount: integer("state_subsidy_amount"),
+  totalSubsidyApplied: integer("total_subsidy_applied"),
+  
+  // Beneficiary Bank Details
+  beneficiaryName: text("beneficiary_name"),
+  beneficiaryAccountNumber: text("beneficiary_account_number"),
+  beneficiaryIfsc: text("beneficiary_ifsc"),
+  beneficiaryBankName: text("beneficiary_bank_name"),
+  beneficiaryBankBranch: text("beneficiary_bank_branch"),
+  
+  // Document Uploads
+  completionCertificateUrl: text("completion_certificate_url"),
+  netMeteringAgreementUrl: text("net_metering_agreement_url"),
+  bankPassbookUrl: text("bank_passbook_url"),
+  aadharCardUrl: text("aadhar_card_url"),
+  electricityBillUrl: text("electricity_bill_url"),
+  installationPhotosUrl: text("installation_photos_url"),
+  
+  // Application Status
+  applicationAcknowledgmentNumber: text("application_acknowledgment_number"),
+  applicationAcknowledgmentDate: timestamp("application_acknowledgment_date"),
+  documentVerificationStatus: text("document_verification_status").default("pending"), // pending, verified, rejected
+  documentVerificationDate: timestamp("document_verification_date"),
+  documentVerificationRemarks: text("document_verification_remarks"),
+  
+  // Status & Follow-up
+  status: text("status").default("pending"), // pending, submitted, under_review, docs_verified, approved, rejected
+  rejectionReason: text("rejection_reason"),
+  lastFollowUpDate: timestamp("last_follow_up_date"),
+  nextFollowUpDate: timestamp("next_follow_up_date"),
+  followUpRemarks: text("follow_up_remarks"),
+  portalHelplineTicket: text("portal_helpline_ticket"),
+  remarks: text("remarks"),
+  
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertSubsidyApplicationReportSchema = createInsertSchema(subsidyApplicationReports).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  applicationDate: z.string().optional(),
+  completionCertificateDate: z.string().optional(),
+  gridConnectionDate: z.string().optional(),
+  applicationAcknowledgmentDate: z.string().optional(),
+  documentVerificationDate: z.string().optional(),
+  lastFollowUpDate: z.string().optional(),
+  nextFollowUpDate: z.string().optional(),
+});
+
+export type InsertSubsidyApplicationReport = z.infer<typeof insertSubsidyApplicationReportSchema>;
+export type SubsidyApplicationReport = typeof subsidyApplicationReports.$inferSelect;
+
+// Subsidy Disbursement Reports - Step 14 (Final): Subsidy Disbursement into Customer Bank Account
+export const subsidyDisbursementReports = pgTable("subsidy_disbursement_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  reportNumber: varchar("report_number").unique(),
+  
+  // Customer Details
+  customerId: varchar("customer_id").references(() => customers.id),
+  customerName: text("customer_name").notNull(),
+  customerPhone: text("customer_phone"),
+  customerEmail: text("customer_email"),
+  siteAddress: text("site_address"),
+  district: text("district"),
+  state: text("state"),
+  pincode: text("pincode"),
+  
+  // Installation Details
+  installedCapacity: text("installed_capacity"),
+  panelType: text("panel_type"),
+  consumerNumber: text("consumer_number"),
+  
+  // Reference to Subsidy Application
+  subsidyApplicationReportId: varchar("subsidy_application_report_id").references(() => subsidyApplicationReports.id),
+  portalApplicationNumber: text("portal_application_number"),
+  subsidyScheme: text("subsidy_scheme"),
+  
+  // Approved Amounts
+  centralSubsidyApproved: integer("central_subsidy_approved"),
+  stateSubsidyApproved: integer("state_subsidy_approved"),
+  totalSubsidyApproved: integer("total_subsidy_approved"),
+  
+  // Disbursement Details
+  disbursementStatus: text("disbursement_status").default("pending"), // pending, processing, partial, completed, failed
+  disbursementReferenceNumber: text("disbursement_reference_number"),
+  disbursementDate: timestamp("disbursement_date"),
+  disbursementAmount: integer("disbursement_amount"),
+  disbursementMode: text("disbursement_mode"), // neft, rtgs, dbt
+  
+  // Beneficiary Bank Details (where subsidy was received)
+  beneficiaryName: text("beneficiary_name"),
+  beneficiaryAccountNumber: text("beneficiary_account_number"),
+  beneficiaryIfsc: text("beneficiary_ifsc"),
+  beneficiaryBankName: text("beneficiary_bank_name"),
+  
+  // Verification
+  disbursementVerified: boolean("disbursement_verified").default(false),
+  verificationDate: timestamp("verification_date"),
+  verificationRemarks: text("verification_remarks"),
+  bankStatementUrl: text("bank_statement_url"),
+  
+  // Commission Release (50% of remaining commission released after subsidy)
+  commissionReleaseTriggered: boolean("commission_release_triggered").default(false),
+  commissionReleaseDate: timestamp("commission_release_date"),
+  ddpCommissionReleased: integer("ddp_commission_released"),
+  bdpCommissionReleased: integer("bdp_commission_released"),
+  cpCommissionReleased: integer("cp_commission_released"),
+  
+  // Status & Follow-up
+  status: text("status").default("pending"), // pending, processing, disbursed, verified, completed
+  expectedDisbursementDate: timestamp("expected_disbursement_date"),
+  actualProcessingDays: integer("actual_processing_days"),
+  lastFollowUpDate: timestamp("last_follow_up_date"),
+  nextFollowUpDate: timestamp("next_follow_up_date"),
+  followUpRemarks: text("follow_up_remarks"),
+  remarks: text("remarks"),
+  
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertSubsidyDisbursementReportSchema = createInsertSchema(subsidyDisbursementReports).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  disbursementDate: z.string().optional(),
+  verificationDate: z.string().optional(),
+  commissionReleaseDate: z.string().optional(),
+  expectedDisbursementDate: z.string().optional(),
+  lastFollowUpDate: z.string().optional(),
+  nextFollowUpDate: z.string().optional(),
+});
+
+export type InsertSubsidyDisbursementReport = z.infer<typeof insertSubsidyDisbursementReportSchema>;
+export type SubsidyDisbursementReport = typeof subsidyDisbursementReports.$inferSelect;
+
 // Password Reset OTPs - Store OTPs for password reset
 export const passwordResetOtps = pgTable("password_reset_otps", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

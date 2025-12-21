@@ -106,6 +106,15 @@ import {
   meterInstallationReports,
   type PortalSubmissionReport,
   type InsertPortalSubmissionReport,
+  remainingPaymentReports,
+  type RemainingPaymentReport,
+  type InsertRemainingPaymentReport,
+  subsidyApplicationReports,
+  type SubsidyApplicationReport,
+  type InsertSubsidyApplicationReport,
+  subsidyDisbursementReports,
+  type SubsidyDisbursementReport,
+  type InsertSubsidyDisbursementReport,
   portalSubmissionReports,
   installationMilestones,
   calculateCommission,
@@ -2589,6 +2598,235 @@ export class DatabaseStorage implements IStorage {
     const reports = await db.select().from(portalSubmissionReports);
     const count = reports.length + 1;
     return `PSR-${year}${month}-${String(count).padStart(4, '0')}`;
+  }
+
+  // Remaining Payment Reports (Step 12)
+  async getRemainingPaymentReports(): Promise<RemainingPaymentReport[]> {
+    return await db.select().from(remainingPaymentReports).orderBy(desc(remainingPaymentReports.createdAt));
+  }
+
+  async getRemainingPaymentReport(id: string): Promise<RemainingPaymentReport | undefined> {
+    const [report] = await db.select().from(remainingPaymentReports).where(eq(remainingPaymentReports.id, id));
+    return report;
+  }
+
+  async getRemainingPaymentReportByCustomerId(customerId: string): Promise<RemainingPaymentReport | undefined> {
+    const [report] = await db.select().from(remainingPaymentReports)
+      .where(eq(remainingPaymentReports.customerId, customerId));
+    return report;
+  }
+
+  async getOverdueRemainingPayments(): Promise<RemainingPaymentReport[]> {
+    const today = new Date();
+    return await db.select().from(remainingPaymentReports)
+      .where(and(
+        eq(remainingPaymentReports.status, 'pending'),
+        lt(remainingPaymentReports.remainingPaymentDueDate, today)
+      ))
+      .orderBy(asc(remainingPaymentReports.remainingPaymentDueDate));
+  }
+
+  async createRemainingPaymentReport(data: any): Promise<RemainingPaymentReport> {
+    const dateFields = [
+      'completionDate', 'subsidyReceivedDate', 'advancePaymentDate', 
+      'remainingPaymentDueDate', 'reminderSentDate', 'paymentReceivedDate',
+      'lastFollowUpDate', 'nextFollowUpDate', 'commissionReleaseDate'
+    ];
+    const insertData: any = { ...data };
+    for (const field of dateFields) {
+      if (data[field] && typeof data[field] === 'string') {
+        insertData[field] = new Date(data[field]);
+      }
+    }
+    const intFields = [
+      'subsidyAmount', 'totalSystemCost', 'advancePaymentReceived', 'subsidyAdjusted',
+      'remainingPaymentAmount', 'reminderCount', 'paymentReceivedAmount', 'totalReceivedTillDate',
+      'balanceAmount', 'daysOverdue', 'ddpCommissionAmount', 'bdpCommissionAmount'
+    ];
+    for (const field of intFields) {
+      if (data[field]) insertData[field] = parseInt(data[field]);
+    }
+    const [report] = await db.insert(remainingPaymentReports).values(insertData).returning();
+    return report;
+  }
+
+  async updateRemainingPaymentReport(id: string, data: any): Promise<RemainingPaymentReport> {
+    const updateData: any = { ...data, updatedAt: new Date() };
+    const dateFields = [
+      'completionDate', 'subsidyReceivedDate', 'advancePaymentDate', 
+      'remainingPaymentDueDate', 'reminderSentDate', 'paymentReceivedDate',
+      'lastFollowUpDate', 'nextFollowUpDate', 'commissionReleaseDate'
+    ];
+    for (const field of dateFields) {
+      if (data[field] && typeof data[field] === 'string') {
+        updateData[field] = new Date(data[field]);
+      }
+    }
+    const intFields = [
+      'subsidyAmount', 'totalSystemCost', 'advancePaymentReceived', 'subsidyAdjusted',
+      'remainingPaymentAmount', 'reminderCount', 'paymentReceivedAmount', 'totalReceivedTillDate',
+      'balanceAmount', 'daysOverdue', 'ddpCommissionAmount', 'bdpCommissionAmount'
+    ];
+    for (const field of intFields) {
+      if (data[field]) updateData[field] = parseInt(data[field]);
+    }
+    const [report] = await db.update(remainingPaymentReports).set(updateData)
+      .where(eq(remainingPaymentReports.id, id)).returning();
+    return report;
+  }
+
+  async deleteRemainingPaymentReport(id: string): Promise<void> {
+    await db.delete(remainingPaymentReports).where(eq(remainingPaymentReports.id, id));
+  }
+
+  async generateRemainingPaymentReportNumber(): Promise<string> {
+    const year = new Date().getFullYear();
+    const month = String(new Date().getMonth() + 1).padStart(2, '0');
+    const reports = await db.select().from(remainingPaymentReports);
+    const count = reports.length + 1;
+    return `RPR-${year}${month}-${String(count).padStart(4, '0')}`;
+  }
+
+  // Subsidy Application Reports (Step 13)
+  async getSubsidyApplicationReports(): Promise<SubsidyApplicationReport[]> {
+    return await db.select().from(subsidyApplicationReports).orderBy(desc(subsidyApplicationReports.createdAt));
+  }
+
+  async getSubsidyApplicationReport(id: string): Promise<SubsidyApplicationReport | undefined> {
+    const [report] = await db.select().from(subsidyApplicationReports).where(eq(subsidyApplicationReports.id, id));
+    return report;
+  }
+
+  async getSubsidyApplicationReportByCustomerId(customerId: string): Promise<SubsidyApplicationReport | undefined> {
+    const [report] = await db.select().from(subsidyApplicationReports)
+      .where(eq(subsidyApplicationReports.customerId, customerId));
+    return report;
+  }
+
+  async createSubsidyApplicationReport(data: any): Promise<SubsidyApplicationReport> {
+    const dateFields = [
+      'applicationDate', 'completionCertificateDate', 'gridConnectionDate',
+      'applicationAcknowledgmentDate', 'documentVerificationDate', 'lastFollowUpDate', 'nextFollowUpDate'
+    ];
+    const insertData: any = { ...data };
+    for (const field of dateFields) {
+      if (data[field] && typeof data[field] === 'string') {
+        insertData[field] = new Date(data[field]);
+      }
+    }
+    const intFields = ['centralSubsidyAmount', 'stateSubsidyAmount', 'totalSubsidyApplied'];
+    for (const field of intFields) {
+      if (data[field]) insertData[field] = parseInt(data[field]);
+    }
+    const [report] = await db.insert(subsidyApplicationReports).values(insertData).returning();
+    return report;
+  }
+
+  async updateSubsidyApplicationReport(id: string, data: any): Promise<SubsidyApplicationReport> {
+    const updateData: any = { ...data, updatedAt: new Date() };
+    const dateFields = [
+      'applicationDate', 'completionCertificateDate', 'gridConnectionDate',
+      'applicationAcknowledgmentDate', 'documentVerificationDate', 'lastFollowUpDate', 'nextFollowUpDate'
+    ];
+    for (const field of dateFields) {
+      if (data[field] && typeof data[field] === 'string') {
+        updateData[field] = new Date(data[field]);
+      }
+    }
+    const intFields = ['centralSubsidyAmount', 'stateSubsidyAmount', 'totalSubsidyApplied'];
+    for (const field of intFields) {
+      if (data[field]) updateData[field] = parseInt(data[field]);
+    }
+    const [report] = await db.update(subsidyApplicationReports).set(updateData)
+      .where(eq(subsidyApplicationReports.id, id)).returning();
+    return report;
+  }
+
+  async deleteSubsidyApplicationReport(id: string): Promise<void> {
+    await db.delete(subsidyApplicationReports).where(eq(subsidyApplicationReports.id, id));
+  }
+
+  async generateSubsidyApplicationReportNumber(): Promise<string> {
+    const year = new Date().getFullYear();
+    const month = String(new Date().getMonth() + 1).padStart(2, '0');
+    const reports = await db.select().from(subsidyApplicationReports);
+    const count = reports.length + 1;
+    return `SAR-${year}${month}-${String(count).padStart(4, '0')}`;
+  }
+
+  // Subsidy Disbursement Reports (Step 14 - Final)
+  async getSubsidyDisbursementReports(): Promise<SubsidyDisbursementReport[]> {
+    return await db.select().from(subsidyDisbursementReports).orderBy(desc(subsidyDisbursementReports.createdAt));
+  }
+
+  async getSubsidyDisbursementReport(id: string): Promise<SubsidyDisbursementReport | undefined> {
+    const [report] = await db.select().from(subsidyDisbursementReports).where(eq(subsidyDisbursementReports.id, id));
+    return report;
+  }
+
+  async getSubsidyDisbursementReportByCustomerId(customerId: string): Promise<SubsidyDisbursementReport | undefined> {
+    const [report] = await db.select().from(subsidyDisbursementReports)
+      .where(eq(subsidyDisbursementReports.customerId, customerId));
+    return report;
+  }
+
+  async createSubsidyDisbursementReport(data: any): Promise<SubsidyDisbursementReport> {
+    const dateFields = [
+      'disbursementDate', 'verificationDate', 'commissionReleaseDate',
+      'expectedDisbursementDate', 'lastFollowUpDate', 'nextFollowUpDate'
+    ];
+    const insertData: any = { ...data };
+    for (const field of dateFields) {
+      if (data[field] && typeof data[field] === 'string') {
+        insertData[field] = new Date(data[field]);
+      }
+    }
+    const intFields = [
+      'centralSubsidyApproved', 'stateSubsidyApproved', 'totalSubsidyApproved',
+      'disbursementAmount', 'actualProcessingDays',
+      'ddpCommissionReleased', 'bdpCommissionReleased', 'cpCommissionReleased'
+    ];
+    for (const field of intFields) {
+      if (data[field]) insertData[field] = parseInt(data[field]);
+    }
+    const [report] = await db.insert(subsidyDisbursementReports).values(insertData).returning();
+    return report;
+  }
+
+  async updateSubsidyDisbursementReport(id: string, data: any): Promise<SubsidyDisbursementReport> {
+    const updateData: any = { ...data, updatedAt: new Date() };
+    const dateFields = [
+      'disbursementDate', 'verificationDate', 'commissionReleaseDate',
+      'expectedDisbursementDate', 'lastFollowUpDate', 'nextFollowUpDate'
+    ];
+    for (const field of dateFields) {
+      if (data[field] && typeof data[field] === 'string') {
+        updateData[field] = new Date(data[field]);
+      }
+    }
+    const intFields = [
+      'centralSubsidyApproved', 'stateSubsidyApproved', 'totalSubsidyApproved',
+      'disbursementAmount', 'actualProcessingDays',
+      'ddpCommissionReleased', 'bdpCommissionReleased', 'cpCommissionReleased'
+    ];
+    for (const field of intFields) {
+      if (data[field]) updateData[field] = parseInt(data[field]);
+    }
+    const [report] = await db.update(subsidyDisbursementReports).set(updateData)
+      .where(eq(subsidyDisbursementReports.id, id)).returning();
+    return report;
+  }
+
+  async deleteSubsidyDisbursementReport(id: string): Promise<void> {
+    await db.delete(subsidyDisbursementReports).where(eq(subsidyDisbursementReports.id, id));
+  }
+
+  async generateSubsidyDisbursementReportNumber(): Promise<string> {
+    const year = new Date().getFullYear();
+    const month = String(new Date().getMonth() + 1).padStart(2, '0');
+    const reports = await db.select().from(subsidyDisbursementReports);
+    const count = reports.length + 1;
+    return `SDR-${year}${month}-${String(count).padStart(4, '0')}`;
   }
 }
 

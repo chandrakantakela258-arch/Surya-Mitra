@@ -32,6 +32,8 @@ import {
   Truck,
   FileCheck,
   ClipboardList,
+  IndianRupee,
+  Banknote,
 } from "lucide-react";
 import { FeedbackDialog } from "@/components/feedback-dialog";
 import { ChatbotAssistant } from "@/components/chatbot-assistant";
@@ -107,6 +109,9 @@ const adminMenuSections: MenuSection[] = [
       { title: "Step 9: Completion", url: "/admin/completion-reports", icon: FileCheck },
       { title: "Step 10: Grid Connected", url: "/admin/meter-installation-reports", icon: Zap },
       { title: "Step 11: Portal Submission", url: "/admin/portal-submission-reports", icon: Globe },
+      { title: "Step 12: Remaining Payment", url: "/admin/remaining-payment-reports", icon: Wallet },
+      { title: "Step 13: Subsidy Application", url: "/admin/subsidy-application-reports", icon: FileCheck },
+      { title: "Step 14: Subsidy Disbursement", url: "/admin/subsidy-disbursement-reports", icon: Banknote },
     ],
   },
   {

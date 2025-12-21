@@ -8,7 +8,7 @@ import path from "path";
 import fs from "fs";
 import { pool } from "./db";
 import { storage } from "./storage";
-import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSchema, updateFeedbackStatusSchema, inverterCommission, insertVendorSchema, vendorStates, insertSiteSurveySchema, insertMeterInstallationReportSchema, insertPortalSubmissionReportSchema } from "@shared/schema";
+import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSchema, updateFeedbackStatusSchema, inverterCommission, insertVendorSchema, vendorStates, insertSiteSurveySchema, insertMeterInstallationReportSchema, insertPortalSubmissionReportSchema, insertRemainingPaymentReportSchema, insertSubsidyApplicationReportSchema, insertSubsidyDisbursementReportSchema } from "@shared/schema";
 import { z } from "zod";
 import { notificationService } from "./notification-service";
 import { calculateLeadScore, type LeadScoreResult } from "./lead-scoring-service";
@@ -3974,6 +3974,308 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Get customer portal submission report error:", error);
       res.status(500).json({ message: "Failed to get portal submission report" });
+    }
+  });
+
+  // ==================== REMAINING PAYMENT REPORT ROUTES (Step 12) ====================
+  
+  // Admin: Get all remaining payment reports
+  app.get("/api/admin/remaining-payment-reports", requireAdmin, async (req, res) => {
+    try {
+      const reports = await storage.getRemainingPaymentReports();
+      res.json(reports);
+    } catch (error) {
+      console.error("Get remaining payment reports error:", error);
+      res.status(500).json({ message: "Failed to get remaining payment reports" });
+    }
+  });
+  
+  // Admin: Get overdue remaining payments
+  app.get("/api/admin/remaining-payment-reports/overdue", requireAdmin, async (req, res) => {
+    try {
+      const reports = await storage.getOverdueRemainingPayments();
+      res.json(reports);
+    } catch (error) {
+      console.error("Get overdue payments error:", error);
+      res.status(500).json({ message: "Failed to get overdue payments" });
+    }
+  });
+  
+  // Admin: Get remaining payment report by ID
+  app.get("/api/admin/remaining-payment-reports/:id", requireAdmin, async (req, res) => {
+    try {
+      const report = await storage.getRemainingPaymentReport(req.params.id);
+      if (!report) {
+        return res.status(404).json({ message: "Remaining payment report not found" });
+      }
+      res.json(report);
+    } catch (error) {
+      console.error("Get remaining payment report error:", error);
+      res.status(500).json({ message: "Failed to get remaining payment report" });
+    }
+  });
+  
+  // Admin: Create remaining payment report
+  app.post("/api/admin/remaining-payment-reports", requireAdmin, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      
+      // Validate request body with Zod schema
+      const validationResult = insertRemainingPaymentReportSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Validation failed", 
+          errors: validationResult.error.errors 
+        });
+      }
+      
+      // Generate report number
+      const reportNumber = await storage.generateRemainingPaymentReportNumber();
+      
+      const reportData = {
+        ...validationResult.data,
+        reportNumber,
+        createdBy: user.id,
+      };
+      
+      const report = await storage.createRemainingPaymentReport(reportData);
+      res.status(201).json(report);
+    } catch (error) {
+      console.error("Create remaining payment report error:", error);
+      res.status(500).json({ message: "Failed to create remaining payment report" });
+    }
+  });
+  
+  // Admin: Update remaining payment report
+  app.patch("/api/admin/remaining-payment-reports/:id", requireAdmin, async (req, res) => {
+    try {
+      const updateData: Record<string, any> = {};
+      const allowedFields = [
+        'customerName', 'customerPhone', 'customerEmail', 'siteAddress', 'district', 'state', 'pincode',
+        'installedCapacity', 'panelType', 'consumerNumber', 'discomName',
+        'portalSubmissionReportId', 'portalApplicationNumber', 'completionDate', 'subsidyReceivedDate', 'subsidyAmount',
+        'totalSystemCost', 'advancePaymentReceived', 'advancePaymentDate', 'subsidyAdjusted', 'remainingPaymentAmount',
+        'remainingPaymentDueDate', 'paymentReminderSent', 'reminderSentDate', 'reminderCount',
+        'paymentMode', 'paymentReferenceNumber', 'paymentReceivedDate', 'paymentReceivedAmount',
+        'paymentReceiptNumber', 'paymentReceiptUrl',
+        'isPartialPayment', 'partialPayments', 'totalReceivedTillDate', 'balanceAmount',
+        'status', 'daysOverdue', 'lastFollowUpDate', 'nextFollowUpDate', 'followUpRemarks',
+        'commissionHeld', 'commissionReleaseDate', 'ddpCommissionAmount', 'bdpCommissionAmount',
+        'customerFeedback', 'escalationRequired', 'escalationReason', 'remarks'
+      ];
+      
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) {
+          updateData[field] = req.body[field];
+        }
+      }
+      
+      const report = await storage.updateRemainingPaymentReport(req.params.id, updateData);
+      if (!report) {
+        return res.status(404).json({ message: "Remaining payment report not found" });
+      }
+      res.json(report);
+    } catch (error) {
+      console.error("Update remaining payment report error:", error);
+      res.status(500).json({ message: "Failed to update remaining payment report" });
+    }
+  });
+  
+  // Admin: Delete remaining payment report
+  app.delete("/api/admin/remaining-payment-reports/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteRemainingPaymentReport(req.params.id);
+      res.json({ message: "Remaining payment report deleted" });
+    } catch (error) {
+      console.error("Delete remaining payment report error:", error);
+      res.status(500).json({ message: "Failed to delete remaining payment report" });
+    }
+  });
+  
+  // Admin: Get remaining payment report by customer ID
+  app.get("/api/admin/customers/:customerId/remaining-payment-reports", requireAdmin, async (req, res) => {
+    try {
+      const report = await storage.getRemainingPaymentReportByCustomerId(req.params.customerId);
+      res.json(report || null);
+    } catch (error) {
+      console.error("Get customer remaining payment report error:", error);
+      res.status(500).json({ message: "Failed to get remaining payment report" });
+    }
+  });
+
+  // ==================== SUBSIDY APPLICATION REPORT ROUTES (Step 13) ====================
+  
+  app.get("/api/admin/subsidy-application-reports", requireAdmin, async (req, res) => {
+    try {
+      const reports = await storage.getSubsidyApplicationReports();
+      res.json(reports);
+    } catch (error) {
+      console.error("Get subsidy application reports error:", error);
+      res.status(500).json({ message: "Failed to get subsidy application reports" });
+    }
+  });
+  
+  app.get("/api/admin/subsidy-application-reports/:id", requireAdmin, async (req, res) => {
+    try {
+      const report = await storage.getSubsidyApplicationReport(req.params.id);
+      if (!report) {
+        return res.status(404).json({ message: "Subsidy application report not found" });
+      }
+      res.json(report);
+    } catch (error) {
+      console.error("Get subsidy application report error:", error);
+      res.status(500).json({ message: "Failed to get subsidy application report" });
+    }
+  });
+  
+  app.post("/api/admin/subsidy-application-reports", requireAdmin, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const validationResult = insertSubsidyApplicationReportSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ message: "Validation failed", errors: validationResult.error.errors });
+      }
+      const reportNumber = await storage.generateSubsidyApplicationReportNumber();
+      const reportData = { ...validationResult.data, reportNumber, createdBy: user.id };
+      const report = await storage.createSubsidyApplicationReport(reportData);
+      res.status(201).json(report);
+    } catch (error) {
+      console.error("Create subsidy application report error:", error);
+      res.status(500).json({ message: "Failed to create subsidy application report" });
+    }
+  });
+  
+  app.patch("/api/admin/subsidy-application-reports/:id", requireAdmin, async (req, res) => {
+    try {
+      const updateData: Record<string, any> = {};
+      const allowedFields = [
+        'customerName', 'customerPhone', 'customerEmail', 'siteAddress', 'district', 'state', 'pincode',
+        'installedCapacity', 'panelType', 'consumerNumber', 'discomName',
+        'portalRegistrationId', 'portalApplicationNumber', 'completionCertificateNumber', 'completionCertificateDate',
+        'netMeterNumber', 'gridConnectionDate', 'applicationDate', 'subsidyScheme',
+        'centralSubsidyAmount', 'stateSubsidyAmount', 'totalSubsidyApplied',
+        'beneficiaryName', 'beneficiaryAccountNumber', 'beneficiaryIfsc', 'beneficiaryBankName', 'beneficiaryBankBranch',
+        'completionCertificateUrl', 'netMeteringAgreementUrl', 'bankPassbookUrl', 'aadharCardUrl', 'electricityBillUrl', 'installationPhotosUrl',
+        'applicationAcknowledgmentNumber', 'applicationAcknowledgmentDate', 'documentVerificationStatus', 'documentVerificationDate', 'documentVerificationRemarks',
+        'status', 'rejectionReason', 'lastFollowUpDate', 'nextFollowUpDate', 'followUpRemarks', 'portalHelplineTicket', 'remarks'
+      ];
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) updateData[field] = req.body[field];
+      }
+      const report = await storage.updateSubsidyApplicationReport(req.params.id, updateData);
+      if (!report) return res.status(404).json({ message: "Subsidy application report not found" });
+      res.json(report);
+    } catch (error) {
+      console.error("Update subsidy application report error:", error);
+      res.status(500).json({ message: "Failed to update subsidy application report" });
+    }
+  });
+  
+  app.delete("/api/admin/subsidy-application-reports/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteSubsidyApplicationReport(req.params.id);
+      res.json({ message: "Subsidy application report deleted" });
+    } catch (error) {
+      console.error("Delete subsidy application report error:", error);
+      res.status(500).json({ message: "Failed to delete subsidy application report" });
+    }
+  });
+  
+  app.get("/api/admin/customers/:customerId/subsidy-application-reports", requireAdmin, async (req, res) => {
+    try {
+      const report = await storage.getSubsidyApplicationReportByCustomerId(req.params.customerId);
+      res.json(report || null);
+    } catch (error) {
+      console.error("Get customer subsidy application report error:", error);
+      res.status(500).json({ message: "Failed to get subsidy application report" });
+    }
+  });
+
+  // ==================== SUBSIDY DISBURSEMENT REPORT ROUTES (Step 14 - Final) ====================
+  
+  app.get("/api/admin/subsidy-disbursement-reports", requireAdmin, async (req, res) => {
+    try {
+      const reports = await storage.getSubsidyDisbursementReports();
+      res.json(reports);
+    } catch (error) {
+      console.error("Get subsidy disbursement reports error:", error);
+      res.status(500).json({ message: "Failed to get subsidy disbursement reports" });
+    }
+  });
+  
+  app.get("/api/admin/subsidy-disbursement-reports/:id", requireAdmin, async (req, res) => {
+    try {
+      const report = await storage.getSubsidyDisbursementReport(req.params.id);
+      if (!report) {
+        return res.status(404).json({ message: "Subsidy disbursement report not found" });
+      }
+      res.json(report);
+    } catch (error) {
+      console.error("Get subsidy disbursement report error:", error);
+      res.status(500).json({ message: "Failed to get subsidy disbursement report" });
+    }
+  });
+  
+  app.post("/api/admin/subsidy-disbursement-reports", requireAdmin, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const validationResult = insertSubsidyDisbursementReportSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ message: "Validation failed", errors: validationResult.error.errors });
+      }
+      const reportNumber = await storage.generateSubsidyDisbursementReportNumber();
+      const reportData = { ...validationResult.data, reportNumber, createdBy: user.id };
+      const report = await storage.createSubsidyDisbursementReport(reportData);
+      res.status(201).json(report);
+    } catch (error) {
+      console.error("Create subsidy disbursement report error:", error);
+      res.status(500).json({ message: "Failed to create subsidy disbursement report" });
+    }
+  });
+  
+  app.patch("/api/admin/subsidy-disbursement-reports/:id", requireAdmin, async (req, res) => {
+    try {
+      const updateData: Record<string, any> = {};
+      const allowedFields = [
+        'customerName', 'customerPhone', 'customerEmail', 'siteAddress', 'district', 'state', 'pincode',
+        'installedCapacity', 'panelType', 'consumerNumber',
+        'subsidyApplicationReportId', 'portalApplicationNumber', 'subsidyScheme',
+        'centralSubsidyApproved', 'stateSubsidyApproved', 'totalSubsidyApproved',
+        'disbursementStatus', 'disbursementReferenceNumber', 'disbursementDate', 'disbursementAmount', 'disbursementMode',
+        'beneficiaryName', 'beneficiaryAccountNumber', 'beneficiaryIfsc', 'beneficiaryBankName',
+        'disbursementVerified', 'verificationDate', 'verificationRemarks', 'bankStatementUrl',
+        'commissionReleaseTriggered', 'commissionReleaseDate', 'ddpCommissionReleased', 'bdpCommissionReleased', 'cpCommissionReleased',
+        'status', 'expectedDisbursementDate', 'actualProcessingDays', 'lastFollowUpDate', 'nextFollowUpDate', 'followUpRemarks', 'remarks'
+      ];
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) updateData[field] = req.body[field];
+      }
+      const report = await storage.updateSubsidyDisbursementReport(req.params.id, updateData);
+      if (!report) return res.status(404).json({ message: "Subsidy disbursement report not found" });
+      res.json(report);
+    } catch (error) {
+      console.error("Update subsidy disbursement report error:", error);
+      res.status(500).json({ message: "Failed to update subsidy disbursement report" });
+    }
+  });
+  
+  app.delete("/api/admin/subsidy-disbursement-reports/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteSubsidyDisbursementReport(req.params.id);
+      res.json({ message: "Subsidy disbursement report deleted" });
+    } catch (error) {
+      console.error("Delete subsidy disbursement report error:", error);
+      res.status(500).json({ message: "Failed to delete subsidy disbursement report" });
+    }
+  });
+  
+  app.get("/api/admin/customers/:customerId/subsidy-disbursement-reports", requireAdmin, async (req, res) => {
+    try {
+      const report = await storage.getSubsidyDisbursementReportByCustomerId(req.params.customerId);
+      res.json(report || null);
+    } catch (error) {
+      console.error("Get customer subsidy disbursement report error:", error);
+      res.status(500).json({ message: "Failed to get subsidy disbursement report" });
     }
   });
 

@@ -53,6 +53,9 @@ import AdminSiteExecutionOrders from "@/pages/admin/site-execution-orders";
 import AdminCompletionReports from "@/pages/admin/completion-reports";
 import AdminMeterInstallationReports from "@/pages/admin/meter-installation-reports";
 import AdminPortalSubmissionReports from "@/pages/admin/portal-submission-reports";
+import AdminRemainingPaymentReports from "@/pages/admin/remaining-payment-reports";
+import AdminSubsidyApplicationReports from "@/pages/admin/subsidy-application-reports";
+import AdminSubsidyDisbursementReports from "@/pages/admin/subsidy-disbursement-reports";
 import AdminCustomerFileSubmissions from "@/pages/admin/customer-file-submissions";
 import AdminIndependentCustomers from "@/pages/admin/independent-customers";
 import ProfilePage from "@/pages/profile";
@@ -306,6 +309,27 @@ function AuthenticatedRoutes() {
         <ProtectedRoute allowedRoles={["admin"]}>
           <DashboardLayout>
             <AdminPortalSubmissionReports />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/remaining-payment-reports">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminRemainingPaymentReports />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/subsidy-application-reports">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminSubsidyApplicationReports />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/subsidy-disbursement-reports">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminSubsidyDisbursementReports />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
