@@ -36,14 +36,24 @@ import {
   Building,
   Truck,
   CreditCard,
-  Users
+  Users,
+  Plus
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { SiteExpense, Customer } from "@shared/schema";
 
 export default function AdminSiteExpenses() {
   const { toast } = useToast();
   const [selectedExpense, setSelectedExpense] = useState<SiteExpense | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [formData, setFormData] = useState<Record<string, string>>({});
 
@@ -69,6 +79,30 @@ export default function AdminSiteExpenses() {
       toast({ title: "Failed to update site expense", variant: "destructive" });
     },
   });
+
+  const createExpenseMutation = useMutation({
+    mutationFn: async (customerId: string) => {
+      return await apiRequest("POST", "/api/admin/site-expenses", { customerId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/site-expenses"] });
+      toast({ title: "Site expense created successfully" });
+      setIsAddOpen(false);
+      setSelectedCustomerId("");
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to create site expense", 
+        description: error.message || "This customer may already have an expense record",
+        variant: "destructive" 
+      });
+    },
+  });
+
+  // Get customers who don't have site expenses yet
+  const customersWithoutExpenses = customers.filter(
+    (customer) => !expenses.some((expense) => expense.customerId === customer.id)
+  );
 
   const getCustomerName = (customerId: string) => {
     const customer = customers.find((c) => c.id === customerId);
@@ -179,6 +213,10 @@ export default function AdminSiteExpenses() {
           <h1 className="text-2xl font-bold" data-testid="text-page-title">Site Installation Expenses</h1>
           <p className="text-muted-foreground">Track costs and profit for each installation</p>
         </div>
+        <Button onClick={() => setIsAddOpen(true)} data-testid="button-add-expense">
+          <Plus className="h-4 w-4 mr-2" />
+          Add Site Expense
+        </Button>
       </div>
 
       {/* Summary Cards */}
@@ -316,6 +354,70 @@ export default function AdminSiteExpenses() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Add Site Expense Dialog */}
+      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5" />
+              Add Site Expense
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Select Customer</Label>
+              <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
+                <SelectTrigger data-testid="select-customer">
+                  <SelectValue placeholder="Choose a customer..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {customersWithoutExpenses.length === 0 ? (
+                    <div className="p-4 text-sm text-muted-foreground text-center">
+                      All customers already have expense records
+                    </div>
+                  ) : (
+                    customersWithoutExpenses.map((customer) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        <div className="flex flex-col">
+                          <span>{customer.name}</span>
+                          <span className="text-xs text-muted-foreground">{customer.phone} - {customer.district}</span>
+                        </div>
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedCustomerId && (
+              <div className="p-3 bg-muted rounded-md text-sm">
+                <p className="font-medium">Selected Customer:</p>
+                <p>{customers.find(c => c.id === selectedCustomerId)?.name}</p>
+                <p className="text-muted-foreground">
+                  {customers.find(c => c.id === selectedCustomerId)?.phone}
+                </p>
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsAddOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={() => createExpenseMutation.mutate(selectedCustomerId)}
+                disabled={!selectedCustomerId || createExpenseMutation.isPending}
+                data-testid="button-create-expense"
+              >
+                {createExpenseMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Plus className="h-4 w-4 mr-2" />
+                )}
+                Create Expense
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
