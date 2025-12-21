@@ -455,21 +455,25 @@ export async function registerRoutes(
         try {
           const twilio = require("twilio")(twilioSid, twilioToken);
           const formattedPhone = phone.startsWith("+") ? phone : `+91${phone.replace(/^0+/, '')}`;
-          console.log(`Sending OTP to ${formattedPhone}`);
+          const formattedFrom = twilioPhone.startsWith("+") ? twilioPhone : `+${twilioPhone}`;
+          console.log(`[OTP] Sending SMS to ${formattedPhone} from ${formattedFrom}`);
+          console.log(`[OTP] Twilio SID: ${twilioSid.substring(0, 10)}...`);
           
           const message = await twilio.messages.create({
             body: `Your DivyanshiSolar customer portal OTP is: ${otp}. Valid for 10 minutes.`,
-            from: twilioPhone,
+            from: formattedFrom,
             to: formattedPhone,
           });
-          console.log(`OTP SMS sent successfully. SID: ${message.sid}, Status: ${message.status}`);
+          console.log(`[OTP] SMS sent - SID: ${message.sid}, Status: ${message.status}, To: ${message.to}, From: ${message.from}`);
           smsSent = true;
         } catch (err: any) {
-          console.error("Customer portal SMS send error:", err?.message || err);
+          console.error("[OTP] SMS send error:", err?.message || err);
+          console.error("[OTP] Full error:", JSON.stringify(err, null, 2));
           smsError = err?.message || "Failed to send SMS";
         }
       } else {
-        console.warn("Twilio not configured - OTP will not be sent via SMS");
+        console.warn("[OTP] Twilio not configured - missing credentials");
+        console.warn(`[OTP] SID: ${twilioSid ? 'set' : 'missing'}, Token: ${twilioToken ? 'set' : 'missing'}, Phone: ${twilioPhone ? 'set' : 'missing'}`);
         smsError = "SMS service not configured";
       }
       
