@@ -17,9 +17,15 @@ import { Separator } from "@/components/ui/separator";
 
 type CustomerFormValues = z.infer<typeof customerFormSchema>;
 
-function SubsidyEstimateCard({ capacity, panelType }: { capacity: string | null | undefined; panelType: string }) {
+function SubsidyEstimateCard({ capacity, panelType, customerType = "residential" }: { 
+  capacity: string | null | undefined; 
+  panelType: string;
+  customerType?: string;
+}) {
   const capacityNum = parseFloat(capacity || "0") || 0;
   const isNonDcr = panelType === "non_dcr";
+  const isResidential = customerType === "residential";
+  const isSubsidyEligible = isResidential && !isNonDcr;
   
   if (capacityNum <= 0) {
     return (
@@ -27,26 +33,27 @@ function SubsidyEstimateCard({ capacity, panelType }: { capacity: string | null 
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <IndianRupee className="w-5 h-5 text-primary" />
-            {isNonDcr ? "Cost Estimate" : "Subsidy Estimate"}
+            {isSubsidyEligible ? "Subsidy Estimate" : "Cost Estimate"}
           </CardTitle>
           <CardDescription>
-            Select proposed capacity above to see {isNonDcr ? "cost" : "subsidy"} calculation
+            Select proposed capacity above to see {isSubsidyEligible ? "subsidy" : "cost"} calculation
           </CardDescription>
         </CardHeader>
       </Card>
     );
   }
   
-  const result = calculateSubsidy(capacityNum, "", panelType);
+  const result = calculateSubsidy(capacityNum, "", panelType, "hybrid", customerType as "residential" | "commercial" | "industrial");
   
-  if (isNonDcr) {
+  if (!isSubsidyEligible) {
+    const customerTypeLabel = customerType === "commercial" ? "Commercial" : customerType === "industrial" ? "Industrial" : "Residential";
     return (
       <div className="space-y-4">
         <Card className="bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg text-orange-700 dark:text-orange-300">
               <IndianRupee className="w-5 h-5" />
-              Cost Estimate for {capacityNum} kW Non-DCR System
+              Cost Estimate for {capacityNum} kW {customerTypeLabel} {isNonDcr ? "Non-DCR" : "DCR"} System
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -54,12 +61,14 @@ function SubsidyEstimateCard({ capacity, panelType }: { capacity: string | null 
               <div className="p-3 bg-background rounded-lg">
                 <p className="text-sm text-muted-foreground">System Cost</p>
                 <p className="text-xl font-semibold font-mono">{formatINR(result.totalCost)}</p>
-                <p className="text-xs text-muted-foreground">Rs 55,000 per kW</p>
+                <p className="text-xs text-muted-foreground">Rs {result.ratePerWatt}/Watt</p>
               </div>
               <div className="p-3 bg-background rounded-lg">
                 <p className="text-sm text-muted-foreground">Customer Pays</p>
-                <p className="text-xl font-semibold font-mono text-primary">{formatINR(result.totalCost)}</p>
-                <p className="text-xs text-muted-foreground">No government subsidy</p>
+                <p className="text-xl font-semibold font-mono text-primary">{formatINR(result.netCost)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {isResidential && !isNonDcr ? "No subsidy for commercial/industrial" : "No government subsidy"}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -86,7 +95,9 @@ function SubsidyEstimateCard({ capacity, panelType }: { capacity: string | null 
                 <p className="text-xs text-muted-foreground">Annual Savings</p>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground text-center mt-2">4 units/kW/day at Rs 7/unit</p>
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              4 units/kW/day at Rs {customerType === "industrial" ? 9 : customerType === "commercial" ? 8 : 7}/unit ({customerTypeLabel} rate)
+            </p>
           </CardContent>
         </Card>
         
@@ -241,6 +252,7 @@ export default function CustomerForm() {
       roofArea: undefined,
       panelType: "dcr",
       proposedCapacity: "",
+      customerType: "residential",
       status: "pending",
       documents: [],
       accountHolderName: "",
@@ -602,6 +614,32 @@ export default function CustomerForm() {
 
                 <FormField
                   control={form.control}
+                  name="customerType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Customer Type</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || "residential"}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-customer-type">
+                            <SelectValue placeholder="Select customer type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="residential">Residential (up to 10 kW)</SelectItem>
+                          <SelectItem value="commercial">Commercial (up to 100 kW)</SelectItem>
+                          <SelectItem value="industrial">Industrial (up to 100 kW)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Only residential DCR installations qualify for government subsidy
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
                   name="panelType"
                   render={({ field }) => (
                     <FormItem>
@@ -621,7 +659,9 @@ export default function CustomerForm() {
                         </SelectContent>
                       </Select>
                       <FormDescription>
-                        DCR panels are eligible for government subsidy
+                        {form.watch("customerType") === "residential" 
+                          ? "DCR panels are eligible for government subsidy" 
+                          : "No subsidy for commercial/industrial installations"}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -633,7 +673,13 @@ export default function CustomerForm() {
                   name="proposedCapacity"
                   render={({ field }) => {
                     const panelType = form.watch("panelType") || "dcr";
+                    const customerType = form.watch("customerType") || "residential";
                     const isDcr = panelType === "dcr";
+                    const isResidential = customerType === "residential";
+                    
+                    const capacityOptions = isResidential 
+                      ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+                      : [10, 15, 20, 25, 30, 40, 50, 60, 75, 100];
                     
                     return (
                       <FormItem>
@@ -645,26 +691,19 @@ export default function CustomerForm() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {isDcr ? (
-                              <>
-                                <SelectItem value="3">3 kW</SelectItem>
-                                <SelectItem value="5">5 kW</SelectItem>
-                              </>
-                            ) : (
-                              <>
-                                <SelectItem value="6">6 kW</SelectItem>
-                                <SelectItem value="7">7 kW</SelectItem>
-                                <SelectItem value="8">8 kW</SelectItem>
-                                <SelectItem value="9">9 kW</SelectItem>
-                                <SelectItem value="10">10 kW</SelectItem>
-                              </>
-                            )}
+                            {capacityOptions.map((cap) => (
+                              <SelectItem key={cap} value={cap.toString()}>
+                                {cap} kW
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         <FormDescription>
-                          {isDcr 
-                            ? "DCR panels: Choose 3 kW or 5 kW (government subsidy eligible)" 
-                            : "Non-DCR panels: 6-10 kW options at Rs 55,000/kW"}
+                          {isResidential 
+                            ? (isDcr 
+                              ? "Residential: 1-10 kW (subsidy up to 3 kW)" 
+                              : "Residential: 1-10 kW at Rs 55,000/kW")
+                            : `${customerType === "commercial" ? "Commercial" : "Industrial"}: 10-100 kW (no subsidy)`}
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -676,7 +715,11 @@ export default function CustomerForm() {
           </Card>
 
           {/* Subsidy Estimate */}
-          <SubsidyEstimateCard capacity={form.watch("proposedCapacity")} panelType={form.watch("panelType") || "dcr"} />
+          <SubsidyEstimateCard 
+            capacity={form.watch("proposedCapacity")} 
+            panelType={form.watch("panelType") || "dcr"} 
+            customerType={form.watch("customerType") || "residential"}
+          />
 
           {/* Bank Account Details */}
           <Card>
