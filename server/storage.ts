@@ -26,6 +26,7 @@ import {
   bankLoanSubmissions,
   customerFileSubmissions,
   passwordResetOtps,
+  customerSessions,
   type User, 
   type InsertUser, 
   type Customer, 
@@ -138,10 +139,17 @@ export interface IStorage {
   
   // Customer operations
   getCustomer(id: string): Promise<Customer | undefined>;
+  getCustomerByPhone(phone: string): Promise<Customer | undefined>;
   getCustomersByDdpId(ddpId: string): Promise<Customer[]>;
   getAllCustomersByBdpId(bdpId: string): Promise<Customer[]>;
   createCustomer(customer: InsertCustomer): Promise<Customer>;
+  updateCustomer(id: string, data: Partial<Customer>): Promise<Customer | undefined>;
   updateCustomerStatus(id: string, status: string): Promise<Customer | undefined>;
+  
+  // Customer Portal Session operations
+  createCustomerSession(session: { customerId: string; sessionToken: string; expiresAt: Date }): Promise<void>;
+  getCustomerSessionByToken(token: string): Promise<{ customerId: string; expiresAt: Date } | undefined>;
+  deleteCustomerSession(token: string): Promise<void>;
   
   // Milestone operations
   getMilestonesByCustomerId(customerId: string): Promise<Milestone[]>;
@@ -448,6 +456,20 @@ export class DatabaseStorage implements IStorage {
     return customer || undefined;
   }
 
+  async getCustomerByPhone(phone: string): Promise<Customer | undefined> {
+    const [customer] = await db.select().from(customers).where(eq(customers.phone, phone));
+    return customer || undefined;
+  }
+
+  async updateCustomer(id: string, data: Partial<Customer>): Promise<Customer | undefined> {
+    const [customer] = await db
+      .update(customers)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(customers.id, id))
+      .returning();
+    return customer || undefined;
+  }
+
   async getCustomersByDdpId(ddpId: string): Promise<Customer[]> {
     // Exclude independent customers (website_direct) - they are admin-only
     return db
@@ -504,6 +526,27 @@ export class DatabaseStorage implements IStorage {
       .where(eq(customers.id, id))
       .returning();
     return customer || undefined;
+  }
+
+  // Customer Portal Session operations
+  async createCustomerSession(session: { customerId: string; sessionToken: string; expiresAt: Date }): Promise<void> {
+    await db.insert(customerSessions).values({
+      customerId: session.customerId,
+      sessionToken: session.sessionToken,
+      expiresAt: session.expiresAt,
+    });
+  }
+
+  async getCustomerSessionByToken(token: string): Promise<{ customerId: string; expiresAt: Date } | undefined> {
+    const [session] = await db
+      .select()
+      .from(customerSessions)
+      .where(eq(customerSessions.sessionToken, token));
+    return session ? { customerId: session.customerId, expiresAt: session.expiresAt } : undefined;
+  }
+
+  async deleteCustomerSession(token: string): Promise<void> {
+    await db.delete(customerSessions).where(eq(customerSessions.sessionToken, token));
   }
 
   async getBdpStats(bdpId: string): Promise<{

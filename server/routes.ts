@@ -409,6 +409,230 @@ export async function registerRoutes(
     res.json({ user: { ...user, password: undefined } });
   });
 
+  // ==================== CUSTOMER PORTAL ROUTES ====================
+  
+  // Request OTP for customer portal login
+  app.post("/api/customer-portal/request-otp", async (req, res) => {
+    try {
+      const { phone } = req.body;
+      
+      if (!phone) {
+        return res.status(400).json({ message: "Phone number is required" });
+      }
+      
+      // Find customer by phone with portal access enabled
+      const customer = await storage.getCustomerByPhone(phone);
+      if (!customer) {
+        return res.status(404).json({ message: "No customer found with this phone number" });
+      }
+      
+      if (!customer.portalEnabled) {
+        return res.status(403).json({ message: "Portal access not enabled for this customer. Please contact your DDP." });
+      }
+      
+      // Generate 6-digit OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+      
+      // Hash the OTP before storing
+      const hashedOtp = await bcrypt.hash(otp, SALT_ROUNDS);
+      
+      // Store OTP in customer record
+      await storage.updateCustomer(customer.id, {
+        otpCode: hashedOtp,
+        otpExpiry,
+      });
+      
+      // Send OTP via SMS
+      const twilioSid = process.env.TWILIO_ACCOUNT_SID;
+      const twilioToken = process.env.TWILIO_AUTH_TOKEN;
+      const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
+      
+      if (twilioSid && twilioToken && twilioPhone) {
+        try {
+          const twilio = require("twilio")(twilioSid, twilioToken);
+          await twilio.messages.create({
+            body: `Your DivyanshiSolar customer portal OTP is: ${otp}. Valid for 10 minutes.`,
+            from: twilioPhone,
+            to: phone.startsWith("+") ? phone : `+91${phone}`,
+          });
+        } catch (smsError) {
+          console.error("Customer portal SMS send error:", smsError);
+        }
+      }
+      
+      res.json({ 
+        success: true, 
+        customerName: customer.name,
+        message: "OTP sent successfully" 
+      });
+    } catch (error) {
+      console.error("Customer portal OTP request error:", error);
+      res.status(500).json({ message: "Failed to send OTP" });
+    }
+  });
+  
+  // Verify OTP and create customer session
+  app.post("/api/customer-portal/verify-otp", async (req, res) => {
+    try {
+      const { phone, otp } = req.body;
+      
+      if (!phone || !otp) {
+        return res.status(400).json({ message: "Phone and OTP are required" });
+      }
+      
+      // Find customer by phone
+      const customer = await storage.getCustomerByPhone(phone);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      
+      if (!customer.portalEnabled) {
+        return res.status(403).json({ message: "Portal access not enabled" });
+      }
+      
+      // Check OTP expiry
+      if (!customer.otpExpiry || new Date(customer.otpExpiry) < new Date()) {
+        return res.status(400).json({ message: "OTP has expired. Please request a new one." });
+      }
+      
+      // Verify OTP
+      if (!customer.otpCode) {
+        return res.status(400).json({ message: "No OTP found. Please request a new one." });
+      }
+      
+      const isValidOtp = await bcrypt.compare(otp, customer.otpCode);
+      if (!isValidOtp) {
+        return res.status(400).json({ message: "Invalid OTP" });
+      }
+      
+      // Generate session token
+      const crypto = require("crypto");
+      const sessionToken = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+      
+      // Create customer session
+      await storage.createCustomerSession({
+        customerId: customer.id,
+        sessionToken,
+        expiresAt,
+      });
+      
+      // Clear OTP and update last login
+      await storage.updateCustomer(customer.id, {
+        otpCode: null,
+        otpExpiry: null,
+        lastPortalLogin: new Date(),
+      });
+      
+      res.json({ 
+        success: true,
+        sessionToken,
+        customer: {
+          id: customer.id,
+          name: customer.name,
+          phone: customer.phone,
+          status: customer.status,
+        }
+      });
+    } catch (error) {
+      console.error("Customer portal OTP verify error:", error);
+      res.status(500).json({ message: "Failed to verify OTP" });
+    }
+  });
+  
+  // Get customer portal session info
+  app.get("/api/customer-portal/me", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const sessionToken = authHeader.substring(7);
+      const session = await storage.getCustomerSessionByToken(sessionToken);
+      
+      if (!session || new Date(session.expiresAt) < new Date()) {
+        return res.status(401).json({ message: "Session expired" });
+      }
+      
+      const customer = await storage.getCustomer(session.customerId);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      
+      res.json({
+        customer: {
+          id: customer.id,
+          name: customer.name,
+          phone: customer.phone,
+          email: customer.email,
+          address: customer.address,
+          district: customer.district,
+          state: customer.state,
+          status: customer.status,
+          panelType: customer.panelType,
+          proposedCapacity: customer.proposedCapacity,
+          customerType: customer.customerType,
+          installationDate: customer.installationDate,
+        }
+      });
+    } catch (error) {
+      console.error("Customer portal me error:", error);
+      res.status(500).json({ message: "Failed to get customer info" });
+    }
+  });
+  
+  // Get customer installation progress (milestones)
+  app.get("/api/customer-portal/installation-progress", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const sessionToken = authHeader.substring(7);
+      const session = await storage.getCustomerSessionByToken(sessionToken);
+      
+      if (!session || new Date(session.expiresAt) < new Date()) {
+        return res.status(401).json({ message: "Session expired" });
+      }
+      
+      // Get milestones visible to customer
+      const allMilestones = await storage.getMilestonesByCustomerId(session.customerId);
+      const visibleMilestones = allMilestones.filter(m => m.visibleToCustomer !== false);
+      
+      // Hide internal notes from customers
+      const sanitizedMilestones = visibleMilestones.map(m => ({
+        id: m.id,
+        milestone: m.milestone,
+        status: m.status,
+        completedAt: m.completedAt,
+        notes: m.notes, // Public notes only
+      }));
+      
+      res.json({ milestones: sanitizedMilestones });
+    } catch (error) {
+      console.error("Customer portal progress error:", error);
+      res.status(500).json({ message: "Failed to get progress" });
+    }
+  });
+  
+  // Customer portal logout
+  app.post("/api/customer-portal/logout", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        const sessionToken = authHeader.substring(7);
+        await storage.deleteCustomerSession(sessionToken);
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Customer portal logout error:", error);
+      res.status(500).json({ message: "Failed to logout" });
+    }
+  });
+
   // ==================== BDP ROUTES ====================
   
   // Get BDP stats
