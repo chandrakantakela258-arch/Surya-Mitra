@@ -4404,6 +4404,22 @@ export async function registerRoutes(
     try {
       const validStatuses = ["draft", "assigned", "in_progress", "completed", "on_hold", "cancelled"];
       
+      // Status transition matrix: defines which transitions are allowed
+      const statusTransitions: Record<string, string[]> = {
+        "draft": ["assigned", "cancelled"],
+        "assigned": ["in_progress", "on_hold", "cancelled"],
+        "in_progress": ["completed", "on_hold", "cancelled"],
+        "on_hold": ["assigned", "in_progress", "cancelled"],
+        "completed": [], // Terminal state - no transitions allowed
+        "cancelled": [], // Terminal state - no transitions allowed
+      };
+      
+      // Get the existing order first
+      const existingOrder = await storage.getSiteExecutionOrder(req.params.id);
+      if (!existingOrder) {
+        return res.status(404).json({ message: "Site execution order not found" });
+      }
+      
       const updateData: Record<string, any> = {};
       
       const stringFields = ["customerName", "customerPhone", "siteAddress", "district", "state", "pincode",
@@ -4455,10 +4471,25 @@ export async function registerRoutes(
         }
       }
       
+      // Validate status transition if status is being changed
       if (req.body.status !== undefined) {
         if (!validStatuses.includes(req.body.status)) {
           return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
         }
+        
+        const currentStatus = existingOrder.status || "draft";
+        const newStatus = req.body.status;
+        
+        // Allow staying in the same status (no-op)
+        if (currentStatus !== newStatus) {
+          const allowedTransitions = statusTransitions[currentStatus] || [];
+          if (!allowedTransitions.includes(newStatus)) {
+            return res.status(400).json({ 
+              message: `Invalid status transition from '${currentStatus}' to '${newStatus}'. Allowed transitions: ${allowedTransitions.length > 0 ? allowedTransitions.join(", ") : "none (terminal state)"}` 
+            });
+          }
+        }
+        
         updateData.status = req.body.status;
       }
       

@@ -99,6 +99,7 @@ const adminMenuSections: MenuSection[] = [
       { title: "Step 4: Disbursement", url: "/admin/loan-disbursements", icon: Wallet },
       { title: "Step 5: Vendor PO", url: "/admin/vendor-purchase-orders", icon: ShoppingCart },
       { title: "Step 6: Delivery", url: "/admin/goods-deliveries", icon: Truck },
+      { title: "Step 7: Installation", url: "/admin/site-execution-orders", icon: Wrench },
     ],
   },
   {
