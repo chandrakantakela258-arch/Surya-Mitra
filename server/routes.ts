@@ -4515,6 +4515,243 @@ export async function registerRoutes(
     }
   });
 
+  // ==================== STEP 8: SITE EXECUTION COMPLETION REPORTS ====================
+  
+  // Admin: Get all completion reports
+  app.get("/api/admin/completion-reports", requireAdmin, async (req, res) => {
+    try {
+      const reports = await storage.getCompletionReports();
+      res.json(reports);
+    } catch (error) {
+      console.error("Get completion reports error:", error);
+      res.status(500).json({ message: "Failed to fetch completion reports" });
+    }
+  });
+  
+  // Admin: Get single completion report
+  app.get("/api/admin/completion-reports/:id", requireAdmin, async (req, res) => {
+    try {
+      const report = await storage.getCompletionReport(req.params.id);
+      if (!report) {
+        return res.status(404).json({ message: "Completion report not found" });
+      }
+      res.json(report);
+    } catch (error) {
+      console.error("Get completion report error:", error);
+      res.status(500).json({ message: "Failed to fetch completion report" });
+    }
+  });
+  
+  // Admin: Get completion report by execution order ID
+  app.get("/api/admin/completion-reports/by-order/:orderId", requireAdmin, async (req, res) => {
+    try {
+      const report = await storage.getCompletionReportByOrderId(req.params.orderId);
+      res.json(report || null);
+    } catch (error) {
+      console.error("Get completion report by order error:", error);
+      res.status(500).json({ message: "Failed to fetch completion report" });
+    }
+  });
+  
+  // Admin: Create completion report (with file uploads)
+  app.post("/api/admin/completion-reports", requireAdmin, upload.fields([
+    { name: 'beforePhotos', maxCount: 5 },
+    { name: 'duringPhotos', maxCount: 5 },
+    { name: 'afterPhotos', maxCount: 5 },
+    { name: 'panelPhotos', maxCount: 5 },
+    { name: 'inverterPhotos', maxCount: 5 },
+    { name: 'wiringPhotos', maxCount: 5 },
+    { name: 'meterPhotos', maxCount: 5 },
+  ]), async (req, res) => {
+    try {
+      const reportNumber = await storage.generateCompletionReportNumber();
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      
+      const reportData = {
+        ...req.body,
+        reportNumber,
+        createdBy: req.user?.id,
+        beforePhotos: files?.beforePhotos?.map(f => `/uploads/${f.filename}`) || [],
+        duringPhotos: files?.duringPhotos?.map(f => `/uploads/${f.filename}`) || [],
+        afterPhotos: files?.afterPhotos?.map(f => `/uploads/${f.filename}`) || [],
+        panelPhotos: files?.panelPhotos?.map(f => `/uploads/${f.filename}`) || [],
+        inverterPhotos: files?.inverterPhotos?.map(f => `/uploads/${f.filename}`) || [],
+        wiringPhotos: files?.wiringPhotos?.map(f => `/uploads/${f.filename}`) || [],
+        meterPhotos: files?.meterPhotos?.map(f => `/uploads/${f.filename}`) || [],
+        panelsInstalled: req.body.panelsInstalled ? parseInt(req.body.panelsInstalled) : null,
+        totalWorkHours: req.body.totalWorkHours ? parseInt(req.body.totalWorkHours) : null,
+        crewSize: req.body.crewSize ? parseInt(req.body.crewSize) : null,
+        customerRating: req.body.customerRating ? parseInt(req.body.customerRating) : null,
+        wiringCompleted: req.body.wiringCompleted === 'true' || req.body.wiringCompleted === true,
+        earthingCompleted: req.body.earthingCompleted === 'true' || req.body.earthingCompleted === true,
+        meterConnected: req.body.meterConnected === 'true' || req.body.meterConnected === true,
+        gridSyncCompleted: req.body.gridSyncCompleted === 'true' || req.body.gridSyncCompleted === true,
+        generationTestPassed: req.body.generationTestPassed === 'true' || req.body.generationTestPassed === true,
+        qualityChecklistCompleted: req.body.qualityChecklistCompleted === 'true' || req.body.qualityChecklistCompleted === true,
+        safetyChecklistCompleted: req.body.safetyChecklistCompleted === 'true' || req.body.safetyChecklistCompleted === true,
+        cleanupCompleted: req.body.cleanupCompleted === 'true' || req.body.cleanupCompleted === true,
+        customerBriefingDone: req.body.customerBriefingDone === 'true' || req.body.customerBriefingDone === true,
+      };
+      
+      const report = await storage.createCompletionReport(reportData);
+      res.status(201).json(report);
+    } catch (error) {
+      console.error("Create completion report error:", error);
+      res.status(500).json({ message: "Failed to create completion report" });
+    }
+  });
+  
+  // Admin: Update completion report (with file uploads)
+  app.patch("/api/admin/completion-reports/:id", requireAdmin, upload.fields([
+    { name: 'beforePhotos', maxCount: 5 },
+    { name: 'duringPhotos', maxCount: 5 },
+    { name: 'afterPhotos', maxCount: 5 },
+    { name: 'panelPhotos', maxCount: 5 },
+    { name: 'inverterPhotos', maxCount: 5 },
+    { name: 'wiringPhotos', maxCount: 5 },
+    { name: 'meterPhotos', maxCount: 5 },
+  ]), async (req, res) => {
+    try {
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      const existingReport = await storage.getCompletionReport(req.params.id);
+      
+      if (!existingReport) {
+        return res.status(404).json({ message: "Completion report not found" });
+      }
+      
+      // Status transition validation
+      const validTransitions: Record<string, string[]> = {
+        draft: ['submitted'],
+        submitted: ['under_review', 'rejected'],
+        under_review: ['approved', 'rejected'],
+        rejected: ['draft', 'submitted'],
+        approved: [], // Terminal state
+      };
+      
+      if (req.body.status && req.body.status !== existingReport.status) {
+        const allowed = validTransitions[existingReport.status || 'draft'] || [];
+        if (!allowed.includes(req.body.status)) {
+          return res.status(400).json({ 
+            message: `Invalid status transition from '${existingReport.status}' to '${req.body.status}'` 
+          });
+        }
+      }
+      
+      const updateData: any = { ...req.body };
+      
+      // Handle new file uploads
+      if (files?.beforePhotos?.length) {
+        updateData.beforePhotos = [...(existingReport.beforePhotos || []), ...files.beforePhotos.map(f => `/uploads/${f.filename}`)];
+      }
+      if (files?.duringPhotos?.length) {
+        updateData.duringPhotos = [...(existingReport.duringPhotos || []), ...files.duringPhotos.map(f => `/uploads/${f.filename}`)];
+      }
+      if (files?.afterPhotos?.length) {
+        updateData.afterPhotos = [...(existingReport.afterPhotos || []), ...files.afterPhotos.map(f => `/uploads/${f.filename}`)];
+      }
+      if (files?.panelPhotos?.length) {
+        updateData.panelPhotos = [...(existingReport.panelPhotos || []), ...files.panelPhotos.map(f => `/uploads/${f.filename}`)];
+      }
+      if (files?.inverterPhotos?.length) {
+        updateData.inverterPhotos = [...(existingReport.inverterPhotos || []), ...files.inverterPhotos.map(f => `/uploads/${f.filename}`)];
+      }
+      if (files?.wiringPhotos?.length) {
+        updateData.wiringPhotos = [...(existingReport.wiringPhotos || []), ...files.wiringPhotos.map(f => `/uploads/${f.filename}`)];
+      }
+      if (files?.meterPhotos?.length) {
+        updateData.meterPhotos = [...(existingReport.meterPhotos || []), ...files.meterPhotos.map(f => `/uploads/${f.filename}`)];
+      }
+      
+      // Handle integer fields
+      if (updateData.panelsInstalled) updateData.panelsInstalled = parseInt(updateData.panelsInstalled);
+      if (updateData.totalWorkHours) updateData.totalWorkHours = parseInt(updateData.totalWorkHours);
+      if (updateData.crewSize) updateData.crewSize = parseInt(updateData.crewSize);
+      if (updateData.customerRating) updateData.customerRating = parseInt(updateData.customerRating);
+      
+      // Handle boolean fields
+      ['wiringCompleted', 'earthingCompleted', 'meterConnected', 'gridSyncCompleted', 
+       'generationTestPassed', 'qualityChecklistCompleted', 'safetyChecklistCompleted', 
+       'cleanupCompleted', 'customerBriefingDone'].forEach(field => {
+        if (field in updateData) {
+          updateData[field] = updateData[field] === 'true' || updateData[field] === true;
+        }
+      });
+      
+      // Set review timestamp if status is approved/rejected
+      if (req.body.status === 'approved' || req.body.status === 'rejected') {
+        updateData.reviewedAt = new Date().toISOString();
+        updateData.reviewedBy = req.user?.id;
+      }
+      
+      // Set submit timestamp if status changes to submitted
+      if (req.body.status === 'submitted' && existingReport.status !== 'submitted') {
+        updateData.submittedAt = new Date().toISOString();
+      }
+      
+      const report = await storage.updateCompletionReport(req.params.id, updateData);
+      res.json(report);
+    } catch (error) {
+      console.error("Update completion report error:", error);
+      res.status(500).json({ message: "Failed to update completion report" });
+    }
+  });
+  
+  // Admin: Delete completion report
+  app.delete("/api/admin/completion-reports/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteCompletionReport(req.params.id);
+      res.json({ message: "Completion report deleted" });
+    } catch (error) {
+      console.error("Delete completion report error:", error);
+      res.status(500).json({ message: "Failed to delete completion report" });
+    }
+  });
+  
+  // Admin: Review completion report (approve/reject)
+  app.post("/api/admin/completion-reports/:id/review", requireAdmin, async (req, res) => {
+    try {
+      const { action, notes, rejectionReason } = req.body;
+      const report = await storage.getCompletionReport(req.params.id);
+      
+      if (!report) {
+        return res.status(404).json({ message: "Completion report not found" });
+      }
+      
+      if (!['approve', 'reject'].includes(action)) {
+        return res.status(400).json({ message: "Action must be 'approve' or 'reject'" });
+      }
+      
+      // Report must be submitted or under_review
+      if (!['submitted', 'under_review'].includes(report.status || '')) {
+        return res.status(400).json({ message: "Report must be submitted for review first" });
+      }
+      
+      const updateData: any = {
+        status: action === 'approve' ? 'approved' : 'rejected',
+        reviewedAt: new Date().toISOString(),
+        reviewedBy: req.user?.id,
+        reviewNotes: notes || null,
+        rejectionReason: action === 'reject' ? rejectionReason : null,
+      };
+      
+      const updated = await storage.updateCompletionReport(req.params.id, updateData);
+      
+      // If approved, also mark the execution order as completed
+      if (action === 'approve' && report.executionOrderId) {
+        await storage.updateSiteExecutionOrder(report.executionOrderId, {
+          status: 'completed',
+          actualEndDate: new Date().toISOString() as any,
+          progressPercentage: 100,
+        });
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Review completion report error:", error);
+      res.status(500).json({ message: "Failed to review completion report" });
+    }
+  });
+
   // ==================== CUSTOMER PARTNER ROUTES ====================
   
   // Lookup customer eligibility for Customer Partner registration
