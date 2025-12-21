@@ -69,7 +69,7 @@ export function MobileNav() {
       className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t md:hidden safe-area-bottom"
       data-testid="nav-mobile-bottom"
     >
-      <div className="flex items-center justify-around h-16">
+      <div className="flex items-center justify-evenly h-16 w-full px-1">
         {navItems.map((item) => {
           const isActive = location === item.href || location.startsWith(item.href + "/");
           const Icon = item.icon;
@@ -78,7 +78,7 @@ export function MobileNav() {
             <Link key={item.href} href={item.href}>
               <div
                 className={cn(
-                  "flex flex-col items-center justify-center w-16 h-full gap-0.5 transition-colors",
+                  "flex flex-col items-center justify-center min-w-[52px] flex-1 h-full gap-0.5 transition-colors",
                   isActive 
                     ? "text-primary" 
                     : "text-muted-foreground"
@@ -86,7 +86,7 @@ export function MobileNav() {
                 data-testid={`nav-mobile-${item.label.toLowerCase()}`}
               >
                 <Icon className={cn("h-5 w-5", isActive && "stroke-[2.5px]")} />
-                <span className="text-[10px] font-medium">{item.label}</span>
+                <span className="text-[10px] font-medium truncate max-w-[52px]">{item.label}</span>
               </div>
             </Link>
           );
