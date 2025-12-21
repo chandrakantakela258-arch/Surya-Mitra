@@ -19,14 +19,35 @@ Preferred communication style: Simple, everyday language.
 
 ## Business Rules
 
-### Panel Types & Capacity Options
-- **DCR Panels (Domestic Content Requirement)**: 1-100 kW (government subsidy eligible up to 3 kW)
-- **Non-DCR Panels**: 1-100 kW capacity options (no subsidy)
+### Customer Types & Capacity Options
+The system supports three customer types with different capacity limits and electricity rates:
+
+| Customer Type | Capacity Range | Electricity Rate | Subsidy Eligible |
+|--------------|----------------|------------------|------------------|
+| Residential | 1-10 kW | Rs 7/unit | Yes (DCR only, capped at 3 kW) |
+| Commercial | 1-100 kW | Rs 8/unit | No |
+| Industrial | 1-100 kW | Rs 9/unit | No |
+
+**Subsidy Eligibility**: Only residential customers with DCR panels qualify for government subsidies. Subsidy is capped at 3 kW (Rs 78,000 max).
+
+### Panel Types
+- **DCR Panels (Domestic Content Requirement)**: Government subsidy eligible (residential only)
+- **Non-DCR Panels**: No subsidy
 
 ### System Pricing
 - **DCR Panels with 3-in-1 Hybrid Inverter**: Rs 75/Watt (Rs 75,000/kW)
 - **DCR Panels with Ongrid Inverter**: Rs 66/Watt (Rs 66,000/kW)
 - **Non-DCR Panels**: Rs 55/Watt (Rs 55,000/kW)
+
+### EMI Options (10% Annual Interest)
+The calculator shows EMI options for 5 different tenures:
+- 36 months (3 years)
+- 48 months (4 years)
+- 60 months (5 years)
+- 72 months (6 years)
+- 84 months (7 years)
+
+Each EMI displays the effective monthly payment after deducting power savings.
 
 ### State Subsidies
 - Odisha: +Rs 20,000/kW additional subsidy
