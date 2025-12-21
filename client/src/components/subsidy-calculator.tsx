@@ -5,12 +5,45 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sun, IndianRupee, Zap, TrendingDown, MapPin, BatteryCharging, Power, Check, Users } from "lucide-react";
+import { Sun, IndianRupee, Zap, TrendingDown, MapPin, BatteryCharging, Power, Check, Users, Home, Building2, Factory } from "lucide-react";
 import { indianStates } from "@shared/schema";
 
 const stateSubsidies: Record<string, { ratePerKw: number; maxSubsidy: number; label: string }> = {
   "Odisha": { ratePerKw: 20000, maxSubsidy: 60000, label: "Odisha State Subsidy" },
   "Uttar Pradesh": { ratePerKw: 10000, maxSubsidy: 30000, label: "UP State Subsidy" },
+};
+
+// Customer types with capacity limits
+type CustomerType = "residential" | "commercial" | "industrial";
+
+const customerTypeConfig: Record<CustomerType, { 
+  label: string; 
+  maxCapacity: number; 
+  description: string;
+  icon: any;
+  subsidyEligible: boolean;
+}> = {
+  residential: { 
+    label: "Residential", 
+    maxCapacity: 10, 
+    description: "Home rooftop solar (1-10 kW)",
+    icon: Home,
+    subsidyEligible: true
+  },
+  commercial: { 
+    label: "Commercial", 
+    maxCapacity: 100, 
+    description: "Shops, offices, schools (1-100 kW)",
+    icon: Building2,
+    subsidyEligible: false
+  },
+  industrial: { 
+    label: "Industrial", 
+    maxCapacity: 100, 
+    description: "Factories, warehouses (1-100 kW)",
+    icon: Factory,
+    subsidyEligible: false
+  },
 };
 
 // DCR Panel Pricing
@@ -40,6 +73,14 @@ interface SubsidyResult {
   panelType: string;
   inverterType: InverterType;
   ratePerWatt: number;
+  customerType: CustomerType;
+  subsidyEligible: boolean;
+  // EMI options for different tenures
+  emi36Months: number;
+  emi48Months: number;
+  emi60Months: number;
+  emi72Months: number;
+  emi84Months: number;
 }
 
 interface CommissionResult {
@@ -89,7 +130,13 @@ function calculateCommission(capacityKW: number, panelType: string): CommissionR
   };
 }
 
-function calculateSubsidy(capacityKW: number, state: string = "", panelType: string = "dcr", inverterType: InverterType = "hybrid"): SubsidyResult {
+function calculateSubsidy(
+  capacityKW: number, 
+  state: string = "", 
+  panelType: string = "dcr", 
+  inverterType: InverterType = "hybrid",
+  customerType: CustomerType = "residential"
+): SubsidyResult {
   // Calculate rate per watt based on panel type and inverter type
   let ratePerWatt: number;
   if (panelType === "dcr") {
@@ -100,20 +147,23 @@ function calculateSubsidy(capacityKW: number, state: string = "", panelType: str
   
   const totalCost = capacityKW * ratePerWatt * 1000;
   
+  // Subsidy only for residential DCR installations up to 3 kW
+  const subsidyEligible = customerType === "residential" && panelType === "dcr";
+  
   let centralSubsidy = 0;
   let stateSubsidy = 0;
   
-  if (panelType === "dcr") {
+  if (subsidyEligible) {
     if (capacityKW <= 2) {
       centralSubsidy = capacityKW * 30000;
     } else if (capacityKW <= 3) {
       centralSubsidy = 2 * 30000 + (capacityKW - 2) * 18000;
     } else {
-      centralSubsidy = 78000;
+      centralSubsidy = 78000; // Max subsidy capped at 3 kW equivalent
     }
     
     if (state && stateSubsidies[state]) {
-      const calculatedStateSubsidy = capacityKW * stateSubsidies[state].ratePerKw;
+      const calculatedStateSubsidy = Math.min(capacityKW, 3) * stateSubsidies[state].ratePerKw;
       stateSubsidy = Math.min(calculatedStateSubsidy, stateSubsidies[state].maxSubsidy);
     }
   }
@@ -121,17 +171,25 @@ function calculateSubsidy(capacityKW: number, state: string = "", panelType: str
   const totalSubsidy = centralSubsidy + stateSubsidy;
   const netCost = Math.max(0, totalCost - totalSubsidy);
   
+  // Power generation: 4 units per kW per day average
   const dailyGeneration = capacityKW * 4;
   const monthlyGeneration = dailyGeneration * 30;
   
-  const unitCost = 7;
+  // Electricity cost varies by customer type
+  const unitCost = customerType === "industrial" ? 9 : customerType === "commercial" ? 8 : 7;
   const monthlySavings = monthlyGeneration * unitCost;
   const annualSavings = monthlySavings * 12;
   
   const paybackYears = netCost > 0 ? netCost / annualSavings : 0;
   
+  // Calculate EMI for different tenures (10% annual interest)
   const emiTenure = 60;
   const emiMonthly = calculateEMI(netCost, 10, emiTenure);
+  const emi36Months = calculateEMI(netCost, 10, 36);
+  const emi48Months = calculateEMI(netCost, 10, 48);
+  const emi60Months = calculateEMI(netCost, 10, 60);
+  const emi72Months = calculateEMI(netCost, 10, 72);
+  const emi84Months = calculateEMI(netCost, 10, 84);
   
   return {
     capacity: capacityKW,
@@ -151,6 +209,13 @@ function calculateSubsidy(capacityKW: number, state: string = "", panelType: str
     panelType,
     inverterType,
     ratePerWatt,
+    customerType,
+    subsidyEligible,
+    emi36Months,
+    emi48Months,
+    emi60Months,
+    emi72Months,
+    emi84Months,
   };
 }
 
@@ -165,16 +230,20 @@ function formatINR(amount: number): string {
 interface SubsidyCalculatorProps {
   onCapacityChange?: (capacity: number) => void;
   onStateChange?: (state: string) => void;
+  onCustomerTypeChange?: (type: CustomerType) => void;
   initialCapacity?: number;
   initialState?: string;
+  initialCustomerType?: CustomerType;
   compact?: boolean;
 }
 
 export function SubsidyCalculator({ 
   onCapacityChange, 
   onStateChange,
+  onCustomerTypeChange,
   initialCapacity = 5,
   initialState = "",
+  initialCustomerType = "residential",
   compact = false 
 }: SubsidyCalculatorProps) {
   const [capacity, setCapacity] = useState(initialCapacity);
@@ -182,12 +251,37 @@ export function SubsidyCalculator({
   const [panelType, setPanelType] = useState<"dcr" | "non_dcr">("dcr");
   const [inverterType, setInverterType] = useState<InverterType>("hybrid");
   const [customCapacity, setCustomCapacity] = useState(initialCapacity.toString());
+  const [customerType, setCustomerType] = useState<CustomerType>(initialCustomerType);
+  const [selectedEmiTenure, setSelectedEmiTenure] = useState<number>(60);
   
-  const result = useMemo(() => calculateSubsidy(capacity, selectedState, panelType, inverterType), [capacity, selectedState, panelType, inverterType]);
+  const maxCapacity = customerTypeConfig[customerType].maxCapacity;
+  
+  const result = useMemo(() => calculateSubsidy(capacity, selectedState, panelType, inverterType, customerType), [capacity, selectedState, panelType, inverterType, customerType]);
   const commission = useMemo(() => calculateCommission(capacity, panelType), [capacity, panelType]);
   
+  // Get EMI for selected tenure
+  const selectedEmi = useMemo(() => {
+    switch (selectedEmiTenure) {
+      case 36: return result.emi36Months;
+      case 48: return result.emi48Months;
+      case 60: return result.emi60Months;
+      case 72: return result.emi72Months;
+      case 84: return result.emi84Months;
+      default: return result.emi60Months;
+    }
+  }, [result, selectedEmiTenure]);
+  
+  // Capacity options based on customer type
+  const capacityOptions = useMemo(() => {
+    if (customerType === "residential") {
+      return [1, 2, 3, 5, 7, 10];
+    } else {
+      return [10, 15, 20, 25, 50, 75, 100];
+    }
+  }, [customerType]);
+  
   function handleCapacityChange(value: number) {
-    const clampedValue = Math.max(1, Math.min(100, value));
+    const clampedValue = Math.max(1, Math.min(maxCapacity, value));
     setCapacity(clampedValue);
     setCustomCapacity(clampedValue.toString());
     onCapacityChange?.(clampedValue);
@@ -196,7 +290,7 @@ export function SubsidyCalculator({
   function handleCustomCapacityChange(value: string) {
     setCustomCapacity(value);
     const numValue = parseFloat(value);
-    if (!isNaN(numValue) && numValue >= 1 && numValue <= 100) {
+    if (!isNaN(numValue) && numValue >= 1 && numValue <= maxCapacity) {
       setCapacity(numValue);
       onCapacityChange?.(numValue);
     }
@@ -205,6 +299,18 @@ export function SubsidyCalculator({
   function handleStateChange(state: string) {
     setSelectedState(state);
     onStateChange?.(state);
+  }
+  
+  function handleCustomerTypeChange(type: CustomerType) {
+    setCustomerType(type);
+    onCustomerTypeChange?.(type);
+    // Reset capacity to appropriate default for new customer type
+    const newMaxCapacity = customerTypeConfig[type].maxCapacity;
+    if (capacity > newMaxCapacity) {
+      handleCapacityChange(type === "residential" ? 3 : 25);
+    } else if (type !== "residential" && capacity < 10) {
+      handleCapacityChange(10);
+    }
   }
   
   if (compact) {
@@ -216,12 +322,12 @@ export function SubsidyCalculator({
             <span className="font-medium">Capacity: {capacity} kW</span>
           </div>
           <Badge variant="secondary" className="text-green-600 dark:text-green-400">
-            Subsidy: {formatINR(result.totalSubsidy)}
+            {result.subsidyEligible ? `Subsidy: ${formatINR(result.totalSubsidy)}` : "No Subsidy"}
           </Badge>
         </div>
         
         <div className="flex gap-2 flex-wrap">
-          {[3, 5, 10, 25, 50, 100].map((kw) => (
+          {capacityOptions.map((kw) => (
             <Button
               key={kw}
               type="button"
@@ -261,6 +367,42 @@ export function SubsidyCalculator({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Customer Type Selection */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {(Object.entries(customerTypeConfig) as [CustomerType, typeof customerTypeConfig[CustomerType]][]).map(([type, config]) => {
+            const Icon = config.icon;
+            return (
+              <div
+                key={type}
+                onClick={() => handleCustomerTypeChange(type)}
+                className={`p-4 rounded-lg cursor-pointer transition-all ${
+                  customerType === type 
+                    ? "bg-primary/10 border-2 border-primary" 
+                    : "bg-muted/50 border-2 border-transparent hover-elevate"
+                }`}
+                data-testid={`button-customer-type-${type}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    customerType === type ? "bg-primary text-primary-foreground" : "bg-muted"
+                  }`}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="font-medium">{config.label}</p>
+                    <p className="text-xs text-muted-foreground">{config.description}</p>
+                  </div>
+                </div>
+                {config.subsidyEligible && (
+                  <Badge className="mt-2 bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300">
+                    Subsidy Eligible
+                  </Badge>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="space-y-4">
             <Label>Panel Type</Label>
@@ -286,7 +428,7 @@ export function SubsidyCalculator({
             </div>
             <p className="text-xs text-muted-foreground">
               {panelType === "dcr" 
-                ? "DCR panels are eligible for government subsidy" 
+                ? (result.subsidyEligible ? "DCR panels are eligible for government subsidy" : "DCR panels (subsidy only for residential)")
                 : "Non-DCR panels have no subsidy (Rs 55/W)"}
             </p>
           </div>
@@ -330,7 +472,7 @@ export function SubsidyCalculator({
               </Badge>
             </div>
             <div className="flex gap-2 flex-wrap">
-              {[3, 5, 10, 25, 50, 100].map((kw) => (
+              {capacityOptions.map((kw) => (
                 <Button
                   key={kw}
                   type="button"
@@ -347,7 +489,7 @@ export function SubsidyCalculator({
               <Input
                 type="number"
                 min="1"
-                max="100"
+                max={maxCapacity}
                 value={customCapacity}
                 onChange={(e) => handleCustomCapacityChange(e.target.value)}
                 placeholder="Custom kW"
@@ -357,7 +499,9 @@ export function SubsidyCalculator({
               <span className="text-sm text-muted-foreground whitespace-nowrap">kW</span>
             </div>
             <p className="text-xs text-muted-foreground text-center">
-              Enter capacity from 1 kW to 100 kW (Rs {result.ratePerWatt}/Watt)
+              {customerType === "residential" 
+                ? `Residential: 1-${maxCapacity} kW (Rs ${result.ratePerWatt}/Watt)`
+                : `${customerTypeConfig[customerType].label}: 1-${maxCapacity} kW (Rs ${result.ratePerWatt}/Watt)`}
             </p>
           </div>
           
@@ -533,27 +677,72 @@ export function SubsidyCalculator({
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg text-blue-700 dark:text-blue-300">
               <IndianRupee className="w-5 h-5" />
-              EMI After Power Savings Adjustment
+              EMI Calculator with Power Savings
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
               <div className="p-4 bg-background rounded-lg">
-                <p className="text-sm text-muted-foreground mb-1">Loan Amount (After Subsidy)</p>
+                <p className="text-sm text-muted-foreground mb-1">Loan Amount {result.subsidyEligible ? "(After Subsidy)" : ""}</p>
                 <p className="text-2xl font-bold font-mono text-primary">{formatINR(result.netCost)}</p>
               </div>
               <div className="p-4 bg-background rounded-lg">
-                <p className="text-sm text-muted-foreground mb-1">Monthly EMI</p>
-                <p className="text-2xl font-bold font-mono text-blue-600 dark:text-blue-400">{formatINR(result.emiMonthly)}</p>
-                <p className="text-xs text-muted-foreground">10% interest for {result.emiTenure} months</p>
+                <p className="text-sm text-muted-foreground mb-2">Select EMI Tenure</p>
+                <div className="flex gap-1 flex-wrap justify-center">
+                  {[36, 48, 60, 72, 84].map((months) => (
+                    <Button
+                      key={months}
+                      type="button"
+                      variant={selectedEmiTenure === months ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedEmiTenure(months)}
+                      data-testid={`button-emi-${months}months`}
+                    >
+                      {months}M
+                    </Button>
+                  ))}
+                </div>
               </div>
+            </div>
+            
+            {/* EMI Comparison Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="py-2 px-3 text-left">Tenure</th>
+                    <th className="py-2 px-3 text-right">EMI/Month</th>
+                    <th className="py-2 px-3 text-right">Total Interest</th>
+                    <th className="py-2 px-3 text-right">Total Payment</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { months: 36, emi: result.emi36Months },
+                    { months: 48, emi: result.emi48Months },
+                    { months: 60, emi: result.emi60Months },
+                    { months: 72, emi: result.emi72Months },
+                    { months: 84, emi: result.emi84Months },
+                  ].map(({ months, emi }) => (
+                    <tr 
+                      key={months} 
+                      className={`border-b ${selectedEmiTenure === months ? "bg-primary/10" : ""}`}
+                    >
+                      <td className="py-2 px-3 font-medium">{months} Months ({months / 12} Years)</td>
+                      <td className="py-2 px-3 text-right font-mono">{formatINR(emi)}</td>
+                      <td className="py-2 px-3 text-right font-mono text-muted-foreground">{formatINR(emi * months - result.netCost)}</td>
+                      <td className="py-2 px-3 text-right font-mono">{formatINR(emi * months)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
             
             <div className="p-4 bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/50 dark:to-emerald-900/50 rounded-lg">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center items-center">
                 <div>
-                  <p className="text-sm text-muted-foreground">Monthly EMI</p>
-                  <p className="text-xl font-bold font-mono">{formatINR(result.emiMonthly)}</p>
+                  <p className="text-sm text-muted-foreground">Monthly EMI ({selectedEmiTenure}M)</p>
+                  <p className="text-xl font-bold font-mono">{formatINR(selectedEmi)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-green-600 dark:text-green-400">- Monthly Power Savings</p>
@@ -562,16 +751,16 @@ export function SubsidyCalculator({
                 <div className="p-3 bg-background rounded-lg">
                   <p className="text-sm font-medium text-primary">Effective Monthly Payment</p>
                   <p className="text-2xl font-bold font-mono text-primary">
-                    {result.monthlySavings >= result.emiMonthly 
+                    {result.monthlySavings >= selectedEmi 
                       ? formatINR(0) + " (FREE!)"
-                      : formatINR(result.emiMonthly - result.monthlySavings)}
+                      : formatINR(selectedEmi - result.monthlySavings)}
                   </p>
                   <p className="text-xs text-muted-foreground">Your actual pocket expense</p>
                 </div>
               </div>
             </div>
             
-            {result.monthlySavings >= result.emiMonthly && (
+            {result.monthlySavings >= selectedEmi && (
               <div className="p-3 bg-green-100 dark:bg-green-900/50 rounded-lg text-center">
                 <p className="text-green-700 dark:text-green-300 font-medium">
                   Your power savings cover the entire EMI! Solar pays for itself from Day 1!
@@ -580,7 +769,7 @@ export function SubsidyCalculator({
             )}
             
             <p className="text-xs text-muted-foreground text-center">
-              Power savings based on 4 units/kW/day generation at Rs 7/unit electricity cost
+              Power savings based on 4 units/kW/day generation at Rs {customerType === "industrial" ? 9 : customerType === "commercial" ? 8 : 7}/unit electricity cost ({customerTypeConfig[customerType].label} rate)
             </p>
           </CardContent>
         </Card>

@@ -54,6 +54,7 @@ export const customers = pgTable("customers", {
   roofArea: integer("roof_area"), // in sq ft
   panelType: text("panel_type").default("dcr"), // dcr or non_dcr
   proposedCapacity: text("proposed_capacity"), // in kW
+  customerType: text("customer_type").default("residential"), // residential, commercial, industrial
   
   // Application status
   status: text("status").notNull().default("pending"), // pending, verified, approved, installation_scheduled, completed
