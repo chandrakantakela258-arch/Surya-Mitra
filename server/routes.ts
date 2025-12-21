@@ -162,6 +162,22 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Username already exists" });
       }
       
+      // Check if phone number is already registered
+      if (data.phone) {
+        const existingPhone = await storage.getUserByPhone(data.phone);
+        if (existingPhone) {
+          return res.status(400).json({ message: "This mobile number is already registered with another partner account" });
+        }
+      }
+      
+      // Check if email is already registered
+      if (data.email) {
+        const existingEmail = await storage.getUserByEmail(data.email);
+        if (existingEmail) {
+          return res.status(400).json({ message: "This email is already registered with another partner account" });
+        }
+      }
+      
       // Hash the password before storing
       const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
       const user = await storage.createUser({ ...data, password: hashedPassword });
@@ -992,6 +1008,22 @@ export async function registerRoutes(
       const existing = await storage.getUserByUsername(data.username);
       if (existing) {
         return res.status(400).json({ message: "Username already exists" });
+      }
+      
+      // Check if phone number is already registered with ANY partner
+      if (data.phone) {
+        const existingPhone = await storage.getUserByPhone(data.phone);
+        if (existingPhone) {
+          return res.status(400).json({ message: "This mobile number is already registered with another partner account" });
+        }
+      }
+      
+      // Check if email is already registered with ANY partner
+      if (data.email) {
+        const existingEmail = await storage.getUserByEmail(data.email);
+        if (existingEmail) {
+          return res.status(400).json({ message: "This email is already registered with another partner account" });
+        }
       }
       
       const partner = await storage.createUser({
@@ -6123,6 +6155,20 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Username is already taken. Please choose a different one." });
       }
       
+      // Check if phone number is already registered with ANY partner
+      const existingPhone = await storage.getUserByPhone(phone);
+      if (existingPhone) {
+        return res.status(400).json({ message: "This mobile number is already registered with another partner account" });
+      }
+      
+      // Check if email is already registered with ANY partner
+      if (email) {
+        const existingEmail = await storage.getUserByEmail(email);
+        if (existingEmail) {
+          return res.status(400).json({ message: "This email is already registered with another partner account" });
+        }
+      }
+      
       // Find customer by phone who has approved/completed installation
       const allCustomers = await storage.getAllCustomers();
       const customer = allCustomers.find(c => 
@@ -6142,12 +6188,6 @@ export async function registerRoutes(
         return res.status(400).json({ 
           message: "Only customers with 3kW or above installations can become Customer Partners." 
         });
-      }
-      
-      // Check if already registered as customer partner
-      const existingUser = await storage.getUserByPhone(phone);
-      if (existingUser && existingUser.role === "customer_partner") {
-        return res.status(400).json({ message: "You are already registered as a Customer Partner" });
       }
       
       // Generate referral code based on customer name

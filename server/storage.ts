@@ -123,13 +123,14 @@ import {
   defaultIncentiveTargets
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, sql, inArray, isNull, not, or } from "drizzle-orm";
+import { eq, desc, and, sql, inArray, isNull, not, or, lt, asc } from "drizzle-orm";
 
 export interface IStorage {
   // User/Partner operations
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByPhone(phone: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUserStatus(id: string, status: string): Promise<User | undefined>;
   updateUserPassword(id: string, password: string): Promise<User | undefined>;
@@ -414,6 +415,12 @@ export class DatabaseStorage implements IStorage {
 
   async getUserByPhone(phone: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.phone, phone));
+    return user || undefined;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    if (!email) return undefined;
+    const [user] = await db.select().from(users).where(eq(users.email, email));
     return user || undefined;
   }
 
