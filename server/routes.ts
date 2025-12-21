@@ -4050,6 +4050,205 @@ export async function registerRoutes(
     }
   });
 
+  // ==================== STEP 6: GOODS DELIVERY ====================
+  
+  // Admin: Get all goods deliveries
+  app.get("/api/admin/goods-deliveries", requireAdmin, async (req, res) => {
+    try {
+      const deliveries = await storage.getGoodsDeliveries();
+      res.json(deliveries);
+    } catch (error) {
+      console.error("Get goods deliveries error:", error);
+      res.status(500).json({ message: "Failed to get goods deliveries" });
+    }
+  });
+  
+  // Admin: Get goods delivery by ID
+  app.get("/api/admin/goods-deliveries/:id", requireAdmin, async (req, res) => {
+    try {
+      const delivery = await storage.getGoodsDelivery(req.params.id);
+      if (!delivery) {
+        return res.status(404).json({ message: "Goods delivery not found" });
+      }
+      res.json(delivery);
+    } catch (error) {
+      console.error("Get goods delivery error:", error);
+      res.status(500).json({ message: "Failed to get goods delivery" });
+    }
+  });
+  
+  // Admin: Create goods delivery
+  app.post("/api/admin/goods-deliveries", requireAdmin, async (req, res) => {
+    try {
+      const { 
+        customerId, purchaseOrderId, vendorId,
+        customerName, customerPhone, deliveryAddress, district, state, pincode,
+        scheduledDate, scheduledTimeSlot, actualDeliveryDate,
+        status, deliveredBy, vehicleNumber, vehicleType,
+        panelType, panelCapacity, inverterType, quantityOrdered, quantityDelivered,
+        receiverName, receiverPhone, receiverSignature, deliveryPhotos,
+        siteVerificationBefore, siteVerificationAfter, verificationNotes,
+        poNumber, vendorName, remarks, failureReason, rescheduleReason
+      } = req.body;
+      
+      // Validate required fields
+      if (!customerName || typeof customerName !== "string" || customerName.trim() === "") {
+        return res.status(400).json({ message: "Customer name is required" });
+      }
+      if (!deliveryAddress || typeof deliveryAddress !== "string" || deliveryAddress.trim() === "") {
+        return res.status(400).json({ message: "Delivery address is required" });
+      }
+      if (!scheduledDate) {
+        return res.status(400).json({ message: "Scheduled date is required" });
+      }
+      
+      // Validate scheduled date
+      const parsedScheduledDate = new Date(scheduledDate);
+      if (isNaN(parsedScheduledDate.getTime())) {
+        return res.status(400).json({ message: "Invalid scheduled date format" });
+      }
+      
+      // Validate status if provided
+      const validStatuses = ["scheduled", "in_transit", "delivered", "partially_delivered", "failed", "rescheduled"];
+      if (status && !validStatuses.includes(status)) {
+        return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
+      }
+      
+      // Validate customer if provided
+      if (customerId) {
+        const customer = await storage.getCustomer(customerId);
+        if (!customer) {
+          return res.status(404).json({ message: "Customer not found" });
+        }
+      }
+      
+      // Validate purchase order if provided
+      if (purchaseOrderId) {
+        const purchaseOrder = await storage.getVendorPurchaseOrder(purchaseOrderId);
+        if (!purchaseOrder) {
+          return res.status(404).json({ message: "Purchase order not found" });
+        }
+      }
+      
+      const delivery = await storage.createGoodsDelivery({
+        customerId: customerId || null,
+        purchaseOrderId: purchaseOrderId || null,
+        vendorId: vendorId || null,
+        customerName: customerName.trim(),
+        customerPhone: customerPhone || null,
+        deliveryAddress: deliveryAddress.trim(),
+        district: district || null,
+        state: state || null,
+        pincode: pincode || null,
+        scheduledDate: parsedScheduledDate,
+        scheduledTimeSlot: scheduledTimeSlot || null,
+        actualDeliveryDate: actualDeliveryDate ? new Date(actualDeliveryDate) : null,
+        status: status || "scheduled",
+        deliveredBy: deliveredBy || null,
+        vehicleNumber: vehicleNumber || null,
+        vehicleType: vehicleType || null,
+        panelType: panelType || null,
+        panelCapacity: panelCapacity || null,
+        inverterType: inverterType || null,
+        quantityOrdered: quantityOrdered ? parseInt(quantityOrdered) : 1,
+        quantityDelivered: quantityDelivered ? parseInt(quantityDelivered) : null,
+        receiverName: receiverName || null,
+        receiverPhone: receiverPhone || null,
+        receiverSignature: receiverSignature || null,
+        deliveryPhotos: deliveryPhotos || null,
+        siteVerificationBefore: siteVerificationBefore || null,
+        siteVerificationAfter: siteVerificationAfter || null,
+        verificationNotes: verificationNotes || null,
+        poNumber: poNumber || null,
+        vendorName: vendorName || null,
+        remarks: remarks || null,
+        failureReason: failureReason || null,
+        rescheduleReason: rescheduleReason || null,
+      });
+      
+      res.status(201).json(delivery);
+    } catch (error) {
+      console.error("Create goods delivery error:", error);
+      res.status(500).json({ message: "Failed to create goods delivery" });
+    }
+  });
+  
+  // Admin: Update goods delivery
+  app.patch("/api/admin/goods-deliveries/:id", requireAdmin, async (req, res) => {
+    try {
+      const validStatuses = ["scheduled", "in_transit", "delivered", "partially_delivered", "failed", "rescheduled"];
+      
+      const updateData: Record<string, any> = {};
+      
+      const stringFields = ["customerName", "customerPhone", "deliveryAddress", "district", "state", "pincode", 
+        "scheduledTimeSlot", "deliveredBy", "vehicleNumber", "vehicleType", "panelType", "panelCapacity", 
+        "inverterType", "receiverName", "receiverPhone", "receiverSignature", "verificationNotes", 
+        "poNumber", "vendorName", "remarks", "failureReason", "rescheduleReason"];
+      const dateFields = ["scheduledDate", "actualDeliveryDate"];
+      const arrayFields = ["deliveryPhotos", "siteVerificationBefore", "siteVerificationAfter"];
+      const intFields = ["quantityOrdered", "quantityDelivered"];
+      
+      for (const field of stringFields) {
+        if (req.body[field] !== undefined) {
+          updateData[field] = req.body[field] ? String(req.body[field]).trim() : null;
+        }
+      }
+      
+      for (const field of dateFields) {
+        if (req.body[field] !== undefined) {
+          if (req.body[field]) {
+            const parsedDate = new Date(req.body[field]);
+            if (isNaN(parsedDate.getTime())) {
+              return res.status(400).json({ message: `Invalid ${field} format` });
+            }
+            updateData[field] = parsedDate;
+          } else {
+            updateData[field] = null;
+          }
+        }
+      }
+      
+      for (const field of arrayFields) {
+        if (req.body[field] !== undefined) {
+          updateData[field] = req.body[field] || null;
+        }
+      }
+      
+      for (const field of intFields) {
+        if (req.body[field] !== undefined) {
+          updateData[field] = req.body[field] ? parseInt(req.body[field]) : null;
+        }
+      }
+      
+      if (req.body.status !== undefined) {
+        if (!validStatuses.includes(req.body.status)) {
+          return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
+        }
+        updateData.status = req.body.status;
+      }
+      
+      const delivery = await storage.updateGoodsDelivery(req.params.id, updateData);
+      if (!delivery) {
+        return res.status(404).json({ message: "Goods delivery not found" });
+      }
+      res.json(delivery);
+    } catch (error) {
+      console.error("Update goods delivery error:", error);
+      res.status(500).json({ message: "Failed to update goods delivery" });
+    }
+  });
+  
+  // Admin: Delete goods delivery
+  app.delete("/api/admin/goods-deliveries/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteGoodsDelivery(req.params.id);
+      res.json({ message: "Goods delivery deleted" });
+    } catch (error) {
+      console.error("Delete goods delivery error:", error);
+      res.status(500).json({ message: "Failed to delete goods delivery" });
+    }
+  });
+
   // ==================== CUSTOMER PARTNER ROUTES ====================
   
   // Lookup customer eligibility for Customer Partner registration
