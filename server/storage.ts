@@ -86,6 +86,9 @@ import {
   type LoanDisbursement,
   type InsertLoanDisbursement,
   loanDisbursements,
+  type VendorPurchaseOrder,
+  type InsertVendorPurchaseOrder,
+  vendorPurchaseOrders,
   installationMilestones,
   calculateCommission,
   calculateBdpCommission,
@@ -2097,6 +2100,77 @@ export class DatabaseStorage implements IStorage {
 
   async deleteLoanDisbursement(id: string): Promise<void> {
     await db.delete(loanDisbursements).where(eq(loanDisbursements.id, id));
+  }
+
+  // Step 5: Vendor Purchase Order operations
+  async createVendorPurchaseOrder(order: any): Promise<VendorPurchaseOrder> {
+    const orderData = {
+      ...order,
+      orderDate: order.orderDate ? new Date(order.orderDate) : new Date(),
+      expectedDeliveryDate: order.expectedDeliveryDate ? new Date(order.expectedDeliveryDate) : null,
+      advanceDate: order.advanceDate ? new Date(order.advanceDate) : null,
+      balancePaidDate: order.balancePaidDate ? new Date(order.balancePaidDate) : null,
+      deliveryDate: order.deliveryDate ? new Date(order.deliveryDate) : null,
+    };
+    const [created] = await db.insert(vendorPurchaseOrders).values(orderData).returning();
+    return created;
+  }
+
+  async getVendorPurchaseOrders(): Promise<VendorPurchaseOrder[]> {
+    return await db.select().from(vendorPurchaseOrders).orderBy(desc(vendorPurchaseOrders.createdAt));
+  }
+
+  async getVendorPurchaseOrder(id: string): Promise<VendorPurchaseOrder | undefined> {
+    const [order] = await db.select().from(vendorPurchaseOrders).where(eq(vendorPurchaseOrders.id, id));
+    return order || undefined;
+  }
+
+  async getVendorPurchaseOrdersByCustomerId(customerId: string): Promise<VendorPurchaseOrder[]> {
+    return await db.select().from(vendorPurchaseOrders)
+      .where(eq(vendorPurchaseOrders.customerId, customerId))
+      .orderBy(desc(vendorPurchaseOrders.createdAt));
+  }
+
+  async getVendorPurchaseOrdersByVendorId(vendorId: string): Promise<VendorPurchaseOrder[]> {
+    return await db.select().from(vendorPurchaseOrders)
+      .where(eq(vendorPurchaseOrders.vendorId, vendorId))
+      .orderBy(desc(vendorPurchaseOrders.createdAt));
+  }
+
+  async updateVendorPurchaseOrder(id: string, data: Partial<VendorPurchaseOrder>): Promise<VendorPurchaseOrder | undefined> {
+    const updateData: any = { ...data, updatedAt: new Date() };
+    if (data.orderDate && typeof data.orderDate === 'string') {
+      updateData.orderDate = new Date(data.orderDate);
+    }
+    if (data.expectedDeliveryDate && typeof data.expectedDeliveryDate === 'string') {
+      updateData.expectedDeliveryDate = new Date(data.expectedDeliveryDate);
+    }
+    if (data.advanceDate && typeof data.advanceDate === 'string') {
+      updateData.advanceDate = new Date(data.advanceDate);
+    }
+    if (data.balancePaidDate && typeof data.balancePaidDate === 'string') {
+      updateData.balancePaidDate = new Date(data.balancePaidDate);
+    }
+    if (data.deliveryDate && typeof data.deliveryDate === 'string') {
+      updateData.deliveryDate = new Date(data.deliveryDate);
+    }
+    const [updated] = await db.update(vendorPurchaseOrders)
+      .set(updateData)
+      .where(eq(vendorPurchaseOrders.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteVendorPurchaseOrder(id: string): Promise<void> {
+    await db.delete(vendorPurchaseOrders).where(eq(vendorPurchaseOrders.id, id));
+  }
+
+  async generatePoNumber(): Promise<string> {
+    const year = new Date().getFullYear();
+    const month = String(new Date().getMonth() + 1).padStart(2, '0');
+    const orders = await db.select().from(vendorPurchaseOrders);
+    const count = orders.length + 1;
+    return `PO-${year}${month}-${String(count).padStart(4, '0')}`;
   }
 }
 

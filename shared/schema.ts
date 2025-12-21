@@ -1330,5 +1330,103 @@ export const insertLoanDisbursementSchema = createInsertSchema(loanDisbursements
 export type InsertLoanDisbursement = z.infer<typeof insertLoanDisbursementSchema>;
 export type LoanDisbursement = typeof loanDisbursements.$inferSelect;
 
+// Step 5: Vendor Purchase Orders with Payment tracking
+export const vendorPurchaseOrderStatuses = [
+  { value: "draft", label: "Draft" },
+  { value: "sent", label: "Sent to Vendor" },
+  { value: "acknowledged", label: "Acknowledged" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "delivered", label: "Delivered" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
+] as const;
+
+export const vendorPaymentStatuses = [
+  { value: "pending", label: "Pending" },
+  { value: "partial", label: "Partially Paid" },
+  { value: "paid", label: "Fully Paid" },
+  { value: "refunded", label: "Refunded" },
+] as const;
+
+export const vendorPurchaseOrders = pgTable("vendor_purchase_orders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").references(() => customers.id),
+  vendorId: varchar("vendor_id").references(() => vendors.id),
+  loanDisbursementId: varchar("loan_disbursement_id").references(() => loanDisbursements.id),
+  
+  // Order Details
+  poNumber: text("po_number").notNull(), // Purchase Order Number
+  customerName: text("customer_name").notNull(),
+  vendorName: text("vendor_name").notNull(),
+  orderDate: timestamp("order_date").notNull(),
+  expectedDeliveryDate: timestamp("expected_delivery_date"),
+  
+  // Product Details
+  panelType: text("panel_type"), // DCR, Non-DCR
+  panelCapacity: text("panel_capacity"), // 3kW, 5kW, etc.
+  inverterType: text("inverter_type"), // On-grid, Hybrid 3-in-1
+  quantity: integer("quantity").default(1),
+  
+  // Order Amount
+  orderAmount: decimal("order_amount", { precision: 12, scale: 2 }).notNull(),
+  gstAmount: decimal("gst_amount", { precision: 12, scale: 2 }),
+  totalAmount: decimal("total_amount", { precision: 12, scale: 2 }).notNull(),
+  
+  // Payment Details
+  advanceAmount: decimal("advance_amount", { precision: 12, scale: 2 }),
+  advanceDate: timestamp("advance_date"),
+  advanceReference: text("advance_reference"), // UTR/NEFT/RTGS reference
+  
+  balanceAmount: decimal("balance_amount", { precision: 12, scale: 2 }),
+  balancePaidDate: timestamp("balance_paid_date"),
+  balanceReference: text("balance_reference"),
+  
+  paymentStatus: text("payment_status").default("pending"), // pending, partial, paid, refunded
+  orderStatus: text("order_status").default("draft"), // draft, sent, acknowledged, in_progress, delivered, completed, cancelled
+  
+  // Delivery Details
+  deliveryDate: timestamp("delivery_date"),
+  deliveryNotes: text("delivery_notes"),
+  
+  remarks: text("remarks"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const vendorPurchaseOrdersRelations = relations(vendorPurchaseOrders, ({ one }) => ({
+  customer: one(customers, {
+    fields: [vendorPurchaseOrders.customerId],
+    references: [customers.id],
+  }),
+  vendor: one(vendors, {
+    fields: [vendorPurchaseOrders.vendorId],
+    references: [vendors.id],
+  }),
+  loanDisbursement: one(loanDisbursements, {
+    fields: [vendorPurchaseOrders.loanDisbursementId],
+    references: [loanDisbursements.id],
+  }),
+}));
+
+export const insertVendorPurchaseOrderSchema = createInsertSchema(vendorPurchaseOrders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  orderDate: z.string().min(1, "Order date is required"),
+  expectedDeliveryDate: z.string().optional(),
+  advanceDate: z.string().optional(),
+  balancePaidDate: z.string().optional(),
+  deliveryDate: z.string().optional(),
+  orderAmount: z.string().min(1, "Order amount is required"),
+  gstAmount: z.string().optional(),
+  totalAmount: z.string().min(1, "Total amount is required"),
+  advanceAmount: z.string().optional(),
+  balanceAmount: z.string().optional(),
+});
+
+export type InsertVendorPurchaseOrder = z.infer<typeof insertVendorPurchaseOrderSchema>;
+export type VendorPurchaseOrder = typeof vendorPurchaseOrders.$inferSelect;
+
 // Re-export chat models for OpenAI integration
 export * from "./models/chat";

@@ -3839,6 +3839,217 @@ export async function registerRoutes(
     }
   });
 
+  // ==================== STEP 5: VENDOR PURCHASE ORDERS ====================
+  
+  // Admin: Get all vendor purchase orders
+  app.get("/api/admin/vendor-purchase-orders", requireAdmin, async (req, res) => {
+    try {
+      const orders = await storage.getVendorPurchaseOrders();
+      res.json(orders);
+    } catch (error) {
+      console.error("Get vendor purchase orders error:", error);
+      res.status(500).json({ message: "Failed to get vendor purchase orders" });
+    }
+  });
+  
+  // Admin: Get vendor purchase order by ID
+  app.get("/api/admin/vendor-purchase-orders/:id", requireAdmin, async (req, res) => {
+    try {
+      const order = await storage.getVendorPurchaseOrder(req.params.id);
+      if (!order) {
+        return res.status(404).json({ message: "Purchase order not found" });
+      }
+      res.json(order);
+    } catch (error) {
+      console.error("Get vendor purchase order error:", error);
+      res.status(500).json({ message: "Failed to get purchase order" });
+    }
+  });
+  
+  // Admin: Generate PO Number
+  app.get("/api/admin/vendor-purchase-orders/generate-po-number", requireAdmin, async (req, res) => {
+    try {
+      const poNumber = await storage.generatePoNumber();
+      res.json({ poNumber });
+    } catch (error) {
+      console.error("Generate PO number error:", error);
+      res.status(500).json({ message: "Failed to generate PO number" });
+    }
+  });
+  
+  // Admin: Create vendor purchase order
+  app.post("/api/admin/vendor-purchase-orders", requireAdmin, async (req, res) => {
+    try {
+      const { 
+        customerId, vendorId, loanDisbursementId,
+        poNumber, customerName, vendorName, orderDate, expectedDeliveryDate,
+        panelType, panelCapacity, inverterType, quantity,
+        orderAmount, gstAmount, totalAmount,
+        advanceAmount, advanceDate, advanceReference,
+        balanceAmount, balancePaidDate, balanceReference,
+        paymentStatus, orderStatus, deliveryDate, deliveryNotes, remarks 
+      } = req.body;
+      
+      // Validate required fields
+      if (!poNumber || typeof poNumber !== "string" || poNumber.trim() === "") {
+        return res.status(400).json({ message: "PO Number is required" });
+      }
+      if (!customerName || typeof customerName !== "string" || customerName.trim() === "") {
+        return res.status(400).json({ message: "Customer name is required" });
+      }
+      if (!vendorName || typeof vendorName !== "string" || vendorName.trim() === "") {
+        return res.status(400).json({ message: "Vendor name is required" });
+      }
+      if (!orderDate) {
+        return res.status(400).json({ message: "Order date is required" });
+      }
+      if (!orderAmount || isNaN(parseFloat(orderAmount))) {
+        return res.status(400).json({ message: "Valid order amount is required" });
+      }
+      if (!totalAmount || isNaN(parseFloat(totalAmount))) {
+        return res.status(400).json({ message: "Valid total amount is required" });
+      }
+      
+      // Validate date
+      const parsedOrderDate = new Date(orderDate);
+      if (isNaN(parsedOrderDate.getTime())) {
+        return res.status(400).json({ message: "Invalid order date format" });
+      }
+      
+      // Validate customer if provided
+      if (customerId) {
+        const customer = await storage.getCustomer(customerId);
+        if (!customer) {
+          return res.status(404).json({ message: "Customer not found" });
+        }
+      }
+      
+      // Validate vendor if provided
+      if (vendorId) {
+        const vendor = await storage.getVendor(vendorId);
+        if (!vendor) {
+          return res.status(404).json({ message: "Vendor not found" });
+        }
+      }
+      
+      const order = await storage.createVendorPurchaseOrder({
+        customerId: customerId || null,
+        vendorId: vendorId || null,
+        loanDisbursementId: loanDisbursementId || null,
+        poNumber: poNumber.trim(),
+        customerName: customerName.trim(),
+        vendorName: vendorName.trim(),
+        orderDate: parsedOrderDate,
+        expectedDeliveryDate: expectedDeliveryDate || null,
+        panelType: panelType || null,
+        panelCapacity: panelCapacity || null,
+        inverterType: inverterType || null,
+        quantity: quantity ? parseInt(quantity) : 1,
+        orderAmount: String(orderAmount),
+        gstAmount: gstAmount ? String(gstAmount) : null,
+        totalAmount: String(totalAmount),
+        advanceAmount: advanceAmount ? String(advanceAmount) : null,
+        advanceDate: advanceDate || null,
+        advanceReference: advanceReference || null,
+        balanceAmount: balanceAmount ? String(balanceAmount) : null,
+        balancePaidDate: balancePaidDate || null,
+        balanceReference: balanceReference || null,
+        paymentStatus: paymentStatus || "pending",
+        orderStatus: orderStatus || "draft",
+        deliveryDate: deliveryDate || null,
+        deliveryNotes: deliveryNotes || null,
+        remarks: remarks || null,
+      });
+      
+      res.status(201).json(order);
+    } catch (error) {
+      console.error("Create vendor purchase order error:", error);
+      res.status(500).json({ message: "Failed to create purchase order" });
+    }
+  });
+  
+  // Admin: Update vendor purchase order
+  app.patch("/api/admin/vendor-purchase-orders/:id", requireAdmin, async (req, res) => {
+    try {
+      const validOrderStatuses = ["draft", "sent", "acknowledged", "in_progress", "delivered", "completed", "cancelled"];
+      const validPaymentStatuses = ["pending", "partial", "paid", "refunded"];
+      
+      const updateData: Record<string, any> = {};
+      
+      const stringFields = ["poNumber", "customerName", "vendorName", "panelType", "panelCapacity", "inverterType", "advanceReference", "balanceReference", "deliveryNotes", "remarks"];
+      const dateFields = ["orderDate", "expectedDeliveryDate", "advanceDate", "balancePaidDate", "deliveryDate"];
+      const amountFields = ["orderAmount", "gstAmount", "totalAmount", "advanceAmount", "balanceAmount"];
+      
+      for (const field of stringFields) {
+        if (req.body[field] !== undefined) {
+          updateData[field] = req.body[field] ? String(req.body[field]).trim() : null;
+        }
+      }
+      
+      for (const field of dateFields) {
+        if (req.body[field] !== undefined) {
+          if (req.body[field]) {
+            const parsedDate = new Date(req.body[field]);
+            if (isNaN(parsedDate.getTime())) {
+              return res.status(400).json({ message: `Invalid ${field} format` });
+            }
+            updateData[field] = parsedDate;
+          } else {
+            updateData[field] = null;
+          }
+        }
+      }
+      
+      for (const field of amountFields) {
+        if (req.body[field] !== undefined) {
+          if (req.body[field] && !isNaN(parseFloat(req.body[field]))) {
+            updateData[field] = String(req.body[field]);
+          } else if (!req.body[field]) {
+            updateData[field] = null;
+          }
+        }
+      }
+      
+      if (req.body.quantity !== undefined) {
+        updateData.quantity = req.body.quantity ? parseInt(req.body.quantity) : 1;
+      }
+      
+      if (req.body.orderStatus !== undefined) {
+        if (!validOrderStatuses.includes(req.body.orderStatus)) {
+          return res.status(400).json({ message: `Invalid order status. Must be one of: ${validOrderStatuses.join(", ")}` });
+        }
+        updateData.orderStatus = req.body.orderStatus;
+      }
+      
+      if (req.body.paymentStatus !== undefined) {
+        if (!validPaymentStatuses.includes(req.body.paymentStatus)) {
+          return res.status(400).json({ message: `Invalid payment status. Must be one of: ${validPaymentStatuses.join(", ")}` });
+        }
+        updateData.paymentStatus = req.body.paymentStatus;
+      }
+      
+      const order = await storage.updateVendorPurchaseOrder(req.params.id, updateData);
+      if (!order) {
+        return res.status(404).json({ message: "Purchase order not found" });
+      }
+      res.json(order);
+    } catch (error) {
+      console.error("Update vendor purchase order error:", error);
+      res.status(500).json({ message: "Failed to update purchase order" });
+    }
+  });
+  
+  // Admin: Delete vendor purchase order
+  app.delete("/api/admin/vendor-purchase-orders/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteVendorPurchaseOrder(req.params.id);
+      res.json({ message: "Purchase order deleted" });
+    } catch (error) {
+      console.error("Delete vendor purchase order error:", error);
+      res.status(500).json({ message: "Failed to delete purchase order" });
+    }
+  });
+
   // ==================== CUSTOMER PARTNER ROUTES ====================
   
   // Lookup customer eligibility for Customer Partner registration
