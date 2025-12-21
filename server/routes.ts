@@ -3514,6 +3514,162 @@ export async function registerRoutes(
     }
   });
 
+  // ==================== BANK LOAN APPROVAL ROUTES (Step 3) ====================
+  
+  // Admin: Get all bank loan approvals
+  app.get("/api/admin/bank-loan-approvals", requireAdmin, async (req, res) => {
+    try {
+      const approvals = await storage.getBankLoanApprovals();
+      res.json(approvals);
+    } catch (error) {
+      console.error("Get bank loan approvals error:", error);
+      res.status(500).json({ message: "Failed to get bank loan approvals" });
+    }
+  });
+  
+  // Admin: Get bank loan approval by ID
+  app.get("/api/admin/bank-loan-approvals/:id", requireAdmin, async (req, res) => {
+    try {
+      const approval = await storage.getBankLoanApproval(req.params.id);
+      if (!approval) {
+        return res.status(404).json({ message: "Bank loan approval not found" });
+      }
+      res.json(approval);
+    } catch (error) {
+      console.error("Get bank loan approval error:", error);
+      res.status(500).json({ message: "Failed to get bank loan approval" });
+    }
+  });
+  
+  // Admin: Create bank loan approval
+  app.post("/api/admin/bank-loan-approvals", requireAdmin, async (req, res) => {
+    try {
+      const { customerId, bankLoanSubmissionId, customerName, bankName, bankBranch, approvalDate, approvalTime, approvedAmount, interestRate, loanTenure, remarks } = req.body;
+      
+      // Validate required fields
+      if (!customerName || typeof customerName !== "string" || customerName.trim() === "") {
+        return res.status(400).json({ message: "Customer name is required" });
+      }
+      if (!bankName || typeof bankName !== "string" || bankName.trim() === "") {
+        return res.status(400).json({ message: "Bank name is required" });
+      }
+      if (!approvalDate) {
+        return res.status(400).json({ message: "Approval date is required" });
+      }
+      
+      // Validate date
+      const parsedDate = new Date(approvalDate);
+      if (isNaN(parsedDate.getTime())) {
+        return res.status(400).json({ message: "Invalid approval date format" });
+      }
+      
+      // If customerId is provided, verify customer exists
+      if (customerId) {
+        const customer = await storage.getCustomer(customerId);
+        if (!customer) {
+          return res.status(404).json({ message: "Customer not found" });
+        }
+      }
+      
+      const approval = await storage.createBankLoanApproval({
+        customerId: customerId || null,
+        bankLoanSubmissionId: bankLoanSubmissionId || null,
+        customerName: customerName.trim(),
+        bankName: bankName.trim(),
+        bankBranch: bankBranch ? String(bankBranch).trim() : null,
+        approvalDate: parsedDate,
+        approvalTime: approvalTime ? String(approvalTime).trim() : null,
+        approvedAmount: approvedAmount ? String(approvedAmount) : null,
+        interestRate: interestRate ? String(interestRate) : null,
+        loanTenure: loanTenure ? Number(loanTenure) : null,
+        status: "approved",
+        remarks: remarks ? String(remarks).trim() : null,
+      });
+      
+      res.status(201).json(approval);
+    } catch (error) {
+      console.error("Create bank loan approval error:", error);
+      res.status(500).json({ message: "Failed to create bank loan approval" });
+    }
+  });
+  
+  // Admin: Update bank loan approval
+  app.patch("/api/admin/bank-loan-approvals/:id", requireAdmin, async (req, res) => {
+    try {
+      const { customerName, bankName, bankBranch, approvalDate, approvalTime, approvedAmount, interestRate, loanTenure, status, remarks } = req.body;
+      
+      // Valid status values
+      const validStatuses = ["pending", "approved", "conditionally_approved", "rejected"];
+      
+      // Build update object with proper validation
+      const updateData: Record<string, any> = {};
+      
+      if (customerName !== undefined) {
+        if (typeof customerName !== "string" || customerName.trim() === "") {
+          return res.status(400).json({ message: "Customer name must be a non-empty string" });
+        }
+        updateData.customerName = customerName.trim();
+      }
+      if (bankName !== undefined) {
+        if (typeof bankName !== "string" || bankName.trim() === "") {
+          return res.status(400).json({ message: "Bank name must be a non-empty string" });
+        }
+        updateData.bankName = bankName.trim();
+      }
+      if (bankBranch !== undefined) {
+        updateData.bankBranch = bankBranch ? String(bankBranch).trim() : null;
+      }
+      if (approvalDate !== undefined) {
+        const parsedDate = new Date(approvalDate);
+        if (isNaN(parsedDate.getTime())) {
+          return res.status(400).json({ message: "Invalid approval date format" });
+        }
+        updateData.approvalDate = parsedDate;
+      }
+      if (approvalTime !== undefined) {
+        updateData.approvalTime = approvalTime ? String(approvalTime).trim() : null;
+      }
+      if (approvedAmount !== undefined) {
+        updateData.approvedAmount = approvedAmount ? String(approvedAmount) : null;
+      }
+      if (interestRate !== undefined) {
+        updateData.interestRate = interestRate ? String(interestRate) : null;
+      }
+      if (loanTenure !== undefined) {
+        updateData.loanTenure = loanTenure ? Number(loanTenure) : null;
+      }
+      if (status !== undefined) {
+        if (!validStatuses.includes(status)) {
+          return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
+        }
+        updateData.status = status;
+      }
+      if (remarks !== undefined) {
+        updateData.remarks = remarks ? String(remarks).trim() : null;
+      }
+      
+      const approval = await storage.updateBankLoanApproval(req.params.id, updateData);
+      if (!approval) {
+        return res.status(404).json({ message: "Bank loan approval not found" });
+      }
+      res.json(approval);
+    } catch (error) {
+      console.error("Update bank loan approval error:", error);
+      res.status(500).json({ message: "Failed to update bank loan approval" });
+    }
+  });
+  
+  // Admin: Delete bank loan approval
+  app.delete("/api/admin/bank-loan-approvals/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteBankLoanApproval(req.params.id);
+      res.json({ message: "Bank loan approval deleted" });
+    } catch (error) {
+      console.error("Delete bank loan approval error:", error);
+      res.status(500).json({ message: "Failed to delete bank loan approval" });
+    }
+  });
+
   // ==================== CUSTOMER PARTNER ROUTES ====================
   
   // Lookup customer eligibility for Customer Partner registration

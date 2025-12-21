@@ -27,6 +27,7 @@ import {
   Trophy,
   Wrench,
   Landmark,
+  CheckCircle,
 } from "lucide-react";
 import { FeedbackDialog } from "@/components/feedback-dialog";
 import { ChatbotAssistant } from "@/components/chatbot-assistant";
@@ -93,6 +94,7 @@ const adminMenuSections: MenuSection[] = [
     items: [
       { title: "Step 1: File Submission", url: "/admin/customer-file-submissions", icon: FileText },
       { title: "Step 2: Bank Loan", url: "/admin/bank-loan-submissions", icon: Landmark },
+      { title: "Step 3: Loan Approval", url: "/admin/bank-loan-approvals", icon: CheckCircle },
     ],
   },
   {

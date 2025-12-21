@@ -1236,5 +1236,52 @@ export const insertCustomerFileSubmissionSchema = createInsertSchema(customerFil
 export type InsertCustomerFileSubmission = z.infer<typeof insertCustomerFileSubmissionSchema>;
 export type CustomerFileSubmission = typeof customerFileSubmissions.$inferSelect;
 
+// Bank Loan Approval statuses (Step 3 of Customer Journey)
+export const bankLoanApprovalStatuses = [
+  { value: "pending", label: "Pending" },
+  { value: "approved", label: "Approved" },
+  { value: "conditionally_approved", label: "Conditionally Approved" },
+  { value: "rejected", label: "Rejected" },
+];
+
+// Bank Loan Approvals - Track bank loan approval date and time (Step 3 of Customer Journey)
+export const bankLoanApprovals = pgTable("bank_loan_approvals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").references(() => customers.id),
+  bankLoanSubmissionId: varchar("bank_loan_submission_id").references(() => bankLoanSubmissions.id),
+  customerName: text("customer_name").notNull(),
+  bankName: text("bank_name").notNull(),
+  bankBranch: text("bank_branch"),
+  approvalDate: timestamp("approval_date").notNull(),
+  approvalTime: text("approval_time"), // Store time as text like "14:30"
+  approvedAmount: decimal("approved_amount", { precision: 12, scale: 2 }),
+  interestRate: decimal("interest_rate", { precision: 5, scale: 2 }),
+  loanTenure: integer("loan_tenure"), // in months
+  status: text("status").default("approved"),
+  remarks: text("remarks"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const bankLoanApprovalsRelations = relations(bankLoanApprovals, ({ one }) => ({
+  customer: one(customers, {
+    fields: [bankLoanApprovals.customerId],
+    references: [customers.id],
+  }),
+  bankLoanSubmission: one(bankLoanSubmissions, {
+    fields: [bankLoanApprovals.bankLoanSubmissionId],
+    references: [bankLoanSubmissions.id],
+  }),
+}));
+
+export const insertBankLoanApprovalSchema = createInsertSchema(bankLoanApprovals).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertBankLoanApproval = z.infer<typeof insertBankLoanApprovalSchema>;
+export type BankLoanApproval = typeof bankLoanApprovals.$inferSelect;
+
 // Re-export chat models for OpenAI integration
 export * from "./models/chat";
