@@ -104,6 +104,7 @@ const adminMenuSections: MenuSection[] = [
       { title: "Step 7: Delivery", url: "/admin/goods-deliveries", icon: Truck },
       { title: "Step 8: Installation", url: "/admin/site-execution-orders", icon: Wrench },
       { title: "Step 9: Completion", url: "/admin/completion-reports", icon: FileCheck },
+      { title: "Step 10: Grid Connected", url: "/admin/meter-installation-reports", icon: Zap },
     ],
   },
   {

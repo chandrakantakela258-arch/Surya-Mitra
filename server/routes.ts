@@ -8,7 +8,7 @@ import path from "path";
 import fs from "fs";
 import { pool } from "./db";
 import { storage } from "./storage";
-import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSchema, updateFeedbackStatusSchema, inverterCommission, insertVendorSchema, vendorStates, insertSiteSurveySchema } from "@shared/schema";
+import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSchema, updateFeedbackStatusSchema, inverterCommission, insertVendorSchema, vendorStates, insertSiteSurveySchema, insertMeterInstallationReportSchema } from "@shared/schema";
 import { z } from "zod";
 import { notificationService } from "./notification-service";
 import { calculateLeadScore, type LeadScoreResult } from "./lead-scoring-service";
@@ -3698,6 +3698,162 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Get customer site survey error:", error);
       res.status(500).json({ message: "Failed to get site survey" });
+    }
+  });
+
+  // ==================== METER INSTALLATION REPORTS (Step 10 - Grid Connected) ====================
+  
+  // Admin: Get all meter installation reports
+  app.get("/api/admin/meter-installation-reports", requireAdmin, async (req, res) => {
+    try {
+      const reports = await storage.getMeterInstallationReports();
+      res.json(reports);
+    } catch (error) {
+      console.error("Get meter installation reports error:", error);
+      res.status(500).json({ message: "Failed to get meter installation reports" });
+    }
+  });
+  
+  // Admin: Get meter installation report by ID
+  app.get("/api/admin/meter-installation-reports/:id", requireAdmin, async (req, res) => {
+    try {
+      const report = await storage.getMeterInstallationReport(req.params.id);
+      if (!report) {
+        return res.status(404).json({ message: "Meter installation report not found" });
+      }
+      res.json(report);
+    } catch (error) {
+      console.error("Get meter installation report error:", error);
+      res.status(500).json({ message: "Failed to get meter installation report" });
+    }
+  });
+  
+  // Admin: Create meter installation report
+  app.post("/api/admin/meter-installation-reports", requireAdmin, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      
+      // Validate request body with Zod schema
+      const validationResult = insertMeterInstallationReportSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        const errors = validationResult.error.errors.map(e => e.message).join(", ");
+        return res.status(400).json({ message: errors });
+      }
+      
+      const data = validationResult.data;
+      const reportNumber = await storage.generateMeterInstallationReportNumber();
+      
+      const report = await storage.createMeterInstallationReport({
+        reportNumber,
+        customerId: data.customerId,
+        completionReportId: data.completionReportId || null,
+        customerName: data.customerName,
+        customerPhone: data.customerPhone || null,
+        siteAddress: data.siteAddress,
+        district: data.district || null,
+        state: data.state || null,
+        pincode: data.pincode || null,
+        installedCapacity: data.installedCapacity || null,
+        panelType: data.panelType || null,
+        inverterType: data.inverterType || null,
+        numberOfPanels: data.numberOfPanels || null,
+        oldMeterNumber: data.oldMeterNumber || null,
+        oldMeterReading: data.oldMeterReading || null,
+        newMeterNumber: data.newMeterNumber || null,
+        newMeterType: data.newMeterType || null,
+        newMeterMake: data.newMeterMake || null,
+        newMeterModel: data.newMeterModel || null,
+        meterSerialNumber: data.meterSerialNumber || null,
+        meterInstallationDate: data.meterInstallationDate || null,
+        initialMeterReading: data.initialMeterReading || null,
+        ctRatio: data.ctRatio || null,
+        discomName: data.discomName || null,
+        discomDivision: data.discomDivision || null,
+        consumerNumber: data.consumerNumber || null,
+        sanctionedLoad: data.sanctionedLoad || null,
+        connectionType: data.connectionType || null,
+        supplyVoltage: data.supplyVoltage || null,
+        gridConnectionDate: data.gridConnectionDate || null,
+        synchronizationDate: data.synchronizationDate || null,
+        discomRepName: data.discomRepName || null,
+        discomRepDesignation: data.discomRepDesignation || null,
+        discomRepPhone: data.discomRepPhone || null,
+        discomRepEmployeeId: data.discomRepEmployeeId || null,
+        status: "pending",
+        remarks: data.remarks || null,
+        createdBy: user.id,
+      });
+      
+      res.status(201).json(report);
+    } catch (error) {
+      console.error("Create meter installation report error:", error);
+      res.status(500).json({ message: "Failed to create meter installation report" });
+    }
+  });
+  
+  // Admin: Update meter installation report
+  app.patch("/api/admin/meter-installation-reports/:id", requireAdmin, async (req, res) => {
+    try {
+      const updateData: Record<string, any> = {};
+      const allowedFields = [
+        'customerName', 'customerPhone', 'siteAddress', 'district', 'state', 'pincode',
+        'installedCapacity', 'panelType', 'inverterType', 'numberOfPanels',
+        'oldMeterNumber', 'oldMeterReading', 'newMeterNumber', 'newMeterType',
+        'newMeterMake', 'newMeterModel', 'meterSerialNumber', 'meterInstallationDate',
+        'initialMeterReading', 'ctRatio', 'discomName', 'discomDivision',
+        'consumerNumber', 'sanctionedLoad', 'connectionType', 'supplyVoltage',
+        'gridConnectionDate', 'synchronizationDate', 'discomRepName',
+        'discomRepDesignation', 'discomRepPhone', 'discomRepEmployeeId',
+        'dcCapacity', 'acCapacity', 'dcAcRatio', 'tiltAngle', 'azimuthAngle',
+        'arrayConfiguration', 'earthingCompleted', 'lightningArresterInstalled',
+        'acdbInstalled', 'dcdbInstalled', 'mcbRating', 'spdInstalled',
+        'gridSyncTestPassed', 'antiIslandingTestPassed', 'powerQualityTestPassed',
+        'exportLimitSet', 'exportLimitValue', 'meterPhotos', 'connectionPhotos',
+        'testReportPhotos', 'discomCertificateUrl', 'netMeteringAgreementUrl',
+        'status', 'discomApprovalStatus', 'discomApprovalDate', 'rejectionReason',
+        'expectedGeneration', 'warrantyPeriod', 'maintenanceSchedule', 'remarks'
+      ];
+      
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) {
+          updateData[field] = req.body[field];
+        }
+      }
+      
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ message: "No valid fields to update" });
+      }
+      
+      const report = await storage.updateMeterInstallationReport(req.params.id, updateData);
+      if (!report) {
+        return res.status(404).json({ message: "Meter installation report not found" });
+      }
+      res.json(report);
+    } catch (error) {
+      console.error("Update meter installation report error:", error);
+      res.status(500).json({ message: "Failed to update meter installation report" });
+    }
+  });
+  
+  // Admin: Delete meter installation report
+  app.delete("/api/admin/meter-installation-reports/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteMeterInstallationReport(req.params.id);
+      res.json({ message: "Meter installation report deleted" });
+    } catch (error) {
+      console.error("Delete meter installation report error:", error);
+      res.status(500).json({ message: "Failed to delete meter installation report" });
+    }
+  });
+  
+  // Admin: Get meter installation report by customer ID
+  app.get("/api/admin/customers/:customerId/meter-installation-reports", requireAdmin, async (req, res) => {
+    try {
+      const report = await storage.getMeterInstallationReportByCustomerId(req.params.customerId);
+      res.json(report || null);
+    } catch (error) {
+      console.error("Get customer meter installation report error:", error);
+      res.status(500).json({ message: "Failed to get meter installation report" });
     }
   });
 

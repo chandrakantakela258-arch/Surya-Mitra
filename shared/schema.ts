@@ -1280,7 +1280,7 @@ export const meterInstallationReports = pgTable("meter_installation_reports", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   reportNumber: text("report_number").notNull().unique(),
   customerId: varchar("customer_id").references(() => customers.id).notNull(),
-  completionReportId: varchar("completion_report_id").references(() => completionReports.id),
+  completionReportId: varchar("completion_report_id").references(() => siteExecutionCompletionReports.id),
   
   // Customer & Site Info
   customerName: text("customer_name").notNull(),

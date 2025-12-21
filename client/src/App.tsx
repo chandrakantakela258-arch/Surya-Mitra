@@ -51,6 +51,7 @@ import AdminVendorPurchaseOrders from "@/pages/admin/vendor-purchase-orders";
 import AdminGoodsDeliveries from "@/pages/admin/goods-deliveries";
 import AdminSiteExecutionOrders from "@/pages/admin/site-execution-orders";
 import AdminCompletionReports from "@/pages/admin/completion-reports";
+import AdminMeterInstallationReports from "@/pages/admin/meter-installation-reports";
 import AdminCustomerFileSubmissions from "@/pages/admin/customer-file-submissions";
 import AdminIndependentCustomers from "@/pages/admin/independent-customers";
 import ProfilePage from "@/pages/profile";
@@ -290,6 +291,13 @@ function AuthenticatedRoutes() {
         <ProtectedRoute allowedRoles={["admin"]}>
           <DashboardLayout>
             <AdminCompletionReports />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/meter-installation-reports">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminMeterInstallationReports />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
