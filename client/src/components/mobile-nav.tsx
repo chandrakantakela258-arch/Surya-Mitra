@@ -42,6 +42,14 @@ const adminNavItems: NavItem[] = [
   { icon: Bell, label: "Alerts", href: "/notifications" },
 ];
 
+const customerPartnerNavItems: NavItem[] = [
+  { icon: LayoutDashboard, label: "Home", href: "/customer-partner/dashboard" },
+  { icon: UserPlus, label: "Refer", href: "/customer-registration" },
+  { icon: Users, label: "Referrals", href: "/customer-partner/referrals" },
+  { icon: Wallet, label: "Earnings", href: "/customer-partner/earnings" },
+  { icon: User, label: "Profile", href: "/customer-partner/profile" },
+];
+
 export function MobileNav() {
   const [location] = useLocation();
   const { user } = useAuth();
@@ -52,7 +60,9 @@ export function MobileNav() {
     ? adminNavItems 
     : user.role === "bdp" 
       ? bdpNavItems 
-      : ddpNavItems;
+      : user.role === "customer_partner"
+        ? customerPartnerNavItems
+        : ddpNavItems;
 
   return (
     <nav 
