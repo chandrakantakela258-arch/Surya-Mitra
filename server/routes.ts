@@ -3031,18 +3031,18 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Phone number is required" });
       }
       
-      // Find customer by phone who is independent and has completed installation
+      // Find customer by phone who is independent and has approved/completed installation
       const allCustomers = await storage.getAllCustomers();
       const customer = allCustomers.find(c => 
         c.phone === phone && 
         c.source === "website_direct" && 
-        c.status === "completed"
+        (c.status === "approved" || c.status === "completed")
       );
       
       if (!customer) {
         return res.status(404).json({ 
           eligible: false,
-          message: "No eligible customer found. You must have registered independently and completed your solar installation." 
+          message: "No eligible customer found. You must have registered independently and your application must be approved." 
         });
       }
       
@@ -3100,17 +3100,17 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Username is already taken. Please choose a different one." });
       }
       
-      // Find customer by phone who is independent and has completed installation
+      // Find customer by phone who is independent and has approved/completed installation
       const allCustomers = await storage.getAllCustomers();
       const customer = allCustomers.find(c => 
         c.phone === phone && 
         c.source === "website_direct" && 
-        c.status === "completed"
+        (c.status === "approved" || c.status === "completed")
       );
       
       if (!customer) {
         return res.status(400).json({ 
-          message: "No eligible customer found. You must have registered independently and completed your solar installation (3kW or above)." 
+          message: "No eligible customer found. You must have registered independently and your application must be approved (3kW or above)." 
         });
       }
       
