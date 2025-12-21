@@ -3670,6 +3670,175 @@ export async function registerRoutes(
     }
   });
 
+  // ==================== LOAN DISBURSEMENT ROUTES (STEP 4) ====================
+  
+  // Admin: Get all loan disbursements
+  app.get("/api/admin/loan-disbursements", requireAdmin, async (req, res) => {
+    try {
+      const disbursements = await storage.getLoanDisbursements();
+      res.json(disbursements);
+    } catch (error) {
+      console.error("Get loan disbursements error:", error);
+      res.status(500).json({ message: "Failed to get loan disbursements" });
+    }
+  });
+  
+  // Admin: Get loan disbursement by ID
+  app.get("/api/admin/loan-disbursements/:id", requireAdmin, async (req, res) => {
+    try {
+      const disbursement = await storage.getLoanDisbursement(req.params.id);
+      if (!disbursement) {
+        return res.status(404).json({ message: "Loan disbursement not found" });
+      }
+      res.json(disbursement);
+    } catch (error) {
+      console.error("Get loan disbursement error:", error);
+      res.status(500).json({ message: "Failed to get loan disbursement" });
+    }
+  });
+  
+  // Admin: Create loan disbursement
+  app.post("/api/admin/loan-disbursements", requireAdmin, async (req, res) => {
+    try {
+      const { customerId, bankLoanApprovalId, customerName, bankName, bankBranch, disbursementDate, disbursementTime, disbursedAmount, transactionReference, divyanshiBankAccount, remarks } = req.body;
+      
+      // Validate required fields
+      if (!customerName || typeof customerName !== "string" || customerName.trim() === "") {
+        return res.status(400).json({ message: "Customer name is required" });
+      }
+      if (!bankName || typeof bankName !== "string" || bankName.trim() === "") {
+        return res.status(400).json({ message: "Bank name is required" });
+      }
+      if (!disbursementDate) {
+        return res.status(400).json({ message: "Disbursement date is required" });
+      }
+      if (!disbursedAmount || isNaN(parseFloat(disbursedAmount))) {
+        return res.status(400).json({ message: "Valid disbursed amount is required" });
+      }
+      
+      // Validate date
+      const parsedDate = new Date(disbursementDate);
+      if (isNaN(parsedDate.getTime())) {
+        return res.status(400).json({ message: "Invalid disbursement date format" });
+      }
+      
+      // If customerId is provided, verify customer exists
+      if (customerId) {
+        const customer = await storage.getCustomer(customerId);
+        if (!customer) {
+          return res.status(404).json({ message: "Customer not found" });
+        }
+      }
+      
+      // If bankLoanApprovalId is provided, verify approval exists
+      if (bankLoanApprovalId) {
+        const approval = await storage.getBankLoanApproval(bankLoanApprovalId);
+        if (!approval) {
+          return res.status(404).json({ message: "Bank loan approval not found" });
+        }
+      }
+      
+      const disbursement = await storage.createLoanDisbursement({
+        customerId: customerId || null,
+        bankLoanApprovalId: bankLoanApprovalId || null,
+        customerName: customerName.trim(),
+        bankName: bankName.trim(),
+        bankBranch: bankBranch ? String(bankBranch).trim() : null,
+        disbursementDate: parsedDate,
+        disbursementTime: disbursementTime ? String(disbursementTime).trim() : null,
+        disbursedAmount: String(disbursedAmount),
+        transactionReference: transactionReference ? String(transactionReference).trim() : null,
+        divyanshiBankAccount: divyanshiBankAccount ? String(divyanshiBankAccount).trim() : null,
+        status: "received",
+        remarks: remarks ? String(remarks).trim() : null,
+      });
+      
+      res.status(201).json(disbursement);
+    } catch (error) {
+      console.error("Create loan disbursement error:", error);
+      res.status(500).json({ message: "Failed to create loan disbursement" });
+    }
+  });
+  
+  // Admin: Update loan disbursement
+  app.patch("/api/admin/loan-disbursements/:id", requireAdmin, async (req, res) => {
+    try {
+      const { customerName, bankName, bankBranch, disbursementDate, disbursementTime, disbursedAmount, transactionReference, divyanshiBankAccount, status, remarks } = req.body;
+      
+      // Valid status values
+      const validStatuses = ["pending", "processing", "received", "failed", "partial"];
+      
+      const updateData: Record<string, any> = {};
+      
+      if (customerName !== undefined) {
+        if (typeof customerName !== "string" || customerName.trim() === "") {
+          return res.status(400).json({ message: "Customer name cannot be empty" });
+        }
+        updateData.customerName = customerName.trim();
+      }
+      if (bankName !== undefined) {
+        if (typeof bankName !== "string" || bankName.trim() === "") {
+          return res.status(400).json({ message: "Bank name cannot be empty" });
+        }
+        updateData.bankName = bankName.trim();
+      }
+      if (bankBranch !== undefined) {
+        updateData.bankBranch = bankBranch ? String(bankBranch).trim() : null;
+      }
+      if (disbursementDate !== undefined) {
+        const parsedDate = new Date(disbursementDate);
+        if (isNaN(parsedDate.getTime())) {
+          return res.status(400).json({ message: "Invalid disbursement date format" });
+        }
+        updateData.disbursementDate = parsedDate;
+      }
+      if (disbursementTime !== undefined) {
+        updateData.disbursementTime = disbursementTime ? String(disbursementTime).trim() : null;
+      }
+      if (disbursedAmount !== undefined) {
+        if (isNaN(parseFloat(disbursedAmount))) {
+          return res.status(400).json({ message: "Invalid disbursed amount" });
+        }
+        updateData.disbursedAmount = String(disbursedAmount);
+      }
+      if (transactionReference !== undefined) {
+        updateData.transactionReference = transactionReference ? String(transactionReference).trim() : null;
+      }
+      if (divyanshiBankAccount !== undefined) {
+        updateData.divyanshiBankAccount = divyanshiBankAccount ? String(divyanshiBankAccount).trim() : null;
+      }
+      if (status !== undefined) {
+        if (!validStatuses.includes(status)) {
+          return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
+        }
+        updateData.status = status;
+      }
+      if (remarks !== undefined) {
+        updateData.remarks = remarks ? String(remarks).trim() : null;
+      }
+      
+      const disbursement = await storage.updateLoanDisbursement(req.params.id, updateData);
+      if (!disbursement) {
+        return res.status(404).json({ message: "Loan disbursement not found" });
+      }
+      res.json(disbursement);
+    } catch (error) {
+      console.error("Update loan disbursement error:", error);
+      res.status(500).json({ message: "Failed to update loan disbursement" });
+    }
+  });
+  
+  // Admin: Delete loan disbursement
+  app.delete("/api/admin/loan-disbursements/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteLoanDisbursement(req.params.id);
+      res.json({ message: "Loan disbursement deleted" });
+    } catch (error) {
+      console.error("Delete loan disbursement error:", error);
+      res.status(500).json({ message: "Failed to delete loan disbursement" });
+    }
+  });
+
   // ==================== CUSTOMER PARTNER ROUTES ====================
   
   // Lookup customer eligibility for Customer Partner registration
