@@ -7,7 +7,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { HeroSlider } from "@/components/hero-slider";
 import { FeedbackDialog } from "@/components/feedback-dialog";
 import logoImage from "@assets/88720521_logo_1766219255006.png";
-import { SiLinkedin, SiX, SiFacebook, SiInstagram } from "react-icons/si";
+import { SiLinkedin, SiX, SiFacebook, SiInstagram, SiWhatsapp, SiYoutube } from "react-icons/si";
 import { 
   Sun, 
   Zap, 
@@ -1351,6 +1351,58 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* Floating Social Media Sidebar */}
+      <div className="fixed right-0 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-1">
+        <a 
+          href="https://wa.me/919801005212" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="w-10 h-10 bg-green-500 text-white rounded-l-md flex items-center justify-center hover:w-12 transition-all shadow-lg"
+          data-testid="floating-whatsapp"
+          title="WhatsApp"
+        >
+          <SiWhatsapp className="w-5 h-5" />
+        </a>
+        <a 
+          href="tel:+919801005212" 
+          className="w-10 h-10 bg-primary text-primary-foreground rounded-l-md flex items-center justify-center hover:w-12 transition-all shadow-lg"
+          data-testid="floating-call"
+          title="Call Us"
+        >
+          <Phone className="w-5 h-5" />
+        </a>
+        <a 
+          href="https://www.facebook.com/Divyanshi.Gp/" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="w-10 h-10 bg-blue-600 text-white rounded-l-md flex items-center justify-center hover:w-12 transition-all shadow-lg"
+          data-testid="floating-facebook"
+          title="Facebook"
+        >
+          <SiFacebook className="w-5 h-5" />
+        </a>
+        <a 
+          href="https://www.instagram.com/chandu532/" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="w-10 h-10 bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 text-white rounded-l-md flex items-center justify-center hover:w-12 transition-all shadow-lg"
+          data-testid="floating-instagram"
+          title="Instagram"
+        >
+          <SiInstagram className="w-5 h-5" />
+        </a>
+        <a 
+          href="https://www.youtube.com/@divyanshisolar" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="w-10 h-10 bg-red-600 text-white rounded-l-md flex items-center justify-center hover:w-12 transition-all shadow-lg"
+          data-testid="floating-youtube"
+          title="YouTube"
+        >
+          <SiYoutube className="w-5 h-5" />
+        </a>
+      </div>
 
       {/* Floating Feedback Button */}
       <div className="fixed bottom-4 right-4 z-50">
