@@ -1373,7 +1373,7 @@ export default function LandingPage() {
           <Phone className="w-5 h-5" />
         </a>
         <a 
-          href="https://www.facebook.com/Divyanshi.Gp/" 
+          href="https://www.facebook.com/nayabharatdivyanshi/" 
           target="_blank" 
           rel="noopener noreferrer"
           className="w-10 h-10 bg-blue-600 text-white rounded-l-md flex items-center justify-center hover:w-12 transition-all shadow-lg"
