@@ -1428,5 +1428,97 @@ export const insertVendorPurchaseOrderSchema = createInsertSchema(vendorPurchase
 export type InsertVendorPurchaseOrder = z.infer<typeof insertVendorPurchaseOrderSchema>;
 export type VendorPurchaseOrder = typeof vendorPurchaseOrders.$inferSelect;
 
+// Step 6: Goods Delivery at Customer Site
+export const goodsDeliveryStatuses = [
+  { value: "scheduled", label: "Scheduled" },
+  { value: "in_transit", label: "In Transit" },
+  { value: "delivered", label: "Delivered" },
+  { value: "partially_delivered", label: "Partially Delivered" },
+  { value: "failed", label: "Failed" },
+  { value: "rescheduled", label: "Rescheduled" },
+] as const;
+
+export const goodsDeliveries = pgTable("goods_deliveries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").references(() => customers.id),
+  purchaseOrderId: varchar("purchase_order_id").references(() => vendorPurchaseOrders.id),
+  vendorId: varchar("vendor_id").references(() => vendors.id),
+  
+  // Customer & Delivery Info
+  customerName: text("customer_name").notNull(),
+  customerPhone: text("customer_phone"),
+  deliveryAddress: text("delivery_address").notNull(),
+  district: text("district"),
+  state: text("state"),
+  pincode: text("pincode"),
+  
+  // Scheduling
+  scheduledDate: timestamp("scheduled_date").notNull(),
+  scheduledTimeSlot: text("scheduled_time_slot"), // Morning, Afternoon, Evening
+  actualDeliveryDate: timestamp("actual_delivery_date"),
+  
+  // Delivery Details
+  status: text("status").default("scheduled"), // scheduled, in_transit, delivered, partially_delivered, failed, rescheduled
+  deliveredBy: text("delivered_by"), // Delivery person name
+  vehicleNumber: text("vehicle_number"),
+  vehicleType: text("vehicle_type"), // Truck, Tempo, etc.
+  
+  // Product Details
+  panelType: text("panel_type"),
+  panelCapacity: text("panel_capacity"),
+  inverterType: text("inverter_type"),
+  quantityOrdered: integer("quantity_ordered").default(1),
+  quantityDelivered: integer("quantity_delivered"),
+  
+  // Proof of Delivery
+  receiverName: text("receiver_name"),
+  receiverPhone: text("receiver_phone"),
+  receiverSignature: text("receiver_signature"), // URL or base64
+  deliveryPhotos: text("delivery_photos").array(), // Array of photo URLs
+  
+  // Site Verification
+  siteVerificationBefore: text("site_verification_before").array(), // Photos before unloading
+  siteVerificationAfter: text("site_verification_after").array(), // Photos after delivery
+  verificationNotes: text("verification_notes"),
+  
+  // Linked PO Details
+  poNumber: text("po_number"),
+  vendorName: text("vendor_name"),
+  
+  remarks: text("remarks"),
+  failureReason: text("failure_reason"), // If status is failed
+  rescheduleReason: text("reschedule_reason"), // If rescheduled
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const goodsDeliveriesRelations = relations(goodsDeliveries, ({ one }) => ({
+  customer: one(customers, {
+    fields: [goodsDeliveries.customerId],
+    references: [customers.id],
+  }),
+  purchaseOrder: one(vendorPurchaseOrders, {
+    fields: [goodsDeliveries.purchaseOrderId],
+    references: [vendorPurchaseOrders.id],
+  }),
+  vendor: one(vendors, {
+    fields: [goodsDeliveries.vendorId],
+    references: [vendors.id],
+  }),
+}));
+
+export const insertGoodsDeliverySchema = createInsertSchema(goodsDeliveries).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  scheduledDate: z.string().min(1, "Scheduled date is required"),
+  actualDeliveryDate: z.string().optional(),
+});
+
+export type InsertGoodsDelivery = z.infer<typeof insertGoodsDeliverySchema>;
+export type GoodsDelivery = typeof goodsDeliveries.$inferSelect;
+
 // Re-export chat models for OpenAI integration
 export * from "./models/chat";

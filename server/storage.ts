@@ -89,6 +89,9 @@ import {
   type VendorPurchaseOrder,
   type InsertVendorPurchaseOrder,
   vendorPurchaseOrders,
+  type GoodsDelivery,
+  type InsertGoodsDelivery,
+  goodsDeliveries,
   installationMilestones,
   calculateCommission,
   calculateBdpCommission,
@@ -2171,6 +2174,65 @@ export class DatabaseStorage implements IStorage {
     const orders = await db.select().from(vendorPurchaseOrders);
     const count = orders.length + 1;
     return `PO-${year}${month}-${String(count).padStart(4, '0')}`;
+  }
+
+  // Step 6: Goods Delivery operations
+  async createGoodsDelivery(delivery: any): Promise<GoodsDelivery> {
+    const deliveryData = {
+      ...delivery,
+      scheduledDate: delivery.scheduledDate ? new Date(delivery.scheduledDate) : new Date(),
+      actualDeliveryDate: delivery.actualDeliveryDate ? new Date(delivery.actualDeliveryDate) : null,
+    };
+    const [created] = await db.insert(goodsDeliveries).values(deliveryData).returning();
+    return created;
+  }
+
+  async getGoodsDeliveries(): Promise<GoodsDelivery[]> {
+    return await db.select().from(goodsDeliveries).orderBy(desc(goodsDeliveries.createdAt));
+  }
+
+  async getGoodsDelivery(id: string): Promise<GoodsDelivery | undefined> {
+    const [delivery] = await db.select().from(goodsDeliveries).where(eq(goodsDeliveries.id, id));
+    return delivery || undefined;
+  }
+
+  async getGoodsDeliveriesByCustomerId(customerId: string): Promise<GoodsDelivery[]> {
+    return await db.select().from(goodsDeliveries)
+      .where(eq(goodsDeliveries.customerId, customerId))
+      .orderBy(desc(goodsDeliveries.createdAt));
+  }
+
+  async getGoodsDeliveriesByPurchaseOrderId(purchaseOrderId: string): Promise<GoodsDelivery[]> {
+    return await db.select().from(goodsDeliveries)
+      .where(eq(goodsDeliveries.purchaseOrderId, purchaseOrderId))
+      .orderBy(desc(goodsDeliveries.createdAt));
+  }
+
+  async updateGoodsDelivery(id: string, data: Partial<GoodsDelivery>): Promise<GoodsDelivery | undefined> {
+    const updateData: any = { ...data, updatedAt: new Date() };
+    if (data.scheduledDate && typeof data.scheduledDate === 'string') {
+      updateData.scheduledDate = new Date(data.scheduledDate);
+    }
+    if (data.actualDeliveryDate && typeof data.actualDeliveryDate === 'string') {
+      updateData.actualDeliveryDate = new Date(data.actualDeliveryDate);
+    }
+    const [updated] = await db.update(goodsDeliveries)
+      .set(updateData)
+      .where(eq(goodsDeliveries.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteGoodsDelivery(id: string): Promise<void> {
+    await db.delete(goodsDeliveries).where(eq(goodsDeliveries.id, id));
+  }
+
+  async generateDeliveryNumber(): Promise<string> {
+    const year = new Date().getFullYear();
+    const month = String(new Date().getMonth() + 1).padStart(2, '0');
+    const deliveries = await db.select().from(goodsDeliveries);
+    const count = deliveries.length + 1;
+    return `DEL-${year}${month}-${String(count).padStart(4, '0')}`;
   }
 }
 
