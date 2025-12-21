@@ -22,6 +22,7 @@ import {
   Target,
   Award,
   Zap,
+  Globe,
   ChevronRight,
   Gift,
   Trophy,
@@ -105,6 +106,7 @@ const adminMenuSections: MenuSection[] = [
       { title: "Step 8: Installation", url: "/admin/site-execution-orders", icon: Wrench },
       { title: "Step 9: Completion", url: "/admin/completion-reports", icon: FileCheck },
       { title: "Step 10: Grid Connected", url: "/admin/meter-installation-reports", icon: Zap },
+      { title: "Step 11: Portal Submission", url: "/admin/portal-submission-reports", icon: Globe },
     ],
   },
   {

@@ -1385,6 +1385,128 @@ export const insertMeterInstallationReportSchema = createInsertSchema(meterInsta
 export type InsertMeterInstallationReport = z.infer<typeof insertMeterInstallationReportSchema>;
 export type MeterInstallationReport = typeof meterInstallationReports.$inferSelect;
 
+// Step 11: PM Surya Ghar Portal Submission Reports
+export const portalSubmissionReports = pgTable("portal_submission_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  reportNumber: text("report_number").notNull().unique(),
+  customerId: varchar("customer_id").references(() => customers.id).notNull(),
+  meterInstallationReportId: varchar("meter_installation_report_id").references(() => meterInstallationReports.id),
+  
+  // Customer Info
+  customerName: text("customer_name").notNull(),
+  customerPhone: text("customer_phone"),
+  customerEmail: text("customer_email"),
+  siteAddress: text("site_address"),
+  district: text("district"),
+  state: text("state"),
+  pincode: text("pincode"),
+  
+  // Portal Registration Details
+  portalRegistrationId: text("portal_registration_id"), // PM Surya Ghar Portal ID
+  portalApplicationNumber: text("portal_application_number"),
+  discomName: text("discom_name"),
+  consumerNumber: text("consumer_number"),
+  
+  // System Details (from installation)
+  installedCapacity: text("installed_capacity"), // in kW
+  panelType: text("panel_type"), // DCR or Non-DCR
+  inverterCapacity: text("inverter_capacity"),
+  gridConnectionDate: timestamp("grid_connection_date"),
+  netMeterNumber: text("net_meter_number"),
+  
+  // Portal Submission Details
+  submissionDate: timestamp("submission_date"),
+  completionCertificateNumber: text("completion_certificate_number"),
+  completionCertificateDate: timestamp("completion_certificate_date"),
+  completionCertificateUrl: text("completion_certificate_url"),
+  
+  // Documents Uploaded to Portal
+  meterPhotoUrl: text("meter_photo_url"),
+  installationPhotoUrl: text("installation_photo_url"),
+  sitePhotoUrl: text("site_photo_url"),
+  netMeteringAgreementUrl: text("net_metering_agreement_url"),
+  bankDetailsProofUrl: text("bank_details_proof_url"),
+  aadharCardUrl: text("aadhar_card_url"),
+  electricityBillUrl: text("electricity_bill_url"),
+  
+  // Portal Acknowledgment
+  portalAcknowledgmentNumber: text("portal_acknowledgment_number"),
+  portalAcknowledgmentDate: timestamp("portal_acknowledgment_date"),
+  portalAcknowledgmentUrl: text("portal_acknowledgment_url"),
+  
+  // Subsidy Details
+  subsidyScheme: text("subsidy_scheme").default("pm_surya_ghar"), // pm_surya_ghar, state_subsidy, combined
+  centralSubsidyAmount: integer("central_subsidy_amount"), // Central govt subsidy in INR
+  stateSubsidyAmount: integer("state_subsidy_amount"), // State govt subsidy in INR (Odisha +20000/kW, UP +10000/kW)
+  totalSubsidyClaimed: integer("total_subsidy_claimed"), // Total claimed
+  subsidyApprovedAmount: integer("subsidy_approved_amount"), // After verification
+  subsidyRejectionReason: text("subsidy_rejection_reason"),
+  
+  // Bank Details for Subsidy Disbursement
+  beneficiaryName: text("beneficiary_name"),
+  beneficiaryAccountNumber: text("beneficiary_account_number"),
+  beneficiaryIfsc: text("beneficiary_ifsc"),
+  beneficiaryBankName: text("beneficiary_bank_name"),
+  
+  // Disbursement Details
+  disbursementStatus: text("disbursement_status").default("pending"), // pending, processing, disbursed, failed
+  disbursementReferenceNumber: text("disbursement_reference_number"),
+  disbursementDate: timestamp("disbursement_date"),
+  disbursementAmount: integer("disbursement_amount"),
+  disbursementRemarks: text("disbursement_remarks"),
+  
+  // Verification Status
+  documentVerificationStatus: text("document_verification_status").default("pending"), // pending, verified, rejected
+  documentVerificationDate: timestamp("document_verification_date"),
+  documentVerificationRemarks: text("document_verification_remarks"),
+  
+  // Physical Verification (by DISCOM/Govt)
+  physicalVerificationRequired: boolean("physical_verification_required").default(true),
+  physicalVerificationDate: timestamp("physical_verification_date"),
+  physicalVerificationOfficer: text("physical_verification_officer"),
+  physicalVerificationStatus: text("physical_verification_status").default("pending"), // pending, scheduled, completed, failed
+  physicalVerificationRemarks: text("physical_verification_remarks"),
+  
+  // Status & Timeline
+  status: text("status").default("pending"), // pending, submitted, under_review, docs_verified, physical_verified, approved, subsidy_disbursed, rejected
+  expectedDisbursementDate: timestamp("expected_disbursement_date"),
+  actualProcessingDays: integer("actual_processing_days"),
+  rejectionReason: text("rejection_reason"),
+  
+  // Follow-up & Communication
+  lastFollowUpDate: timestamp("last_follow_up_date"),
+  nextFollowUpDate: timestamp("next_follow_up_date"),
+  followUpRemarks: text("follow_up_remarks"),
+  portalHelplineTicket: text("portal_helpline_ticket"),
+  
+  // Additional Info
+  remarks: text("remarks"),
+  
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertPortalSubmissionReportSchema = createInsertSchema(portalSubmissionReports).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  submissionDate: z.string().optional(),
+  gridConnectionDate: z.string().optional(),
+  completionCertificateDate: z.string().optional(),
+  portalAcknowledgmentDate: z.string().optional(),
+  disbursementDate: z.string().optional(),
+  documentVerificationDate: z.string().optional(),
+  physicalVerificationDate: z.string().optional(),
+  expectedDisbursementDate: z.string().optional(),
+  lastFollowUpDate: z.string().optional(),
+  nextFollowUpDate: z.string().optional(),
+});
+
+export type InsertPortalSubmissionReport = z.infer<typeof insertPortalSubmissionReportSchema>;
+export type PortalSubmissionReport = typeof portalSubmissionReports.$inferSelect;
+
 // Password Reset OTPs - Store OTPs for password reset
 export const passwordResetOtps = pgTable("password_reset_otps", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

@@ -104,6 +104,9 @@ import {
   type MeterInstallationReport,
   type InsertMeterInstallationReport,
   meterInstallationReports,
+  type PortalSubmissionReport,
+  type InsertPortalSubmissionReport,
+  portalSubmissionReports,
   installationMilestones,
   calculateCommission,
   calculateBdpCommission,
@@ -2518,6 +2521,74 @@ export class DatabaseStorage implements IStorage {
     const reports = await db.select().from(meterInstallationReports);
     const count = reports.length + 1;
     return `MIR-${year}${month}-${String(count).padStart(4, '0')}`;
+  }
+
+  // Portal Submission Reports (Step 11)
+  async getPortalSubmissionReports(): Promise<PortalSubmissionReport[]> {
+    return await db.select().from(portalSubmissionReports).orderBy(desc(portalSubmissionReports.createdAt));
+  }
+
+  async getPortalSubmissionReport(id: string): Promise<PortalSubmissionReport | undefined> {
+    const [report] = await db.select().from(portalSubmissionReports).where(eq(portalSubmissionReports.id, id));
+    return report || undefined;
+  }
+
+  async getPortalSubmissionReportByCustomerId(customerId: string): Promise<PortalSubmissionReport | undefined> {
+    const [report] = await db.select().from(portalSubmissionReports)
+      .where(eq(portalSubmissionReports.customerId, customerId));
+    return report || undefined;
+  }
+
+  async createPortalSubmissionReport(data: any): Promise<PortalSubmissionReport> {
+    const insertData: any = { ...data };
+    const dateFields = [
+      'submissionDate', 'gridConnectionDate', 'completionCertificateDate',
+      'portalAcknowledgmentDate', 'disbursementDate', 'documentVerificationDate',
+      'physicalVerificationDate', 'expectedDisbursementDate', 'lastFollowUpDate', 'nextFollowUpDate'
+    ];
+    for (const field of dateFields) {
+      if (data[field] && typeof data[field] === 'string') {
+        insertData[field] = new Date(data[field]);
+      }
+    }
+    const intFields = ['centralSubsidyAmount', 'stateSubsidyAmount', 'totalSubsidyClaimed', 'subsidyApprovedAmount', 'disbursementAmount', 'actualProcessingDays'];
+    for (const field of intFields) {
+      if (data[field]) insertData[field] = parseInt(data[field]);
+    }
+    const [report] = await db.insert(portalSubmissionReports).values(insertData).returning();
+    return report;
+  }
+
+  async updatePortalSubmissionReport(id: string, data: any): Promise<PortalSubmissionReport> {
+    const updateData: any = { ...data, updatedAt: new Date() };
+    const dateFields = [
+      'submissionDate', 'gridConnectionDate', 'completionCertificateDate',
+      'portalAcknowledgmentDate', 'disbursementDate', 'documentVerificationDate',
+      'physicalVerificationDate', 'expectedDisbursementDate', 'lastFollowUpDate', 'nextFollowUpDate'
+    ];
+    for (const field of dateFields) {
+      if (data[field] && typeof data[field] === 'string') {
+        updateData[field] = new Date(data[field]);
+      }
+    }
+    const intFields = ['centralSubsidyAmount', 'stateSubsidyAmount', 'totalSubsidyClaimed', 'subsidyApprovedAmount', 'disbursementAmount', 'actualProcessingDays'];
+    for (const field of intFields) {
+      if (data[field]) updateData[field] = parseInt(data[field]);
+    }
+    const [report] = await db.update(portalSubmissionReports).set(updateData).where(eq(portalSubmissionReports.id, id)).returning();
+    return report;
+  }
+
+  async deletePortalSubmissionReport(id: string): Promise<void> {
+    await db.delete(portalSubmissionReports).where(eq(portalSubmissionReports.id, id));
+  }
+
+  async generatePortalSubmissionReportNumber(): Promise<string> {
+    const year = new Date().getFullYear();
+    const month = String(new Date().getMonth() + 1).padStart(2, '0');
+    const reports = await db.select().from(portalSubmissionReports);
+    const count = reports.length + 1;
+    return `PSR-${year}${month}-${String(count).padStart(4, '0')}`;
   }
 }
 

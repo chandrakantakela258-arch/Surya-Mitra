@@ -8,7 +8,7 @@ import path from "path";
 import fs from "fs";
 import { pool } from "./db";
 import { storage } from "./storage";
-import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSchema, updateFeedbackStatusSchema, inverterCommission, insertVendorSchema, vendorStates, insertSiteSurveySchema, insertMeterInstallationReportSchema } from "@shared/schema";
+import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSchema, updateFeedbackStatusSchema, inverterCommission, insertVendorSchema, vendorStates, insertSiteSurveySchema, insertMeterInstallationReportSchema, insertPortalSubmissionReportSchema } from "@shared/schema";
 import { z } from "zod";
 import { notificationService } from "./notification-service";
 import { calculateLeadScore, type LeadScoreResult } from "./lead-scoring-service";
@@ -3854,6 +3854,126 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Get customer meter installation report error:", error);
       res.status(500).json({ message: "Failed to get meter installation report" });
+    }
+  });
+
+  // ==================== PORTAL SUBMISSION REPORT ROUTES (Step 11) ====================
+  
+  // Admin: Get all portal submission reports
+  app.get("/api/admin/portal-submission-reports", requireAdmin, async (req, res) => {
+    try {
+      const reports = await storage.getPortalSubmissionReports();
+      res.json(reports);
+    } catch (error) {
+      console.error("Get portal submission reports error:", error);
+      res.status(500).json({ message: "Failed to get portal submission reports" });
+    }
+  });
+  
+  // Admin: Get portal submission report by ID
+  app.get("/api/admin/portal-submission-reports/:id", requireAdmin, async (req, res) => {
+    try {
+      const report = await storage.getPortalSubmissionReport(req.params.id);
+      if (!report) {
+        return res.status(404).json({ message: "Portal submission report not found" });
+      }
+      res.json(report);
+    } catch (error) {
+      console.error("Get portal submission report error:", error);
+      res.status(500).json({ message: "Failed to get portal submission report" });
+    }
+  });
+  
+  // Admin: Create portal submission report
+  app.post("/api/admin/portal-submission-reports", requireAdmin, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      
+      // Validate request body with Zod schema
+      const validationResult = insertPortalSubmissionReportSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Validation failed", 
+          errors: validationResult.error.errors 
+        });
+      }
+      
+      // Generate report number
+      const reportNumber = await storage.generatePortalSubmissionReportNumber();
+      
+      const reportData = {
+        ...validationResult.data,
+        reportNumber,
+        createdBy: user.id,
+      };
+      
+      const report = await storage.createPortalSubmissionReport(reportData);
+      res.status(201).json(report);
+    } catch (error) {
+      console.error("Create portal submission report error:", error);
+      res.status(500).json({ message: "Failed to create portal submission report" });
+    }
+  });
+  
+  // Admin: Update portal submission report
+  app.patch("/api/admin/portal-submission-reports/:id", requireAdmin, async (req, res) => {
+    try {
+      const updateData: Record<string, any> = {};
+      const allowedFields = [
+        'customerName', 'customerPhone', 'customerEmail', 'siteAddress', 'district', 'state', 'pincode',
+        'portalRegistrationId', 'portalApplicationNumber', 'discomName', 'consumerNumber',
+        'installedCapacity', 'panelType', 'inverterCapacity', 'gridConnectionDate', 'netMeterNumber',
+        'submissionDate', 'completionCertificateNumber', 'completionCertificateDate', 'completionCertificateUrl',
+        'meterPhotoUrl', 'installationPhotoUrl', 'sitePhotoUrl', 'netMeteringAgreementUrl', 
+        'bankDetailsProofUrl', 'aadharCardUrl', 'electricityBillUrl',
+        'portalAcknowledgmentNumber', 'portalAcknowledgmentDate', 'portalAcknowledgmentUrl',
+        'subsidyScheme', 'centralSubsidyAmount', 'stateSubsidyAmount', 'totalSubsidyClaimed',
+        'subsidyApprovedAmount', 'subsidyRejectionReason',
+        'beneficiaryName', 'beneficiaryAccountNumber', 'beneficiaryIfsc', 'beneficiaryBankName',
+        'disbursementStatus', 'disbursementReferenceNumber', 'disbursementDate', 'disbursementAmount', 'disbursementRemarks',
+        'documentVerificationStatus', 'documentVerificationDate', 'documentVerificationRemarks',
+        'physicalVerificationRequired', 'physicalVerificationDate', 'physicalVerificationOfficer',
+        'physicalVerificationStatus', 'physicalVerificationRemarks',
+        'status', 'expectedDisbursementDate', 'actualProcessingDays', 'rejectionReason',
+        'lastFollowUpDate', 'nextFollowUpDate', 'followUpRemarks', 'portalHelplineTicket', 'remarks'
+      ];
+      
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) {
+          updateData[field] = req.body[field];
+        }
+      }
+      
+      const report = await storage.updatePortalSubmissionReport(req.params.id, updateData);
+      if (!report) {
+        return res.status(404).json({ message: "Portal submission report not found" });
+      }
+      res.json(report);
+    } catch (error) {
+      console.error("Update portal submission report error:", error);
+      res.status(500).json({ message: "Failed to update portal submission report" });
+    }
+  });
+  
+  // Admin: Delete portal submission report
+  app.delete("/api/admin/portal-submission-reports/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deletePortalSubmissionReport(req.params.id);
+      res.json({ message: "Portal submission report deleted" });
+    } catch (error) {
+      console.error("Delete portal submission report error:", error);
+      res.status(500).json({ message: "Failed to delete portal submission report" });
+    }
+  });
+  
+  // Admin: Get portal submission report by customer ID
+  app.get("/api/admin/customers/:customerId/portal-submission-reports", requireAdmin, async (req, res) => {
+    try {
+      const report = await storage.getPortalSubmissionReportByCustomerId(req.params.customerId);
+      res.json(report || null);
+    } catch (error) {
+      console.error("Get customer portal submission report error:", error);
+      res.status(500).json({ message: "Failed to get portal submission report" });
     }
   });
 
