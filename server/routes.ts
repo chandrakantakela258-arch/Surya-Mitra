@@ -3514,7 +3514,203 @@ export async function registerRoutes(
     }
   });
 
-  // ==================== BANK LOAN APPROVAL ROUTES (Step 3) ====================
+  // ==================== SITE SURVEYS ROUTES (Step 3: Bank Staff & DISCOM) ====================
+  
+  // Admin: Get all site surveys
+  app.get("/api/admin/site-surveys", requireAdmin, async (req, res) => {
+    try {
+      const surveys = await storage.getSiteSurveys();
+      res.json(surveys);
+    } catch (error) {
+      console.error("Get site surveys error:", error);
+      res.status(500).json({ message: "Failed to get site surveys" });
+    }
+  });
+  
+  // Admin: Get site survey by ID
+  app.get("/api/admin/site-surveys/:id", requireAdmin, async (req, res) => {
+    try {
+      const survey = await storage.getSiteSurvey(req.params.id);
+      if (!survey) {
+        return res.status(404).json({ message: "Site survey not found" });
+      }
+      res.json(survey);
+    } catch (error) {
+      console.error("Get site survey error:", error);
+      res.status(500).json({ message: "Failed to get site survey" });
+    }
+  });
+  
+  // Admin: Create site survey
+  app.post("/api/admin/site-surveys", requireAdmin, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { 
+        customerId, loanSubmissionId, customerName, customerPhone, siteAddress,
+        district, state, pincode, scheduledDate, surveyTime,
+        bankName, bankBranch, bankStaffName, bankStaffDesignation, bankStaffPhone,
+        discomName, discomDivision, discomRepName, discomRepDesignation, discomRepPhone,
+        remarks 
+      } = req.body;
+      
+      if (!customerName || typeof customerName !== "string" || customerName.trim() === "") {
+        return res.status(400).json({ message: "Customer name is required" });
+      }
+      if (!siteAddress || typeof siteAddress !== "string" || siteAddress.trim() === "") {
+        return res.status(400).json({ message: "Site address is required" });
+      }
+      if (!scheduledDate) {
+        return res.status(400).json({ message: "Scheduled date is required" });
+      }
+      
+      const surveyNumber = await storage.generateSiteSurveyNumber();
+      
+      const survey = await storage.createSiteSurvey({
+        surveyNumber,
+        customerId: customerId || null,
+        loanSubmissionId: loanSubmissionId || null,
+        customerName: customerName.trim(),
+        customerPhone: customerPhone || null,
+        siteAddress: siteAddress.trim(),
+        district: district || null,
+        state: state || null,
+        pincode: pincode || null,
+        scheduledDate,
+        surveyTime: surveyTime || null,
+        bankName: bankName || null,
+        bankBranch: bankBranch || null,
+        bankStaffName: bankStaffName || null,
+        bankStaffDesignation: bankStaffDesignation || null,
+        bankStaffPhone: bankStaffPhone || null,
+        discomName: discomName || null,
+        discomDivision: discomDivision || null,
+        discomRepName: discomRepName || null,
+        discomRepDesignation: discomRepDesignation || null,
+        discomRepPhone: discomRepPhone || null,
+        status: "scheduled",
+        remarks: remarks || null,
+        createdBy: user.id,
+      });
+      
+      res.status(201).json(survey);
+    } catch (error) {
+      console.error("Create site survey error:", error);
+      res.status(500).json({ message: "Failed to create site survey" });
+    }
+  });
+  
+  // Admin: Update site survey
+  app.patch("/api/admin/site-surveys/:id", requireAdmin, async (req, res) => {
+    try {
+      const { 
+        customerName, customerPhone, siteAddress, district, state, pincode,
+        scheduledDate, actualDate, surveyTime,
+        bankName, bankBranch, bankStaffName, bankStaffDesignation, bankStaffPhone,
+        bankSurveyCompleted, bankSurveyDate, bankSurveyNotes, bankApprovalStatus,
+        discomName, discomDivision, discomRepName, discomRepDesignation, discomRepPhone,
+        discomSurveyCompleted, discomSurveyDate, discomSurveyNotes, discomApprovalStatus,
+        roofCondition, roofType, roofArea, shadowAnalysis, structuralFeasibility, electricalFeasibility,
+        existingMeterType, meterLocation, sanctionedLoad, proposedCapacity, gridConnectionDistance,
+        roofPhotos, meterPhotos, sitePhotos,
+        status, overallRecommendation, recommendedCapacity, specialConditions, rejectionReason, remarks
+      } = req.body;
+      
+      const updateData: Record<string, any> = {};
+      
+      if (customerName !== undefined) updateData.customerName = customerName;
+      if (customerPhone !== undefined) updateData.customerPhone = customerPhone;
+      if (siteAddress !== undefined) updateData.siteAddress = siteAddress;
+      if (district !== undefined) updateData.district = district;
+      if (state !== undefined) updateData.state = state;
+      if (pincode !== undefined) updateData.pincode = pincode;
+      if (scheduledDate !== undefined) updateData.scheduledDate = scheduledDate;
+      if (actualDate !== undefined) updateData.actualDate = actualDate;
+      if (surveyTime !== undefined) updateData.surveyTime = surveyTime;
+      
+      // Bank details
+      if (bankName !== undefined) updateData.bankName = bankName;
+      if (bankBranch !== undefined) updateData.bankBranch = bankBranch;
+      if (bankStaffName !== undefined) updateData.bankStaffName = bankStaffName;
+      if (bankStaffDesignation !== undefined) updateData.bankStaffDesignation = bankStaffDesignation;
+      if (bankStaffPhone !== undefined) updateData.bankStaffPhone = bankStaffPhone;
+      if (bankSurveyCompleted !== undefined) updateData.bankSurveyCompleted = bankSurveyCompleted;
+      if (bankSurveyDate !== undefined) updateData.bankSurveyDate = bankSurveyDate;
+      if (bankSurveyNotes !== undefined) updateData.bankSurveyNotes = bankSurveyNotes;
+      if (bankApprovalStatus !== undefined) updateData.bankApprovalStatus = bankApprovalStatus;
+      
+      // DISCOM details
+      if (discomName !== undefined) updateData.discomName = discomName;
+      if (discomDivision !== undefined) updateData.discomDivision = discomDivision;
+      if (discomRepName !== undefined) updateData.discomRepName = discomRepName;
+      if (discomRepDesignation !== undefined) updateData.discomRepDesignation = discomRepDesignation;
+      if (discomRepPhone !== undefined) updateData.discomRepPhone = discomRepPhone;
+      if (discomSurveyCompleted !== undefined) updateData.discomSurveyCompleted = discomSurveyCompleted;
+      if (discomSurveyDate !== undefined) updateData.discomSurveyDate = discomSurveyDate;
+      if (discomSurveyNotes !== undefined) updateData.discomSurveyNotes = discomSurveyNotes;
+      if (discomApprovalStatus !== undefined) updateData.discomApprovalStatus = discomApprovalStatus;
+      
+      // Site assessment
+      if (roofCondition !== undefined) updateData.roofCondition = roofCondition;
+      if (roofType !== undefined) updateData.roofType = roofType;
+      if (roofArea !== undefined) updateData.roofArea = roofArea;
+      if (shadowAnalysis !== undefined) updateData.shadowAnalysis = shadowAnalysis;
+      if (structuralFeasibility !== undefined) updateData.structuralFeasibility = structuralFeasibility;
+      if (electricalFeasibility !== undefined) updateData.electricalFeasibility = electricalFeasibility;
+      
+      // Meter details
+      if (existingMeterType !== undefined) updateData.existingMeterType = existingMeterType;
+      if (meterLocation !== undefined) updateData.meterLocation = meterLocation;
+      if (sanctionedLoad !== undefined) updateData.sanctionedLoad = sanctionedLoad;
+      if (proposedCapacity !== undefined) updateData.proposedCapacity = proposedCapacity;
+      if (gridConnectionDistance !== undefined) updateData.gridConnectionDistance = gridConnectionDistance;
+      
+      // Photos
+      if (roofPhotos !== undefined) updateData.roofPhotos = roofPhotos;
+      if (meterPhotos !== undefined) updateData.meterPhotos = meterPhotos;
+      if (sitePhotos !== undefined) updateData.sitePhotos = sitePhotos;
+      
+      // Outcome
+      if (status !== undefined) updateData.status = status;
+      if (overallRecommendation !== undefined) updateData.overallRecommendation = overallRecommendation;
+      if (recommendedCapacity !== undefined) updateData.recommendedCapacity = recommendedCapacity;
+      if (specialConditions !== undefined) updateData.specialConditions = specialConditions;
+      if (rejectionReason !== undefined) updateData.rejectionReason = rejectionReason;
+      if (remarks !== undefined) updateData.remarks = remarks;
+      
+      const survey = await storage.updateSiteSurvey(req.params.id, updateData);
+      if (!survey) {
+        return res.status(404).json({ message: "Site survey not found" });
+      }
+      res.json(survey);
+    } catch (error) {
+      console.error("Update site survey error:", error);
+      res.status(500).json({ message: "Failed to update site survey" });
+    }
+  });
+  
+  // Admin: Delete site survey
+  app.delete("/api/admin/site-surveys/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteSiteSurvey(req.params.id);
+      res.json({ message: "Site survey deleted" });
+    } catch (error) {
+      console.error("Delete site survey error:", error);
+      res.status(500).json({ message: "Failed to delete site survey" });
+    }
+  });
+  
+  // Admin: Get site survey by customer ID
+  app.get("/api/admin/customers/:customerId/site-surveys", requireAdmin, async (req, res) => {
+    try {
+      const survey = await storage.getSiteSurveyByCustomerId(req.params.customerId);
+      res.json(survey || null);
+    } catch (error) {
+      console.error("Get customer site survey error:", error);
+      res.status(500).json({ message: "Failed to get site survey" });
+    }
+  });
+
+  // ==================== BANK LOAN APPROVAL ROUTES (Step 4) ====================
   
   // Admin: Get all bank loan approvals
   app.get("/api/admin/bank-loan-approvals", requireAdmin, async (req, res) => {
