@@ -23,13 +23,12 @@ import {
   Loader2,
   Home,
   User,
-  Shield
+  Shield,
+  Lock,
+  Eye,
+  EyeOff,
+  KeyRound
 } from "lucide-react";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from "@/components/ui/input-otp";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 interface CustomerData {
@@ -110,9 +109,15 @@ export default function CustomerDashboard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   
-  const [step, setStep] = useState<"phone" | "otp" | "dashboard">("phone");
+  const [step, setStep] = useState<"phone" | "password" | "setup" | "forgot" | "dashboard">("phone");
   const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [otp, setOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [customerName, setCustomerName] = useState("");
+  const [hasPassword, setHasPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState<InstallationProgress | null>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
@@ -157,7 +162,7 @@ export default function CustomerDashboard() {
     }
   };
 
-  const handleRequestOtp = async () => {
+  const handleCheckPhone = async () => {
     if (!phone || phone.length < 10) {
       toast({
         title: "Invalid Phone",
@@ -169,26 +174,30 @@ export default function CustomerDashboard() {
 
     setIsLoading(true);
     try {
-      const response = await fetch("/api/customer-portal/request-otp", {
+      const response = await fetch("/api/customer-portal/check", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone }),
       });
 
+      const data = await response.json();
+      
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to send OTP");
+        throw new Error(data.message || "Phone not found");
       }
 
-      toast({
-        title: "OTP Sent",
-        description: "A verification code has been sent to your phone",
-      });
-      setStep("otp");
+      setCustomerName(data.customerName);
+      setHasPassword(data.hasPassword);
+      
+      if (data.hasPassword) {
+        setStep("password");
+      } else {
+        setStep("setup");
+      }
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to send OTP",
+        description: error instanceof Error ? error.message : "Phone number not found",
         variant: "destructive",
       });
     } finally {
@@ -196,11 +205,11 @@ export default function CustomerDashboard() {
     }
   };
 
-  const handleVerifyOtp = async () => {
-    if (!otp || otp.length !== 6) {
+  const handleLogin = async () => {
+    if (!password) {
       toast({
-        title: "Invalid OTP",
-        description: "Please enter the 6-digit verification code",
+        title: "Password Required",
+        description: "Please enter your password",
         variant: "destructive",
       });
       return;
@@ -208,31 +217,169 @@ export default function CustomerDashboard() {
 
     setIsLoading(true);
     try {
-      const response = await fetch("/api/customer-portal/verify-otp", {
+      const response = await fetch("/api/customer-portal/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, otp }),
+        body: JSON.stringify({ phone, password }),
       });
 
+      const data = await response.json();
+      
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Invalid OTP");
+        throw new Error(data.message || "Login failed");
       }
 
-      const { sessionToken: token } = await response.json();
-      localStorage.setItem("customerSessionToken", token);
-      setSessionToken(token);
+      localStorage.setItem("customerSessionToken", data.token);
+      setSessionToken(data.token);
       
       toast({
         title: "Login Successful",
-        description: "Welcome to your installation dashboard",
+        description: `Welcome back, ${data.customer.name}!`,
       });
 
-      fetchProgress(token);
+      fetchProgress(data.token);
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to verify OTP",
+        description: error instanceof Error ? error.message : "Invalid credentials",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSetupPassword = async () => {
+    if (!password || password.length < 6) {
+      toast({
+        title: "Password Too Short",
+        description: "Password must be at least 6 characters",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast({
+        title: "Passwords Don't Match",
+        description: "Please make sure both passwords match",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/customer-portal/setup-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, password, confirmPassword }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || "Setup failed");
+      }
+
+      localStorage.setItem("customerSessionToken", data.token);
+      setSessionToken(data.token);
+      
+      toast({
+        title: "Password Set Successfully",
+        description: "Welcome to your installation dashboard!",
+      });
+
+      fetchProgress(data.token);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to set password",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRequestResetOtp = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/customer-portal/request-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to send OTP");
+      }
+
+      toast({
+        title: "OTP Generated",
+        description: data.devOtp 
+          ? `Development OTP: ${data.devOtp}` 
+          : "Check your phone for the OTP",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to request OTP",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!otp || otp.length !== 6) {
+      toast({
+        title: "Invalid OTP",
+        description: "Please enter the 6-digit OTP",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!newPassword || newPassword.length < 6) {
+      toast({
+        title: "Password Too Short",
+        description: "Password must be at least 6 characters",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/customer-portal/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, otp, newPassword }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || "Reset failed");
+      }
+
+      toast({
+        title: "Password Reset Successfully",
+        description: "Please login with your new password",
+      });
+      
+      setPassword("");
+      setOtp("");
+      setNewPassword("");
+      setStep("password");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to reset password",
         variant: "destructive",
       });
     } finally {
@@ -340,75 +487,237 @@ export default function CustomerDashboard() {
                 </div>
                 <Button 
                   className="w-full" 
-                  onClick={handleRequestOtp}
+                  onClick={handleCheckPhone}
                   disabled={isLoading || phone.length !== 10}
-                  data-testid="button-request-otp"
+                  data-testid="button-continue"
                 >
                   {isLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   ) : null}
-                  Get OTP
+                  Continue
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
                 <p className="text-xs text-center text-muted-foreground">
-                  An OTP will be sent to your registered mobile number for verification
+                  Enter the phone number you registered with your DDP partner
                 </p>
               </CardContent>
             </Card>
           </div>
         )}
 
-        {step === "otp" && (
+        {step === "password" && (
+          <div className="max-w-md mx-auto">
+            <Card>
+              <CardHeader className="text-center">
+                <div className="mx-auto mb-4 p-3 rounded-full bg-primary/10 w-fit">
+                  <Lock className="h-8 w-8 text-primary" />
+                </div>
+                <CardTitle>Welcome Back, {customerName}!</CardTitle>
+                <CardDescription>
+                  Enter your password to access your dashboard
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter your password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      data-testid="input-password"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-full px-3"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+                <Button 
+                  className="w-full" 
+                  onClick={handleLogin}
+                  disabled={isLoading || !password}
+                  data-testid="button-login"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
+                  Login
+                </Button>
+                <div className="flex items-center justify-between gap-2 text-sm">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => {
+                      setPhone("");
+                      setPassword("");
+                      setStep("phone");
+                    }}
+                  >
+                    Change Number
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setStep("forgot")}
+                  >
+                    Forgot Password?
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {step === "setup" && (
+          <div className="max-w-md mx-auto">
+            <Card>
+              <CardHeader className="text-center">
+                <div className="mx-auto mb-4 p-3 rounded-full bg-primary/10 w-fit">
+                  <KeyRound className="h-8 w-8 text-primary" />
+                </div>
+                <CardTitle>Welcome, {customerName}!</CardTitle>
+                <CardDescription>
+                  Set up a password to access your installation dashboard
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new-password">Create Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="new-password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="At least 6 characters"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      data-testid="input-new-password"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-full px-3"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    placeholder="Re-enter password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    data-testid="input-confirm-password"
+                  />
+                </div>
+                <Button 
+                  className="w-full" 
+                  onClick={handleSetupPassword}
+                  disabled={isLoading || password.length < 6 || password !== confirmPassword}
+                  data-testid="button-setup"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
+                  Set Password & Continue
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  className="w-full"
+                  onClick={() => {
+                    setPhone("");
+                    setPassword("");
+                    setConfirmPassword("");
+                    setStep("phone");
+                  }}
+                >
+                  Use Different Number
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {step === "forgot" && (
           <div className="max-w-md mx-auto">
             <Card>
               <CardHeader className="text-center">
                 <div className="mx-auto mb-4 p-3 rounded-full bg-primary/10 w-fit">
                   <Shield className="h-8 w-8 text-primary" />
                 </div>
-                <CardTitle>Verify OTP</CardTitle>
+                <CardTitle>Reset Password</CardTitle>
                 <CardDescription>
-                  Enter the 6-digit code sent to +91 {phone}
+                  Enter the OTP sent to +91 {phone} and set a new password
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex justify-center">
-                  <InputOTP
-                    maxLength={6}
-                    value={otp}
-                    onChange={setOtp}
-                    data-testid="input-otp"
-                  >
-                    <InputOTPGroup>
-                      <InputOTPSlot index={0} />
-                      <InputOTPSlot index={1} />
-                      <InputOTPSlot index={2} />
-                      <InputOTPSlot index={3} />
-                      <InputOTPSlot index={4} />
-                      <InputOTPSlot index={5} />
-                    </InputOTPGroup>
-                  </InputOTP>
-                </div>
                 <Button 
+                  variant="outline"
                   className="w-full" 
-                  onClick={handleVerifyOtp}
-                  disabled={isLoading || otp.length !== 6}
-                  data-testid="button-verify-otp"
+                  onClick={handleRequestResetOtp}
+                  disabled={isLoading}
                 >
                   {isLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   ) : null}
-                  Verify & Continue
+                  Send OTP to Phone
                 </Button>
-                <Button
-                  variant="ghost"
+                <Separator />
+                <div className="space-y-2">
+                  <Label htmlFor="otp">Enter OTP</Label>
+                  <Input
+                    id="otp"
+                    type="text"
+                    placeholder="6-digit OTP"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    data-testid="input-otp"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-pwd">New Password</Label>
+                  <Input
+                    id="new-pwd"
+                    type="password"
+                    placeholder="At least 6 characters"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    data-testid="input-new-pwd"
+                  />
+                </div>
+                <Button 
+                  className="w-full" 
+                  onClick={handleResetPassword}
+                  disabled={isLoading || otp.length !== 6 || newPassword.length < 6}
+                  data-testid="button-reset"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
+                  Reset Password
+                </Button>
+                <Button 
+                  variant="ghost" 
                   className="w-full"
                   onClick={() => {
-                    setStep("phone");
                     setOtp("");
+                    setNewPassword("");
+                    setStep("password");
                   }}
-                  data-testid="button-change-phone"
                 >
-                  Change Phone Number
+                  Back to Login
                 </Button>
               </CardContent>
             </Card>

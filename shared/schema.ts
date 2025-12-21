@@ -93,7 +93,9 @@ export const customers = pgTable("customers", {
   // Customer Portal Access
   portalEnabled: boolean("portal_enabled").default(false), // Whether customer can access portal
   portalAccessCode: text("portal_access_code"), // UUID for unique portal link
-  otpCode: text("otp_code"), // Hashed OTP for authentication
+  passwordHash: text("password_hash"), // Bcrypt hashed password for portal login
+  passwordSetAt: timestamp("password_set_at"), // When password was set
+  otpCode: text("otp_code"), // Hashed OTP for password reset
   otpExpiry: timestamp("otp_expiry"), // OTP expiration time
   lastPortalLogin: timestamp("last_portal_login"),
   

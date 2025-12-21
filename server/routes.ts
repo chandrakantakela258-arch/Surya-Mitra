@@ -411,7 +411,164 @@ export async function registerRoutes(
 
   // ==================== CUSTOMER PORTAL ROUTES ====================
   
-  // Request OTP for customer portal login
+  // Check if customer exists and has password set
+  app.post("/api/customer-portal/check", async (req, res) => {
+    try {
+      const { phone } = req.body;
+      
+      if (!phone) {
+        return res.status(400).json({ message: "Phone number is required" });
+      }
+      
+      const customer = await storage.getCustomerByPhone(phone);
+      if (!customer) {
+        return res.status(404).json({ message: "No customer found with this phone number" });
+      }
+      
+      if (!customer.portalEnabled) {
+        return res.status(403).json({ message: "Portal access not enabled. Please contact your DDP." });
+      }
+      
+      res.json({
+        success: true,
+        customerName: customer.name,
+        hasPassword: !!customer.passwordHash,
+      });
+    } catch (error) {
+      console.error("Customer check error:", error);
+      res.status(500).json({ message: "Failed to check customer" });
+    }
+  });
+  
+  // Customer login with password
+  app.post("/api/customer-portal/login", async (req, res) => {
+    try {
+      const { phone, password } = req.body;
+      
+      if (!phone || !password) {
+        return res.status(400).json({ message: "Phone and password are required" });
+      }
+      
+      const customer = await storage.getCustomerByPhone(phone);
+      if (!customer) {
+        return res.status(404).json({ message: "No customer found with this phone number" });
+      }
+      
+      if (!customer.portalEnabled) {
+        return res.status(403).json({ message: "Portal access not enabled. Please contact your DDP." });
+      }
+      
+      if (!customer.passwordHash) {
+        return res.status(400).json({ message: "Password not set. Please set up your password first.", needsSetup: true });
+      }
+      
+      const isValidPassword = await bcrypt.compare(password, customer.passwordHash);
+      if (!isValidPassword) {
+        return res.status(401).json({ message: "Invalid password" });
+      }
+      
+      // Generate session token
+      const crypto = require("crypto");
+      const sessionToken = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+      
+      // Create customer session
+      await storage.createCustomerSession({
+        customerId: customer.id,
+        sessionToken,
+        expiresAt,
+      });
+      
+      // Update last login
+      await storage.updateCustomer(customer.id, {
+        lastPortalLogin: new Date(),
+      });
+      
+      res.json({
+        success: true,
+        token: sessionToken,
+        customer: {
+          id: customer.id,
+          name: customer.name,
+          phone: customer.phone,
+          email: customer.email,
+        },
+      });
+    } catch (error) {
+      console.error("Customer login error:", error);
+      res.status(500).json({ message: "Failed to login" });
+    }
+  });
+  
+  // Set up password for first time
+  app.post("/api/customer-portal/setup-password", async (req, res) => {
+    try {
+      const { phone, password, confirmPassword } = req.body;
+      
+      if (!phone || !password || !confirmPassword) {
+        return res.status(400).json({ message: "Phone, password and confirmation are required" });
+      }
+      
+      if (password !== confirmPassword) {
+        return res.status(400).json({ message: "Passwords do not match" });
+      }
+      
+      if (password.length < 6) {
+        return res.status(400).json({ message: "Password must be at least 6 characters" });
+      }
+      
+      const customer = await storage.getCustomerByPhone(phone);
+      if (!customer) {
+        return res.status(404).json({ message: "No customer found with this phone number" });
+      }
+      
+      if (!customer.portalEnabled) {
+        return res.status(403).json({ message: "Portal access not enabled. Please contact your DDP." });
+      }
+      
+      if (customer.passwordHash) {
+        return res.status(400).json({ message: "Password already set. Use forgot password to reset." });
+      }
+      
+      // Hash and save password
+      const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+      await storage.updateCustomer(customer.id, {
+        passwordHash: hashedPassword,
+        passwordSetAt: new Date(),
+      });
+      
+      // Auto-login after setup
+      const crypto = require("crypto");
+      const sessionToken = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+      
+      await storage.createCustomerSession({
+        customerId: customer.id,
+        sessionToken,
+        expiresAt,
+      });
+      
+      await storage.updateCustomer(customer.id, {
+        lastPortalLogin: new Date(),
+      });
+      
+      res.json({
+        success: true,
+        token: sessionToken,
+        customer: {
+          id: customer.id,
+          name: customer.name,
+          phone: customer.phone,
+          email: customer.email,
+        },
+      });
+    } catch (error) {
+      console.error("Password setup error:", error);
+      res.status(500).json({ message: "Failed to set up password" });
+    }
+  });
+  
+  // Request OTP for password reset (keeping for password recovery)
   app.post("/api/customer-portal/request-otp", async (req, res) => {
     try {
       const { phone } = req.body;
@@ -443,48 +600,15 @@ export async function registerRoutes(
         otpExpiry,
       });
       
-      // Send OTP via SMS
-      const twilioSid = process.env.TWILIO_ACCOUNT_SID;
-      const twilioToken = process.env.TWILIO_AUTH_TOKEN;
-      const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
-      
-      let smsSent = false;
-      let smsError = null;
-      
-      if (twilioSid && twilioToken && twilioPhone) {
-        try {
-          const twilio = require("twilio")(twilioSid, twilioToken);
-          const formattedPhone = phone.startsWith("+") ? phone : `+91${phone.replace(/^0+/, '')}`;
-          const formattedFrom = twilioPhone.startsWith("+") ? twilioPhone : `+${twilioPhone}`;
-          console.log(`[OTP] Sending SMS to ${formattedPhone} from ${formattedFrom}`);
-          console.log(`[OTP] Twilio SID: ${twilioSid.substring(0, 10)}...`);
-          
-          const message = await twilio.messages.create({
-            body: `Your DivyanshiSolar customer portal OTP is: ${otp}. Valid for 10 minutes.`,
-            from: formattedFrom,
-            to: formattedPhone,
-          });
-          console.log(`[OTP] SMS sent - SID: ${message.sid}, Status: ${message.status}, To: ${message.to}, From: ${message.from}`);
-          smsSent = true;
-        } catch (err: any) {
-          console.error("[OTP] SMS send error:", err?.message || err);
-          console.error("[OTP] Full error:", JSON.stringify(err, null, 2));
-          smsError = err?.message || "Failed to send SMS";
-        }
-      } else {
-        console.warn("[OTP] Twilio not configured - missing credentials");
-        console.warn(`[OTP] SID: ${twilioSid ? 'set' : 'missing'}, Token: ${twilioToken ? 'set' : 'missing'}, Phone: ${twilioPhone ? 'set' : 'missing'}`);
-        smsError = "SMS service not configured";
-      }
-      
-      // For development/testing, log the OTP
-      console.log(`Customer portal OTP for ${phone}: ${otp} (expires in 10 minutes)`);
+      // For development, log the OTP (in production, send via SMS)
+      console.log(`[PASSWORD RESET] OTP for ${phone}: ${otp} (expires in 10 minutes)`);
       
       res.json({ 
         success: true, 
         customerName: customer.name,
-        message: smsSent ? "OTP sent successfully" : "OTP generated (SMS delivery issue - check logs)",
-        smsSent,
+        message: "OTP generated for password reset",
+        // In development, include OTP in response for testing
+        ...(process.env.NODE_ENV === 'development' && { devOtp: otp }),
       });
     } catch (error) {
       console.error("Customer portal OTP request error:", error);
@@ -492,7 +616,60 @@ export async function registerRoutes(
     }
   });
   
-  // Verify OTP and create customer session
+  // Reset password with OTP
+  app.post("/api/customer-portal/reset-password", async (req, res) => {
+    try {
+      const { phone, otp, newPassword } = req.body;
+      
+      if (!phone || !otp || !newPassword) {
+        return res.status(400).json({ message: "Phone, OTP and new password are required" });
+      }
+      
+      if (newPassword.length < 6) {
+        return res.status(400).json({ message: "Password must be at least 6 characters" });
+      }
+      
+      const customer = await storage.getCustomerByPhone(phone);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      
+      if (!customer.portalEnabled) {
+        return res.status(403).json({ message: "Portal access not enabled" });
+      }
+      
+      // Check OTP expiry
+      if (!customer.otpExpiry || new Date(customer.otpExpiry) < new Date()) {
+        return res.status(400).json({ message: "OTP has expired. Please request a new one." });
+      }
+      
+      // Verify OTP
+      if (!customer.otpCode) {
+        return res.status(400).json({ message: "No OTP found. Please request a new one." });
+      }
+      
+      const isValidOtp = await bcrypt.compare(otp, customer.otpCode);
+      if (!isValidOtp) {
+        return res.status(400).json({ message: "Invalid OTP" });
+      }
+      
+      // Hash and save new password
+      const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+      await storage.updateCustomer(customer.id, {
+        passwordHash: hashedPassword,
+        passwordSetAt: new Date(),
+        otpCode: null,
+        otpExpiry: null,
+      });
+      
+      res.json({ success: true, message: "Password reset successfully" });
+    } catch (error) {
+      console.error("Password reset error:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+  
+  // Legacy: Verify OTP (kept for backward compatibility, redirects to login)
   app.post("/api/customer-portal/verify-otp", async (req, res) => {
     try {
       const { phone, otp } = req.body;
