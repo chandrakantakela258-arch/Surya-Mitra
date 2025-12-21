@@ -1393,6 +1393,16 @@ export default function LandingPage() {
           <SiInstagram className="w-5 h-5" />
         </a>
         <a 
+          href="https://www.linkedin.com/in/chandrakant-akela-a1479a18" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="w-10 h-10 bg-blue-700 text-white rounded-l-md flex items-center justify-center hover:w-12 transition-all shadow-lg"
+          data-testid="floating-linkedin"
+          title="LinkedIn"
+        >
+          <SiLinkedin className="w-5 h-5" />
+        </a>
+        <a 
           href="https://www.youtube.com/@divyanshidigitalservicespv2324" 
           target="_blank" 
           rel="noopener noreferrer"
