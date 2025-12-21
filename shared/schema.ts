@@ -1283,5 +1283,44 @@ export const insertBankLoanApprovalSchema = createInsertSchema(bankLoanApprovals
 export type InsertBankLoanApproval = z.infer<typeof insertBankLoanApprovalSchema>;
 export type BankLoanApproval = typeof bankLoanApprovals.$inferSelect;
 
+// Loan Disbursements - Track loan disbursement into Divyanshi account (Step 4 of Customer Journey)
+export const loanDisbursements = pgTable("loan_disbursements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").references(() => customers.id),
+  bankLoanApprovalId: varchar("bank_loan_approval_id").references(() => bankLoanApprovals.id),
+  customerName: text("customer_name").notNull(),
+  bankName: text("bank_name").notNull(),
+  bankBranch: text("bank_branch"),
+  disbursementDate: timestamp("disbursement_date").notNull(),
+  disbursementTime: text("disbursement_time"), // Store time as text like "14:30"
+  disbursedAmount: decimal("disbursed_amount", { precision: 12, scale: 2 }).notNull(),
+  transactionReference: text("transaction_reference"), // UTR/NEFT/RTGS reference number
+  divyanshiBankAccount: text("divyanshi_bank_account"), // Receiving account details
+  status: text("status").default("received"), // pending, processing, received, failed, partial
+  remarks: text("remarks"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const loanDisbursementsRelations = relations(loanDisbursements, ({ one }) => ({
+  customer: one(customers, {
+    fields: [loanDisbursements.customerId],
+    references: [customers.id],
+  }),
+  bankLoanApproval: one(bankLoanApprovals, {
+    fields: [loanDisbursements.bankLoanApprovalId],
+    references: [bankLoanApprovals.id],
+  }),
+}));
+
+export const insertLoanDisbursementSchema = createInsertSchema(loanDisbursements).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertLoanDisbursement = z.infer<typeof insertLoanDisbursementSchema>;
+export type LoanDisbursement = typeof loanDisbursements.$inferSelect;
+
 // Re-export chat models for OpenAI integration
 export * from "./models/chat";
