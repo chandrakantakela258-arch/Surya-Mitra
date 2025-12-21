@@ -29,6 +29,7 @@ import {
   Landmark,
   CheckCircle,
   Truck,
+  FileCheck,
 } from "lucide-react";
 import { FeedbackDialog } from "@/components/feedback-dialog";
 import { ChatbotAssistant } from "@/components/chatbot-assistant";
@@ -100,6 +101,7 @@ const adminMenuSections: MenuSection[] = [
       { title: "Step 5: Vendor PO", url: "/admin/vendor-purchase-orders", icon: ShoppingCart },
       { title: "Step 6: Delivery", url: "/admin/goods-deliveries", icon: Truck },
       { title: "Step 7: Installation", url: "/admin/site-execution-orders", icon: Wrench },
+      { title: "Step 8: Completion", url: "/admin/completion-reports", icon: FileCheck },
     ],
   },
   {

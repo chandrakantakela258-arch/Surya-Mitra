@@ -49,6 +49,7 @@ import AdminLoanDisbursements from "@/pages/admin/loan-disbursements";
 import AdminVendorPurchaseOrders from "@/pages/admin/vendor-purchase-orders";
 import AdminGoodsDeliveries from "@/pages/admin/goods-deliveries";
 import AdminSiteExecutionOrders from "@/pages/admin/site-execution-orders";
+import AdminCompletionReports from "@/pages/admin/completion-reports";
 import AdminCustomerFileSubmissions from "@/pages/admin/customer-file-submissions";
 import AdminIndependentCustomers from "@/pages/admin/independent-customers";
 import ProfilePage from "@/pages/profile";
@@ -274,6 +275,13 @@ function AuthenticatedRoutes() {
         <ProtectedRoute allowedRoles={["admin"]}>
           <DashboardLayout>
             <AdminSiteExecutionOrders />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/completion-reports">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminCompletionReports />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
