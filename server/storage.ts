@@ -95,6 +95,9 @@ import {
   type SiteExecutionOrder,
   type InsertSiteExecutionOrder,
   siteExecutionOrders,
+  type SiteExecutionCompletionReport,
+  type InsertSiteExecutionCompletionReport,
+  siteExecutionCompletionReports,
   installationMilestones,
   calculateCommission,
   calculateBdpCommission,
@@ -2311,6 +2314,69 @@ export class DatabaseStorage implements IStorage {
     const orders = await db.select().from(siteExecutionOrders);
     const count = orders.length + 1;
     return `EXO-${year}${month}-${String(count).padStart(4, '0')}`;
+  }
+
+  // Step 8: Site Execution Completion Reports operations
+  async createCompletionReport(report: any): Promise<SiteExecutionCompletionReport> {
+    const reportData = {
+      ...report,
+      completionDate: report.completionDate ? new Date(report.completionDate) : new Date(),
+      submittedAt: report.submittedAt ? new Date(report.submittedAt) : null,
+      reviewedAt: report.reviewedAt ? new Date(report.reviewedAt) : null,
+    };
+    const [created] = await db.insert(siteExecutionCompletionReports).values(reportData).returning();
+    return created;
+  }
+
+  async getCompletionReports(): Promise<SiteExecutionCompletionReport[]> {
+    return await db.select().from(siteExecutionCompletionReports).orderBy(desc(siteExecutionCompletionReports.createdAt));
+  }
+
+  async getCompletionReport(id: string): Promise<SiteExecutionCompletionReport | undefined> {
+    const [report] = await db.select().from(siteExecutionCompletionReports).where(eq(siteExecutionCompletionReports.id, id));
+    return report || undefined;
+  }
+
+  async getCompletionReportByOrderId(executionOrderId: string): Promise<SiteExecutionCompletionReport | undefined> {
+    const [report] = await db.select().from(siteExecutionCompletionReports)
+      .where(eq(siteExecutionCompletionReports.executionOrderId, executionOrderId));
+    return report || undefined;
+  }
+
+  async getCompletionReportsByVendorId(vendorId: string): Promise<SiteExecutionCompletionReport[]> {
+    return await db.select().from(siteExecutionCompletionReports)
+      .where(eq(siteExecutionCompletionReports.vendorId, vendorId))
+      .orderBy(desc(siteExecutionCompletionReports.createdAt));
+  }
+
+  async updateCompletionReport(id: string, data: Partial<SiteExecutionCompletionReport>): Promise<SiteExecutionCompletionReport | undefined> {
+    const updateData: any = { ...data, updatedAt: new Date() };
+    if (data.completionDate && typeof data.completionDate === 'string') {
+      updateData.completionDate = new Date(data.completionDate);
+    }
+    if (data.submittedAt && typeof data.submittedAt === 'string') {
+      updateData.submittedAt = new Date(data.submittedAt);
+    }
+    if (data.reviewedAt && typeof data.reviewedAt === 'string') {
+      updateData.reviewedAt = new Date(data.reviewedAt);
+    }
+    const [updated] = await db.update(siteExecutionCompletionReports)
+      .set(updateData)
+      .where(eq(siteExecutionCompletionReports.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteCompletionReport(id: string): Promise<void> {
+    await db.delete(siteExecutionCompletionReports).where(eq(siteExecutionCompletionReports.id, id));
+  }
+
+  async generateCompletionReportNumber(): Promise<string> {
+    const year = new Date().getFullYear();
+    const month = String(new Date().getMonth() + 1).padStart(2, '0');
+    const reports = await db.select().from(siteExecutionCompletionReports);
+    const count = reports.length + 1;
+    return `CRP-${year}${month}-${String(count).padStart(4, '0')}`;
   }
 }
 

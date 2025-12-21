@@ -1647,5 +1647,106 @@ export const insertSiteExecutionOrderSchema = createInsertSchema(siteExecutionOr
 export type InsertSiteExecutionOrder = z.infer<typeof insertSiteExecutionOrderSchema>;
 export type SiteExecutionOrder = typeof siteExecutionOrders.$inferSelect;
 
+// Step 8: Site Execution Completion Reports - Vendor uploads completion report with pictures
+export const siteExecutionCompletionReports = pgTable("site_execution_completion_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  reportNumber: text("report_number").notNull().unique(),
+  executionOrderId: varchar("execution_order_id").references(() => siteExecutionOrders.id).notNull(),
+  vendorId: varchar("vendor_id").references(() => vendors.id),
+  
+  // Basic Info
+  customerName: text("customer_name").notNull(),
+  siteAddress: text("site_address").notNull(),
+  completionDate: timestamp("completion_date").notNull(),
+  
+  // Work Summary
+  workSummary: text("work_summary"),
+  scopeCompletedAs: text("scope_completed_as"), // as_planned, with_modifications, partial
+  deviationsNotes: text("deviations_notes"),
+  
+  // Materials & Labor
+  materialsUsed: text("materials_used"),
+  extraMaterialsUsed: text("extra_materials_used"),
+  totalWorkHours: integer("total_work_hours"),
+  crewSize: integer("crew_size"),
+  
+  // Installation Details
+  panelsInstalled: integer("panels_installed"),
+  inverterInstalled: text("inverter_installed"),
+  wiringCompleted: boolean("wiring_completed").default(false),
+  earthingCompleted: boolean("earthing_completed").default(false),
+  meterConnected: boolean("meter_connected").default(false),
+  gridSyncCompleted: boolean("grid_sync_completed").default(false),
+  
+  // Photo Uploads (URLs stored as array)
+  beforePhotos: text("before_photos").array(),
+  duringPhotos: text("during_photos").array(),
+  afterPhotos: text("after_photos").array(),
+  panelPhotos: text("panel_photos").array(),
+  inverterPhotos: text("inverter_photos").array(),
+  wiringPhotos: text("wiring_photos").array(),
+  meterPhotos: text("meter_photos").array(),
+  
+  // Energy Readings
+  meterReading: text("meter_reading"),
+  generationTestPassed: boolean("generation_test_passed").default(false),
+  testReadingKw: text("test_reading_kw"),
+  
+  // Quality & Safety Checklist
+  qualityChecklistCompleted: boolean("quality_checklist_completed").default(false),
+  safetyChecklistCompleted: boolean("safety_checklist_completed").default(false),
+  cleanupCompleted: boolean("cleanup_completed").default(false),
+  customerBriefingDone: boolean("customer_briefing_done").default(false),
+  
+  // Customer Acknowledgment
+  customerSignature: text("customer_signature"), // base64 or URL
+  customerName2: text("customer_name_signed"),
+  customerPhone: text("customer_phone"),
+  customerFeedback: text("customer_feedback"),
+  customerRating: integer("customer_rating"), // 1-5
+  
+  // Vendor Acknowledgment
+  vendorRepName: text("vendor_rep_name"),
+  vendorRepPhone: text("vendor_rep_phone"),
+  vendorSignature: text("vendor_signature"), // base64 or URL
+  
+  // Report Status & Review
+  status: text("status").default("draft"), // draft, submitted, under_review, approved, rejected
+  submittedAt: timestamp("submitted_at"),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewedBy: varchar("reviewed_by"),
+  reviewNotes: text("review_notes"),
+  rejectionReason: text("rejection_reason"),
+  
+  remarks: text("remarks"),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const siteExecutionCompletionReportsRelations = relations(siteExecutionCompletionReports, ({ one }) => ({
+  executionOrder: one(siteExecutionOrders, {
+    fields: [siteExecutionCompletionReports.executionOrderId],
+    references: [siteExecutionOrders.id],
+  }),
+  vendor: one(vendors, {
+    fields: [siteExecutionCompletionReports.vendorId],
+    references: [vendors.id],
+  }),
+}));
+
+export const insertSiteExecutionCompletionReportSchema = createInsertSchema(siteExecutionCompletionReports).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  completionDate: z.string().min(1, "Completion date is required"),
+  submittedAt: z.string().optional(),
+  reviewedAt: z.string().optional(),
+});
+
+export type InsertSiteExecutionCompletionReport = z.infer<typeof insertSiteExecutionCompletionReportSchema>;
+export type SiteExecutionCompletionReport = typeof siteExecutionCompletionReports.$inferSelect;
+
 // Re-export chat models for OpenAI integration
 export * from "./models/chat";
