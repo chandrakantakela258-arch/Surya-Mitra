@@ -28,6 +28,7 @@ import {
   Wrench,
   Landmark,
   CheckCircle,
+  Truck,
 } from "lucide-react";
 import { FeedbackDialog } from "@/components/feedback-dialog";
 import { ChatbotAssistant } from "@/components/chatbot-assistant";
@@ -97,6 +98,7 @@ const adminMenuSections: MenuSection[] = [
       { title: "Step 3: Loan Approval", url: "/admin/bank-loan-approvals", icon: CheckCircle },
       { title: "Step 4: Disbursement", url: "/admin/loan-disbursements", icon: Wallet },
       { title: "Step 5: Vendor PO", url: "/admin/vendor-purchase-orders", icon: ShoppingCart },
+      { title: "Step 6: Delivery", url: "/admin/goods-deliveries", icon: Truck },
     ],
   },
   {
