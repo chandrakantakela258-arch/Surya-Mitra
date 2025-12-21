@@ -1035,14 +1035,17 @@ export async function registerRoutes(
     try {
       const { id } = req.params;
       const user = (req as any).user;
+      console.log("Lead score request for customer:", id);
       
       const customer = await storage.getCustomer(id);
       if (!customer) {
+        console.log("Customer not found:", id);
         return res.status(404).json({ message: "Customer not found" });
       }
       
       // Verify access based on role hierarchy
       if (user.role === "ddp" && customer.ddpId !== user.id) {
+        console.log("Access denied for DDP:", user.id);
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -1050,15 +1053,19 @@ export async function registerRoutes(
       if (user.role === "bdp") {
         const ddp = await storage.getUser(customer.ddpId);
         if (!ddp || ddp.parentId !== user.id) {
+          console.log("Access denied for BDP:", user.id);
           return res.status(403).json({ message: "Access denied" });
         }
       }
       
+      console.log("Calculating lead score for:", customer.name);
       // Calculate lead score using AI
       const scoreResult = await calculateLeadScore(customer);
+      console.log("Lead score result:", JSON.stringify(scoreResult).substring(0, 200));
       
       // Validate score result before storing
       if (typeof scoreResult.score !== "number" || scoreResult.score < 0 || scoreResult.score > 100) {
+        console.log("Invalid score generated:", scoreResult.score);
         return res.status(500).json({ message: "Invalid score generated" });
       }
       
@@ -1067,6 +1074,7 @@ export async function registerRoutes(
       }
       
       // Save the score to database
+      console.log("Saving lead score to database:", scoreResult.score);
       await storage.updateCustomerLeadScore(id, scoreResult.score, JSON.stringify(scoreResult));
       
       res.json(scoreResult);
