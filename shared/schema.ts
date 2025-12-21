@@ -90,6 +90,13 @@ export const customers = pgTable("customers", {
   source: text("source"), // website_direct, website_referral, partner (null means partner-added)
   referrerCustomerId: varchar("referrer_customer_id"), // For customer-to-customer referrals
   
+  // Customer Portal Access
+  portalEnabled: boolean("portal_enabled").default(false), // Whether customer can access portal
+  portalAccessCode: text("portal_access_code"), // UUID for unique portal link
+  otpCode: text("otp_code"), // Hashed OTP for authentication
+  otpExpiry: timestamp("otp_expiry"), // OTP expiration time
+  lastPortalLogin: timestamp("last_portal_login"),
+  
   // Timestamps
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -111,6 +118,19 @@ export const milestones = pgTable("milestones", {
   status: text("status").notNull().default("pending"), // pending, completed
   completedAt: timestamp("completed_at"),
   notes: text("notes"),
+  internalNotes: text("internal_notes"), // Notes only visible to admins/partners
+  visibleToCustomer: boolean("visible_to_customer").default(true), // Whether this milestone is visible in customer portal
+  updatedByRole: text("updated_by_role"), // admin, bdp, ddp
+  updatedById: varchar("updated_by_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Customer Portal Sessions (for OTP-based login)
+export const customerSessions = pgTable("customer_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").notNull(),
+  sessionToken: text("session_token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -581,6 +601,11 @@ export const insertCustomerSchema = createInsertSchema(customers).omit({
 });
 
 export const insertMilestoneSchema = createInsertSchema(milestones).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertCustomerSessionSchema = createInsertSchema(customerSessions).omit({
   id: true,
   createdAt: true,
 });
