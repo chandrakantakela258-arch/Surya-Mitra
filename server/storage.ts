@@ -23,6 +23,8 @@ import {
   notificationTemplates,
   vendors,
   siteExpenses,
+  bankLoanSubmissions,
+  passwordResetOtps,
   type User, 
   type InsertUser, 
   type Customer, 
@@ -71,6 +73,10 @@ import {
   type InsertVendor,
   type SiteExpense,
   type InsertSiteExpense,
+  type BankLoanSubmission,
+  type InsertBankLoanSubmission,
+  type PasswordResetOtp,
+  type InsertPasswordResetOtp,
   installationMilestones,
   calculateCommission,
   calculateBdpCommission,
@@ -308,6 +314,20 @@ export interface IStorage {
   getSiteExpenseBySiteId(siteId: string): Promise<SiteExpense | undefined>;
   updateSiteExpense(id: string, data: Partial<SiteExpense>): Promise<SiteExpense | undefined>;
   generateSiteId(): Promise<string>;
+  
+  // Bank Loan Submission operations
+  createBankLoanSubmission(submission: InsertBankLoanSubmission): Promise<BankLoanSubmission>;
+  getBankLoanSubmissions(): Promise<BankLoanSubmission[]>;
+  getBankLoanSubmission(id: string): Promise<BankLoanSubmission | undefined>;
+  getBankLoanSubmissionsByCustomerId(customerId: string): Promise<BankLoanSubmission[]>;
+  updateBankLoanSubmission(id: string, data: Partial<BankLoanSubmission>): Promise<BankLoanSubmission | undefined>;
+  deleteBankLoanSubmission(id: string): Promise<void>;
+  
+  // Password Reset OTP operations
+  createPasswordResetOtp(otp: InsertPasswordResetOtp): Promise<PasswordResetOtp>;
+  getPasswordResetOtp(phone: string): Promise<PasswordResetOtp | undefined>;
+  markPasswordResetOtpUsed(id: string): Promise<void>;
+  deleteExpiredPasswordResetOtps(): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1883,6 +1903,68 @@ export class DatabaseStorage implements IStorage {
       .where(eq(siteExpenses.id, id))
       .returning();
     return updated || undefined;
+  }
+  
+  // Bank Loan Submission operations
+  async createBankLoanSubmission(submission: InsertBankLoanSubmission): Promise<BankLoanSubmission> {
+    const [created] = await db.insert(bankLoanSubmissions).values(submission).returning();
+    return created;
+  }
+  
+  async getBankLoanSubmissions(): Promise<BankLoanSubmission[]> {
+    return await db.select().from(bankLoanSubmissions).orderBy(desc(bankLoanSubmissions.createdAt));
+  }
+  
+  async getBankLoanSubmission(id: string): Promise<BankLoanSubmission | undefined> {
+    const [submission] = await db.select().from(bankLoanSubmissions).where(eq(bankLoanSubmissions.id, id));
+    return submission || undefined;
+  }
+  
+  async getBankLoanSubmissionsByCustomerId(customerId: string): Promise<BankLoanSubmission[]> {
+    return await db.select().from(bankLoanSubmissions)
+      .where(eq(bankLoanSubmissions.customerId, customerId))
+      .orderBy(desc(bankLoanSubmissions.createdAt));
+  }
+  
+  async updateBankLoanSubmission(id: string, data: Partial<BankLoanSubmission>): Promise<BankLoanSubmission | undefined> {
+    const [updated] = await db.update(bankLoanSubmissions)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(bankLoanSubmissions.id, id))
+      .returning();
+    return updated || undefined;
+  }
+  
+  async deleteBankLoanSubmission(id: string): Promise<void> {
+    await db.delete(bankLoanSubmissions).where(eq(bankLoanSubmissions.id, id));
+  }
+  
+  // Password Reset OTP operations
+  async createPasswordResetOtp(otp: InsertPasswordResetOtp): Promise<PasswordResetOtp> {
+    // First delete any existing OTPs for this phone
+    await db.delete(passwordResetOtps).where(eq(passwordResetOtps.phone, otp.phone));
+    const [created] = await db.insert(passwordResetOtps).values(otp).returning();
+    return created;
+  }
+  
+  async getPasswordResetOtp(phone: string): Promise<PasswordResetOtp | undefined> {
+    const [otp] = await db.select().from(passwordResetOtps)
+      .where(and(
+        eq(passwordResetOtps.phone, phone),
+        eq(passwordResetOtps.used, false)
+      ))
+      .orderBy(desc(passwordResetOtps.createdAt));
+    return otp || undefined;
+  }
+  
+  async markPasswordResetOtpUsed(id: string): Promise<void> {
+    await db.update(passwordResetOtps)
+      .set({ used: true })
+      .where(eq(passwordResetOtps.id, id));
+  }
+  
+  async deleteExpiredPasswordResetOtps(): Promise<void> {
+    await db.delete(passwordResetOtps)
+      .where(sql`${passwordResetOtps.expiresAt} < NOW()`);
   }
 }
 

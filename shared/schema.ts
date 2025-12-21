@@ -1132,5 +1132,76 @@ export const siteExpenseCategories = [
   { key: "miscellaneousExpense", label: "Miscellaneous Expense", group: "other" },
 ];
 
+// Bank Loan Submissions - Track bank loan applications for customers
+export const bankLoanSubmissions = pgTable("bank_loan_submissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").notNull(),
+  
+  // Bank Details
+  bankName: text("bank_name").notNull(),
+  bankBranch: text("bank_branch").notNull(),
+  bankManagerName: text("bank_manager_name"),
+  bankManagerMobile: text("bank_manager_mobile"),
+  
+  // Submission Details
+  submissionDate: timestamp("submission_date").notNull(),
+  status: text("status").notNull().default("submitted"), // submitted, processing, approved, rejected, disbursed
+  loanAmount: decimal("loan_amount", { precision: 12, scale: 2 }),
+  remarks: text("remarks"),
+  
+  // Tracking
+  createdBy: varchar("created_by").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const bankLoanSubmissionsRelations = relations(bankLoanSubmissions, ({ one }) => ({
+  customer: one(customers, {
+    fields: [bankLoanSubmissions.customerId],
+    references: [customers.id],
+  }),
+  creator: one(users, {
+    fields: [bankLoanSubmissions.createdBy],
+    references: [users.id],
+  }),
+}));
+
+export const insertBankLoanSubmissionSchema = createInsertSchema(bankLoanSubmissions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertBankLoanSubmission = z.infer<typeof insertBankLoanSubmissionSchema>;
+export type BankLoanSubmission = typeof bankLoanSubmissions.$inferSelect;
+
+// Password Reset OTPs - Store OTPs for password reset
+export const passwordResetOtps = pgTable("password_reset_otps", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  phone: text("phone").notNull(),
+  otp: text("otp").notNull(),
+  resetToken: text("reset_token"),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPasswordResetOtpSchema = createInsertSchema(passwordResetOtps).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertPasswordResetOtp = z.infer<typeof insertPasswordResetOtpSchema>;
+export type PasswordResetOtp = typeof passwordResetOtps.$inferSelect;
+
+// Bank loan submission statuses
+export const bankLoanStatuses = [
+  { value: "submitted", label: "Submitted" },
+  { value: "processing", label: "Processing" },
+  { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" },
+  { value: "disbursed", label: "Disbursed" },
+];
+
 // Re-export chat models for OpenAI integration
 export * from "./models/chat";

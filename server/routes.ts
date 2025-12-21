@@ -243,10 +243,7 @@ export async function registerRoutes(
 
   // ==================== FORGOT PASSWORD ROUTES ====================
   
-  // In-memory OTP storage (in production, use Redis or database)
-  const otpStore: Map<string, { otp: string; expires: number; resetToken?: string }> = new Map();
-  
-  // Send OTP for password reset
+  // Send OTP for password reset (uses database storage for persistence)
   app.post("/api/auth/forgot-password/send-otp", async (req, res) => {
     try {
       const { phone } = req.body;
@@ -263,10 +260,14 @@ export async function registerRoutes(
       
       // Generate 6-digit OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      const expires = Date.now() + 10 * 60 * 1000; // 10 minutes
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
       
-      // Store OTP
-      otpStore.set(phone, { otp, expires });
+      // Store OTP in database (replaces any existing OTP for this phone)
+      await storage.createPasswordResetOtp({
+        phone,
+        otp,
+        expiresAt,
+      });
       
       // Send OTP via Twilio SMS
       const twilioSid = process.env.TWILIO_ACCOUNT_SID;
@@ -307,24 +308,32 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Phone and OTP are required" });
       }
       
-      const storedData = otpStore.get(phone);
-      if (!storedData) {
+      // Get OTP from database
+      const storedOtp = await storage.getPasswordResetOtp(phone);
+      if (!storedOtp) {
         return res.status(400).json({ message: "OTP not found. Please request a new one." });
       }
       
-      if (Date.now() > storedData.expires) {
-        otpStore.delete(phone);
+      if (new Date() > new Date(storedOtp.expiresAt)) {
+        await storage.markPasswordResetOtpUsed(storedOtp.id);
         return res.status(400).json({ message: "OTP has expired. Please request a new one." });
       }
       
-      if (storedData.otp !== otp) {
+      if (storedOtp.otp !== otp) {
         return res.status(400).json({ message: "Invalid OTP. Please try again." });
       }
       
-      // Generate reset token
+      // Generate reset token and update in database
       const resetToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
-      storedData.resetToken = resetToken;
-      storedData.expires = Date.now() + 15 * 60 * 1000; // 15 minutes for password reset
+      const newExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes for password reset
+      
+      // Update the OTP record with reset token
+      await storage.createPasswordResetOtp({
+        phone,
+        otp: storedOtp.otp,
+        resetToken,
+        expiresAt: newExpiresAt,
+      });
       
       res.json({ 
         success: true, 
@@ -350,13 +359,14 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Password must be at least 6 characters" });
       }
       
-      const storedData = otpStore.get(phone);
-      if (!storedData || storedData.resetToken !== resetToken) {
+      // Get OTP from database and verify reset token
+      const storedOtp = await storage.getPasswordResetOtp(phone);
+      if (!storedOtp || storedOtp.resetToken !== resetToken) {
         return res.status(400).json({ message: "Invalid reset token. Please start again." });
       }
       
-      if (Date.now() > storedData.expires) {
-        otpStore.delete(phone);
+      if (new Date() > new Date(storedOtp.expiresAt)) {
+        await storage.markPasswordResetOtpUsed(storedOtp.id);
         return res.status(400).json({ message: "Reset token has expired. Please start again." });
       }
       
@@ -372,8 +382,8 @@ export async function registerRoutes(
       // Update user password
       await storage.updateUser(user.id, { password: hashedPassword });
       
-      // Clean up OTP store
-      otpStore.delete(phone);
+      // Mark OTP as used
+      await storage.markPasswordResetOtpUsed(storedOtp.id);
       
       res.json({ 
         success: true, 
@@ -3161,6 +3171,105 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Get site expense by customer error:", error);
       res.status(500).json({ message: "Failed to get site expense" });
+    }
+  });
+
+  // ==================== BANK LOAN SUBMISSION ROUTES ====================
+  
+  // Admin: Get all bank loan submissions
+  app.get("/api/admin/bank-loan-submissions", requireAdmin, async (req, res) => {
+    try {
+      const submissions = await storage.getBankLoanSubmissions();
+      res.json(submissions);
+    } catch (error) {
+      console.error("Get bank loan submissions error:", error);
+      res.status(500).json({ message: "Failed to get bank loan submissions" });
+    }
+  });
+  
+  // Admin: Get bank loan submission by ID
+  app.get("/api/admin/bank-loan-submissions/:id", requireAdmin, async (req, res) => {
+    try {
+      const submission = await storage.getBankLoanSubmission(req.params.id);
+      if (!submission) {
+        return res.status(404).json({ message: "Bank loan submission not found" });
+      }
+      res.json(submission);
+    } catch (error) {
+      console.error("Get bank loan submission error:", error);
+      res.status(500).json({ message: "Failed to get bank loan submission" });
+    }
+  });
+  
+  // Admin: Create bank loan submission
+  app.post("/api/admin/bank-loan-submissions", requireAdmin, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { customerId, bankName, bankBranch, bankManagerName, bankManagerMobile, submissionDate, loanAmount, remarks } = req.body;
+      
+      if (!customerId || !bankName || !bankBranch || !submissionDate) {
+        return res.status(400).json({ message: "Customer, bank name, branch, and submission date are required" });
+      }
+      
+      // Verify customer exists
+      const customer = await storage.getCustomer(customerId);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      
+      const submission = await storage.createBankLoanSubmission({
+        customerId,
+        bankName,
+        bankBranch,
+        bankManagerName: bankManagerName || null,
+        bankManagerMobile: bankManagerMobile || null,
+        submissionDate: new Date(submissionDate),
+        loanAmount: loanAmount || null,
+        remarks: remarks || null,
+        status: "submitted",
+        createdBy: user.id,
+      });
+      
+      res.status(201).json(submission);
+    } catch (error) {
+      console.error("Create bank loan submission error:", error);
+      res.status(500).json({ message: "Failed to create bank loan submission" });
+    }
+  });
+  
+  // Admin: Update bank loan submission
+  app.patch("/api/admin/bank-loan-submissions/:id", requireAdmin, async (req, res) => {
+    try {
+      const submission = await storage.updateBankLoanSubmission(req.params.id, req.body);
+      if (!submission) {
+        return res.status(404).json({ message: "Bank loan submission not found" });
+      }
+      res.json(submission);
+    } catch (error) {
+      console.error("Update bank loan submission error:", error);
+      res.status(500).json({ message: "Failed to update bank loan submission" });
+    }
+  });
+  
+  // Admin: Delete bank loan submission
+  app.delete("/api/admin/bank-loan-submissions/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteBankLoanSubmission(req.params.id);
+      res.json({ message: "Bank loan submission deleted" });
+    } catch (error) {
+      console.error("Delete bank loan submission error:", error);
+      res.status(500).json({ message: "Failed to delete bank loan submission" });
+    }
+  });
+  
+  // Admin: Get bank loan submissions by customer ID
+  app.get("/api/admin/customers/:customerId/bank-loan-submissions", requireAdmin, async (req, res) => {
+    try {
+      const submissions = await storage.getBankLoanSubmissionsByCustomerId(req.params.customerId);
+      res.json(submissions);
+    } catch (error) {
+      console.error("Get customer bank loan submissions error:", error);
+      res.status(500).json({ message: "Failed to get bank loan submissions" });
     }
   });
 
