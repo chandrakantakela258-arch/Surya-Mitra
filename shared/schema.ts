@@ -1283,6 +1283,14 @@ export const insertBankLoanApprovalSchema = createInsertSchema(bankLoanApprovals
 export type InsertBankLoanApproval = z.infer<typeof insertBankLoanApprovalSchema>;
 export type BankLoanApproval = typeof bankLoanApprovals.$inferSelect;
 
+export const loanDisbursementStatuses = [
+  { value: "pending", label: "Pending" },
+  { value: "processing", label: "Processing" },
+  { value: "received", label: "Received" },
+  { value: "partial", label: "Partial" },
+  { value: "failed", label: "Failed" },
+];
+
 // Loan Disbursements - Track loan disbursement into Divyanshi account (Step 4 of Customer Journey)
 export const loanDisbursements = pgTable("loan_disbursements", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
