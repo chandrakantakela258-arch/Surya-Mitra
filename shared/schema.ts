@@ -1520,5 +1520,132 @@ export const insertGoodsDeliverySchema = createInsertSchema(goodsDeliveries).omi
 export type InsertGoodsDelivery = z.infer<typeof insertGoodsDeliverySchema>;
 export type GoodsDelivery = typeof goodsDeliveries.$inferSelect;
 
+// Step 7: Site Execution Orders to Vendors
+export const siteExecutionOrderStatuses = [
+  { value: "draft", label: "Draft" },
+  { value: "assigned", label: "Assigned" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "completed", label: "Completed" },
+  { value: "on_hold", label: "On Hold" },
+  { value: "cancelled", label: "Cancelled" },
+] as const;
+
+export const siteExecutionOrders = pgTable("site_execution_orders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orderNumber: text("order_number").notNull().unique(),
+  customerId: varchar("customer_id").references(() => customers.id),
+  vendorId: varchar("vendor_id").references(() => vendors.id),
+  purchaseOrderId: varchar("purchase_order_id").references(() => vendorPurchaseOrders.id),
+  deliveryId: varchar("delivery_id").references(() => goodsDeliveries.id),
+  
+  // Customer & Site Info
+  customerName: text("customer_name").notNull(),
+  customerPhone: text("customer_phone"),
+  siteAddress: text("site_address").notNull(),
+  district: text("district"),
+  state: text("state"),
+  pincode: text("pincode"),
+  
+  // Vendor Info
+  vendorName: text("vendor_name"),
+  vendorContactPerson: text("vendor_contact_person"),
+  vendorPhone: text("vendor_phone"),
+  
+  // Scheduling
+  scheduledStartDate: timestamp("scheduled_start_date").notNull(),
+  scheduledEndDate: timestamp("scheduled_end_date"),
+  actualStartDate: timestamp("actual_start_date"),
+  actualEndDate: timestamp("actual_end_date"),
+  estimatedDuration: integer("estimated_duration"), // in hours
+  
+  // Crew Assignment
+  crewLeadName: text("crew_lead_name"),
+  crewLeadPhone: text("crew_lead_phone"),
+  crewSize: integer("crew_size"),
+  crewMembers: text("crew_members").array(),
+  
+  // Scope of Work
+  scopeOfWork: text("scope_of_work"),
+  workDescription: text("work_description"),
+  panelType: text("panel_type"),
+  panelCapacity: text("panel_capacity"),
+  inverterType: text("inverter_type"),
+  numberOfPanels: integer("number_of_panels"),
+  
+  // Required Resources
+  requiredMaterials: text("required_materials").array(),
+  requiredTools: text("required_tools").array(),
+  specialInstructions: text("special_instructions"),
+  
+  // Safety & Compliance
+  safetyChecklistCompleted: boolean("safety_checklist_completed").default(false),
+  safetyNotes: text("safety_notes"),
+  permitsRequired: text("permits_required").array(),
+  permitsObtained: boolean("permits_obtained").default(false),
+  
+  // Status & Progress
+  status: text("status").default("draft"), // draft, assigned, in_progress, completed, on_hold, cancelled
+  progressPercentage: integer("progress_percentage").default(0),
+  progressNotes: text("progress_notes"),
+  
+  // Quality Checks
+  qualityCheckCompleted: boolean("quality_check_completed").default(false),
+  qualityCheckNotes: text("quality_check_notes"),
+  qualityCheckDate: timestamp("quality_check_date"),
+  qualityCheckedBy: text("quality_checked_by"),
+  
+  // Completion
+  completionCertificate: text("completion_certificate"), // URL
+  completionPhotos: text("completion_photos").array(),
+  customerSignoff: text("customer_signoff"), // URL or base64
+  customerSignoffDate: timestamp("customer_signoff_date"),
+  customerFeedback: text("customer_feedback"),
+  customerRating: integer("customer_rating"), // 1-5
+  
+  // Hold/Cancel Reasons
+  holdReason: text("hold_reason"),
+  cancelReason: text("cancel_reason"),
+  
+  remarks: text("remarks"),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const siteExecutionOrdersRelations = relations(siteExecutionOrders, ({ one }) => ({
+  customer: one(customers, {
+    fields: [siteExecutionOrders.customerId],
+    references: [customers.id],
+  }),
+  vendor: one(vendors, {
+    fields: [siteExecutionOrders.vendorId],
+    references: [vendors.id],
+  }),
+  purchaseOrder: one(vendorPurchaseOrders, {
+    fields: [siteExecutionOrders.purchaseOrderId],
+    references: [vendorPurchaseOrders.id],
+  }),
+  delivery: one(goodsDeliveries, {
+    fields: [siteExecutionOrders.deliveryId],
+    references: [goodsDeliveries.id],
+  }),
+}));
+
+export const insertSiteExecutionOrderSchema = createInsertSchema(siteExecutionOrders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  scheduledStartDate: z.string().min(1, "Scheduled start date is required"),
+  scheduledEndDate: z.string().optional(),
+  actualStartDate: z.string().optional(),
+  actualEndDate: z.string().optional(),
+  qualityCheckDate: z.string().optional(),
+  customerSignoffDate: z.string().optional(),
+});
+
+export type InsertSiteExecutionOrder = z.infer<typeof insertSiteExecutionOrderSchema>;
+export type SiteExecutionOrder = typeof siteExecutionOrders.$inferSelect;
+
 // Re-export chat models for OpenAI integration
 export * from "./models/chat";
