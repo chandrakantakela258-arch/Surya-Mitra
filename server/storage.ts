@@ -83,6 +83,9 @@ import {
   type BankLoanApproval,
   type InsertBankLoanApproval,
   bankLoanApprovals,
+  type LoanDisbursement,
+  type InsertLoanDisbursement,
+  loanDisbursements,
   installationMilestones,
   calculateCommission,
   calculateBdpCommission,
@@ -344,6 +347,14 @@ export interface IStorage {
   getBankLoanApprovalsByCustomerId(customerId: string): Promise<BankLoanApproval[]>;
   updateBankLoanApproval(id: string, data: Partial<BankLoanApproval>): Promise<BankLoanApproval | undefined>;
   deleteBankLoanApproval(id: string): Promise<void>;
+  
+  // Loan Disbursement operations (Step 4 of Customer Journey)
+  createLoanDisbursement(disbursement: InsertLoanDisbursement): Promise<LoanDisbursement>;
+  getLoanDisbursements(): Promise<LoanDisbursement[]>;
+  getLoanDisbursement(id: string): Promise<LoanDisbursement | undefined>;
+  getLoanDisbursementsByCustomerId(customerId: string): Promise<LoanDisbursement[]>;
+  updateLoanDisbursement(id: string, data: Partial<LoanDisbursement>): Promise<LoanDisbursement | undefined>;
+  deleteLoanDisbursement(id: string): Promise<void>;
   
   // Password Reset OTP operations
   createPasswordResetOtp(otp: InsertPasswordResetOtp): Promise<PasswordResetOtp>;
@@ -2053,6 +2064,39 @@ export class DatabaseStorage implements IStorage {
 
   async deleteBankLoanApproval(id: string): Promise<void> {
     await db.delete(bankLoanApprovals).where(eq(bankLoanApprovals.id, id));
+  }
+
+  // Loan Disbursement operations (Step 4)
+  async createLoanDisbursement(disbursement: InsertLoanDisbursement): Promise<LoanDisbursement> {
+    const [created] = await db.insert(loanDisbursements).values(disbursement).returning();
+    return created;
+  }
+
+  async getLoanDisbursements(): Promise<LoanDisbursement[]> {
+    return await db.select().from(loanDisbursements).orderBy(desc(loanDisbursements.createdAt));
+  }
+
+  async getLoanDisbursement(id: string): Promise<LoanDisbursement | undefined> {
+    const [disbursement] = await db.select().from(loanDisbursements).where(eq(loanDisbursements.id, id));
+    return disbursement || undefined;
+  }
+
+  async getLoanDisbursementsByCustomerId(customerId: string): Promise<LoanDisbursement[]> {
+    return await db.select().from(loanDisbursements)
+      .where(eq(loanDisbursements.customerId, customerId))
+      .orderBy(desc(loanDisbursements.createdAt));
+  }
+
+  async updateLoanDisbursement(id: string, data: Partial<LoanDisbursement>): Promise<LoanDisbursement | undefined> {
+    const [updated] = await db.update(loanDisbursements)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(loanDisbursements.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteLoanDisbursement(id: string): Promise<void> {
+    await db.delete(loanDisbursements).where(eq(loanDisbursements.id, id));
   }
 }
 
