@@ -96,6 +96,7 @@ const adminMenuSections: MenuSection[] = [
       { title: "Step 2: Bank Loan", url: "/admin/bank-loan-submissions", icon: Landmark },
       { title: "Step 3: Loan Approval", url: "/admin/bank-loan-approvals", icon: CheckCircle },
       { title: "Step 4: Disbursement", url: "/admin/loan-disbursements", icon: Wallet },
+      { title: "Step 5: Vendor PO", url: "/admin/vendor-purchase-orders", icon: ShoppingCart },
     ],
   },
   {
