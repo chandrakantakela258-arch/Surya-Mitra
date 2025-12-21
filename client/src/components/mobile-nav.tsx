@@ -29,8 +29,8 @@ const ddpNavItems: NavItem[] = [
 const bdpNavItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Home", href: "/bdp/dashboard" },
   { icon: Users, label: "Partners", href: "/bdp/partners" },
-  { icon: UserPlus, label: "Add", href: "/bdp/partners/new" },
   { icon: Wallet, label: "Wallet", href: "/bdp/wallet" },
+  { icon: ShoppingCart, label: "Store", href: "/bdp/store" },
   { icon: User, label: "Profile", href: "/profile" },
 ];
 
