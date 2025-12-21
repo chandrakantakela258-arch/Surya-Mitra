@@ -92,6 +92,9 @@ import {
   type GoodsDelivery,
   type InsertGoodsDelivery,
   goodsDeliveries,
+  type SiteExecutionOrder,
+  type InsertSiteExecutionOrder,
+  siteExecutionOrders,
   installationMilestones,
   calculateCommission,
   calculateBdpCommission,
@@ -2233,6 +2236,81 @@ export class DatabaseStorage implements IStorage {
     const deliveries = await db.select().from(goodsDeliveries);
     const count = deliveries.length + 1;
     return `DEL-${year}${month}-${String(count).padStart(4, '0')}`;
+  }
+
+  // Step 7: Site Execution Orders operations
+  async createSiteExecutionOrder(order: any): Promise<SiteExecutionOrder> {
+    const orderData = {
+      ...order,
+      scheduledStartDate: order.scheduledStartDate ? new Date(order.scheduledStartDate) : new Date(),
+      scheduledEndDate: order.scheduledEndDate ? new Date(order.scheduledEndDate) : null,
+      actualStartDate: order.actualStartDate ? new Date(order.actualStartDate) : null,
+      actualEndDate: order.actualEndDate ? new Date(order.actualEndDate) : null,
+      qualityCheckDate: order.qualityCheckDate ? new Date(order.qualityCheckDate) : null,
+      customerSignoffDate: order.customerSignoffDate ? new Date(order.customerSignoffDate) : null,
+    };
+    const [created] = await db.insert(siteExecutionOrders).values(orderData).returning();
+    return created;
+  }
+
+  async getSiteExecutionOrders(): Promise<SiteExecutionOrder[]> {
+    return await db.select().from(siteExecutionOrders).orderBy(desc(siteExecutionOrders.createdAt));
+  }
+
+  async getSiteExecutionOrder(id: string): Promise<SiteExecutionOrder | undefined> {
+    const [order] = await db.select().from(siteExecutionOrders).where(eq(siteExecutionOrders.id, id));
+    return order || undefined;
+  }
+
+  async getSiteExecutionOrdersByCustomerId(customerId: string): Promise<SiteExecutionOrder[]> {
+    return await db.select().from(siteExecutionOrders)
+      .where(eq(siteExecutionOrders.customerId, customerId))
+      .orderBy(desc(siteExecutionOrders.createdAt));
+  }
+
+  async getSiteExecutionOrdersByVendorId(vendorId: string): Promise<SiteExecutionOrder[]> {
+    return await db.select().from(siteExecutionOrders)
+      .where(eq(siteExecutionOrders.vendorId, vendorId))
+      .orderBy(desc(siteExecutionOrders.createdAt));
+  }
+
+  async updateSiteExecutionOrder(id: string, data: Partial<SiteExecutionOrder>): Promise<SiteExecutionOrder | undefined> {
+    const updateData: any = { ...data, updatedAt: new Date() };
+    if (data.scheduledStartDate && typeof data.scheduledStartDate === 'string') {
+      updateData.scheduledStartDate = new Date(data.scheduledStartDate);
+    }
+    if (data.scheduledEndDate && typeof data.scheduledEndDate === 'string') {
+      updateData.scheduledEndDate = new Date(data.scheduledEndDate);
+    }
+    if (data.actualStartDate && typeof data.actualStartDate === 'string') {
+      updateData.actualStartDate = new Date(data.actualStartDate);
+    }
+    if (data.actualEndDate && typeof data.actualEndDate === 'string') {
+      updateData.actualEndDate = new Date(data.actualEndDate);
+    }
+    if (data.qualityCheckDate && typeof data.qualityCheckDate === 'string') {
+      updateData.qualityCheckDate = new Date(data.qualityCheckDate);
+    }
+    if (data.customerSignoffDate && typeof data.customerSignoffDate === 'string') {
+      updateData.customerSignoffDate = new Date(data.customerSignoffDate);
+    }
+    const [updated] = await db.update(siteExecutionOrders)
+      .set(updateData)
+      .where(eq(siteExecutionOrders.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteSiteExecutionOrder(id: string): Promise<void> {
+    await db.delete(siteExecutionOrders).where(eq(siteExecutionOrders.id, id));
+  }
+
+  async generateExecutionOrderNumber(): Promise<string> {
+    const year = new Date().getFullYear();
+    const month = String(new Date().getMonth() + 1).padStart(2, '0');
+    const orders = await db.select().from(siteExecutionOrders);
+    const count = orders.length + 1;
+    return `EXO-${year}${month}-${String(count).padStart(4, '0')}`;
   }
 }
 
