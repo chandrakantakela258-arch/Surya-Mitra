@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { CustomerJourneyTracker } from "@/components/customer-journey-tracker";
-import type { Customer } from "@shared/schema";
+import type { CustomerWithPartnerInfo } from "@shared/schema";
 
 function formatINR(amount: number): string {
   return new Intl.NumberFormat("en-IN", {
@@ -48,12 +48,12 @@ export default function AdminCustomers() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [panelFilter, setPanelFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithPartnerInfo | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [previewVideo, setPreviewVideo] = useState(false);
   const { toast } = useToast();
 
-  const { data: customers, isLoading } = useQuery<Customer[]>({
+  const { data: customers, isLoading } = useQuery<CustomerWithPartnerInfo[]>({
     queryKey: ["/api/admin/customers"],
   });
 
@@ -285,6 +285,19 @@ export default function AdminCustomers() {
                           <span className="flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
                             {new Date(customer.createdAt).toLocaleDateString("en-IN")}
+                          </span>
+                        )}
+                      </div>
+                      {/* DDP & BDP Partner Info */}
+                      <div className="flex flex-wrap gap-4 text-sm mt-1">
+                        {customer.ddpName && (
+                          <span className="text-muted-foreground">
+                            <span className="font-medium text-foreground">DDP:</span> {customer.ddpName} ({customer.ddpPhone})
+                          </span>
+                        )}
+                        {customer.bdpName && (
+                          <span className="text-muted-foreground">
+                            <span className="font-medium text-foreground">BDP:</span> {customer.bdpName} ({customer.bdpPhone})
                           </span>
                         )}
                       </div>

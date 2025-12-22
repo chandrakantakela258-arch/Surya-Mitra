@@ -10,7 +10,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { TableSkeleton } from "@/components/loading-skeleton";
 import { EmptyState } from "@/components/empty-state";
 import { customerStatuses } from "@shared/schema";
-import type { Customer } from "@shared/schema";
+import type { CustomerWithPartnerInfo } from "@shared/schema";
 import { ExpandableSiteProgress } from "@/components/customer-journey-tracker";
 
 export default function BDPCustomers() {
@@ -18,7 +18,7 @@ export default function BDPCustomers() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [districtFilter, setDistrictFilter] = useState<string>("all");
 
-  const { data: customers, isLoading } = useQuery<Customer[]>({
+  const { data: customers, isLoading } = useQuery<CustomerWithPartnerInfo[]>({
     queryKey: ["/api/bdp/customers"],
   });
 
@@ -141,6 +141,7 @@ export default function BDPCustomers() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Customer</TableHead>
+                    <TableHead>DDP Partner</TableHead>
                     <TableHead>Contact</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead>Capacity</TableHead>
@@ -153,6 +154,12 @@ export default function BDPCustomers() {
                     <TableRow key={customer.id} data-testid={`row-customer-${customer.id}`}>
                       <TableCell>
                         <p className="font-medium">{customer.name}</p>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{customer.ddpName || "-"}</p>
+                          <p className="text-sm text-muted-foreground font-mono">{customer.ddpPhone || "-"}</p>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div>
