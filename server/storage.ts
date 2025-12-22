@@ -29,7 +29,8 @@ import {
   customerSessions,
   type User, 
   type InsertUser, 
-  type Customer, 
+  type Customer,
+  type CustomerWithPartnerInfo,
   type InsertCustomer,
   type Milestone,
   type InsertMilestone,
@@ -240,6 +241,9 @@ export interface IStorage {
   getAllUsers(): Promise<User[]>;
   getRecentPartners(limit: number): Promise<User[]>;
   getAllCustomers(): Promise<Customer[]>;
+  getAllCustomersWithPartnerInfo(): Promise<CustomerWithPartnerInfo[]>;
+  getCustomersByDdpIdWithPartnerInfo(ddpId: string): Promise<CustomerWithPartnerInfo[]>;
+  getAllCustomersByBdpIdWithPartnerInfo(bdpId: string): Promise<CustomerWithPartnerInfo[]>;
   getRecentCustomers(limit: number): Promise<Customer[]>;
   
   // Feedback operations
@@ -875,6 +879,95 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(customers)
       .orderBy(desc(customers.createdAt));
+  }
+
+  async getAllCustomersWithPartnerInfo(): Promise<CustomerWithPartnerInfo[]> {
+    const customerList = await db
+      .select()
+      .from(customers)
+      .orderBy(desc(customers.createdAt));
+    
+    return this.enrichCustomersWithPartnerInfo(customerList);
+  }
+
+  async getCustomersByDdpIdWithPartnerInfo(ddpId: string): Promise<CustomerWithPartnerInfo[]> {
+    const customerList = await db
+      .select()
+      .from(customers)
+      .where(and(
+        eq(customers.ddpId, ddpId),
+        or(
+          isNull(customers.source),
+          not(eq(customers.source, "website_direct"))
+        )
+      ))
+      .orderBy(desc(customers.createdAt));
+    
+    return this.enrichCustomersWithPartnerInfo(customerList);
+  }
+
+  async getAllCustomersByBdpIdWithPartnerInfo(bdpId: string): Promise<CustomerWithPartnerInfo[]> {
+    const ddps = await this.getPartnersByParentId(bdpId);
+    const ddpIds = ddps.map((d) => d.id);
+    
+    if (ddpIds.length === 0) {
+      return [];
+    }
+    
+    const customerList = await db
+      .select()
+      .from(customers)
+      .where(and(
+        inArray(customers.ddpId, ddpIds),
+        or(
+          isNull(customers.source),
+          not(eq(customers.source, "website_direct"))
+        )
+      ))
+      .orderBy(desc(customers.createdAt));
+    
+    return this.enrichCustomersWithPartnerInfo(customerList);
+  }
+
+  private async enrichCustomersWithPartnerInfo(customerList: Customer[]): Promise<CustomerWithPartnerInfo[]> {
+    if (customerList.length === 0) {
+      return [];
+    }
+    
+    // Get unique DDP IDs
+    const ddpIds = Array.from(new Set(customerList.map((c) => c.ddpId)));
+    
+    // Fetch all DDPs in one query
+    const ddpUsers = await db
+      .select()
+      .from(users)
+      .where(inArray(users.id, ddpIds));
+    
+    // Get unique BDP IDs from the DDPs
+    const bdpIds = Array.from(new Set(ddpUsers.map((d) => d.parentId).filter((id): id is string => id !== null)));
+    
+    // Fetch all BDPs in one query
+    const bdpUsers = bdpIds.length > 0 
+      ? await db.select().from(users).where(inArray(users.id, bdpIds))
+      : [];
+    
+    // Create lookup maps
+    const ddpMap = new Map(ddpUsers.map((d) => [d.id, d]));
+    const bdpMap = new Map(bdpUsers.map((b) => [b.id, b]));
+    
+    // Enrich customers with partner info
+    return customerList.map((customer) => {
+      const ddp = ddpMap.get(customer.ddpId);
+      const bdp = ddp?.parentId ? bdpMap.get(ddp.parentId) : undefined;
+      
+      return {
+        ...customer,
+        ddpName: ddp?.name || null,
+        ddpPhone: ddp?.phone || null,
+        bdpName: bdp?.name || null,
+        bdpPhone: bdp?.phone || null,
+      };
+    });
   }
 
   async getRecentCustomers(limit: number): Promise<Customer[]> {

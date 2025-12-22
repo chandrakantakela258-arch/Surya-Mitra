@@ -768,6 +768,14 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 export type Customer = typeof customers.$inferSelect;
+
+// Extended customer type with DDP and BDP partner info
+export type CustomerWithPartnerInfo = Customer & {
+  ddpName?: string | null;
+  ddpPhone?: string | null;
+  bdpName?: string | null;
+  bdpPhone?: string | null;
+};
 export type InsertMilestone = z.infer<typeof insertMilestoneSchema>;
 export type Milestone = typeof milestones.$inferSelect;
 export type InsertCommission = z.infer<typeof insertCommissionSchema>;
