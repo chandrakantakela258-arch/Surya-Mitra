@@ -15,6 +15,7 @@ import { ChatbotAssistant } from "@/components/chatbot-assistant";
 import { OnboardingTutorial } from "@/components/onboarding-tutorial";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
 import SubsidyCalculatorPage from "@/pages/subsidy-calculator";
@@ -139,23 +140,29 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
   return <>{children}</>;
 }
 
-function MobileMenuButton() {
-  const { setOpenMobile, openMobile, isMobile } = useSidebar();
-  
-  const handleClick = () => {
-    console.log("MobileMenuButton clicked", { openMobile, isMobile });
-    setOpenMobile(true);
-  };
+function MobileMenu() {
+  const [open, setOpen] = useState(false);
   
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={handleClick}
-      data-testid="button-mobile-menu"
-    >
-      <Menu className="h-5 w-5" />
-    </Button>
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          data-testid="button-mobile-menu"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left" className="w-[280px] p-0">
+        <SheetHeader className="sr-only">
+          <SheetTitle>Navigation Menu</SheetTitle>
+        </SheetHeader>
+        <div onClick={() => setOpen(false)}>
+          <AppSidebar />
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -166,9 +173,9 @@ function HeaderMenuTrigger() {
       <div className="hidden md:block">
         <SidebarTrigger data-testid="button-sidebar-toggle" />
       </div>
-      {/* Mobile: Use MobileMenuButton to open Sheet overlay */}
+      {/* Mobile: Use simple Sheet-based menu */}
       <div className="md:hidden">
-        <MobileMenuButton />
+        <MobileMenu />
       </div>
     </div>
   );
