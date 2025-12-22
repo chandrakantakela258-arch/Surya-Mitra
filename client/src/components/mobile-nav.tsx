@@ -1,5 +1,6 @@
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/lib/auth";
+import { useSidebar } from "@/components/ui/sidebar";
 import { 
   LayoutDashboard, 
   Users, 
@@ -8,14 +9,16 @@ import {
   UserPlus,
   FileText,
   Bell,
-  User
+  User,
+  Menu
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
   icon: any;
   label: string;
-  href: string;
+  href?: string;
+  action?: "menu";
 }
 
 const ddpNavItems: NavItem[] = [
@@ -23,7 +26,7 @@ const ddpNavItems: NavItem[] = [
   { icon: Users, label: "Customers", href: "/ddp/customers" },
   { icon: UserPlus, label: "Add", href: "/ddp/customers/new" },
   { icon: Wallet, label: "Earnings", href: "/ddp/earnings" },
-  { icon: ShoppingCart, label: "Store", href: "/ddp/store" },
+  { icon: Menu, label: "Menu", action: "menu" },
 ];
 
 const bdpNavItems: NavItem[] = [
@@ -31,7 +34,7 @@ const bdpNavItems: NavItem[] = [
   { icon: Users, label: "Partners", href: "/bdp/partners" },
   { icon: Wallet, label: "Wallet", href: "/bdp/wallet" },
   { icon: ShoppingCart, label: "Store", href: "/bdp/store" },
-  { icon: User, label: "Profile", href: "/profile" },
+  { icon: Menu, label: "Menu", action: "menu" },
 ];
 
 const adminNavItems: NavItem[] = [
@@ -39,7 +42,7 @@ const adminNavItems: NavItem[] = [
   { icon: Users, label: "Partners", href: "/admin/partners" },
   { icon: FileText, label: "Customers", href: "/admin/customers" },
   { icon: Wallet, label: "Payouts", href: "/admin/payouts" },
-  { icon: Bell, label: "Alerts", href: "/notifications" },
+  { icon: Menu, label: "Menu", action: "menu" },
 ];
 
 const customerPartnerNavItems: NavItem[] = [
@@ -47,12 +50,13 @@ const customerPartnerNavItems: NavItem[] = [
   { icon: UserPlus, label: "Refer", href: "/customer-registration" },
   { icon: Users, label: "Referrals", href: "/customer-partner/referrals" },
   { icon: Wallet, label: "Earnings", href: "/customer-partner/earnings" },
-  { icon: User, label: "Profile", href: "/customer-partner/profile" },
+  { icon: Menu, label: "Menu", action: "menu" },
 ];
 
 export function MobileNav() {
   const [location] = useLocation();
   const { user } = useAuth();
+  const { toggleSidebar } = useSidebar();
 
   if (!user) return null;
 
@@ -70,12 +74,29 @@ export function MobileNav() {
       data-testid="nav-mobile-bottom"
     >
       <div className="flex items-center justify-evenly h-16 w-full px-1">
-        {navItems.map((item) => {
-          const isActive = location === item.href || location.startsWith(item.href + "/");
+        {navItems.map((item, index) => {
+          const isActive = item.href && (location === item.href || location.startsWith(item.href + "/"));
           const Icon = item.icon;
           
+          if (item.action === "menu") {
+            return (
+              <button
+                key="menu"
+                onClick={toggleSidebar}
+                className={cn(
+                  "flex flex-col items-center justify-center min-w-[52px] flex-1 h-full gap-0.5 transition-colors",
+                  "text-muted-foreground"
+                )}
+                data-testid="nav-mobile-menu"
+              >
+                <Icon className="h-5 w-5" />
+                <span className="text-[10px] font-medium truncate max-w-[52px]">{item.label}</span>
+              </button>
+            );
+          }
+          
           return (
-            <Link key={item.href} href={item.href}>
+            <Link key={item.href || index} href={item.href!}>
               <div
                 className={cn(
                   "flex flex-col items-center justify-center min-w-[52px] flex-1 h-full gap-0.5 transition-colors",
