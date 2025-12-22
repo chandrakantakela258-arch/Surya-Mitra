@@ -16,7 +16,7 @@ import {
 import { Search, Phone, MapPin, Zap, Calendar, MoreVertical, CheckCircle, Clock, FileCheck, Truck, PartyPopper, Eye, Camera, Video, Play, X, Image, Smartphone, ShieldOff } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { CustomerJourneyMini } from "@/components/customer-journey-tracker";
+import { CustomerJourneyMini, ExpandableSiteProgress } from "@/components/customer-journey-tracker";
 import {
   Sheet,
   SheetContent,
@@ -288,8 +288,12 @@ export default function AdminCustomers() {
                           </span>
                         )}
                       </div>
-                      <div className="mt-2 max-w-[200px]">
-                        <CustomerJourneyMini customerId={customer.id} />
+                      <div className="mt-2 max-w-[250px]">
+                        <ExpandableSiteProgress 
+                          customerId={customer.id} 
+                          customerName={customer.name}
+                          showActions={true}
+                        />
                       </div>
                       {((customer.sitePictures && customer.sitePictures.length > 0) || customer.siteVideo) && (
                         <div className="flex items-center gap-2 mt-2">

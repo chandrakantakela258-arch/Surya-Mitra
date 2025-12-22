@@ -11,6 +11,7 @@ import { TableSkeleton } from "@/components/loading-skeleton";
 import { EmptyState } from "@/components/empty-state";
 import { customerStatuses } from "@shared/schema";
 import type { Customer } from "@shared/schema";
+import { ExpandableSiteProgress } from "@/components/customer-journey-tracker";
 
 export default function BDPCustomers() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -143,7 +144,7 @@ export default function BDPCustomers() {
                     <TableHead>Contact</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead>Capacity</TableHead>
-                    <TableHead>Monthly Bill</TableHead>
+                    <TableHead>Site Progress</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -168,8 +169,12 @@ export default function BDPCustomers() {
                       <TableCell className="font-mono">
                         {customer.proposedCapacity || "-"} kW
                       </TableCell>
-                      <TableCell className="font-mono">
-                        {customer.avgMonthlyBill ? `₹${customer.avgMonthlyBill}` : "-"}
+                      <TableCell className="min-w-[180px]">
+                        <ExpandableSiteProgress 
+                          customerId={customer.id} 
+                          customerName={customer.name}
+                          showActions={false}
+                        />
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={customer.status} />

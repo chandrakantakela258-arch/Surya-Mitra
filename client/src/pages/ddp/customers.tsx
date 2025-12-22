@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { customerStatuses } from "@shared/schema";
 import type { Customer } from "@shared/schema";
+import { ExpandableSiteProgress } from "@/components/customer-journey-tracker";
 
 export default function DDPCustomers() {
   const { toast } = useToast();
@@ -217,9 +218,9 @@ export default function DDPCustomers() {
                     <TableHead>Contact</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead>Capacity</TableHead>
+                    <TableHead>Site Progress</TableHead>
                     <TableHead>Lead Score</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Details</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -254,24 +255,18 @@ export default function DDPCustomers() {
                       <TableCell className="font-mono">
                         {customer.proposedCapacity || "-"} kW
                       </TableCell>
+                      <TableCell className="min-w-[180px]" onClick={(e) => e.stopPropagation()}>
+                        <ExpandableSiteProgress 
+                          customerId={customer.id} 
+                          customerName={customer.name}
+                          showActions={true}
+                        />
+                      </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         {getLeadScoreBadge(customer.leadScore, customer.id)}
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={customer.status} />
-                      </TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <Button 
-                          size="sm" 
-                          variant="default"
-                          asChild
-                          data-testid={`button-view-details-${customer.id}`}
-                        >
-                          <Link href={`/ddp/customers/${customer.id}`}>
-                            <Eye className="w-4 h-4 mr-1" />
-                            View
-                          </Link>
-                        </Button>
                       </TableCell>
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
