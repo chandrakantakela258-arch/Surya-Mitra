@@ -23,7 +23,7 @@ interface NavItem {
 const ddpNavItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Home", href: "/ddp/dashboard" },
   { icon: Users, label: "Customers", href: "/ddp/customers" },
-  { icon: UserPlus, label: "Add", href: "/ddp/customers/new" },
+  { icon: Calculator, label: "Calculator", href: "/subsidy-calculator" },
   { icon: Wallet, label: "Earnings", href: "/ddp/earnings" },
   { icon: ShoppingCart, label: "Store", href: "/ddp/store" },
 ];
