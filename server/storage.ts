@@ -27,6 +27,7 @@ import {
   customerFileSubmissions,
   passwordResetOtps,
   customerSessions,
+  documents,
   type User, 
   type InsertUser, 
   type Customer,
@@ -121,7 +122,9 @@ import {
   installationMilestones,
   calculateCommission,
   calculateBdpCommission,
-  defaultIncentiveTargets
+  defaultIncentiveTargets,
+  type Document as DocumentType,
+  type InsertDocument,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, inArray, isNull, not, or, lt, asc } from "drizzle-orm";
@@ -405,6 +408,16 @@ export interface IStorage {
   getPasswordResetOtp(phone: string): Promise<PasswordResetOtp | undefined>;
   markPasswordResetOtpUsed(id: string): Promise<void>;
   deleteExpiredPasswordResetOtps(): Promise<void>;
+  
+  // Document Management operations
+  createDocument(doc: InsertDocument): Promise<DocumentType>;
+  getDocument(id: string): Promise<DocumentType | undefined>;
+  getDocumentsByCustomerId(customerId: string): Promise<DocumentType[]>;
+  getDocumentsByPartnerId(partnerId: string): Promise<DocumentType[]>;
+  getAllDocuments(): Promise<DocumentType[]>;
+  updateDocument(id: string, data: Partial<DocumentType>): Promise<DocumentType | undefined>;
+  verifyDocument(id: string, verifiedById: string): Promise<DocumentType | undefined>;
+  deleteDocument(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2976,6 +2989,59 @@ export class DatabaseStorage implements IStorage {
     const reports = await db.select().from(subsidyDisbursementReports);
     const count = reports.length + 1;
     return `SDR-${year}${month}-${String(count).padStart(4, '0')}`;
+  }
+
+  // Document Management operations
+  async createDocument(doc: InsertDocument): Promise<DocumentType> {
+    const [document] = await db.insert(documents).values(doc).returning();
+    return document;
+  }
+
+  async getDocument(id: string): Promise<DocumentType | undefined> {
+    const [document] = await db.select().from(documents).where(eq(documents.id, id));
+    return document;
+  }
+
+  async getDocumentsByCustomerId(customerId: string): Promise<DocumentType[]> {
+    return await db.select().from(documents)
+      .where(eq(documents.customerId, customerId))
+      .orderBy(desc(documents.createdAt));
+  }
+
+  async getDocumentsByPartnerId(partnerId: string): Promise<DocumentType[]> {
+    return await db.select().from(documents)
+      .where(eq(documents.partnerId, partnerId))
+      .orderBy(desc(documents.createdAt));
+  }
+
+  async getAllDocuments(): Promise<DocumentType[]> {
+    return await db.select().from(documents).orderBy(desc(documents.createdAt));
+  }
+
+  async updateDocument(id: string, data: Partial<DocumentType>): Promise<DocumentType | undefined> {
+    const [document] = await db.update(documents)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(documents.id, id))
+      .returning();
+    return document;
+  }
+
+  async verifyDocument(id: string, verifiedById: string): Promise<DocumentType | undefined> {
+    const [document] = await db.update(documents)
+      .set({ 
+        isVerified: true, 
+        verifiedById, 
+        verifiedAt: new Date(),
+        updatedAt: new Date() 
+      })
+      .where(eq(documents.id, id))
+      .returning();
+    return document;
+  }
+
+  async deleteDocument(id: string): Promise<boolean> {
+    const result = await db.delete(documents).where(eq(documents.id, id));
+    return true;
   }
 }
 
