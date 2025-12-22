@@ -140,17 +140,37 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
 }
 
 function MobileMenuButton() {
-  const { setOpenMobile } = useSidebar();
+  const { setOpenMobile, openMobile, isMobile } = useSidebar();
+  
+  const handleClick = () => {
+    console.log("MobileMenuButton clicked", { openMobile, isMobile });
+    setOpenMobile(true);
+  };
+  
   return (
     <Button
       variant="ghost"
       size="icon"
-      onClick={() => setOpenMobile(true)}
-      className="md:hidden"
+      onClick={handleClick}
       data-testid="button-mobile-menu"
     >
       <Menu className="h-5 w-5" />
     </Button>
+  );
+}
+
+function HeaderMenuTrigger() {
+  return (
+    <div className="flex items-center">
+      {/* Desktop: Use SidebarTrigger to collapse/expand sidebar */}
+      <div className="hidden md:block">
+        <SidebarTrigger data-testid="button-sidebar-toggle" />
+      </div>
+      {/* Mobile: Use MobileMenuButton to open Sheet overlay */}
+      <div className="md:hidden">
+        <MobileMenuButton />
+      </div>
+    </div>
   );
 }
 
@@ -167,8 +187,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0">
           <header className="flex items-center justify-between gap-4 p-4 border-b sticky top-0 bg-background z-50">
-            <SidebarTrigger data-testid="button-sidebar-toggle" className="hidden md:flex" />
-            <MobileMenuButton />
+            <HeaderMenuTrigger />
             <div className="flex items-center gap-2">
               <NotificationBell />
               <ThemeToggle />
