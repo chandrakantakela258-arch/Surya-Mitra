@@ -223,9 +223,16 @@ export default function DDPStore() {
     );
   };
 
-  // Calculate cart total using booking amount (for payment) if available, otherwise use price
+  // Calculate cart total - use booking amount only for solar booking items, full price for products
   const cartTotal = cart.reduce(
-    (sum, item) => sum + (item.product.bookingAmount ?? item.product.price) * item.quantity,
+    (sum, item) => {
+      // For booking items (solar plant), use the booking amount
+      if (item.product.id.startsWith("booking-")) {
+        return sum + item.product.price * item.quantity;
+      }
+      // For regular products, use the full price
+      return sum + item.product.price * item.quantity;
+    },
     0
   );
 
@@ -256,8 +263,7 @@ export default function DDPStore() {
         productId: item.product.id,
         productName: item.product.name,
         quantity: item.quantity,
-        unitPrice: item.product.bookingAmount ?? item.product.price, // Use booking amount for payment
-        plantCost: item.product.price, // Store original plant cost for reference
+        unitPrice: item.product.price, // Use price (which is booking amount for solar bookings)
       })),
       customerName: checkoutData.customerName,
       customerPhone: checkoutData.customerPhone,
@@ -444,16 +450,7 @@ export default function DDPStore() {
               {product.description && (
                 <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{product.description}</p>
               )}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Plant Cost:</span>
-                  <span className="font-semibold">{formatINR(product.price)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Booking Amount:</span>
-                  <span className="text-xl font-bold text-primary">{formatINR(product.bookingAmount ?? product.price)}</span>
-                </div>
-              </div>
+              <p className="text-2xl font-bold">{formatINR(product.price)}</p>
             </CardContent>
             <CardFooter>
               <Button
