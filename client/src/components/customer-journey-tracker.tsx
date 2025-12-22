@@ -212,6 +212,10 @@ export function ExpandableSiteProgress({
   const [isOpen, setIsOpen] = useState(false);
   const { toast } = useToast();
 
+  const { data: miniMilestones = [] } = useQuery<Milestone[]>({
+    queryKey: ["/api/customers", customerId, "milestones"],
+  });
+
   const { data: milestones = [], isLoading } = useQuery<Milestone[]>({
     queryKey: ["/api/customers", customerId, "milestones"],
     enabled: isOpen,
@@ -243,38 +247,39 @@ export function ExpandableSiteProgress({
     return milestones.find((m) => m.milestone === milestoneKey);
   };
 
-  const completedCount = milestones.filter((m) => m.status === "completed").length;
+  const completedCount = miniMilestones.filter((m) => m.status === "completed").length;
   const progress = installationMilestones.length > 0 
     ? (completedCount / installationMilestones.length) * 100 
     : 0;
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <CollapsibleTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="w-full justify-between gap-2 h-auto py-1.5 px-2"
-          data-testid={`button-expand-progress-${customerId}`}
-        >
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden max-w-[100px]">
-              <div 
-                className="h-full bg-green-500 transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <span className="text-xs text-muted-foreground whitespace-nowrap">
-              {completedCount}/{installationMilestones.length}
-            </span>
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden max-w-[80px]">
+            <div 
+              className="h-full bg-green-500 transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            />
           </div>
-          {isOpen ? (
-            <ChevronUp className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-          ) : (
-            <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-          )}
-        </Button>
-      </CollapsibleTrigger>
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
+            {completedCount}/{installationMilestones.length}
+          </span>
+        </div>
+        <CollapsibleTrigger asChild>
+          <Button 
+            variant="ghost" 
+            size="icon"
+            data-testid={`button-expand-progress-${customerId}`}
+          >
+            {isOpen ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </Button>
+        </CollapsibleTrigger>
+      </div>
       <CollapsibleContent>
         <div className="pt-3 pb-1">
           {isLoading ? (
@@ -333,8 +338,6 @@ export function ExpandableSiteProgress({
                       {showActions && isNext && !isCompleted && milestoneData && (
                         <Button
                           size="sm"
-                          variant="outline"
-                          className="h-6 text-xs px-2"
                           onClick={(e) => {
                             e.stopPropagation();
                             completeMilestoneMutation.mutate(milestoneData.id);

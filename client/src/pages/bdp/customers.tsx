@@ -23,7 +23,7 @@ export default function BDPCustomers() {
   });
 
   // Get unique districts from customers
-  const districts = [...new Set(customers?.map((c) => c.district) || [])];
+  const districts = Array.from(new Set(customers?.map((c) => c.district) || []));
 
   const filteredCustomers = customers?.filter((customer) => {
     const matchesSearch =
