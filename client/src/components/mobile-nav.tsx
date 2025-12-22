@@ -66,7 +66,7 @@ export function MobileNav() {
 
   return (
     <nav 
-      className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t md:hidden safe-area-bottom"
+      className="fixed bottom-0 left-0 right-0 z-40 bg-background border-t md:hidden safe-area-bottom"
       data-testid="nav-mobile-bottom"
     >
       <div className="flex items-center justify-evenly h-16 w-full px-1">

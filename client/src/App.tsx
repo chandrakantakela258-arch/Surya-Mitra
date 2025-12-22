@@ -150,7 +150,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0">
-          <header className="flex items-center justify-between gap-4 p-4 border-b sticky top-0 bg-background z-50">
+          <header className="flex items-center justify-between gap-4 p-4 border-b sticky top-0 bg-background z-[60]">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <div className="flex items-center gap-2">
               <NotificationBell />
