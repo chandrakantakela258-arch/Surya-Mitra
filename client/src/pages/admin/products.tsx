@@ -435,29 +435,31 @@ export default function AdminProducts() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Plant Cost (INR)</Label>
-                <Input
-                  type="number"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
-                  placeholder="Full plant cost"
-                  data-testid="input-product-price"
-                />
-              </div>
-              <div>
-                <Label>Booking Amount (INR)</Label>
+            <div>
+              <Label>Price (INR)</Label>
+              <Input
+                type="number"
+                value={formData.price}
+                onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
+                placeholder="Product price"
+                data-testid="input-product-price"
+              />
+            </div>
+            {formData.category === "solar_package" && (
+              <div className="p-3 bg-primary/5 border border-primary/20 rounded-md space-y-2">
+                <Label>Booking Amount (INR) - Solar Package Only</Label>
                 <Input
                   type="number"
                   value={formData.bookingAmount || ""}
                   onChange={(e) => setFormData({ ...formData, bookingAmount: e.target.value ? Number(e.target.value) : null })}
-                  placeholder="Payment amount (optional)"
+                  placeholder="e.g. 5000 or 20000"
                   data-testid="input-product-booking-amount"
                 />
-                <p className="text-xs text-muted-foreground mt-1">Leave empty to use plant cost for payment</p>
+                <p className="text-xs text-muted-foreground">
+                  Suggested: Up to 3 kW = Rs 5,000 | Above 3 kW = Rs 20,000
+                </p>
               </div>
-            </div>
+            )}
             <div>
               <Label>Stock</Label>
               <Input

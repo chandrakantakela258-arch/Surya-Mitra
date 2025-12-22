@@ -35,13 +35,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { format } from "date-fns";
 
 declare global {
@@ -76,22 +69,10 @@ interface CheckoutFormData {
   customerAddress: string;
 }
 
-// Generate capacity options from 3 kW to 100 kW
-const capacityOptions = Array.from({ length: 98 }, (_, i) => i + 3);
-
-// Calculate booking amount based on capacity
-function getBookingAmount(capacityKw: number): number {
-  if (capacityKw <= 3) {
-    return 5000;
-  }
-  return 20000;
-}
-
 export default function DDPStore() {
   const { toast } = useToast();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
-  const [selectedCapacity, setSelectedCapacity] = useState<string>("3");
   const [checkoutData, setCheckoutData] = useState<CheckoutFormData>({
     customerName: "",
     customerPhone: "",
@@ -165,6 +146,11 @@ export default function DDPStore() {
   });
 
   const addToCart = (product: Product) => {
+    // For solar packages with booking amount, create a cart item with the booking amount as price
+    const cartProduct = product.category === "solar_package" && product.bookingAmount
+      ? { ...product, price: product.bookingAmount }
+      : product;
+    
     setCart((prev) => {
       const existing = prev.find((item) => item.product.id === product.id);
       if (existing) {
@@ -174,42 +160,16 @@ export default function DDPStore() {
             : item
         );
       }
-      return [...prev, { product, quantity: 1 }];
+      return [...prev, { product: cartProduct, quantity: 1 }];
     });
     toast({
-      title: "Added to Cart",
-      description: `${product.name} added to cart`,
+      title: product.category === "solar_package" && product.bookingAmount ? "Booking Added" : "Added to Cart",
+      description: product.category === "solar_package" && product.bookingAmount 
+        ? `${product.name} - Booking Amount ${formatINR(product.bookingAmount)} added`
+        : `${product.name} added to cart`,
     });
   };
 
-  const addBookingToCart = () => {
-    const capacityKw = parseInt(selectedCapacity);
-    const amount = getBookingAmount(capacityKw);
-    const bookingProduct: Product = {
-      id: `booking-${capacityKw}kw`,
-      name: `Booking Amount - ${capacityKw} kW Plant Installation`,
-      description: `Advance booking amount for ${capacityKw} kW solar plant installation. This amount will be adjusted in the final bill.`,
-      category: "solar_package",
-      price: amount,
-      bookingAmount: amount, // For booking items, booking amount equals price
-      imageUrl: null,
-      isActive: "active",
-      stock: 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    
-    // Remove any existing booking from cart before adding new one
-    setCart((prev) => {
-      const filteredCart = prev.filter((item) => !item.product.id.startsWith("booking-"));
-      return [...filteredCart, { product: bookingProduct, quantity: 1 }];
-    });
-    
-    toast({
-      title: "Booking Added",
-      description: `${capacityKw} kW plant booking (${formatINR(amount)}) added to cart`,
-    });
-  };
 
   const updateQuantity = (productId: string, delta: number) => {
     setCart((prev) =>
@@ -223,16 +183,9 @@ export default function DDPStore() {
     );
   };
 
-  // Calculate cart total - use booking amount only for solar booking items, full price for products
+  // Calculate cart total - products with booking amounts already have price set to booking amount
   const cartTotal = cart.reduce(
-    (sum, item) => {
-      // For booking items (solar plant), use the booking amount
-      if (item.product.id.startsWith("booking-")) {
-        return sum + item.product.price * item.quantity;
-      }
-      // For regular products, use the full price
-      return sum + item.product.price * item.quantity;
-    },
+    (sum, item) => sum + item.product.price * item.quantity,
     0
   );
 
@@ -380,52 +333,12 @@ export default function DDPStore() {
 
       <h2 className="text-xl font-semibold">Product Catalogue</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* Solar Power Plant Booking Card */}
-        <Card className="border-primary/30" data-testid="card-solar-booking">
-          <div className="w-full h-40 bg-gradient-to-br from-primary/20 to-primary/5 rounded-t-lg flex items-center justify-center">
-            <Sun className="w-16 h-16 text-primary" />
-          </div>
-          <CardHeader className="pt-3">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <CardTitle className="text-lg">Solar Power Plant Installation</CardTitle>
-                <Badge variant="outline" className="mt-1">Solar Package</Badge>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">Book a solar plant installation for your customer. Booking amount secures the installation slot.</p>
-            <div className="space-y-2">
-              <Label htmlFor="capacity-select">Select Capacity</Label>
-              <Select value={selectedCapacity} onValueChange={setSelectedCapacity}>
-                <SelectTrigger id="capacity-select" data-testid="select-capacity">
-                  <SelectValue placeholder="Select capacity" />
-                </SelectTrigger>
-                <SelectContent>
-                  {capacityOptions.map((kw) => (
-                    <SelectItem key={kw} value={kw.toString()}>
-                      {kw} kW
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="pt-2 border-t">
-              <p className="text-xs text-muted-foreground mb-1">Booking Amount</p>
-              <p className="text-2xl font-bold text-primary">{formatINR(getBookingAmount(parseInt(selectedCapacity)))}</p>
-              <p className="text-xs text-muted-foreground mt-1">Up to 3 kW: Rs 5,000 | Above 3 kW: Rs 20,000</p>
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button className="w-full" onClick={addBookingToCart} data-testid="button-add-booking">
-              <Plus className="w-4 h-4 mr-2" />
-              Add to Cart
-            </Button>
-          </CardFooter>
-        </Card>
-
-        {products?.filter((p) => !p.name.toLowerCase().includes("booking amount")).map((product) => (
-          <Card key={product.id} data-testid={`card-product-${product.id}`}>
+        {products?.map((product) => (
+          <Card 
+            key={product.id} 
+            className={product.category === "solar_package" && product.bookingAmount ? "border-primary/30" : ""}
+            data-testid={`card-product-${product.id}`}
+          >
             {product.imageUrl ? (
               <div className="w-full h-40 overflow-hidden rounded-t-lg">
                 <img
@@ -436,7 +349,11 @@ export default function DDPStore() {
               </div>
             ) : (
               <div className="w-full h-40 bg-muted rounded-t-lg flex items-center justify-center">
-                <Package className="w-12 h-12 text-muted-foreground" />
+                {product.category === "solar_package" ? (
+                  <Sun className="w-12 h-12 text-primary" />
+                ) : (
+                  <Package className="w-12 h-12 text-muted-foreground" />
+                )}
               </div>
             )}
             <CardHeader className="pt-3">
@@ -453,7 +370,20 @@ export default function DDPStore() {
               {product.description && (
                 <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{product.description}</p>
               )}
-              <p className="text-2xl font-bold">{formatINR(product.price)}</p>
+              {product.category === "solar_package" && product.bookingAmount ? (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Plant Cost:</span>
+                    <span className="font-medium">{formatINR(product.price)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Booking Amount:</span>
+                    <span className="text-xl font-bold text-primary">{formatINR(product.bookingAmount)}</span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-2xl font-bold">{formatINR(product.price)}</p>
+              )}
             </CardContent>
             <CardFooter>
               <Button
@@ -462,7 +392,7 @@ export default function DDPStore() {
                 data-testid={`button-add-${product.id}`}
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Add to Cart
+                {product.category === "solar_package" && product.bookingAmount ? "Book Now" : "Add to Cart"}
               </Button>
             </CardFooter>
           </Card>
