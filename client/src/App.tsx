@@ -15,7 +15,6 @@ import { ChatbotAssistant } from "@/components/chatbot-assistant";
 import { OnboardingTutorial } from "@/components/onboarding-tutorial";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
-import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
 import SubsidyCalculatorPage from "@/pages/subsidy-calculator";
@@ -140,44 +139,18 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
   return <>{children}</>;
 }
 
-function MobileMenu() {
-  const [open, setOpen] = useState(false);
+function HeaderMenuTrigger() {
+  const { toggleSidebar } = useSidebar();
   
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          data-testid="button-mobile-menu"
-        >
-          <Menu className="h-5 w-5" />
-        </Button>
-      </SheetTrigger>
-      <SheetContent side="left" className="w-[280px] p-0">
-        <SheetHeader className="sr-only">
-          <SheetTitle>Navigation Menu</SheetTitle>
-        </SheetHeader>
-        <div onClick={() => setOpen(false)}>
-          <AppSidebar />
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
-}
-
-function HeaderMenuTrigger() {
-  return (
-    <div className="flex items-center">
-      {/* Desktop: Use SidebarTrigger to collapse/expand sidebar */}
-      <div className="hidden md:block">
-        <SidebarTrigger data-testid="button-sidebar-toggle" />
-      </div>
-      {/* Mobile: Use simple Sheet-based menu */}
-      <div className="md:hidden">
-        <MobileMenu />
-      </div>
-    </div>
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={toggleSidebar}
+      data-testid="button-sidebar-toggle"
+    >
+      <Menu className="h-5 w-5" />
+    </Button>
   );
 }
 
