@@ -15,6 +15,8 @@ import { StatusBadge } from "@/components/status-badge";
 import { calculateSubsidy, formatINR } from "@/components/subsidy-calculator";
 import { installationMilestones, type Customer, type Milestone } from "@shared/schema";
 import { useState, useRef } from "react";
+import { DocumentManager } from "@/components/document-manager";
+import { useAuth } from "@/lib/auth";
 
 function SiteMediaUpload({ customer }: { customer: Customer }) {
   const { toast } = useToast();
@@ -630,6 +632,7 @@ export default function CustomerDetail() {
   const [, params] = useRoute("/ddp/customers/:id");
   const [, setLocation] = useLocation();
   const customerId = params?.id;
+  const { user } = useAuth();
   
   const { data: customer, isLoading } = useQuery<Customer>({
     queryKey: ["/api/customers", customerId],
@@ -814,6 +817,13 @@ export default function CustomerDetail() {
         </Card>
         
         <SiteMediaUpload customer={customer} />
+        
+        <DocumentManager 
+          customerId={customer.id}
+          title="Customer Documents"
+          showUpload={true}
+          canVerify={user?.role === "admin"}
+        />
       </div>
     </div>
   );
