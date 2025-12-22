@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import type { User as UserType, Customer } from "@shared/schema";
 import { cn } from "@/lib/utils";
+import { ExpandableSiteProgress } from "@/components/customer-journey-tracker";
 
 export default function AdminPartnerHierarchy() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -261,33 +262,42 @@ export default function AdminPartnerHierarchy() {
                                         ddpCustomers.map((customer) => (
                                           <div 
                                             key={customer.id} 
-                                            className="flex items-center justify-between p-2 bg-background rounded-md border"
+                                            className="p-2 bg-background rounded-md border space-y-2"
                                             data-testid={`card-customer-${customer.id}`}
                                           >
-                                            <div className="flex items-center gap-2">
-                                              <div className="p-1 bg-green-500/10 rounded-full">
-                                                <User className="w-3 h-3 text-green-500" />
-                                              </div>
-                                              <div>
-                                                <p className="text-sm font-medium">{customer.name}</p>
-                                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                                  <Phone className="w-3 h-3" />
-                                                  <span>{customer.phone}</span>
+                                            <div className="flex items-center justify-between gap-2">
+                                              <div className="flex items-center gap-2">
+                                                <div className="p-1 bg-green-500/10 rounded-full">
+                                                  <User className="w-3 h-3 text-green-500" />
+                                                </div>
+                                                <div>
+                                                  <p className="text-sm font-medium">{customer.name}</p>
+                                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                                    <Phone className="w-3 h-3" />
+                                                    <span>{customer.phone}</span>
+                                                  </div>
                                                 </div>
                                               </div>
+                                              <div className="text-right">
+                                                <Badge 
+                                                  variant="outline" 
+                                                  className={cn(
+                                                    "text-xs",
+                                                    customer.status === "completed" && "bg-green-500/10 text-green-600 border-green-200",
+                                                    customer.status === "pending" && "bg-yellow-500/10 text-yellow-600 border-yellow-200"
+                                                  )}
+                                                >
+                                                  {customer.status}
+                                                </Badge>
+                                                <p className="text-xs text-muted-foreground mt-1">{customer.proposedCapacity || "N/A"} kW</p>
+                                              </div>
                                             </div>
-                                            <div className="text-right">
-                                              <Badge 
-                                                variant="outline" 
-                                                className={cn(
-                                                  "text-xs",
-                                                  customer.status === "completed" && "bg-green-500/10 text-green-600 border-green-200",
-                                                  customer.status === "pending" && "bg-yellow-500/10 text-yellow-600 border-yellow-200"
-                                                )}
-                                              >
-                                                {customer.status}
-                                              </Badge>
-                                              <p className="text-xs text-muted-foreground mt-1">{customer.proposedCapacity || "N/A"} kW</p>
+                                            <div className="ml-6">
+                                              <ExpandableSiteProgress 
+                                                customerId={customer.id}
+                                                customerName={customer.name}
+                                                showActions={true}
+                                              />
                                             </div>
                                           </div>
                                         ))
@@ -388,6 +398,13 @@ export default function AdminPartnerHierarchy() {
                             {customer.status}
                           </Badge>
                         </div>
+                      </div>
+                      <div className="mt-3 max-w-[280px]">
+                        <ExpandableSiteProgress 
+                          customerId={customer.id}
+                          customerName={customer.name}
+                          showActions={true}
+                        />
                       </div>
                     </div>
                   );

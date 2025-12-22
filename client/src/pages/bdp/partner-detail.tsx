@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { TableSkeleton } from "@/components/loading-skeleton";
 import { EmptyState } from "@/components/empty-state";
 import type { User, Customer } from "@shared/schema";
+import { ExpandableSiteProgress } from "@/components/customer-journey-tracker";
 
 function StatusBadge({ status }: { status: string }) {
   switch (status) {
@@ -178,6 +179,7 @@ export default function PartnerDetail() {
                     <TableHead>District</TableHead>
                     <TableHead>Capacity</TableHead>
                     <TableHead>Panel Type</TableHead>
+                    <TableHead>Site Progress</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -191,6 +193,13 @@ export default function PartnerDetail() {
                         <Badge variant={customer.panelType === "dcr" ? "default" : "secondary"}>
                           {customer.panelType === "dcr" ? "DCR" : "Non-DCR"}
                         </Badge>
+                      </TableCell>
+                      <TableCell className="min-w-[180px]">
+                        <ExpandableSiteProgress 
+                          customerId={customer.id}
+                          customerName={customer.name}
+                          showActions={false}
+                        />
                       </TableCell>
                       <TableCell>
                         <CustomerStatusBadge status={customer.status} />
