@@ -140,13 +140,22 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
 }
 
 function HeaderMenuTrigger() {
-  const { toggleSidebar } = useSidebar();
+  const { setOpenMobile, setOpen, open } = useSidebar();
+  
+  const handleClick = () => {
+    const isMobileNow = window.innerWidth < 768;
+    if (isMobileNow) {
+      setOpenMobile(true);
+    } else {
+      setOpen(!open);
+    }
+  };
   
   return (
     <Button
       variant="ghost"
       size="icon"
-      onClick={toggleSidebar}
+      onClick={handleClick}
       data-testid="button-sidebar-toggle"
     >
       <Menu className="h-5 w-5" />
