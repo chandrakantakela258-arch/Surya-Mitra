@@ -4,7 +4,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { ThemeProvider } from "@/lib/theme";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -13,6 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { NotificationBell } from "@/components/notification-bell";
 import { ChatbotAssistant } from "@/components/chatbot-assistant";
 import { OnboardingTutorial } from "@/components/onboarding-tutorial";
+import { Menu } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
@@ -137,6 +139,21 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
   return <>{children}</>;
 }
 
+function MobileMenuButton() {
+  const { toggleSidebar } = useSidebar();
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={toggleSidebar}
+      className="md:hidden"
+      data-testid="button-mobile-menu"
+    >
+      <Menu className="h-5 w-5" />
+    </Button>
+  );
+}
+
 function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const sidebarStyle = {
@@ -150,10 +167,12 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0">
           <header className="flex items-center justify-between gap-4 p-4 border-b sticky top-0 bg-background z-50">
-            <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <SidebarTrigger data-testid="button-sidebar-toggle" className="hidden md:flex" />
+            <div className="md:hidden" />
             <div className="flex items-center gap-2">
               <NotificationBell />
               <ThemeToggle />
+              <MobileMenuButton />
             </div>
           </header>
           <main className="flex-1 p-4 md:p-6 overflow-auto pb-20 md:pb-6">
