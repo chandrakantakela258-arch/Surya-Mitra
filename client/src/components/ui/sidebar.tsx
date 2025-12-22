@@ -258,7 +258,16 @@ function SidebarTrigger({
   onClick,
   ...props
 }: React.ComponentProps<typeof Button>) {
-  const { toggleSidebar } = useSidebar()
+  const { setOpenMobile, setOpen, open } = useSidebar()
+
+  const handleToggle = () => {
+    const isMobileNow = window.innerWidth < 768
+    if (isMobileNow) {
+      setOpenMobile(true)
+    } else {
+      setOpen(!open)
+    }
+  }
 
   return (
     <Button
@@ -269,7 +278,7 @@ function SidebarTrigger({
       className={cn("h-7 w-7", className)}
       onClick={(event) => {
         onClick?.(event)
-        toggleSidebar()
+        handleToggle()
       }}
       {...props}
     >
