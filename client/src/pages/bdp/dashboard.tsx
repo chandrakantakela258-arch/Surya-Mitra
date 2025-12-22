@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/empty-state";
 import { PartnerOfMonthCard } from "@/components/partner-of-month";
 import { DashboardCustomizer, useDashboardWidgets } from "@/components/dashboard-widgets";
 import type { User, Customer } from "@shared/schema";
+import { ExpandableSiteProgress } from "@/components/customer-journey-tracker";
 
 interface DashboardStats {
   totalPartners: number;
@@ -177,6 +178,7 @@ export default function BDPDashboard() {
                   <TableHead>Customer Name</TableHead>
                   <TableHead>District</TableHead>
                   <TableHead>Proposed Capacity</TableHead>
+                  <TableHead>Site Progress</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -186,6 +188,13 @@ export default function BDPDashboard() {
                     <TableCell className="font-medium">{customer.name}</TableCell>
                     <TableCell>{customer.district}</TableCell>
                     <TableCell className="font-mono">{customer.proposedCapacity || "-"} kW</TableCell>
+                    <TableCell className="min-w-[180px]">
+                      <ExpandableSiteProgress 
+                        customerId={customer.id}
+                        customerName={customer.name}
+                        showActions={false}
+                      />
+                    </TableCell>
                     <TableCell>
                       <StatusBadge status={customer.status} />
                     </TableCell>
