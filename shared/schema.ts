@@ -577,7 +577,49 @@ export const referralsRelations = relations(referrals, ({ one }) => ({
   }),
 }));
 
-// 5. Notification Templates for automated notifications
+// 5. Document Management System for Compliance and Record-keeping
+export const documents = pgTable("documents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  originalName: text("original_name").notNull(),
+  category: text("category").notNull(), // customer_id, customer_address, customer_electricity, site_survey, installation, completion, subsidy, invoice, agreement, other
+  mimeType: text("mime_type").notNull(),
+  size: integer("size").notNull(), // in bytes
+  url: text("url").notNull(), // File storage path/URL
+  customerId: varchar("customer_id"), // Optional - linked to customer
+  partnerId: varchar("partner_id"), // Optional - linked to partner
+  uploadedById: varchar("uploaded_by_id").notNull(),
+  uploadedByRole: text("uploaded_by_role").notNull(), // admin, bdp, ddp
+  description: text("description"),
+  isVerified: boolean("is_verified").default(false),
+  verifiedById: varchar("verified_by_id"),
+  verifiedAt: timestamp("verified_at"),
+  expiresAt: timestamp("expires_at"), // For documents with expiry dates
+  tags: text("tags").array(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const documentsRelations = relations(documents, ({ one }) => ({
+  customer: one(customers, {
+    fields: [documents.customerId],
+    references: [customers.id],
+  }),
+  partner: one(users, {
+    fields: [documents.partnerId],
+    references: [users.id],
+  }),
+  uploadedBy: one(users, {
+    fields: [documents.uploadedById],
+    references: [users.id],
+  }),
+  verifiedBy: one(users, {
+    fields: [documents.verifiedById],
+    references: [users.id],
+  }),
+}));
+
+// 6. Notification Templates for automated notifications
 export const notificationTemplates = pgTable("notification_templates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
@@ -713,6 +755,15 @@ export const insertNotificationTemplateSchema = createInsertSchema(notificationT
   updatedAt: true,
 });
 
+export const insertDocumentSchema = createInsertSchema(documents).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  isVerified: true,
+  verifiedById: true,
+  verifiedAt: true,
+});
+
 export const insertFeedbackSchema = createInsertSchema(feedback).omit({
   id: true,
   createdAt: true,
@@ -817,6 +868,23 @@ export type InsertReferral = z.infer<typeof insertReferralSchema>;
 export type Referral = typeof referrals.$inferSelect;
 export type InsertNotificationTemplate = z.infer<typeof insertNotificationTemplateSchema>;
 export type NotificationTemplate = typeof notificationTemplates.$inferSelect;
+export type InsertDocument = z.infer<typeof insertDocumentSchema>;
+export type Document = typeof documents.$inferSelect;
+
+// Document categories
+export const documentCategories = [
+  { value: "customer_id", label: "Customer ID Proof" },
+  { value: "customer_address", label: "Address Proof" },
+  { value: "customer_electricity", label: "Electricity Bill" },
+  { value: "site_survey", label: "Site Survey Report" },
+  { value: "installation", label: "Installation Photos" },
+  { value: "completion", label: "Completion Certificate" },
+  { value: "subsidy", label: "Subsidy Documents" },
+  { value: "invoice", label: "Invoice" },
+  { value: "agreement", label: "Agreement/Contract" },
+  { value: "bank_details", label: "Bank Details" },
+  { value: "other", label: "Other" },
+];
 
 // Commission source types
 export const commissionSources = [
