@@ -13,6 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { NotificationBell } from "@/components/notification-bell";
 import { ChatbotAssistant } from "@/components/chatbot-assistant";
 import { OnboardingTutorial } from "@/components/onboarding-tutorial";
+import { Button } from "@/components/ui/button";
+import { Menu } from "lucide-react";
 import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
 import SubsidyCalculatorPage from "@/pages/subsidy-calculator";
@@ -137,7 +139,20 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
   return <>{children}</>;
 }
 
-// Removed MobileMenuButton - using SidebarTrigger for mobile menu instead
+function MobileMenuButton() {
+  const { setOpenMobile } = useSidebar();
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={() => setOpenMobile(true)}
+      className="md:hidden"
+      data-testid="button-mobile-menu"
+    >
+      <Menu className="h-5 w-5" />
+    </Button>
+  );
+}
 
 function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -152,7 +167,8 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0">
           <header className="flex items-center justify-between gap-4 p-4 border-b sticky top-0 bg-background z-50">
-            <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <SidebarTrigger data-testid="button-sidebar-toggle" className="hidden md:flex" />
+            <MobileMenuButton />
             <div className="flex items-center gap-2">
               <NotificationBell />
               <ThemeToggle />
