@@ -61,6 +61,7 @@ import AdminSubsidyApplicationReports from "@/pages/admin/subsidy-application-re
 import AdminSubsidyDisbursementReports from "@/pages/admin/subsidy-disbursement-reports";
 import AdminCustomerFileSubmissions from "@/pages/admin/customer-file-submissions";
 import AdminIndependentCustomers from "@/pages/admin/independent-customers";
+import AdminDocuments from "@/pages/admin/documents";
 import ProfilePage from "@/pages/profile";
 import PrivacyPolicyPage from "@/pages/privacy-policy";
 import DisclaimerPage from "@/pages/disclaimer";
@@ -372,6 +373,13 @@ function AuthenticatedRoutes() {
         <ProtectedRoute allowedRoles={["admin"]}>
           <DashboardLayout>
             <AdminIndependentCustomers />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/documents">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminDocuments />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>

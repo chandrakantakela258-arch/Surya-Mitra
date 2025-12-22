@@ -34,6 +34,7 @@ import {
   ClipboardList,
   IndianRupee,
   Banknote,
+  Files,
 } from "lucide-react";
 import { FeedbackDialog } from "@/components/feedback-dialog";
 import { ChatbotAssistant } from "@/components/chatbot-assistant";
@@ -118,6 +119,7 @@ const adminMenuSections: MenuSection[] = [
   {
     label: "Tools",
     items: [
+      { title: "Documents", url: "/admin/documents", icon: Files },
       { title: "User Feedback", url: "/admin/feedback", icon: MessageSquare },
       { title: "Vendor Approvals", url: "/admin/vendors", icon: Wrench },
       { title: "Notifications", url: "/admin/notifications", icon: Bell },
