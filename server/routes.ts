@@ -51,6 +51,45 @@ const upload = multer({
   },
 });
 
+// Configure multer for document uploads (separate storage for documents)
+const documentsDir = path.join(process.cwd(), "uploads", "documents");
+if (!fs.existsSync(documentsDir)) {
+  fs.mkdirSync(documentsDir, { recursive: true });
+}
+
+const documentStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, documentsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
+const documentUpload = multer({
+  storage: documentStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB max for documents
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = [
+      "image/jpeg", "image/png", "image/webp",
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ];
+    
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Invalid file type. Only images (JPEG, PNG), PDFs, and Office documents are allowed."));
+    }
+  },
+});
+
 const SALT_ROUNDS = 10;
 
 const PgSession = connectPgSimple(session);
@@ -6416,6 +6455,250 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Get Customer Partner profile error:", error);
       res.status(500).json({ message: "Failed to get profile" });
+    }
+  });
+
+  // ============================================
+  // DOCUMENT MANAGEMENT API
+  // ============================================
+  
+  // Upload document
+  app.post("/api/documents/upload", requireAuth, documentUpload.single("file"), async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const { category, customerId, partnerId, description, tags, expiresAt } = req.body;
+      
+      if (!category) {
+        return res.status(400).json({ message: "Document category is required" });
+      }
+
+      const document = await storage.createDocument({
+        name: file.filename,
+        originalName: file.originalname,
+        category,
+        mimeType: file.mimetype,
+        size: file.size,
+        url: `/uploads/documents/${file.filename}`,
+        customerId: customerId || null,
+        partnerId: partnerId || null,
+        uploadedById: userId,
+        uploadedByRole: user.role,
+        description: description || null,
+        tags: tags ? JSON.parse(tags) : null,
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+      });
+
+      res.status(201).json(document);
+    } catch (error) {
+      console.error("Document upload error:", error);
+      res.status(500).json({ message: "Failed to upload document" });
+    }
+  });
+
+  // Get all documents (admin only)
+  app.get("/api/documents", requireAdmin, async (req, res) => {
+    try {
+      const documents = await storage.getAllDocuments();
+      res.json(documents);
+    } catch (error) {
+      console.error("Get documents error:", error);
+      res.status(500).json({ message: "Failed to get documents" });
+    }
+  });
+
+  // Get documents by customer ID
+  app.get("/api/documents/customer/:customerId", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { customerId } = req.params;
+
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Check authorization: admin can see all, others only if they have access to the customer
+      if (user.role !== "admin") {
+        const customer = await storage.getCustomer(customerId);
+        if (!customer) {
+          return res.status(404).json({ message: "Customer not found" });
+        }
+        
+        // DDP can only see their own customers
+        if (user.role === "ddp" && customer.ddpId !== userId) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+        
+        // BDP can see customers of their DDPs
+        if (user.role === "bdp") {
+          const ddp = await storage.getUser(customer.ddpId!);
+          if (!ddp || ddp.parentId !== userId) {
+            return res.status(403).json({ message: "Forbidden" });
+          }
+        }
+      }
+
+      const documents = await storage.getDocumentsByCustomerId(customerId);
+      res.json(documents);
+    } catch (error) {
+      console.error("Get customer documents error:", error);
+      res.status(500).json({ message: "Failed to get documents" });
+    }
+  });
+
+  // Get documents by partner ID
+  app.get("/api/documents/partner/:partnerId", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { partnerId } = req.params;
+
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Authorization: admin can see all, partners can see their own
+      if (user.role !== "admin" && userId !== partnerId) {
+        // BDP can see their DDPs
+        if (user.role === "bdp") {
+          const partner = await storage.getUser(partnerId);
+          if (!partner || partner.parentId !== userId) {
+            return res.status(403).json({ message: "Forbidden" });
+          }
+        } else {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+      }
+
+      const documents = await storage.getDocumentsByPartnerId(partnerId);
+      res.json(documents);
+    } catch (error) {
+      console.error("Get partner documents error:", error);
+      res.status(500).json({ message: "Failed to get documents" });
+    }
+  });
+
+  // Get single document
+  app.get("/api/documents/:id", requireAuth, async (req, res) => {
+    try {
+      const document = await storage.getDocument(req.params.id);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      res.json(document);
+    } catch (error) {
+      console.error("Get document error:", error);
+      res.status(500).json({ message: "Failed to get document" });
+    }
+  });
+
+  // Update document metadata
+  app.patch("/api/documents/:id", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { id } = req.params;
+
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      const document = await storage.getDocument(id);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      // Only uploader or admin can update
+      if (user.role !== "admin" && document.uploadedById !== userId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const { description, tags, expiresAt, category } = req.body;
+      const updated = await storage.updateDocument(id, {
+        description: description !== undefined ? description : document.description,
+        tags: tags !== undefined ? tags : document.tags,
+        expiresAt: expiresAt ? new Date(expiresAt) : document.expiresAt,
+        category: category !== undefined ? category : document.category,
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Update document error:", error);
+      res.status(500).json({ message: "Failed to update document" });
+    }
+  });
+
+  // Verify document (admin only)
+  app.post("/api/documents/:id/verify", requireAdmin, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { id } = req.params;
+
+      const document = await storage.getDocument(id);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      const verified = await storage.verifyDocument(id, userId);
+      res.json(verified);
+    } catch (error) {
+      console.error("Verify document error:", error);
+      res.status(500).json({ message: "Failed to verify document" });
+    }
+  });
+
+  // Delete document
+  app.delete("/api/documents/:id", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { id } = req.params;
+
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      const document = await storage.getDocument(id);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      // Only uploader or admin can delete
+      if (user.role !== "admin" && document.uploadedById !== userId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Delete the file from disk
+      const filePath = path.join(process.cwd(), document.url);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+
+      await storage.deleteDocument(id);
+      res.json({ message: "Document deleted successfully" });
+    } catch (error) {
+      console.error("Delete document error:", error);
+      res.status(500).json({ message: "Failed to delete document" });
+    }
+  });
+
+  // Serve uploaded documents (static file serving)
+  app.use("/uploads/documents", (req, res, next) => {
+    const filePath = path.join(documentsDir, req.path);
+    if (fs.existsSync(filePath)) {
+      res.sendFile(filePath);
+    } else {
+      res.status(404).json({ message: "File not found" });
     }
   });
 
