@@ -342,7 +342,7 @@ export default function DDPStore() {
                   <div className="flex-1">
                     <p className="font-medium">{item.product.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      {formatINR(item.product.bookingAmount ?? item.product.price)} each
+                      {formatINR(item.product.price)} each
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -365,7 +365,7 @@ export default function DDPStore() {
                     </Button>
                   </div>
                   <p className="font-medium w-24 text-right">
-                    {formatINR((item.product.bookingAmount ?? item.product.price) * item.quantity)}
+                    {formatINR(item.product.price * item.quantity)}
                   </p>
                 </div>
               ))}
