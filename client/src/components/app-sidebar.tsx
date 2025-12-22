@@ -82,6 +82,7 @@ const adminMenuSections: MenuSection[] = [
     label: "Partner Management",
     items: [
       { title: "Partner Approvals", url: "/admin/partners", icon: UserCheck },
+      { title: "Partner Hierarchy", url: "/admin/partner-hierarchy", icon: Users },
       { title: "All Customers", url: "/admin/customers", icon: Users },
       { title: "Independent Customers", url: "/admin/independent-customers", icon: UserPlus },
     ],
