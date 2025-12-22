@@ -191,6 +191,7 @@ export default function DDPStore() {
       description: `Advance booking amount for ${capacityKw} kW solar plant installation. This amount will be adjusted in the final bill.`,
       category: "solar_package",
       price: amount,
+      bookingAmount: amount, // For booking items, booking amount equals price
       imageUrl: null,
       isActive: "active",
       stock: 0,
@@ -222,8 +223,9 @@ export default function DDPStore() {
     );
   };
 
+  // Calculate cart total using booking amount (for payment) if available, otherwise use price
   const cartTotal = cart.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
+    (sum, item) => sum + (item.product.bookingAmount ?? item.product.price) * item.quantity,
     0
   );
 
@@ -254,7 +256,8 @@ export default function DDPStore() {
         productId: item.product.id,
         productName: item.product.name,
         quantity: item.quantity,
-        unitPrice: item.product.price,
+        unitPrice: item.product.bookingAmount ?? item.product.price, // Use booking amount for payment
+        plantCost: item.product.price, // Store original plant cost for reference
       })),
       customerName: checkoutData.customerName,
       customerPhone: checkoutData.customerPhone,
@@ -375,7 +378,7 @@ export default function DDPStore() {
                   <div className="flex-1">
                     <p className="font-medium">{item.product.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      {formatINR(item.product.price)} each
+                      {formatINR(item.product.bookingAmount ?? item.product.price)} each
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -398,7 +401,7 @@ export default function DDPStore() {
                     </Button>
                   </div>
                   <p className="font-medium w-24 text-right">
-                    {formatINR(item.product.price * item.quantity)}
+                    {formatINR((item.product.bookingAmount ?? item.product.price) * item.quantity)}
                   </p>
                 </div>
               ))}
@@ -441,7 +444,16 @@ export default function DDPStore() {
               {product.description && (
                 <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{product.description}</p>
               )}
-              <p className="text-2xl font-bold">{formatINR(product.price)}</p>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Plant Cost:</span>
+                  <span className="font-semibold">{formatINR(product.price)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Booking Amount:</span>
+                  <span className="text-xl font-bold text-primary">{formatINR(product.bookingAmount ?? product.price)}</span>
+                </div>
+              </div>
             </CardContent>
             <CardFooter>
               <Button

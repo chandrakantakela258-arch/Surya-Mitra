@@ -63,6 +63,7 @@ interface ProductFormData {
   description: string;
   category: string;
   price: number;
+  bookingAmount: number | null;
   stock: number;
   isActive: string;
   imageUrl: string;
@@ -73,6 +74,7 @@ const initialFormData: ProductFormData = {
   description: "",
   category: "marketing_material",
   price: 0,
+  bookingAmount: null,
   stock: 100,
   isActive: "active",
   imageUrl: "",
@@ -186,6 +188,7 @@ export default function AdminProducts() {
       description: product.description || "",
       category: product.category,
       price: product.price,
+      bookingAmount: product.bookingAmount || null,
       stock: product.stock || 0,
       isActive: product.isActive || "active",
       imageUrl: product.imageUrl || "",
@@ -284,7 +287,8 @@ export default function AdminProducts() {
                 <TableRow>
                   <TableHead>Product</TableHead>
                   <TableHead>Category</TableHead>
-                  <TableHead>Price</TableHead>
+                  <TableHead>Plant Cost</TableHead>
+                  <TableHead>Booking Amt</TableHead>
                   <TableHead>Stock</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -318,6 +322,7 @@ export default function AdminProducts() {
                       <Badge variant="outline">{categoryLabels[product.category] || product.category}</Badge>
                     </TableCell>
                     <TableCell className="font-medium">{formatINR(product.price)}</TableCell>
+                    <TableCell className="font-medium text-primary">{product.bookingAmount ? formatINR(product.bookingAmount) : "-"}</TableCell>
                     <TableCell>{product.stock}</TableCell>
                     <TableCell>
                       {product.isActive === "active" ? (
@@ -432,25 +437,36 @@ export default function AdminProducts() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Price (INR)</Label>
+                <Label>Plant Cost (INR)</Label>
                 <Input
                   type="number"
                   value={formData.price}
                   onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
-                  placeholder="0"
+                  placeholder="Full plant cost"
                   data-testid="input-product-price"
                 />
               </div>
               <div>
-                <Label>Stock</Label>
+                <Label>Booking Amount (INR)</Label>
                 <Input
                   type="number"
-                  value={formData.stock}
-                  onChange={(e) => setFormData({ ...formData, stock: Number(e.target.value) })}
-                  placeholder="100"
-                  data-testid="input-product-stock"
+                  value={formData.bookingAmount || ""}
+                  onChange={(e) => setFormData({ ...formData, bookingAmount: e.target.value ? Number(e.target.value) : null })}
+                  placeholder="Payment amount (optional)"
+                  data-testid="input-product-booking-amount"
                 />
+                <p className="text-xs text-muted-foreground mt-1">Leave empty to use plant cost for payment</p>
               </div>
+            </div>
+            <div>
+              <Label>Stock</Label>
+              <Input
+                type="number"
+                value={formData.stock}
+                onChange={(e) => setFormData({ ...formData, stock: Number(e.target.value) })}
+                placeholder="100"
+                data-testid="input-product-stock"
+              />
             </div>
             <div>
               <Label>Image URL (optional)</Label>

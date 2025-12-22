@@ -199,7 +199,8 @@ export const products = pgTable("products", {
   name: text("name").notNull(),
   description: text("description"),
   category: text("category").notNull(), // solar_package, marketing_material, accessory
-  price: integer("price").notNull(), // in INR (paise for decimals, or whole rupees)
+  price: integer("price").notNull(), // in INR - Plant Cost / Full Price
+  bookingAmount: integer("booking_amount"), // in INR - Booking amount for payment (optional, defaults to price if not set)
   imageUrl: text("image_url"),
   isActive: text("is_active").default("active"), // active, inactive
   stock: integer("stock").default(0), // -1 for unlimited (services)
