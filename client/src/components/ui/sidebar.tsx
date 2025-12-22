@@ -180,15 +180,14 @@ function Sidebar({
     )
   }
 
-  return (
-    <>
-      {/* Mobile Sheet - always rendered, controlled by openMobile state */}
-      <Sheet open={openMobile} onOpenChange={setOpenMobile}>
+  if (isMobile) {
+    return (
+      <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
         <SheetContent
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="bg-sidebar text-sidebar-foreground w-[var(--sidebar-width)] p-0 [&>button]:hidden md:hidden"
+          className="bg-sidebar text-sidebar-foreground w-[var(--sidebar-width)] p-0 [&>button]:hidden"
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -203,9 +202,11 @@ function Sidebar({
           <div className="flex h-full w-full flex-col">{children}</div>
         </SheetContent>
       </Sheet>
-      
-      {/* Desktop Sidebar */}
-      <div
+    )
+  }
+
+  return (
+    <div
       className="group peer text-sidebar-foreground hidden md:block"
       data-state={state}
       data-collapsible={state === "collapsed" ? collapsible : ""}
@@ -249,7 +250,6 @@ function Sidebar({
         </div>
       </div>
     </div>
-    </>
   )
 }
 

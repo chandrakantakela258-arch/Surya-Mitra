@@ -13,8 +13,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { NotificationBell } from "@/components/notification-bell";
 import { ChatbotAssistant } from "@/components/chatbot-assistant";
 import { OnboardingTutorial } from "@/components/onboarding-tutorial";
-import { Button } from "@/components/ui/button";
-import { Menu } from "lucide-react";
 import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
 import SubsidyCalculatorPage from "@/pages/subsidy-calculator";
@@ -139,29 +137,6 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
   return <>{children}</>;
 }
 
-function HeaderMenuTrigger() {
-  const { setOpenMobile, setOpen, open } = useSidebar();
-  
-  const handleClick = () => {
-    const isMobileNow = window.innerWidth < 768;
-    if (isMobileNow) {
-      setOpenMobile(true);
-    } else {
-      setOpen(!open);
-    }
-  };
-  
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={handleClick}
-      data-testid="button-sidebar-toggle"
-    >
-      <Menu className="h-5 w-5" />
-    </Button>
-  );
-}
 
 function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -176,7 +151,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0">
           <header className="flex items-center justify-between gap-4 p-4 border-b sticky top-0 bg-background z-50">
-            <HeaderMenuTrigger />
+            <SidebarTrigger data-testid="button-sidebar-toggle" />
             <div className="flex items-center gap-2">
               <NotificationBell />
               <ThemeToggle />
