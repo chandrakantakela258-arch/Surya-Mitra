@@ -1043,11 +1043,11 @@ export async function registerRoutes(
     }
   });
 
-  // Get all customers under BDP's network
+  // Get all customers under BDP's network (with DDP info)
   app.get("/api/bdp/customers", requireBDP, async (req, res) => {
     try {
       const user = (req as any).user;
-      const customers = await storage.getAllCustomersByBdpId(user.id);
+      const customers = await storage.getAllCustomersByBdpIdWithPartnerInfo(user.id);
       res.json(customers);
     } catch (error) {
       console.error("Get BDP customers error:", error);
@@ -1940,10 +1940,10 @@ export async function registerRoutes(
     }
   });
 
-  // Get all customers
+  // Get all customers (with DDP and BDP info)
   app.get("/api/admin/customers", requireAdmin, async (req, res) => {
     try {
-      const customers = await storage.getAllCustomers();
+      const customers = await storage.getAllCustomersWithPartnerInfo();
       res.json(customers);
     } catch (error) {
       console.error("Get all customers error:", error);
