@@ -7,8 +7,9 @@ import {
   ShoppingCart,
   UserPlus,
   FileText,
-  Bell,
-  User
+  User,
+  GitBranch,
+  Receipt
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -37,9 +38,9 @@ const bdpNavItems: NavItem[] = [
 const adminNavItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Home", href: "/admin/dashboard" },
   { icon: Users, label: "Partners", href: "/admin/partners" },
-  { icon: FileText, label: "Customers", href: "/admin/customers" },
-  { icon: Wallet, label: "Payouts", href: "/admin/payouts" },
-  { icon: Bell, label: "Alerts", href: "/notifications" },
+  { icon: FileText, label: "Journey", href: "/admin/customer-journey" },
+  { icon: Receipt, label: "Expenses", href: "/admin/site-expenses" },
+  { icon: GitBranch, label: "Hierarchy", href: "/admin/partner-hierarchy" },
 ];
 
 const customerPartnerNavItems: NavItem[] = [
