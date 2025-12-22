@@ -9,7 +9,8 @@ import {
   FileText,
   User,
   GitBranch,
-  Receipt
+  Receipt,
+  Calculator
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -29,10 +30,10 @@ const ddpNavItems: NavItem[] = [
 
 const bdpNavItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Home", href: "/bdp/dashboard" },
-  { icon: Users, label: "Partners", href: "/bdp/partners" },
+  { icon: Users, label: "Customers", href: "/bdp/all-customers" },
   { icon: Wallet, label: "Wallet", href: "/bdp/wallet" },
   { icon: ShoppingCart, label: "Store", href: "/bdp/store" },
-  { icon: User, label: "Profile", href: "/profile" },
+  { icon: Calculator, label: "Calculator", href: "/subsidy-calculator" },
 ];
 
 const adminNavItems: NavItem[] = [
