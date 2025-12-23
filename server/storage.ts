@@ -2057,11 +2057,33 @@ export class DatabaseStorage implements IStorage {
     const updateData: Partial<Vendor> = { status, updatedAt: new Date() };
     if (notes !== undefined) updateData.notes = notes;
     
+    // Generate vendor code when approving
+    if (status === "approved") {
+      const vendor = await this.getVendor(id);
+      if (vendor && !vendor.vendorCode) {
+        const vendorCode = await this.generateVendorCode(vendor.vendorType || "solar_installation");
+        updateData.vendorCode = vendorCode;
+      }
+    }
+    
     const [updated] = await db.update(vendors)
       .set(updateData)
       .where(eq(vendors.id, id))
       .returning();
     return updated || undefined;
+  }
+  
+  async generateVendorCode(vendorType: string): Promise<string> {
+    const { getVendorCodePrefix } = await import("@shared/schema");
+    const prefix = getVendorCodePrefix(vendorType);
+    
+    // Count existing vendors of this type with vendor codes
+    const result = await db.select({ count: sql<number>`COUNT(*)::int` })
+      .from(vendors)
+      .where(sql`vendor_code LIKE ${prefix + '-%'}`);
+    
+    const count = (result[0]?.count || 0) + 1;
+    return `${prefix}-${String(count).padStart(3, '0')}`;
   }
   
   // Site Expense operations

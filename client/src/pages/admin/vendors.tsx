@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Vendor, vendorServices, vendorSpecializations, vendorCertifications, vendorEquipment } from "@shared/schema";
+import { Vendor, vendorServices, vendorSpecializations, vendorCertifications, vendorEquipment, vendorTypeOptions } from "@shared/schema";
 import { Search, CheckCircle, XCircle, Clock, Eye, Phone, Mail, MapPin, Building2, Wrench, Users, Award, Truck, CreditCard, FileText } from "lucide-react";
 import { format } from "date-fns";
 
@@ -81,6 +81,11 @@ export default function AdminVendors() {
   const getServiceLabels = (services: string[] | null) => {
     if (!services) return "-";
     return services.map(s => vendorServices.find(vs => vs.value === s)?.label || s).join(", ");
+  };
+
+  const getVendorTypeLabel = (vendorType: string | null) => {
+    if (!vendorType) return "Solar Installation";
+    return vendorTypeOptions.find(opt => opt.value === vendorType)?.label || vendorType;
   };
 
   const handleAction = (vendor: Vendor, type: "approve" | "reject") => {
@@ -186,11 +191,11 @@ export default function AdminVendors() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Code</TableHead>
                     <TableHead>Name</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead>Phone</TableHead>
                     <TableHead>Location</TableHead>
-                    <TableHead>Services</TableHead>
-                    <TableHead>Experience</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Applied On</TableHead>
                     <TableHead>Actions</TableHead>
@@ -200,12 +205,26 @@ export default function AdminVendors() {
                   {filteredVendors.map((vendor) => (
                     <TableRow key={vendor.id} data-testid={`row-vendor-${vendor.id}`}>
                       <TableCell>
+                        {vendor.vendorCode ? (
+                          <Badge variant="outline" className="font-mono text-xs">
+                            {vendor.vendorCode}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         <div>
                           <div className="font-medium">{vendor.name}</div>
                           {vendor.companyName && (
                             <div className="text-sm text-muted-foreground">{vendor.companyName}</div>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="text-xs">
+                          {getVendorTypeLabel(vendor.vendorType)}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <a href={`tel:+91${vendor.phone}`} className="text-blue-600 hover:underline">
@@ -218,12 +237,6 @@ export default function AdminVendors() {
                           <div className="text-muted-foreground">{vendor.state}</div>
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <div className="text-sm max-w-[200px] truncate">
-                          {getServiceLabels(vendor.services)}
-                        </div>
-                      </TableCell>
-                      <TableCell>{vendor.experienceYears || "-"}</TableCell>
                       <TableCell>{getStatusBadge(vendor.status)}</TableCell>
                       <TableCell>
                         {vendor.createdAt ? format(new Date(vendor.createdAt), "dd MMM yyyy") : "-"}
@@ -287,6 +300,26 @@ export default function AdminVendors() {
 
                 <TabsContent value="personal" className="space-y-4 mt-4">
                   <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Vendor Code</p>
+                      <p className="font-medium">
+                        {selectedVendor.vendorCode ? (
+                          <Badge variant="outline" className="font-mono">
+                            {selectedVendor.vendorCode}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">Assigned on approval</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Vendor Type</p>
+                      <p className="font-medium">
+                        <Badge variant="secondary">
+                          {getVendorTypeLabel(selectedVendor.vendorType)}
+                        </Badge>
+                      </p>
+                    </div>
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">Full Name</p>
                       <p className="font-medium">{selectedVendor.name}</p>
