@@ -2593,6 +2593,8 @@ export async function registerRoutes(
       });
     } catch (error: any) {
       console.error("Create order error:", error);
+      console.error("Error stack:", error?.stack);
+      console.error("Error details:", JSON.stringify(error, null, 2));
       res.status(500).json({ message: error.message || "Failed to create order" });
     }
   });
