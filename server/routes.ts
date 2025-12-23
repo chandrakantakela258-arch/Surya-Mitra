@@ -6728,6 +6728,11 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Missing required fields" });
       }
 
+      // Build customer address from available fields
+      const customerAddress = customer.address || 
+        [customer.district, customer.state, customer.pincode].filter(Boolean).join(", ") ||
+        "Address not available";
+
       const request = await storage.createServiceRequest({
         customerId: customer.id,
         issueType,
@@ -6736,13 +6741,13 @@ export async function registerRoutes(
         urgency: urgency || "normal",
         customerName: customer.name,
         customerPhone: customer.phone,
-        customerAddress: customer.address,
+        customerAddress,
       });
 
       res.status(201).json(request);
-    } catch (error) {
-      console.error("Create service request error:", error);
-      res.status(500).json({ message: "Failed to create service request" });
+    } catch (error: any) {
+      console.error("Create service request error:", error?.message || error);
+      res.status(500).json({ message: error?.message || "Failed to create service request" });
     }
   });
 
