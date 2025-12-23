@@ -23,7 +23,7 @@ interface NavItem {
 const ddpNavItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Home", href: "/ddp/dashboard" },
   { icon: Users, label: "Customers", href: "/ddp/customers" },
-  { icon: Calculator, label: "Calculator", href: "/subsidy-calculator" },
+  { icon: Calculator, label: "Calculator", href: "/calculator" },
   { icon: Wallet, label: "Earnings", href: "/ddp/earnings" },
   { icon: ShoppingCart, label: "Store", href: "/ddp/store" },
 ];
@@ -33,7 +33,7 @@ const bdpNavItems: NavItem[] = [
   { icon: Users, label: "Customers", href: "/bdp/customers" },
   { icon: Wallet, label: "Wallet", href: "/bdp/wallet" },
   { icon: ShoppingCart, label: "Store", href: "/bdp/store" },
-  { icon: Calculator, label: "Calculator", href: "/subsidy-calculator" },
+  { icon: Calculator, label: "Calculator", href: "/calculator" },
 ];
 
 const adminNavItems: NavItem[] = [
