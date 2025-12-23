@@ -10,7 +10,7 @@ export default function CalculatorPage() {
         </p>
       </div>
       
-      <SubsidyCalculator />
+      <SubsidyCalculator showCommission="ddp_only" />
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="p-6 bg-muted/30 rounded-lg space-y-4">

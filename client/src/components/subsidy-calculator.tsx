@@ -235,6 +235,7 @@ interface SubsidyCalculatorProps {
   initialState?: string;
   initialCustomerType?: CustomerType;
   compact?: boolean;
+  showCommission?: 'none' | 'ddp_only' | 'all';
 }
 
 export function SubsidyCalculator({ 
@@ -244,7 +245,8 @@ export function SubsidyCalculator({
   initialCapacity = 5,
   initialState = "",
   initialCustomerType = "residential",
-  compact = false 
+  compact = false,
+  showCommission = 'none'
 }: SubsidyCalculatorProps) {
   const [capacity, setCapacity] = useState(initialCapacity);
   const [selectedState, setSelectedState] = useState(initialState);
@@ -597,49 +599,75 @@ export function SubsidyCalculator({
           </div>
         )}
 
-        <Card className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30 border-purple-200 dark:border-purple-800">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg text-purple-700 dark:text-purple-300">
-              <Users className="w-5 h-5" />
-              Partner Commission Structure
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-              <div className="p-4 bg-background rounded-lg">
-                <p className="text-sm text-muted-foreground mb-1">DDP Commission</p>
-                <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{formatINR(commission.ddpCommission)}</p>
-                <p className="text-xs text-muted-foreground">
-                  {panelType === "dcr" 
-                    ? (capacity === 3 ? "Rs 20,000 fixed" : capacity === 5 ? "Rs 35,000 fixed" : "Rs 6,000/kW")
-                    : "Rs 4,000/kW"}
-                </p>
-              </div>
-              <div className="p-4 bg-background rounded-lg">
-                <p className="text-sm text-muted-foreground mb-1">BDP Commission</p>
-                <p className="text-2xl font-bold text-pink-600 dark:text-pink-400">{formatINR(commission.bdpCommission)}</p>
-                <p className="text-xs text-muted-foreground">
-                  {panelType === "dcr" 
-                    ? (capacity === 3 ? "Rs 10,000 fixed" : capacity === 5 ? "Rs 15,000 fixed" : "Rs 3,000/kW")
-                    : "Rs 2,000/kW"}
-                </p>
-              </div>
-              <div className="p-4 bg-purple-100 dark:bg-purple-900/50 rounded-lg">
-                <p className="text-sm font-medium text-purple-700 dark:text-purple-300 mb-1">Total Commission</p>
-                <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">{formatINR(commission.totalCommission)}</p>
-                <p className="text-xs text-muted-foreground">DDP + BDP</p>
-              </div>
-            </div>
-            <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-              <p className="text-xs text-muted-foreground text-center">
-                <strong>{panelType === "dcr" ? "DCR Commission:" : "Non-DCR Commission:"}</strong>{" "}
-                {panelType === "dcr" 
-                  ? "3 kW (DDP Rs 20k, BDP Rs 10k) | 5 kW (DDP Rs 35k, BDP Rs 15k) | 6+ kW (DDP Rs 6k/kW, BDP Rs 3k/kW)"
-                  : "All capacities: DDP Rs 4,000/kW | BDP Rs 2,000/kW"}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        {showCommission !== 'none' && (
+          <Card className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30 border-purple-200 dark:border-purple-800">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg text-purple-700 dark:text-purple-300">
+                <Users className="w-5 h-5" />
+                {showCommission === 'ddp_only' ? 'Your Commission' : 'Partner Commission Structure'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {showCommission === 'ddp_only' ? (
+                <div className="text-center">
+                  <div className="p-4 bg-background rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-1">Your Commission</p>
+                    <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">{formatINR(commission.ddpCommission)}</p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {panelType === "dcr" 
+                        ? (capacity === 3 ? "Rs 20,000 fixed" : capacity === 5 ? "Rs 35,000 fixed" : "Rs 6,000/kW")
+                        : "Rs 4,000/kW"}
+                    </p>
+                  </div>
+                  <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                    <p className="text-xs text-muted-foreground text-center">
+                      <strong>{panelType === "dcr" ? "DCR Commission:" : "Non-DCR Commission:"}</strong>{" "}
+                      {panelType === "dcr" 
+                        ? "3 kW: Rs 20k | 5 kW: Rs 35k | 6+ kW: Rs 6k/kW"
+                        : "All capacities: Rs 4,000/kW"}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                    <div className="p-4 bg-background rounded-lg">
+                      <p className="text-sm text-muted-foreground mb-1">DDP Commission</p>
+                      <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{formatINR(commission.ddpCommission)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {panelType === "dcr" 
+                          ? (capacity === 3 ? "Rs 20,000 fixed" : capacity === 5 ? "Rs 35,000 fixed" : "Rs 6,000/kW")
+                          : "Rs 4,000/kW"}
+                      </p>
+                    </div>
+                    <div className="p-4 bg-background rounded-lg">
+                      <p className="text-sm text-muted-foreground mb-1">BDP Commission</p>
+                      <p className="text-2xl font-bold text-pink-600 dark:text-pink-400">{formatINR(commission.bdpCommission)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {panelType === "dcr" 
+                          ? (capacity === 3 ? "Rs 10,000 fixed" : capacity === 5 ? "Rs 15,000 fixed" : "Rs 3,000/kW")
+                          : "Rs 2,000/kW"}
+                      </p>
+                    </div>
+                    <div className="p-4 bg-purple-100 dark:bg-purple-900/50 rounded-lg">
+                      <p className="text-sm font-medium text-purple-700 dark:text-purple-300 mb-1">Total Commission</p>
+                      <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">{formatINR(commission.totalCommission)}</p>
+                      <p className="text-xs text-muted-foreground">DDP + BDP</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                    <p className="text-xs text-muted-foreground text-center">
+                      <strong>{panelType === "dcr" ? "DCR Commission:" : "Non-DCR Commission:"}</strong>{" "}
+                      {panelType === "dcr" 
+                        ? "3 kW (DDP Rs 20k, BDP Rs 10k) | 5 kW (DDP Rs 35k, BDP Rs 15k) | 6+ kW (DDP Rs 6k/kW, BDP Rs 3k/kW)"
+                        : "All capacities: DDP Rs 4,000/kW | BDP Rs 2,000/kW"}
+                    </p>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        )}
         
         <Card className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-green-200 dark:border-green-800">
           <CardHeader className="pb-3">
