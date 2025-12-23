@@ -235,7 +235,7 @@ interface SubsidyCalculatorProps {
   initialState?: string;
   initialCustomerType?: CustomerType;
   compact?: boolean;
-  showCommission?: 'none' | 'ddp_only' | 'all';
+  showCommission?: 'none' | 'ddp_only' | 'bdp_only' | 'all';
 }
 
 export function SubsidyCalculator({ 
@@ -604,7 +604,7 @@ export function SubsidyCalculator({
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg text-purple-700 dark:text-purple-300">
                 <Users className="w-5 h-5" />
-                {showCommission === 'ddp_only' ? 'Your Commission' : 'Partner Commission Structure'}
+                {(showCommission === 'ddp_only' || showCommission === 'bdp_only') ? 'Your Commission' : 'Partner Commission Structure'}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -625,6 +625,26 @@ export function SubsidyCalculator({
                       {panelType === "dcr" 
                         ? "3 kW: Rs 20k | 5 kW: Rs 35k | 6+ kW: Rs 6k/kW"
                         : "All capacities: Rs 4,000/kW"}
+                    </p>
+                  </div>
+                </div>
+              ) : showCommission === 'bdp_only' ? (
+                <div className="text-center">
+                  <div className="p-4 bg-background rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-1">Your Commission</p>
+                    <p className="text-3xl font-bold text-pink-600 dark:text-pink-400">{formatINR(commission.bdpCommission)}</p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {panelType === "dcr" 
+                        ? (capacity === 3 ? "Rs 10,000 fixed" : capacity === 5 ? "Rs 15,000 fixed" : "Rs 3,000/kW")
+                        : "Rs 2,000/kW"}
+                    </p>
+                  </div>
+                  <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                    <p className="text-xs text-muted-foreground text-center">
+                      <strong>{panelType === "dcr" ? "DCR Commission:" : "Non-DCR Commission:"}</strong>{" "}
+                      {panelType === "dcr" 
+                        ? "3 kW: Rs 10k | 5 kW: Rs 15k | 6+ kW: Rs 3k/kW"
+                        : "All capacities: Rs 2,000/kW"}
                     </p>
                   </div>
                 </div>

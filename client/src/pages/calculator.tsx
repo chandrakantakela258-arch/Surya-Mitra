@@ -1,6 +1,12 @@
 import { SubsidyCalculator } from "@/components/subsidy-calculator";
+import { useAuth } from "@/lib/auth";
 
 export default function CalculatorPage() {
+  const { user } = useAuth();
+  
+  // Determine commission visibility based on user role
+  const showCommission = user?.role === 'bdp' ? 'bdp_only' : user?.role === 'ddp' ? 'ddp_only' : 'none';
+  
   return (
     <div className="p-6 space-y-6">
       <div>
@@ -10,7 +16,7 @@ export default function CalculatorPage() {
         </p>
       </div>
       
-      <SubsidyCalculator showCommission="ddp_only" />
+      <SubsidyCalculator showCommission={showCommission} />
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="p-6 bg-muted/30 rounded-lg space-y-4">
