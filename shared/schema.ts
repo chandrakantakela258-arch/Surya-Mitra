@@ -1021,6 +1021,10 @@ export const commissionSchedule = dcrFixedCommission;
 export const vendors = pgTable("vendors", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   
+  // Vendor Type & Code
+  vendorType: text("vendor_type").notNull().default("solar_installation"), // logistic, bank_loan_liaison, discom_net_metering, electrical, solar_installation
+  vendorCode: text("vendor_code").unique(), // Auto-generated: LOG-001, BLN-001, DNM-001, ELC-001, SPI-001
+  
   // Personal Details
   name: text("name").notNull(),
   fatherName: text("father_name"),
@@ -1085,11 +1089,27 @@ export const vendors = pgTable("vendors", {
 
 export const insertVendorSchema = createInsertSchema(vendors).omit({
   id: true,
+  vendorCode: true, // Auto-generated when approved
   status: true,
   notes: true,
   createdAt: true,
   updatedAt: true,
 });
+
+// Vendor type options with code prefixes
+export const vendorTypeOptions = [
+  { value: "logistic", label: "Logistic Vendor", prefix: "LOG" },
+  { value: "bank_loan_liaison", label: "Bank Loan Liaison Service", prefix: "BLN" },
+  { value: "discom_net_metering", label: "Discom Net Metering Liaison", prefix: "DNM" },
+  { value: "electrical", label: "Electrical Vendor", prefix: "ELC" },
+  { value: "solar_installation", label: "Solar Plant Installation & Erection", prefix: "SPI" },
+];
+
+// Get vendor code prefix by type
+export function getVendorCodePrefix(vendorType: string): string {
+  const option = vendorTypeOptions.find(opt => opt.value === vendorType);
+  return option?.prefix || "VND";
+}
 
 export type InsertVendor = z.infer<typeof insertVendorSchema>;
 export type Vendor = typeof vendors.$inferSelect;
