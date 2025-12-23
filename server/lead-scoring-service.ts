@@ -67,8 +67,6 @@ Respond in this exact JSON format:
 
   try {
     console.log("Calling OpenAI for lead scoring...");
-    console.log("Base URL:", process.env.AI_INTEGRATIONS_OPENAI_BASE_URL);
-    console.log("API Key configured:", !!process.env.AI_INTEGRATIONS_OPENAI_API_KEY);
     
     const response = await openai.chat.completions.create({
       model: "gpt-4.1-mini",
