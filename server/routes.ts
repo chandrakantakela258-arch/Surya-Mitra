@@ -2496,7 +2496,10 @@ export async function registerRoutes(
         }
         
         // Use SERVER-SIDE price, not client-provided price (security)
-        const unitPrice = product.price;
+        // For solar packages with booking amount, use booking amount instead of full plant cost
+        const unitPrice = (product.category === "solar_package" && product.bookingAmount) 
+          ? product.bookingAmount 
+          : product.price;
         const quantity = Math.max(1, Math.min(item.quantity || 1, 100)); // Clamp quantity
         const totalPrice = unitPrice * quantity;
         
