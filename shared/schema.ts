@@ -1098,12 +1098,27 @@ export const insertVendorSchema = createInsertSchema(vendors).omit({
 
 // Vendor type options with code prefixes
 export const vendorTypeOptions = [
-  { value: "logistic", label: "Logistic Vendor", prefix: "LOG" },
-  { value: "bank_loan_liaison", label: "Bank Loan Liaison Service", prefix: "BLN" },
-  { value: "discom_net_metering", label: "Discom Net Metering Liaison", prefix: "DNM" },
-  { value: "electrical", label: "Electrical Vendor", prefix: "ELC" },
-  { value: "solar_installation", label: "Solar Plant Installation & Erection", prefix: "SPI" },
+  // Service Vendors
+  { value: "logistic", label: "Logistic Vendor", prefix: "LOG", category: "service" },
+  { value: "bank_loan_liaison", label: "Bank Loan Liaison Service", prefix: "BLN", category: "service" },
+  { value: "discom_net_metering", label: "Discom Net Metering Liaison", prefix: "DNM", category: "service" },
+  { value: "electrical", label: "Electrical Vendor", prefix: "ELC", category: "service" },
+  { value: "solar_installation", label: "Solar Plant Installation & Erection", prefix: "SPI", category: "service" },
+  // Supplier Vendors
+  { value: "solar_panel_supplier", label: "Solar Panel Supplier", prefix: "SPS", category: "supplier" },
+  { value: "inverter_supplier", label: "Inverter Supplier", prefix: "IVS", category: "supplier" },
+  { value: "solar_mounting_supplier", label: "Solar Mounting Supplier", prefix: "SMS", category: "supplier" },
+  { value: "electrical_supplier", label: "ACDB/DCDB & Electrical Supplier", prefix: "ELS", category: "supplier" },
+  { value: "civil_material_supplier", label: "Civil Material Supplier", prefix: "CMS", category: "supplier" },
+  { value: "accessories_supplier", label: "Other Accessories Supplier", prefix: "OAS", category: "supplier" },
+  { value: "lithium_battery_supplier", label: "Lithium Ion Batteries Supplier", prefix: "LIB", category: "supplier" },
+  { value: "tubular_battery_supplier", label: "Tubular Gel Batteries Supplier", prefix: "TGB", category: "supplier" },
 ];
+
+// Get vendor types by category
+export function getVendorTypesByCategory(category: "service" | "supplier") {
+  return vendorTypeOptions.filter(opt => opt.category === category);
+}
 
 // Get vendor code prefix by type
 export function getVendorCodePrefix(vendorType: string): string {
@@ -1169,6 +1184,70 @@ export const vendorStates = [
   { value: "Jharkhand", label: "Jharkhand" },
   { value: "Uttar Pradesh", label: "Uttar Pradesh" },
   { value: "Odisha", label: "Odisha" },
+];
+
+// Customer Vendor Assignments - Track vendor job assignments per customer journey
+export const customerVendorAssignments = pgTable("customer_vendor_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").notNull().references(() => customers.id),
+  vendorId: varchar("vendor_id").notNull().references(() => vendors.id),
+  
+  // Job Role matching vendor type
+  jobRole: text("job_role").notNull(), // vendor type value e.g., solar_panel_supplier, logistic, etc.
+  
+  // Journey Stage
+  journeyStage: text("journey_stage").notNull().default("installation"), // pre_installation, installation, post_installation
+  
+  // Scheduling
+  scheduledDate: timestamp("scheduled_date"),
+  completedDate: timestamp("completed_date"),
+  
+  // Status
+  status: text("status").notNull().default("pending"), // pending, assigned, in_progress, completed, cancelled
+  
+  // Fulfillment Details
+  notes: text("notes"),
+  amountQuoted: decimal("amount_quoted", { precision: 12, scale: 2 }),
+  amountPaid: decimal("amount_paid", { precision: 12, scale: 2 }),
+  invoiceNumber: text("invoice_number"),
+  
+  // Assignment tracking
+  assignedBy: varchar("assigned_by").references(() => users.id),
+  assignedAt: timestamp("assigned_at").defaultNow(),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const customerVendorAssignmentsRelations = relations(customerVendorAssignments, ({ one }) => ({
+  customer: one(customers, {
+    fields: [customerVendorAssignments.customerId],
+    references: [customers.id],
+  }),
+  vendor: one(vendors, {
+    fields: [customerVendorAssignments.vendorId],
+    references: [vendors.id],
+  }),
+  assignedByUser: one(users, {
+    fields: [customerVendorAssignments.assignedBy],
+    references: [users.id],
+  }),
+}));
+
+export const insertCustomerVendorAssignmentSchema = createInsertSchema(customerVendorAssignments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertCustomerVendorAssignment = z.infer<typeof insertCustomerVendorAssignmentSchema>;
+export type CustomerVendorAssignment = typeof customerVendorAssignments.$inferSelect;
+
+// Journey stages for vendor assignment
+export const vendorJourneyStages = [
+  { value: "pre_installation", label: "Pre-Installation" },
+  { value: "installation", label: "Installation" },
+  { value: "post_installation", label: "Post-Installation" },
 ];
 
 // Site Installation Expenses - Track all costs and profit per installation
