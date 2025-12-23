@@ -22,6 +22,7 @@ import {
   referrals,
   notificationTemplates,
   vendors,
+  customerVendorAssignments,
   siteExpenses,
   bankLoanSubmissions,
   customerFileSubmissions,
@@ -75,6 +76,8 @@ import {
   type InsertNotificationTemplate,
   type Vendor,
   type InsertVendor,
+  type CustomerVendorAssignment,
+  type InsertCustomerVendorAssignment,
   type SiteExpense,
   type InsertSiteExpense,
   type BankLoanSubmission,
@@ -365,8 +368,17 @@ export interface IStorage {
   // Vendor operations
   createVendor(vendor: InsertVendor): Promise<Vendor>;
   getVendors(): Promise<Vendor[]>;
+  getVendorsByType(vendorType: string): Promise<Vendor[]>;
+  getApprovedVendors(): Promise<Vendor[]>;
   getVendor(id: string): Promise<Vendor | undefined>;
   updateVendorStatus(id: string, status: string, notes?: string): Promise<Vendor | undefined>;
+  
+  // Vendor Assignment operations
+  createVendorAssignment(assignment: InsertCustomerVendorAssignment): Promise<CustomerVendorAssignment>;
+  getVendorAssignmentsByCustomer(customerId: string): Promise<CustomerVendorAssignment[]>;
+  getVendorAssignmentsByVendor(vendorId: string): Promise<CustomerVendorAssignment[]>;
+  updateVendorAssignment(id: string, data: Partial<CustomerVendorAssignment>): Promise<CustomerVendorAssignment | undefined>;
+  deleteVendorAssignment(id: string): Promise<void>;
   
   // Site Expense operations
   createSiteExpense(expense: InsertSiteExpense): Promise<SiteExpense>;
@@ -2084,6 +2096,48 @@ export class DatabaseStorage implements IStorage {
     
     const count = (result[0]?.count || 0) + 1;
     return `${prefix}-${String(count).padStart(3, '0')}`;
+  }
+  
+  async getVendorsByType(vendorType: string): Promise<Vendor[]> {
+    return await db.select().from(vendors)
+      .where(eq(vendors.vendorType, vendorType))
+      .orderBy(desc(vendors.createdAt));
+  }
+  
+  async getApprovedVendors(): Promise<Vendor[]> {
+    return await db.select().from(vendors)
+      .where(eq(vendors.status, "approved"))
+      .orderBy(desc(vendors.createdAt));
+  }
+  
+  // Vendor Assignment operations
+  async createVendorAssignment(assignment: InsertCustomerVendorAssignment): Promise<CustomerVendorAssignment> {
+    const [created] = await db.insert(customerVendorAssignments).values(assignment).returning();
+    return created;
+  }
+  
+  async getVendorAssignmentsByCustomer(customerId: string): Promise<CustomerVendorAssignment[]> {
+    return await db.select().from(customerVendorAssignments)
+      .where(eq(customerVendorAssignments.customerId, customerId))
+      .orderBy(desc(customerVendorAssignments.createdAt));
+  }
+  
+  async getVendorAssignmentsByVendor(vendorId: string): Promise<CustomerVendorAssignment[]> {
+    return await db.select().from(customerVendorAssignments)
+      .where(eq(customerVendorAssignments.vendorId, vendorId))
+      .orderBy(desc(customerVendorAssignments.createdAt));
+  }
+  
+  async updateVendorAssignment(id: string, data: Partial<CustomerVendorAssignment>): Promise<CustomerVendorAssignment | undefined> {
+    const [updated] = await db.update(customerVendorAssignments)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(customerVendorAssignments.id, id))
+      .returning();
+    return updated || undefined;
+  }
+  
+  async deleteVendorAssignment(id: string): Promise<void> {
+    await db.delete(customerVendorAssignments).where(eq(customerVendorAssignments.id, id));
   }
   
   // Site Expense operations

@@ -3773,6 +3773,79 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to update vendor status" });
     }
   });
+  
+  // Admin: Get approved vendors (for assignment dropdown)
+  app.get("/api/admin/vendors/approved", requireAdmin, async (req, res) => {
+    try {
+      const vendors = await storage.getApprovedVendors();
+      res.json(vendors);
+    } catch (error) {
+      console.error("Get approved vendors error:", error);
+      res.status(500).json({ message: "Failed to get approved vendors" });
+    }
+  });
+  
+  // ===== VENDOR ASSIGNMENT ROUTES =====
+  
+  // Admin: Assign vendor to customer job
+  app.post("/api/admin/vendor-assignments", requireAdmin, async (req, res) => {
+    try {
+      const userId = (req.user as any)?.id;
+      const assignmentData = {
+        ...req.body,
+        assignedBy: userId,
+        assignedAt: new Date(),
+      };
+      const assignment = await storage.createVendorAssignment(assignmentData);
+      res.status(201).json(assignment);
+    } catch (error) {
+      console.error("Create vendor assignment error:", error);
+      res.status(500).json({ message: "Failed to create vendor assignment" });
+    }
+  });
+  
+  // Get vendor assignments for a customer
+  app.get("/api/customers/:id/vendor-assignments", requireAuth, async (req, res) => {
+    try {
+      const assignments = await storage.getVendorAssignmentsByCustomer(req.params.id);
+      // Enrich with vendor details
+      const enrichedAssignments = await Promise.all(
+        assignments.map(async (assignment) => {
+          const vendor = await storage.getVendor(assignment.vendorId);
+          return { ...assignment, vendor };
+        })
+      );
+      res.json(enrichedAssignments);
+    } catch (error) {
+      console.error("Get customer vendor assignments error:", error);
+      res.status(500).json({ message: "Failed to get vendor assignments" });
+    }
+  });
+  
+  // Admin: Update vendor assignment
+  app.patch("/api/admin/vendor-assignments/:id", requireAdmin, async (req, res) => {
+    try {
+      const assignment = await storage.updateVendorAssignment(req.params.id, req.body);
+      if (!assignment) {
+        return res.status(404).json({ message: "Assignment not found" });
+      }
+      res.json(assignment);
+    } catch (error) {
+      console.error("Update vendor assignment error:", error);
+      res.status(500).json({ message: "Failed to update vendor assignment" });
+    }
+  });
+  
+  // Admin: Delete vendor assignment
+  app.delete("/api/admin/vendor-assignments/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteVendorAssignment(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete vendor assignment error:", error);
+      res.status(500).json({ message: "Failed to delete vendor assignment" });
+    }
+  });
 
   // ===== SITE EXPENSE ROUTES =====
   
