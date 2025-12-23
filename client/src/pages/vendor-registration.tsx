@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Sun, Wrench, MapPin, Building2, Phone, User, Users, FileText, CheckCircle, ArrowLeft, Briefcase, Award, Truck, CreditCard } from "lucide-react";
+import { Sun, Wrench, MapPin, Building2, Phone, User, Users, FileText, CheckCircle, ArrowLeft, Briefcase, Award, Truck, CreditCard, Zap, Landmark, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -18,7 +18,16 @@ import { apiRequest } from "@/lib/queryClient";
 import { vendorServices, vendorStates, vendorSpecializations, vendorCertifications, vendorEquipment, companyTypes } from "@shared/schema";
 import { Link } from "wouter";
 
+const vendorTypes = [
+  { value: "logistic", label: "Logistic Vendor", icon: Truck, description: "Transportation and logistics services" },
+  { value: "bank_loan_liaison", label: "Bank Loan Liaison Service", icon: Landmark, description: "Bank loan processing and documentation" },
+  { value: "discom_net_metering", label: "Discom Net Metering Liaison", icon: Zap, description: "DISCOM net metering installation liaison" },
+  { value: "electrical", label: "Electrical Vendor", icon: Zap, description: "Electrical work and wiring" },
+  { value: "solar_installation", label: "Solar Plant Installation & Erection", icon: Sun, description: "Solar panel installation and erection" },
+];
+
 const formSchema = z.object({
+  vendorType: z.string().min(1, "Select vendor type"),
   name: z.string().min(2, "Name must be at least 2 characters"),
   fatherName: z.string().optional(),
   dateOfBirth: z.string().optional(),
@@ -31,7 +40,7 @@ const formSchema = z.object({
   district: z.string().min(2, "Enter district name"),
   address: z.string().min(10, "Enter complete address"),
   pincode: z.string().length(6, "Enter valid 6-digit pincode"),
-  services: z.array(z.string()).min(1, "Select at least one service"),
+  services: z.array(z.string()).optional(),
   experienceYears: z.string().optional(),
   totalInstallations: z.number().optional(),
   previousCompanies: z.string().optional(),
@@ -69,10 +78,14 @@ export default function VendorRegistration() {
   const { toast } = useToast();
   const [submitted, setSubmitted] = useState(false);
   const [selectedState, setSelectedState] = useState<string>("");
+  const [selectedVendorType, setSelectedVendorType] = useState<string>("");
+  
+  const showSpecializationAndExperience = selectedVendorType === "electrical" || selectedVendorType === "solar_installation";
   
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      vendorType: "",
       name: "",
       fatherName: "",
       dateOfBirth: "",
@@ -184,6 +197,60 @@ export default function VendorRegistration() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Package className="w-5 h-5" />
+                    Vendor Category *
+                  </CardTitle>
+                  <CardDescription>
+                    Select the type of vendor service you provide
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <FormField
+                    control={form.control}
+                    name="vendorType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {vendorTypes.map((type) => {
+                            const IconComponent = type.icon;
+                            const isSelected = field.value === type.value;
+                            return (
+                              <div
+                                key={type.value}
+                                onClick={() => {
+                                  field.onChange(type.value);
+                                  setSelectedVendorType(type.value);
+                                }}
+                                className={`cursor-pointer p-4 rounded-md border-2 transition-all ${
+                                  isSelected 
+                                    ? "border-primary bg-primary/5" 
+                                    : "border-border hover-elevate"
+                                }`}
+                                data-testid={`card-vendor-type-${type.value}`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className={`p-2 rounded-md ${isSelected ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                                    <IconComponent className="w-5 h-5" />
+                                  </div>
+                                  <div>
+                                    <p className="font-medium text-sm">{type.label}</p>
+                                    <p className="text-xs text-muted-foreground">{type.description}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -452,174 +519,183 @@ export default function VendorRegistration() {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Wrench className="w-5 h-5" />
-                    Services Offered
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="services"
-                    render={() => (
-                      <FormItem>
-                        <FormLabel>Services You Can Provide *</FormLabel>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
-                          {vendorServices.map((service) => (
-                            <FormField
-                              key={service.value}
-                              control={form.control}
-                              name="services"
-                              render={({ field }) => (
-                                <FormItem className="flex items-center space-x-3 space-y-0">
-                                  <FormControl>
-                                    <Checkbox
-                                      checked={field.value?.includes(service.value)}
-                                      onCheckedChange={(checked) => {
-                                        const newValue = checked
-                                          ? [...(field.value || []), service.value]
-                                          : field.value?.filter((v) => v !== service.value) || [];
-                                        field.onChange(newValue);
-                                      }}
-                                      data-testid={`checkbox-service-${service.value}`}
-                                    />
-                                  </FormControl>
-                                  <FormLabel className="font-normal cursor-pointer">
-                                    {service.label}
-                                  </FormLabel>
-                                </FormItem>
-                              )}
-                            />
-                          ))}
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="specializations"
-                    render={() => (
-                      <FormItem>
-                        <FormLabel>Specializations</FormLabel>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
-                          {vendorSpecializations.map((spec) => (
-                            <FormField
-                              key={spec.value}
-                              control={form.control}
-                              name="specializations"
-                              render={({ field }) => (
-                                <FormItem className="flex items-center space-x-3 space-y-0">
-                                  <FormControl>
-                                    <Checkbox
-                                      checked={field.value?.includes(spec.value)}
-                                      onCheckedChange={(checked) => {
-                                        const newValue = checked
-                                          ? [...(field.value || []), spec.value]
-                                          : field.value?.filter((v) => v !== spec.value) || [];
-                                        field.onChange(newValue);
-                                      }}
-                                      data-testid={`checkbox-spec-${spec.value}`}
-                                    />
-                                  </FormControl>
-                                  <FormLabel className="font-normal cursor-pointer">
-                                    {spec.label}
-                                  </FormLabel>
-                                </FormItem>
-                              )}
-                            />
-                          ))}
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Briefcase className="w-5 h-5" />
-                    Experience Details
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {showSpecializationAndExperience && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Wrench className="w-5 h-5" />
+                      Services & Specializations
+                    </CardTitle>
+                    <CardDescription>
+                      Select the services you can provide and your areas of expertise
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
                     <FormField
                       control={form.control}
-                      name="experienceYears"
-                      render={({ field }) => (
+                      name="services"
+                      render={() => (
                         <FormItem>
-                          <FormLabel>Years of Experience</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
+                          <FormLabel>Services You Can Provide</FormLabel>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                            {vendorServices.map((service) => (
+                              <FormField
+                                key={service.value}
+                                control={form.control}
+                                name="services"
+                                render={({ field }) => (
+                                  <FormItem className="flex items-center space-x-3 space-y-0">
+                                    <FormControl>
+                                      <Checkbox
+                                        checked={field.value?.includes(service.value)}
+                                        onCheckedChange={(checked) => {
+                                          const newValue = checked
+                                            ? [...(field.value || []), service.value]
+                                            : field.value?.filter((v) => v !== service.value) || [];
+                                          field.onChange(newValue);
+                                        }}
+                                        data-testid={`checkbox-service-${service.value}`}
+                                      />
+                                    </FormControl>
+                                    <FormLabel className="font-normal cursor-pointer">
+                                      {service.label}
+                                    </FormLabel>
+                                  </FormItem>
+                                )}
+                              />
+                            ))}
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="specializations"
+                      render={() => (
+                        <FormItem>
+                          <FormLabel>Specializations</FormLabel>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                            {vendorSpecializations.map((spec) => (
+                              <FormField
+                                key={spec.value}
+                                control={form.control}
+                                name="specializations"
+                                render={({ field }) => (
+                                  <FormItem className="flex items-center space-x-3 space-y-0">
+                                    <FormControl>
+                                      <Checkbox
+                                        checked={field.value?.includes(spec.value)}
+                                        onCheckedChange={(checked) => {
+                                          const newValue = checked
+                                            ? [...(field.value || []), spec.value]
+                                            : field.value?.filter((v) => v !== spec.value) || [];
+                                          field.onChange(newValue);
+                                        }}
+                                        data-testid={`checkbox-spec-${spec.value}`}
+                                      />
+                                    </FormControl>
+                                    <FormLabel className="font-normal cursor-pointer">
+                                      {spec.label}
+                                    </FormLabel>
+                                  </FormItem>
+                                )}
+                              />
+                            ))}
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
+              )}
+
+              {showSpecializationAndExperience && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Briefcase className="w-5 h-5" />
+                      Experience Details
+                    </CardTitle>
+                    <CardDescription>
+                      Tell us about your experience in the solar industry
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="experienceYears"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Years of Experience</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-vendor-experience">
+                                  <SelectValue placeholder="Select experience" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="0-1">Less than 1 year</SelectItem>
+                                <SelectItem value="1-3">1-3 years</SelectItem>
+                                <SelectItem value="3-5">3-5 years</SelectItem>
+                                <SelectItem value="5-10">5-10 years</SelectItem>
+                                <SelectItem value="10+">10+ years</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="totalInstallations"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Total Installations Completed</FormLabel>
                             <FormControl>
-                              <SelectTrigger data-testid="select-vendor-experience">
-                                <SelectValue placeholder="Select experience" />
-                              </SelectTrigger>
+                              <Input 
+                                type="number" 
+                                placeholder="Number of installations"
+                                {...field}
+                                onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                                value={field.value || ""}
+                                data-testid="input-vendor-installations"
+                              />
                             </FormControl>
-                            <SelectContent>
-                              <SelectItem value="0-1">Less than 1 year</SelectItem>
-                              <SelectItem value="1-3">1-3 years</SelectItem>
-                              <SelectItem value="3-5">3-5 years</SelectItem>
-                              <SelectItem value="5-10">5-10 years</SelectItem>
-                              <SelectItem value="10+">10+ years</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                    <FormField
-                      control={form.control}
-                      name="totalInstallations"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Total Installations Completed</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              placeholder="Number of installations"
-                              {...field}
-                              onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
-                              value={field.value || ""}
-                              data-testid="input-vendor-installations"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                      <FormField
+                        control={form.control}
+                        name="previousCompanies"
+                        render={({ field }) => (
+                          <FormItem className="md:col-span-2">
+                            <FormLabel>Previous Companies Worked With</FormLabel>
+                            <FormControl>
+                              <Textarea 
+                                placeholder="List companies you have worked with for solar installations (e.g., Tata Power Solar, Adani Solar, Vikram Solar, etc.)"
+                                {...field} 
+                                data-testid="input-vendor-prev-companies"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                    <FormField
-                      control={form.control}
-                      name="previousCompanies"
-                      render={({ field }) => (
-                        <FormItem className="md:col-span-2">
-                          <FormLabel>Previous Companies Worked With</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              placeholder="List companies you have worked with for solar installations (e.g., Tata Power Solar, Adani Solar, Vikram Solar, etc.)"
-                              {...field} 
-                              data-testid="input-vendor-prev-companies"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="projectsCompleted"
-                      render={({ field }) => (
-                        <FormItem className="md:col-span-2">
-                          <FormLabel>Major Projects Completed</FormLabel>
-                          <FormControl>
+                      <FormField
+                        control={form.control}
+                        name="projectsCompleted"
+                        render={({ field }) => (
+                          <FormItem className="md:col-span-2">
+                            <FormLabel>Major Projects Completed</FormLabel>
+                            <FormControl>
                             <Textarea 
                               placeholder="Describe major projects you have completed (location, capacity, type of installation, etc.)"
                               {...field} 
@@ -630,17 +706,19 @@ export default function VendorRegistration() {
                         </FormItem>
                       )}
                     />
-                  </div>
-                </CardContent>
-              </Card>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="w-5 h-5" />
-                    Team Details
-                  </CardTitle>
-                </CardHeader>
+              {showSpecializationAndExperience && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="w-5 h-5" />
+                      Team Details
+                    </CardTitle>
+                  </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <FormField
@@ -708,7 +786,9 @@ export default function VendorRegistration() {
                   </div>
                 </CardContent>
               </Card>
+              )}
 
+              {showSpecializationAndExperience && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -799,7 +879,9 @@ export default function VendorRegistration() {
                   </div>
                 </CardContent>
               </Card>
+              )}
 
+              {showSpecializationAndExperience && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -866,6 +948,7 @@ export default function VendorRegistration() {
                   />
                 </CardContent>
               </Card>
+              )}
 
               <Card>
                 <CardHeader>
