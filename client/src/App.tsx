@@ -62,6 +62,7 @@ import AdminDocuments from "@/pages/admin/documents";
 import AdminCustomerJourney from "@/pages/admin/customer-journey";
 import AdminServiceRequests from "@/pages/admin/service-requests";
 import AdminTestimonials from "@/pages/admin/testimonials";
+import PartnerServiceRequests from "@/pages/partner-service-requests";
 import ProfilePage from "@/pages/profile";
 import PrivacyPolicyPage from "@/pages/privacy-policy";
 import DisclaimerPage from "@/pages/disclaimer";
@@ -432,6 +433,13 @@ function AuthenticatedRoutes() {
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
+      <Route path="/bdp/service-requests">
+        <ProtectedRoute allowedRoles={["bdp", "admin"]}>
+          <DashboardLayout>
+            <PartnerServiceRequests />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
       <Route path="/bdp/store">
         <ProtectedRoute allowedRoles={["bdp", "admin"]}>
           <DashboardLayout>
@@ -487,6 +495,13 @@ function AuthenticatedRoutes() {
         <ProtectedRoute allowedRoles={["ddp", "admin"]}>
           <DashboardLayout>
             <DDPStore />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/ddp/service-requests">
+        <ProtectedRoute allowedRoles={["ddp", "admin"]}>
+          <DashboardLayout>
+            <PartnerServiceRequests />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>

@@ -150,6 +150,7 @@ const bdpMenuSections: MenuSection[] = [
     items: [
       { title: "Store", url: "/bdp/store", icon: ShoppingCart },
       { title: "Commission Wallet", url: "/bdp/wallet", icon: Wallet },
+      { title: "Service Requests", url: "/bdp/service-requests", icon: Wrench },
     ],
   },
   {
@@ -187,6 +188,7 @@ const ddpMenuSections: MenuSection[] = [
     items: [
       { title: "Store", url: "/ddp/store", icon: ShoppingCart },
       { title: "Earnings", url: "/ddp/earnings", icon: Wallet },
+      { title: "Service Requests", url: "/ddp/service-requests", icon: Wrench },
     ],
   },
   {

@@ -6827,6 +6827,36 @@ export async function registerRoutes(
     }
   });
 
+  // DDP - Get service requests for their customers
+  app.get("/api/ddp/service-requests", requireDDP, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const allRequests = await storage.getServiceRequests();
+      const ddpCustomers = await storage.getCustomersByDDP(userId);
+      const customerIds = ddpCustomers.map(c => c.id);
+      const filteredRequests = allRequests.filter(r => customerIds.includes(r.customerId));
+      res.json(filteredRequests);
+    } catch (error) {
+      console.error("Get DDP service requests error:", error);
+      res.status(500).json({ message: "Failed to get service requests" });
+    }
+  });
+
+  // BDP - Get service requests for customers under their DDPs
+  app.get("/api/bdp/service-requests", requireBDP, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const allRequests = await storage.getServiceRequests();
+      const bdpCustomers = await storage.getCustomersByBDP(userId);
+      const customerIds = bdpCustomers.map(c => c.id);
+      const filteredRequests = allRequests.filter(r => customerIds.includes(r.customerId));
+      res.json(filteredRequests);
+    } catch (error) {
+      console.error("Get BDP service requests error:", error);
+      res.status(500).json({ message: "Failed to get service requests" });
+    }
+  });
+
   // Admin - Get all service requests
   app.get("/api/admin/service-requests", requireAdmin, async (req, res) => {
     try {
