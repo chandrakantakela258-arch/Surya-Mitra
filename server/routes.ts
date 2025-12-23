@@ -6702,6 +6702,26 @@ export async function registerRoutes(
     }
   });
 
+  // Serve uploaded videos (for testimonials)
+  app.use("/uploads/videos", (req, res, next) => {
+    const filePath = path.join(uploadDir, "videos", req.path);
+    if (fs.existsSync(filePath)) {
+      res.sendFile(filePath);
+    } else {
+      res.status(404).json({ message: "File not found" });
+    }
+  });
+
+  // Serve uploaded images (for testimonials and other uploads)
+  app.use("/uploads/images", (req, res, next) => {
+    const filePath = path.join(uploadDir, "images", req.path);
+    if (fs.existsSync(filePath)) {
+      res.sendFile(filePath);
+    } else {
+      res.status(404).json({ message: "File not found" });
+    }
+  });
+
   // ==================== SERVICE REQUESTS ====================
 
   // Customer Portal - Create service request
