@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Users, ChevronDown, ChevronUp, MapPin, Phone, Calendar } from "lucide-react";
 import { CustomerJourneyTracker } from "@/components/customer-journey-tracker";
+import { VendorAssignment } from "@/components/vendor-assignment";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { format } from "date-fns";
 import type { Customer } from "@shared/schema";
@@ -184,11 +185,15 @@ export default function AdminCustomerJourney() {
                       </Button>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                      <div className="p-4 pt-0 border-t">
+                      <div className="p-4 pt-0 border-t space-y-4">
                         <CustomerJourneyTracker
                           customerId={customer.id}
                           customerName={customer.name}
                           showActions={true}
+                        />
+                        <VendorAssignment
+                          customerId={customer.id}
+                          customerName={customer.name}
                         />
                       </div>
                     </CollapsibleContent>
