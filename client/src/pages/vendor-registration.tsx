@@ -19,11 +19,21 @@ import { vendorServices, vendorStates, vendorSpecializations, vendorCertificatio
 import { Link } from "wouter";
 
 const vendorTypes = [
-  { value: "logistic", label: "Logistic Vendor", icon: Truck, description: "Transportation and logistics services" },
-  { value: "bank_loan_liaison", label: "Bank Loan Liaison Service", icon: Landmark, description: "Bank loan processing and documentation" },
-  { value: "discom_net_metering", label: "Discom Net Metering Liaison", icon: Zap, description: "DISCOM net metering installation liaison" },
-  { value: "electrical", label: "Electrical Vendor", icon: Zap, description: "Electrical work and wiring" },
-  { value: "solar_installation", label: "Solar Plant Installation & Erection", icon: Sun, description: "Solar panel installation and erection" },
+  // Service Vendors
+  { value: "logistic", label: "Logistic Vendor", icon: Truck, description: "Transportation and logistics services", category: "service" },
+  { value: "bank_loan_liaison", label: "Bank Loan Liaison Service", icon: Landmark, description: "Bank loan processing and documentation", category: "service" },
+  { value: "discom_net_metering", label: "Discom Net Metering Liaison", icon: Zap, description: "DISCOM net metering installation liaison", category: "service" },
+  { value: "electrical", label: "Electrical Vendor", icon: Zap, description: "Electrical work and wiring", category: "service" },
+  { value: "solar_installation", label: "Solar Plant Installation & Erection", icon: Sun, description: "Solar panel installation and erection", category: "service" },
+  // Supplier Vendors
+  { value: "solar_panel_supplier", label: "Solar Panel Supplier", icon: Sun, description: "Solar panels and modules supply", category: "supplier" },
+  { value: "inverter_supplier", label: "Inverter Supplier", icon: Zap, description: "Solar inverters and power electronics", category: "supplier" },
+  { value: "structure_material_supplier", label: "Structure Material Supplier", icon: Package, description: "Mounting structures and frames", category: "supplier" },
+  { value: "electrical_supplier", label: "Electrical Supplier", icon: Zap, description: "Cables, wires, and electrical components", category: "supplier" },
+  { value: "civil_material_supplier", label: "Civil Material Supplier", icon: Building2, description: "Cement, sand, and construction materials", category: "supplier" },
+  { value: "other_accessory_supplier", label: "Other Accessory Supplier", icon: Package, description: "Miscellaneous solar accessories", category: "supplier" },
+  { value: "lithium_ion_battery_supplier", label: "Lithium Ion Battery Supplier", icon: Zap, description: "Lithium ion storage batteries", category: "supplier" },
+  { value: "tubular_gel_battery_supplier", label: "Tubular/Gel Battery Supplier", icon: Zap, description: "Tubular and gel storage batteries", category: "supplier" },
 ];
 
 const formSchema = z.object({
@@ -80,7 +90,12 @@ export default function VendorRegistration() {
   const [selectedState, setSelectedState] = useState<string>("");
   const [selectedVendorType, setSelectedVendorType] = useState<string>("");
   
+  const selectedVendorInfo = vendorTypes.find(v => v.value === selectedVendorType);
+  const isSupplier = selectedVendorInfo?.category === "supplier";
   const showSpecializationAndExperience = selectedVendorType === "electrical" || selectedVendorType === "solar_installation";
+  
+  const serviceVendors = vendorTypes.filter(v => v.category === "service");
+  const supplierVendors = vendorTypes.filter(v => v.category === "supplier");
   
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -213,36 +228,82 @@ export default function VendorRegistration() {
                     name="vendorType"
                     render={({ field }) => (
                       <FormItem>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {vendorTypes.map((type) => {
-                            const IconComponent = type.icon;
-                            const isSelected = field.value === type.value;
-                            return (
-                              <div
-                                key={type.value}
-                                onClick={() => {
-                                  field.onChange(type.value);
-                                  setSelectedVendorType(type.value);
-                                }}
-                                className={`cursor-pointer p-4 rounded-md border-2 transition-all ${
-                                  isSelected 
-                                    ? "border-primary bg-primary/5" 
-                                    : "border-border hover-elevate"
-                                }`}
-                                data-testid={`card-vendor-type-${type.value}`}
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div className={`p-2 rounded-md ${isSelected ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-                                    <IconComponent className="w-5 h-5" />
+                        <div className="space-y-6">
+                          <div>
+                            <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                              <Wrench className="w-4 h-4" />
+                              Service Vendors
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                              {serviceVendors.map((type) => {
+                                const IconComponent = type.icon;
+                                const isSelected = field.value === type.value;
+                                return (
+                                  <div
+                                    key={type.value}
+                                    onClick={() => {
+                                      field.onChange(type.value);
+                                      setSelectedVendorType(type.value);
+                                    }}
+                                    className={`cursor-pointer p-3 rounded-md border-2 transition-all ${
+                                      isSelected 
+                                        ? "border-primary bg-primary/5" 
+                                        : "border-border hover-elevate"
+                                    }`}
+                                    data-testid={`card-vendor-type-${type.value}`}
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <div className={`p-2 rounded-md ${isSelected ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                                        <IconComponent className="w-4 h-4" />
+                                      </div>
+                                      <div>
+                                        <p className="font-medium text-sm">{type.label}</p>
+                                        <p className="text-xs text-muted-foreground">{type.description}</p>
+                                      </div>
+                                    </div>
                                   </div>
-                                  <div>
-                                    <p className="font-medium text-sm">{type.label}</p>
-                                    <p className="text-xs text-muted-foreground">{type.description}</p>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                              <Package className="w-4 h-4" />
+                              Material Suppliers
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                              {supplierVendors.map((type) => {
+                                const IconComponent = type.icon;
+                                const isSelected = field.value === type.value;
+                                return (
+                                  <div
+                                    key={type.value}
+                                    onClick={() => {
+                                      field.onChange(type.value);
+                                      setSelectedVendorType(type.value);
+                                    }}
+                                    className={`cursor-pointer p-3 rounded-md border-2 transition-all ${
+                                      isSelected 
+                                        ? "border-primary bg-primary/5" 
+                                        : "border-border hover-elevate"
+                                    }`}
+                                    data-testid={`card-vendor-type-${type.value}`}
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <div className={`p-2 rounded-md ${isSelected ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                                        <IconComponent className="w-4 h-4" />
+                                      </div>
+                                      <div>
+                                        <p className="font-medium text-sm">{type.label}</p>
+                                        <p className="text-xs text-muted-foreground">{type.description}</p>
+                                      </div>
+                                    </div>
                                   </div>
-                                </div>
-                              </div>
-                            );
-                          })}
+                                );
+                              })}
+                            </div>
+                          </div>
                         </div>
                         <FormMessage />
                       </FormItem>
