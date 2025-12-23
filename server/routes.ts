@@ -6702,5 +6702,389 @@ export async function registerRoutes(
     }
   });
 
+  // ==================== SERVICE REQUESTS ====================
+
+  // Customer Portal - Create service request
+  app.post("/api/customer-portal/service-requests", async (req, res) => {
+    try {
+      const token = req.headers.authorization?.replace("Bearer ", "");
+      if (!token) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const session = await storage.getCustomerSessionByToken(token);
+      if (!session || new Date(session.expiresAt) < new Date()) {
+        return res.status(401).json({ message: "Session expired" });
+      }
+
+      const customer = await storage.getCustomer(session.customerId);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+
+      const { issueType, issueTitle, issueDescription, urgency } = req.body;
+
+      if (!issueType || !issueTitle || !issueDescription) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const request = await storage.createServiceRequest({
+        customerId: customer.id,
+        issueType,
+        issueTitle,
+        issueDescription,
+        urgency: urgency || "normal",
+        customerName: customer.name,
+        customerPhone: customer.phone,
+        customerAddress: customer.address,
+      });
+
+      res.status(201).json(request);
+    } catch (error) {
+      console.error("Create service request error:", error);
+      res.status(500).json({ message: "Failed to create service request" });
+    }
+  });
+
+  // Customer Portal - Get my service requests
+  app.get("/api/customer-portal/service-requests", async (req, res) => {
+    try {
+      const token = req.headers.authorization?.replace("Bearer ", "");
+      if (!token) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const session = await storage.getCustomerSessionByToken(token);
+      if (!session || new Date(session.expiresAt) < new Date()) {
+        return res.status(401).json({ message: "Session expired" });
+      }
+
+      const requests = await storage.getServiceRequestsByCustomerId(session.customerId);
+      res.json(requests);
+    } catch (error) {
+      console.error("Get service requests error:", error);
+      res.status(500).json({ message: "Failed to get service requests" });
+    }
+  });
+
+  // Customer Portal - Submit feedback on resolved service request
+  app.post("/api/customer-portal/service-requests/:id/feedback", async (req, res) => {
+    try {
+      const token = req.headers.authorization?.replace("Bearer ", "");
+      if (!token) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const session = await storage.getCustomerSessionByToken(token);
+      if (!session || new Date(session.expiresAt) < new Date()) {
+        return res.status(401).json({ message: "Session expired" });
+      }
+
+      const { id } = req.params;
+      const { rating, feedbackText } = req.body;
+
+      const request = await storage.getServiceRequest(id);
+      if (!request || request.customerId !== session.customerId) {
+        return res.status(404).json({ message: "Service request not found" });
+      }
+
+      if (request.status !== "resolved") {
+        return res.status(400).json({ message: "Can only provide feedback for resolved requests" });
+      }
+
+      const updated = await storage.submitServiceFeedback(id, rating, feedbackText);
+      res.json(updated);
+    } catch (error) {
+      console.error("Submit feedback error:", error);
+      res.status(500).json({ message: "Failed to submit feedback" });
+    }
+  });
+
+  // Admin - Get all service requests
+  app.get("/api/admin/service-requests", requireAdmin, async (req, res) => {
+    try {
+      const requests = await storage.getServiceRequests();
+      res.json(requests);
+    } catch (error) {
+      console.error("Get service requests error:", error);
+      res.status(500).json({ message: "Failed to get service requests" });
+    }
+  });
+
+  // Admin - Get single service request
+  app.get("/api/admin/service-requests/:id", requireAdmin, async (req, res) => {
+    try {
+      const request = await storage.getServiceRequest(req.params.id);
+      if (!request) {
+        return res.status(404).json({ message: "Service request not found" });
+      }
+      res.json(request);
+    } catch (error) {
+      console.error("Get service request error:", error);
+      res.status(500).json({ message: "Failed to get service request" });
+    }
+  });
+
+  // Admin - Assign service request to vendor
+  app.post("/api/admin/service-requests/:id/assign", requireAdmin, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { id } = req.params;
+      const { vendorId, scheduledVisitDate } = req.body;
+
+      if (!vendorId) {
+        return res.status(400).json({ message: "Vendor ID is required" });
+      }
+
+      const vendor = await storage.getVendor(vendorId);
+      if (!vendor || vendor.status !== "approved") {
+        return res.status(400).json({ message: "Vendor not found or not approved" });
+      }
+
+      const request = await storage.assignServiceRequestToVendor(
+        id,
+        vendorId,
+        userId,
+        scheduledVisitDate ? new Date(scheduledVisitDate) : undefined
+      );
+
+      if (!request) {
+        return res.status(404).json({ message: "Service request not found" });
+      }
+
+      res.json(request);
+    } catch (error) {
+      console.error("Assign service request error:", error);
+      res.status(500).json({ message: "Failed to assign service request" });
+    }
+  });
+
+  // Admin - Update service request status
+  app.patch("/api/admin/service-requests/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status, adminNotes } = req.body;
+
+      const request = await storage.updateServiceRequest(id, { status, adminNotes });
+      if (!request) {
+        return res.status(404).json({ message: "Service request not found" });
+      }
+
+      res.json(request);
+    } catch (error) {
+      console.error("Update service request error:", error);
+      res.status(500).json({ message: "Failed to update service request" });
+    }
+  });
+
+  // Vendor - Record service resolution with selfie
+  app.post("/api/service-requests/:id/resolve", upload.fields([
+    { name: "selfie", maxCount: 1 },
+    { name: "photos", maxCount: 5 }
+  ]), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { vendorNotes, resolutionNotes } = req.body;
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+      const request = await storage.getServiceRequest(id);
+      if (!request) {
+        return res.status(404).json({ message: "Service request not found" });
+      }
+
+      let selfieUrl: string | undefined;
+      let photoUrls: string[] = [];
+
+      if (files?.selfie?.[0]) {
+        selfieUrl = `/uploads/images/${files.selfie[0].filename}`;
+      }
+
+      if (files?.photos) {
+        photoUrls = files.photos.map(f => `/uploads/images/${f.filename}`);
+      }
+
+      const updated = await storage.recordServiceResolution(id, {
+        vendorNotes,
+        resolutionNotes,
+        vendorSelfieWithCustomer: selfieUrl,
+        resolutionPhotos: photoUrls.length > 0 ? photoUrls : undefined,
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Record resolution error:", error);
+      res.status(500).json({ message: "Failed to record resolution" });
+    }
+  });
+
+  // ==================== CUSTOMER TESTIMONIALS ====================
+
+  // Customer Portal - Create testimonial
+  app.post("/api/customer-portal/testimonials", upload.fields([
+    { name: "video", maxCount: 1 },
+    { name: "photos", maxCount: 6 }
+  ]), async (req, res) => {
+    try {
+      const token = req.headers.authorization?.replace("Bearer ", "");
+      if (!token) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const session = await storage.getCustomerSessionByToken(token);
+      if (!session || new Date(session.expiresAt) < new Date()) {
+        return res.status(401).json({ message: "Session expired" });
+      }
+
+      const customer = await storage.getCustomer(session.customerId);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+
+      const { testimonialText, rating, videoDuration } = req.body;
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+      let videoUrl: string | undefined;
+      let plantPhotos: string[] = [];
+
+      if (files?.video?.[0]) {
+        videoUrl = `/uploads/videos/${files.video[0].filename}`;
+      }
+
+      if (files?.photos) {
+        plantPhotos = files.photos.map(f => `/uploads/images/${f.filename}`);
+      }
+
+      const testimonial = await storage.createCustomerTestimonial({
+        customerId: customer.id,
+        customerName: customer.name,
+        customerDistrict: customer.district,
+        customerState: customer.state,
+        installedCapacity: customer.proposedCapacity,
+        testimonialText: testimonialText || null,
+        rating: rating ? parseInt(rating) : null,
+        videoUrl,
+        videoDuration: videoDuration ? parseInt(videoDuration) : null,
+        plantPhotos: plantPhotos.length > 0 ? plantPhotos : null,
+      });
+
+      res.status(201).json(testimonial);
+    } catch (error) {
+      console.error("Create testimonial error:", error);
+      res.status(500).json({ message: "Failed to create testimonial" });
+    }
+  });
+
+  // Customer Portal - Get my testimonials
+  app.get("/api/customer-portal/testimonials", async (req, res) => {
+    try {
+      const token = req.headers.authorization?.replace("Bearer ", "");
+      if (!token) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const session = await storage.getCustomerSessionByToken(token);
+      if (!session || new Date(session.expiresAt) < new Date()) {
+        return res.status(401).json({ message: "Session expired" });
+      }
+
+      const testimonials = await storage.getTestimonialsByCustomerId(session.customerId);
+      res.json(testimonials);
+    } catch (error) {
+      console.error("Get testimonials error:", error);
+      res.status(500).json({ message: "Failed to get testimonials" });
+    }
+  });
+
+  // Customer Portal - Mark testimonial as shared
+  app.post("/api/customer-portal/testimonials/:id/share", async (req, res) => {
+    try {
+      const token = req.headers.authorization?.replace("Bearer ", "");
+      if (!token) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const session = await storage.getCustomerSessionByToken(token);
+      if (!session || new Date(session.expiresAt) < new Date()) {
+        return res.status(401).json({ message: "Session expired" });
+      }
+
+      const { id } = req.params;
+      const { platform } = req.body;
+
+      if (!platform || !["facebook", "instagram"].includes(platform)) {
+        return res.status(400).json({ message: "Invalid platform" });
+      }
+
+      const testimonial = await storage.getCustomerTestimonial(id);
+      if (!testimonial || testimonial.customerId !== session.customerId) {
+        return res.status(404).json({ message: "Testimonial not found" });
+      }
+
+      const updated = await storage.markTestimonialShared(id, platform);
+      res.json(updated);
+    } catch (error) {
+      console.error("Mark shared error:", error);
+      res.status(500).json({ message: "Failed to mark as shared" });
+    }
+  });
+
+  // Public - Get approved testimonials (for landing page)
+  app.get("/api/testimonials/approved", async (req, res) => {
+    try {
+      const testimonials = await storage.getApprovedTestimonials();
+      res.json(testimonials);
+    } catch (error) {
+      console.error("Get approved testimonials error:", error);
+      res.status(500).json({ message: "Failed to get testimonials" });
+    }
+  });
+
+  // Admin - Get all testimonials
+  app.get("/api/admin/testimonials", requireAdmin, async (req, res) => {
+    try {
+      const testimonials = await storage.getCustomerTestimonials();
+      res.json(testimonials);
+    } catch (error) {
+      console.error("Get testimonials error:", error);
+      res.status(500).json({ message: "Failed to get testimonials" });
+    }
+  });
+
+  // Admin - Approve testimonial
+  app.post("/api/admin/testimonials/:id/approve", requireAdmin, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { id } = req.params;
+
+      const testimonial = await storage.approveTestimonial(id, userId);
+      if (!testimonial) {
+        return res.status(404).json({ message: "Testimonial not found" });
+      }
+
+      res.json(testimonial);
+    } catch (error) {
+      console.error("Approve testimonial error:", error);
+      res.status(500).json({ message: "Failed to approve testimonial" });
+    }
+  });
+
+  // Admin - Update testimonial (status, featured)
+  app.patch("/api/admin/testimonials/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status, isFeatured } = req.body;
+
+      const testimonial = await storage.updateCustomerTestimonial(id, { status, isFeatured });
+      if (!testimonial) {
+        return res.status(404).json({ message: "Testimonial not found" });
+      }
+
+      res.json(testimonial);
+    } catch (error) {
+      console.error("Update testimonial error:", error);
+      res.status(500).json({ message: "Failed to update testimonial" });
+    }
+  });
+
   return httpServer;
 }

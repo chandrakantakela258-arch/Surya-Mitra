@@ -2458,5 +2458,183 @@ export const insertSiteExecutionCompletionReportSchema = createInsertSchema(site
 export type InsertSiteExecutionCompletionReport = z.infer<typeof insertSiteExecutionCompletionReportSchema>;
 export type SiteExecutionCompletionReport = typeof siteExecutionCompletionReports.$inferSelect;
 
+// ===== SERVICE REQUESTS & CUSTOMER TESTIMONIALS =====
+
+// Service Request Issue Types
+export const serviceRequestIssueTypes = [
+  { value: "electrical", label: "Electrical Issue" },
+  { value: "inverter", label: "Inverter Issue" },
+  { value: "power_generation", label: "Solar Power Generation Issue" },
+  { value: "other", label: "Other Issue" },
+];
+
+// Service Request Statuses
+export const serviceRequestStatuses = [
+  { value: "pending", label: "Pending" },
+  { value: "assigned", label: "Assigned to Vendor" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "resolved", label: "Resolved" },
+  { value: "closed", label: "Closed" },
+];
+
+// Service Requests - Customer can raise service/maintenance requests
+export const serviceRequests = pgTable("service_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  requestNumber: text("request_number").notNull().unique(),
+  customerId: varchar("customer_id").notNull(),
+  
+  // Issue Details
+  issueType: text("issue_type").notNull(), // electrical, inverter, power_generation, other
+  issueTitle: text("issue_title").notNull(),
+  issueDescription: text("issue_description").notNull(),
+  urgency: text("urgency").default("normal"), // low, normal, high, urgent
+  
+  // Customer Contact
+  customerName: text("customer_name").notNull(),
+  customerPhone: text("customer_phone").notNull(),
+  customerAddress: text("customer_address").notNull(),
+  
+  // Status & Assignment
+  status: text("status").notNull().default("pending"), // pending, assigned, in_progress, resolved, closed
+  assignedVendorId: varchar("assigned_vendor_id"),
+  assignedAt: timestamp("assigned_at"),
+  assignedBy: varchar("assigned_by"),
+  
+  // Vendor Visit Details
+  scheduledVisitDate: timestamp("scheduled_visit_date"),
+  actualVisitDate: timestamp("actual_visit_date"),
+  vendorNotes: text("vendor_notes"),
+  vendorSelfieWithCustomer: text("vendor_selfie_with_customer"), // URL to selfie
+  
+  // Resolution Details
+  resolutionNotes: text("resolution_notes"),
+  resolvedAt: timestamp("resolved_at"),
+  resolutionPhotos: text("resolution_photos").array(),
+  
+  // Customer Feedback on Resolution
+  customerFeedbackRating: integer("customer_feedback_rating"), // 1-5 stars
+  customerFeedbackText: text("customer_feedback_text"),
+  feedbackSubmittedAt: timestamp("feedback_submitted_at"),
+  
+  // Admin Notes
+  adminNotes: text("admin_notes"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const serviceRequestsRelations = relations(serviceRequests, ({ one }) => ({
+  customer: one(customers, {
+    fields: [serviceRequests.customerId],
+    references: [customers.id],
+  }),
+  assignedVendor: one(vendors, {
+    fields: [serviceRequests.assignedVendorId],
+    references: [vendors.id],
+  }),
+}));
+
+export const insertServiceRequestSchema = createInsertSchema(serviceRequests).omit({
+  id: true,
+  requestNumber: true,
+  status: true,
+  assignedVendorId: true,
+  assignedAt: true,
+  assignedBy: true,
+  scheduledVisitDate: true,
+  actualVisitDate: true,
+  vendorNotes: true,
+  vendorSelfieWithCustomer: true,
+  resolutionNotes: true,
+  resolvedAt: true,
+  resolutionPhotos: true,
+  customerFeedbackRating: true,
+  customerFeedbackText: true,
+  feedbackSubmittedAt: true,
+  adminNotes: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  issueType: z.enum(["electrical", "inverter", "power_generation", "other"]),
+  issueTitle: z.string().min(5, "Issue title must be at least 5 characters"),
+  issueDescription: z.string().min(20, "Please describe the issue in at least 20 characters"),
+  urgency: z.enum(["low", "normal", "high", "urgent"]).optional(),
+});
+
+export const serviceRequestFeedbackSchema = z.object({
+  customerFeedbackRating: z.number().min(1).max(5),
+  customerFeedbackText: z.string().optional(),
+});
+
+export type InsertServiceRequest = z.infer<typeof insertServiceRequestSchema>;
+export type ServiceRequest = typeof serviceRequests.$inferSelect;
+
+// Customer Testimonials - Written testimonials and video testimonials
+export const customerTestimonials = pgTable("customer_testimonials", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").notNull(),
+  
+  // Customer Info
+  customerName: text("customer_name").notNull(),
+  customerDistrict: text("customer_district"),
+  customerState: text("customer_state"),
+  installedCapacity: text("installed_capacity"), // kW
+  
+  // Written Testimonial
+  testimonialText: text("testimonial_text"),
+  rating: integer("rating"), // 1-5 stars
+  
+  // Video Testimonial (60 seconds Instagram-style)
+  videoUrl: text("video_url"),
+  videoThumbnail: text("video_thumbnail"),
+  videoDuration: integer("video_duration"), // in seconds, max 60
+  
+  // Solar Plant Photos
+  plantPhotos: text("plant_photos").array(),
+  
+  // Social Sharing
+  sharedOnFacebook: boolean("shared_on_facebook").default(false),
+  sharedOnInstagram: boolean("shared_on_instagram").default(false),
+  facebookShareDate: timestamp("facebook_share_date"),
+  instagramShareDate: timestamp("instagram_share_date"),
+  
+  // Status & Approval
+  status: text("status").notNull().default("pending"), // pending, approved, rejected, featured
+  approvedBy: varchar("approved_by"),
+  approvedAt: timestamp("approved_at"),
+  isFeatured: boolean("is_featured").default(false),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const customerTestimonialsRelations = relations(customerTestimonials, ({ one }) => ({
+  customer: one(customers, {
+    fields: [customerTestimonials.customerId],
+    references: [customers.id],
+  }),
+}));
+
+export const insertCustomerTestimonialSchema = createInsertSchema(customerTestimonials).omit({
+  id: true,
+  status: true,
+  approvedBy: true,
+  approvedAt: true,
+  sharedOnFacebook: true,
+  sharedOnInstagram: true,
+  facebookShareDate: true,
+  instagramShareDate: true,
+  isFeatured: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  testimonialText: z.string().min(20, "Testimonial must be at least 20 characters").optional(),
+  rating: z.number().min(1).max(5).optional(),
+  videoDuration: z.number().max(60, "Video must be 60 seconds or less").optional(),
+});
+
+export type InsertCustomerTestimonial = z.infer<typeof insertCustomerTestimonialSchema>;
+export type CustomerTestimonial = typeof customerTestimonials.$inferSelect;
+
 // Re-export chat models for OpenAI integration
 export * from "./models/chat";

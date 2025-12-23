@@ -121,6 +121,8 @@ const adminMenuSections: MenuSection[] = [
     items: [
       { title: "Documents", url: "/admin/documents", icon: Files },
       { title: "User Feedback", url: "/admin/feedback", icon: MessageSquare },
+      { title: "Service Requests", url: "/admin/service-requests", icon: Wrench },
+      { title: "Testimonials", url: "/admin/testimonials", icon: MessageSquare },
       { title: "Vendor Approvals", url: "/admin/vendors", icon: Wrench },
       { title: "Notifications", url: "/admin/notifications", icon: Bell },
       { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },

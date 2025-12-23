@@ -125,6 +125,12 @@ import {
   defaultIncentiveTargets,
   type Document as DocumentType,
   type InsertDocument,
+  serviceRequests,
+  type ServiceRequest,
+  type InsertServiceRequest,
+  customerTestimonials,
+  type CustomerTestimonial,
+  type InsertCustomerTestimonial,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, inArray, isNull, not, or, lt, asc } from "drizzle-orm";
@@ -418,6 +424,28 @@ export interface IStorage {
   updateDocument(id: string, data: Partial<DocumentType>): Promise<DocumentType | undefined>;
   verifyDocument(id: string, verifiedById: string): Promise<DocumentType | undefined>;
   deleteDocument(id: string): Promise<boolean>;
+  
+  // Service Request operations
+  createServiceRequest(request: InsertServiceRequest): Promise<ServiceRequest>;
+  getServiceRequests(): Promise<ServiceRequest[]>;
+  getServiceRequest(id: string): Promise<ServiceRequest | undefined>;
+  getServiceRequestsByCustomerId(customerId: string): Promise<ServiceRequest[]>;
+  updateServiceRequest(id: string, data: Partial<ServiceRequest>): Promise<ServiceRequest | undefined>;
+  assignServiceRequestToVendor(id: string, vendorId: string, assignedBy: string, scheduledVisitDate?: Date): Promise<ServiceRequest | undefined>;
+  recordServiceResolution(id: string, data: { vendorNotes?: string; resolutionNotes?: string; vendorSelfieWithCustomer?: string; resolutionPhotos?: string[] }): Promise<ServiceRequest | undefined>;
+  submitServiceFeedback(id: string, rating: number, feedbackText?: string): Promise<ServiceRequest | undefined>;
+  generateServiceRequestNumber(): Promise<string>;
+  
+  // Customer Testimonial operations
+  createCustomerTestimonial(testimonial: InsertCustomerTestimonial): Promise<CustomerTestimonial>;
+  getCustomerTestimonials(): Promise<CustomerTestimonial[]>;
+  getApprovedTestimonials(): Promise<CustomerTestimonial[]>;
+  getFeaturedTestimonials(): Promise<CustomerTestimonial[]>;
+  getCustomerTestimonial(id: string): Promise<CustomerTestimonial | undefined>;
+  getTestimonialsByCustomerId(customerId: string): Promise<CustomerTestimonial[]>;
+  updateCustomerTestimonial(id: string, data: Partial<CustomerTestimonial>): Promise<CustomerTestimonial | undefined>;
+  approveTestimonial(id: string, approvedBy: string): Promise<CustomerTestimonial | undefined>;
+  markTestimonialShared(id: string, platform: 'facebook' | 'instagram'): Promise<CustomerTestimonial | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3042,6 +3070,157 @@ export class DatabaseStorage implements IStorage {
   async deleteDocument(id: string): Promise<boolean> {
     const result = await db.delete(documents).where(eq(documents.id, id));
     return true;
+  }
+
+  // Service Request operations
+  async createServiceRequest(request: InsertServiceRequest): Promise<ServiceRequest> {
+    const requestNumber = await this.generateServiceRequestNumber();
+    const [result] = await db.insert(serviceRequests).values({ ...request, requestNumber }).returning();
+    return result;
+  }
+
+  async getServiceRequests(): Promise<ServiceRequest[]> {
+    return await db.select().from(serviceRequests).orderBy(desc(serviceRequests.createdAt));
+  }
+
+  async getServiceRequest(id: string): Promise<ServiceRequest | undefined> {
+    const [request] = await db.select().from(serviceRequests).where(eq(serviceRequests.id, id));
+    return request;
+  }
+
+  async getServiceRequestsByCustomerId(customerId: string): Promise<ServiceRequest[]> {
+    return await db.select().from(serviceRequests)
+      .where(eq(serviceRequests.customerId, customerId))
+      .orderBy(desc(serviceRequests.createdAt));
+  }
+
+  async updateServiceRequest(id: string, data: Partial<ServiceRequest>): Promise<ServiceRequest | undefined> {
+    const [request] = await db.update(serviceRequests)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(serviceRequests.id, id))
+      .returning();
+    return request;
+  }
+
+  async assignServiceRequestToVendor(id: string, vendorId: string, assignedBy: string, scheduledVisitDate?: Date): Promise<ServiceRequest | undefined> {
+    const [request] = await db.update(serviceRequests)
+      .set({
+        assignedVendorId: vendorId,
+        assignedBy,
+        assignedAt: new Date(),
+        status: 'assigned',
+        scheduledVisitDate: scheduledVisitDate || null,
+        updatedAt: new Date(),
+      })
+      .where(eq(serviceRequests.id, id))
+      .returning();
+    return request;
+  }
+
+  async recordServiceResolution(id: string, data: { vendorNotes?: string; resolutionNotes?: string; vendorSelfieWithCustomer?: string; resolutionPhotos?: string[] }): Promise<ServiceRequest | undefined> {
+    const [request] = await db.update(serviceRequests)
+      .set({
+        ...data,
+        status: 'resolved',
+        resolvedAt: new Date(),
+        actualVisitDate: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(serviceRequests.id, id))
+      .returning();
+    return request;
+  }
+
+  async submitServiceFeedback(id: string, rating: number, feedbackText?: string): Promise<ServiceRequest | undefined> {
+    const [request] = await db.update(serviceRequests)
+      .set({
+        customerFeedbackRating: rating,
+        customerFeedbackText: feedbackText || null,
+        feedbackSubmittedAt: new Date(),
+        status: 'closed',
+        updatedAt: new Date(),
+      })
+      .where(eq(serviceRequests.id, id))
+      .returning();
+    return request;
+  }
+
+  async generateServiceRequestNumber(): Promise<string> {
+    const year = new Date().getFullYear();
+    const month = String(new Date().getMonth() + 1).padStart(2, '0');
+    const requests = await db.select().from(serviceRequests);
+    const count = requests.length + 1;
+    return `SR-${year}${month}-${String(count).padStart(4, '0')}`;
+  }
+
+  // Customer Testimonial operations
+  async createCustomerTestimonial(testimonial: InsertCustomerTestimonial): Promise<CustomerTestimonial> {
+    const [result] = await db.insert(customerTestimonials).values(testimonial).returning();
+    return result;
+  }
+
+  async getCustomerTestimonials(): Promise<CustomerTestimonial[]> {
+    return await db.select().from(customerTestimonials).orderBy(desc(customerTestimonials.createdAt));
+  }
+
+  async getApprovedTestimonials(): Promise<CustomerTestimonial[]> {
+    return await db.select().from(customerTestimonials)
+      .where(or(eq(customerTestimonials.status, 'approved'), eq(customerTestimonials.status, 'featured')))
+      .orderBy(desc(customerTestimonials.createdAt));
+  }
+
+  async getFeaturedTestimonials(): Promise<CustomerTestimonial[]> {
+    return await db.select().from(customerTestimonials)
+      .where(eq(customerTestimonials.isFeatured, true))
+      .orderBy(desc(customerTestimonials.createdAt));
+  }
+
+  async getCustomerTestimonial(id: string): Promise<CustomerTestimonial | undefined> {
+    const [testimonial] = await db.select().from(customerTestimonials).where(eq(customerTestimonials.id, id));
+    return testimonial;
+  }
+
+  async getTestimonialsByCustomerId(customerId: string): Promise<CustomerTestimonial[]> {
+    return await db.select().from(customerTestimonials)
+      .where(eq(customerTestimonials.customerId, customerId))
+      .orderBy(desc(customerTestimonials.createdAt));
+  }
+
+  async updateCustomerTestimonial(id: string, data: Partial<CustomerTestimonial>): Promise<CustomerTestimonial | undefined> {
+    const [testimonial] = await db.update(customerTestimonials)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(customerTestimonials.id, id))
+      .returning();
+    return testimonial;
+  }
+
+  async approveTestimonial(id: string, approvedBy: string): Promise<CustomerTestimonial | undefined> {
+    const [testimonial] = await db.update(customerTestimonials)
+      .set({
+        status: 'approved',
+        approvedBy,
+        approvedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(customerTestimonials.id, id))
+      .returning();
+    return testimonial;
+  }
+
+  async markTestimonialShared(id: string, platform: 'facebook' | 'instagram'): Promise<CustomerTestimonial | undefined> {
+    const updateData: any = { updatedAt: new Date() };
+    if (platform === 'facebook') {
+      updateData.sharedOnFacebook = true;
+      updateData.facebookShareDate = new Date();
+    } else {
+      updateData.sharedOnInstagram = true;
+      updateData.instagramShareDate = new Date();
+    }
+    const [testimonial] = await db.update(customerTestimonials)
+      .set(updateData)
+      .where(eq(customerTestimonials.id, id))
+      .returning();
+    return testimonial;
   }
 }
 
