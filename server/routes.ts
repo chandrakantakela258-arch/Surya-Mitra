@@ -6993,9 +6993,11 @@ export async function registerRoutes(
       });
 
       res.status(201).json(testimonial);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Create testimonial error:", error);
-      res.status(500).json({ message: "Failed to create testimonial" });
+      console.error("Error stack:", error?.stack);
+      console.error("Error message:", error?.message);
+      res.status(500).json({ message: "Failed to create testimonial", error: error?.message });
     }
   });
 
