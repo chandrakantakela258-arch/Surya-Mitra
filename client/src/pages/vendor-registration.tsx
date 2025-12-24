@@ -28,12 +28,12 @@ const vendorTypes = [
   // Supplier Vendors
   { value: "solar_panel_supplier", label: "Solar Panel Supplier", icon: Sun, description: "Solar panels and modules supply", category: "supplier" },
   { value: "inverter_supplier", label: "Inverter Supplier", icon: Zap, description: "Solar inverters and power electronics", category: "supplier" },
-  { value: "structure_material_supplier", label: "Structure Material Supplier", icon: Package, description: "Mounting structures and frames", category: "supplier" },
-  { value: "electrical_supplier", label: "Electrical Supplier", icon: Zap, description: "Cables, wires, and electrical components", category: "supplier" },
+  { value: "solar_mounting_supplier", label: "Solar Mounting Supplier", icon: Package, description: "Mounting structures and frames", category: "supplier" },
+  { value: "electrical_supplier", label: "ACDB/DCDB & Electrical Supplier", icon: Zap, description: "Cables, wires, and electrical components", category: "supplier" },
   { value: "civil_material_supplier", label: "Civil Material Supplier", icon: Building2, description: "Cement, sand, and construction materials", category: "supplier" },
-  { value: "other_accessory_supplier", label: "Other Accessory Supplier", icon: Package, description: "Miscellaneous solar accessories", category: "supplier" },
-  { value: "lithium_ion_battery_supplier", label: "Lithium Ion Battery Supplier", icon: Zap, description: "Lithium ion storage batteries", category: "supplier" },
-  { value: "tubular_gel_battery_supplier", label: "Tubular/Gel Battery Supplier", icon: Zap, description: "Tubular and gel storage batteries", category: "supplier" },
+  { value: "accessories_supplier", label: "Other Accessories Supplier", icon: Package, description: "Miscellaneous solar accessories", category: "supplier" },
+  { value: "lithium_battery_supplier", label: "Lithium Ion Battery Supplier", icon: Zap, description: "Lithium ion storage batteries", category: "supplier" },
+  { value: "tubular_battery_supplier", label: "Tubular/Gel Battery Supplier", icon: Zap, description: "Tubular and gel storage batteries", category: "supplier" },
 ];
 
 const formSchema = z.object({

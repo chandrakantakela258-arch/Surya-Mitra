@@ -3866,7 +3866,18 @@ export async function registerRoutes(
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid input", errors: error.errors });
       }
-      res.status(500).json({ message: "Failed to register vendor" });
+      // Check for unique constraint violations
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      if (errorMessage.includes("duplicate key") || errorMessage.includes("unique constraint")) {
+        if (errorMessage.includes("email")) {
+          return res.status(400).json({ message: "This email is already registered. Please use a different email address." });
+        }
+        if (errorMessage.includes("phone")) {
+          return res.status(400).json({ message: "This phone number is already registered. Please use a different phone number." });
+        }
+        return res.status(400).json({ message: "A vendor with these details already exists." });
+      }
+      res.status(500).json({ message: "Failed to register vendor", error: errorMessage });
     }
   });
   
