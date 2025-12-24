@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Check, Clock, ChevronRight, ChevronDown, ChevronUp, Building2, User, Phone } from "lucide-react";
+import { Check, Clock, ChevronRight, ChevronDown, ChevronUp, Building2, Landmark, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { installationMilestones, type Milestone, type Vendor, type CustomerVendorAssignment } from "@shared/schema";
-import { DiscomVendorSelector } from "./discom-vendor-selector";
+import { VendorAssignmentDialog, type VendorAssignmentType } from "./vendor-assignment-dialog";
 
 interface EnrichedAssignment extends CustomerVendorAssignment {
   vendor?: Vendor;
@@ -30,8 +30,8 @@ export function CustomerJourneyTracker({
   showActions = true 
 }: CustomerJourneyTrackerProps) {
   const { toast } = useToast();
-  const [showDiscomSelector, setShowDiscomSelector] = useState(false);
   const [pendingMilestoneId, setPendingMilestoneId] = useState<string | null>(null);
+  const [vendorDialogType, setVendorDialogType] = useState<VendorAssignmentType | null>(null);
 
   const { data: milestones = [], isLoading } = useQuery<Milestone[]>({
     queryKey: ["/api/customers", customerId, "milestones"],
@@ -42,6 +42,7 @@ export function CustomerJourneyTracker({
   });
 
   const discomAssignment = vendorAssignments.find(a => a.jobRole === "discom_net_metering");
+  const bankLoanAssignment = vendorAssignments.find(a => a.jobRole === "bank_loan_facilitation");
 
   const completeMilestoneMutation = useMutation({
     mutationFn: async (milestoneId: string) => {
@@ -68,10 +69,19 @@ export function CustomerJourneyTracker({
   const handleMilestoneComplete = (milestoneKey: string, milestoneId: string) => {
     if (milestoneKey === "file_submission") {
       setPendingMilestoneId(milestoneId);
-      setShowDiscomSelector(true);
+      setVendorDialogType("discom");
+    } else if (milestoneKey === "bank_loan_file_submission") {
+      setPendingMilestoneId(milestoneId);
+      setVendorDialogType("bank_loan");
     } else {
       completeMilestoneMutation.mutate(milestoneId);
     }
+  };
+
+  const getButtonLabel = (milestoneKey: string) => {
+    if (milestoneKey === "file_submission") return "Complete & Assign DISCOM";
+    if (milestoneKey === "bank_loan_file_submission") return "Complete & Assign Bank";
+    return "Complete";
   };
 
   const getMilestoneData = (milestoneKey: string) => {
@@ -182,7 +192,7 @@ export function CustomerJourneyTracker({
                         disabled={completeMilestoneMutation.isPending}
                         data-testid={`button-complete-${milestone.key}`}
                       >
-                        {milestone.key === "file_submission" ? "Complete & Assign DISCOM" : "Complete"}
+                        {getButtonLabel(milestone.key)}
                         <ChevronRight className="h-4 w-4 ml-1" />
                       </Button>
                     )}
@@ -204,6 +214,24 @@ export function CustomerJourneyTracker({
                         )}
                       </div>
                     )}
+                    
+                    {milestone.key === "bank_loan_file_submission" && isCompleted && bankLoanAssignment?.vendor && (
+                      <div className="mt-2 p-2 rounded-md bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Landmark className="h-4 w-4 text-green-600 dark:text-green-400" />
+                          <span className="font-medium text-green-700 dark:text-green-300">Bank Loan Vendor:</span>
+                          <span className="text-green-600 dark:text-green-400">{bankLoanAssignment.vendor.vendorCode}</span>
+                          <span className="text-muted-foreground">-</span>
+                          <span>{bankLoanAssignment.vendor.name}</span>
+                        </div>
+                        {bankLoanAssignment.vendor.phone && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                            <Phone className="h-3 w-3" />
+                            {bankLoanAssignment.vendor.phone}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -211,15 +239,16 @@ export function CustomerJourneyTracker({
           </div>
         </div>
 
-        {pendingMilestoneId && (
-          <DiscomVendorSelector
+        {pendingMilestoneId && vendorDialogType && (
+          <VendorAssignmentDialog
             customerId={customerId}
             customerName={customerName}
             customerState={customerState}
             milestoneId={pendingMilestoneId}
-            isOpen={showDiscomSelector}
+            assignmentType={vendorDialogType}
+            isOpen={true}
             onClose={() => {
-              setShowDiscomSelector(false);
+              setVendorDialogType(null);
               setPendingMilestoneId(null);
             }}
             onSuccess={() => {

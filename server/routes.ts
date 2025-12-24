@@ -3799,6 +3799,18 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get DISCOM vendors" });
     }
   });
+
+  // Admin: Get approved Bank Loan vendors (for Bank Loan File Submission milestone)
+  app.get("/api/admin/vendors/bank-loan", requireAdmin, async (req, res) => {
+    try {
+      const allApproved = await storage.getApprovedVendors();
+      const bankLoanVendors = allApproved.filter(v => v.vendorType === "bank_loan");
+      res.json(bankLoanVendors);
+    } catch (error) {
+      console.error("Get Bank Loan vendors error:", error);
+      res.status(500).json({ message: "Failed to get Bank Loan vendors" });
+    }
+  });
   
   // ===== VENDOR ASSIGNMENT ROUTES =====
   
