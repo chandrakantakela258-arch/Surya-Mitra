@@ -301,6 +301,45 @@ export function CustomerJourneyTracker({
                         )}
                       </div>
                     )}
+                    
+                    {milestone.key === "net_meter_application" && discomAssignment?.vendor && (
+                      <div className="mt-2 p-2 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          <span className="font-medium text-blue-700 dark:text-blue-300">DISCOM Vendor (Net Meter):</span>
+                          <span className="text-blue-600 dark:text-blue-400">{discomAssignment.vendor.vendorCode}</span>
+                          <span className="text-muted-foreground">-</span>
+                          <span>{discomAssignment.vendor.name}</span>
+                        </div>
+                        {discomAssignment.vendor.phone && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                            <Phone className="h-3 w-3" />
+                            {discomAssignment.vendor.phone}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {milestone.key === "grid_connected" && discomAssignment?.vendor && (
+                      <div className="mt-2 p-2 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          <span className="font-medium text-blue-700 dark:text-blue-300">DISCOM Vendor (Grid & Meter):</span>
+                          <span className="text-blue-600 dark:text-blue-400">{discomAssignment.vendor.vendorCode}</span>
+                          <span className="text-muted-foreground">-</span>
+                          <span>{discomAssignment.vendor.name}</span>
+                        </div>
+                        {discomAssignment.vendor.phone && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                            <Phone className="h-3 w-3" />
+                            {discomAssignment.vendor.phone}
+                          </div>
+                        )}
+                        <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                          Notify vendor for grid connection and meter installation
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
