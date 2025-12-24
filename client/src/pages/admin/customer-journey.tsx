@@ -189,6 +189,7 @@ export default function AdminCustomerJourney() {
                         <CustomerJourneyTracker
                           customerId={customer.id}
                           customerName={customer.name}
+                          customerState={customer.state}
                           showActions={true}
                         />
                         <VendorAssignment

@@ -53,10 +53,7 @@ export function DiscomVendorSelector({
 
   const assignMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("PATCH", `/api/milestones/${milestoneId}/complete`, {
-        notes: notes || "File submitted to PM Surya Ghar portal",
-      });
-
+      // First, assign the vendor (if selected) - this must succeed before completing milestone
       if (selectedVendor) {
         await apiRequest("POST", "/api/admin/vendor-assignments", {
           customerId,
@@ -66,6 +63,11 @@ export function DiscomVendorSelector({
           notes: `Assigned for DISCOM net metering liaison - ${customerName}`,
         });
       }
+
+      // Only complete milestone after vendor assignment succeeds
+      await apiRequest("PATCH", `/api/milestones/${milestoneId}/complete`, {
+        notes: notes || "File submitted to PM Surya Ghar portal",
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers", customerId, "milestones"] });
