@@ -301,8 +301,9 @@ export default function AdminSiteExecutionOrders() {
         ...prev,
         vendorId,
         vendorName: vendor.name,
-        vendorContactPerson: vendor.contactPerson || "",
+        vendorContactPerson: vendor.companyName || "",
         vendorPhone: vendor.phone || "",
+        siteInstallationRate: vendor.bestPriceQuotation || prev.siteInstallationRate,
       }));
     }
   };
@@ -480,9 +481,10 @@ export default function AdminSiteExecutionOrders() {
               <SelectValue placeholder="Select vendor for installation" />
             </SelectTrigger>
             <SelectContent>
-              {vendors.filter(v => v.type === "installation" || v.type === "both").map(vendor => (
+              {vendors.filter(v => v.vendorType === "solar_installation" || v.vendorType === "electrical").map(vendor => (
                 <SelectItem key={vendor.id} value={vendor.id}>
                   {vendor.name} - {vendor.district || vendor.state}
+                  {vendor.bestPriceQuotation && ` (Rs ${vendor.bestPriceQuotation}/${vendor.quotationUnit?.replace("_", "") || "unit"})`}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -286,6 +286,7 @@ export default function AdminGoodsDeliveries() {
         ...prev,
         vendorId,
         vendorName: vendor.companyName || vendor.name,
+        logisticRate: vendor.bestPriceQuotation || prev.logisticRate,
       }));
     }
   };

@@ -247,6 +247,20 @@ export function VendorAssignmentDialog({
                   {selectedVendorData.phone}
                 </div>
               )}
+              {selectedVendorData.bestPriceQuotation && (
+                <div className="mt-2 pt-2 border-t border-border">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Best Price:</span>
+                    <Badge variant="secondary" className="font-mono">
+                      Rs {selectedVendorData.bestPriceQuotation}
+                      {selectedVendorData.quotationUnit && ` ${selectedVendorData.quotationUnit.replace("_", " ")}`}
+                    </Badge>
+                  </div>
+                  {selectedVendorData.quotationDescription && (
+                    <p className="text-xs text-muted-foreground mt-1">{selectedVendorData.quotationDescription}</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
