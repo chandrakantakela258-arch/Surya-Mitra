@@ -6094,6 +6094,7 @@ export async function registerRoutes(
       const dateFields = ["scheduledDate", "actualDeliveryDate"];
       const arrayFields = ["deliveryPhotos", "siteVerificationBefore", "siteVerificationAfter"];
       const intFields = ["quantityOrdered", "quantityDelivered"];
+      const decimalFields = ["logisticRate", "deliveryDistanceKm"];
       
       for (const field of stringFields) {
         if (req.body[field] !== undefined) {
@@ -6127,6 +6128,16 @@ export async function registerRoutes(
         }
       }
       
+      for (const field of decimalFields) {
+        if (req.body[field] !== undefined) {
+          if (req.body[field] && !isNaN(parseFloat(req.body[field]))) {
+            updateData[field] = String(req.body[field]);
+          } else if (!req.body[field]) {
+            updateData[field] = null;
+          }
+        }
+      }
+      
       if (req.body.status !== undefined) {
         if (!validStatuses.includes(req.body.status)) {
           return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
@@ -6134,10 +6145,60 @@ export async function registerRoutes(
         updateData.status = req.body.status;
       }
       
+      // Get current delivery to check for status transition
+      const currentDelivery = await storage.getGoodsDelivery(req.params.id);
+      
       const delivery = await storage.updateGoodsDelivery(req.params.id, updateData);
       if (!delivery) {
         return res.status(404).json({ message: "Goods delivery not found" });
       }
+      
+      // Trigger logistic vendor payment when delivery is confirmed
+      const user = req.user as any;
+      const isNewlyDelivered = req.body.status === "delivered" && currentDelivery?.status !== "delivered";
+      const hasReceiverConfirmation = delivery.receiverName && delivery.receiverPhone;
+      
+      if (isNewlyDelivered && hasReceiverConfirmation && delivery.customerId) {
+        try {
+          // Find the logistic vendor assignment for this customer
+          const assignments = await storage.getVendorAssignmentsByCustomer(delivery.customerId);
+          const logisticAssignment = assignments.find(a => a.jobRole === "logistic");
+          
+          if (logisticAssignment) {
+            // Get customer to determine capacity for payment calculation
+            const customer = await storage.getCustomer(delivery.customerId);
+            const capacityKw = customer?.proposedCapacity ? parseFloat(customer.proposedCapacity) : 0;
+            const logisticRate = parseFloat(delivery.logisticRate || "20");
+            
+            // Calculate payment: rate per kW x capacity x 2 (roundtrip)
+            const paymentAmount = logisticRate * capacityKw * 2;
+            
+            // Check if payment already exists
+            const existingPayments = await storage.getVendorPaymentsByCustomer(delivery.customerId);
+            const existingLogisticPayment = existingPayments.find(
+              p => p.vendorId === logisticAssignment.vendorId && p.milestone === "goods_delivered"
+            );
+            
+            if (!existingLogisticPayment && paymentAmount > 0) {
+              await storage.createVendorPayment({
+                customerId: delivery.customerId,
+                vendorId: logisticAssignment.vendorId,
+                assignmentId: logisticAssignment.id,
+                vendorType: "logistic",
+                milestone: "goods_delivered",
+                amount: String(paymentAmount),
+                description: `Goods delivery completed - Rs ${logisticRate}/kW x ${capacityKw}kW x 2 (roundtrip)`,
+                milestoneCompletedBy: user.id,
+                milestoneCompletedAt: new Date(),
+              });
+            }
+          }
+        } catch (paymentError) {
+          console.error("Error creating logistic vendor payment:", paymentError);
+          // Don't fail the delivery update if payment creation fails
+        }
+      }
+      
       res.json(delivery);
     } catch (error) {
       console.error("Update goods delivery error:", error);

@@ -1265,6 +1265,9 @@ export const vendorPaymentMilestones = {
     { milestone: "discom_survey_completed", label: "DISCOM Survey Completed", amount: 1000, description: "After DISCOM site survey is completed" },
     { milestone: "grid_connected", label: "Grid Connected", amount: 2000, description: "After successful grid connection" },
   ],
+  logistic: [
+    { milestone: "goods_delivered", label: "Goods Delivered", ratePerKw: 20, description: "After successful goods delivery confirmation (Rs 20/kW roundtrip)" },
+  ],
 };
 
 // Vendor Payments - Track milestone-based vendor payments
@@ -2371,6 +2374,10 @@ export const goodsDeliveries = pgTable("goods_deliveries", {
   inverterType: text("inverter_type"),
   quantityOrdered: integer("quantity_ordered").default(1),
   quantityDelivered: integer("quantity_delivered"),
+  
+  // Logistics Pricing
+  logisticRate: decimal("logistic_rate", { precision: 10, scale: 2 }).default("20"), // Rs per kW (default Rs 20)
+  deliveryDistanceKm: decimal("delivery_distance_km", { precision: 10, scale: 2 }), // One-way distance in km
   
   // Proof of Delivery
   receiverName: text("receiver_name"),
