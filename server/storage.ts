@@ -176,6 +176,7 @@ export interface IStorage {
   initializeCustomerMilestones(customerId: string): Promise<Milestone[]>;
   
   // Commission operations
+  getCommission(id: string): Promise<Commission | undefined>;
   getCommissionsByPartnerId(partnerId: string, partnerType?: string): Promise<Commission[]>;
   getCommissionSummaryByPartnerId(partnerId: string, partnerType?: string): Promise<{
     totalEarned: number;
@@ -716,6 +717,14 @@ export class DatabaseStorage implements IStorage {
       const indexB = installationMilestones.findIndex(m => m.key === b.milestone);
       return indexA - indexB;
     });
+  }
+  
+  async getCommission(id: string): Promise<Commission | undefined> {
+    const [commission] = await db
+      .select()
+      .from(commissions)
+      .where(eq(commissions.id, id));
+    return commission || undefined;
   }
   
   async getCommissionsByPartnerId(partnerId: string, partnerType?: string): Promise<Commission[]> {

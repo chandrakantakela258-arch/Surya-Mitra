@@ -2369,6 +2369,33 @@ export async function registerRoutes(
         // Update commission status if provided
         if (commissionId && razorpayPayout.status === "processed") {
           await storage.updateCommissionStatus(commissionId, "paid");
+          
+          // Auto-populate site expense with commission payment
+          const commission = await storage.getCommission(commissionId);
+          if (commission?.customerId) {
+            const siteExpense = await storage.getSiteExpenseByCustomerId(commission.customerId);
+            if (siteExpense) {
+              // Determine which expense head to update based on partner type
+              const updateData: any = {};
+              if (commission.partnerType === "ddp") {
+                updateData.ddpCommission = String(
+                  parseFloat(siteExpense.ddpCommission || "0") + commission.commissionAmount
+                );
+              } else if (commission.partnerType === "bdp") {
+                updateData.bdpCommission = String(
+                  parseFloat(siteExpense.bdpCommission || "0") + commission.commissionAmount
+                );
+              } else if (commission.commissionType === "customer_referral") {
+                updateData.referralPayment = String(
+                  parseFloat(siteExpense.referralPayment || "0") + commission.commissionAmount
+                );
+              }
+              
+              if (Object.keys(updateData).length > 0) {
+                await storage.updateSiteExpense(siteExpense.id, updateData);
+              }
+            }
+          }
         }
         
         res.json({
@@ -4062,6 +4089,33 @@ export async function registerRoutes(
       if (!payment) {
         return res.status(404).json({ message: "Vendor payment not found" });
       }
+      
+      // Auto-populate site expense when vendor payment is marked as paid
+      if (status === "paid" && payment.customerId) {
+        const siteExpense = await storage.getSiteExpenseByCustomerId(payment.customerId);
+        if (siteExpense) {
+          const paymentAmount = parseFloat(payment.amount || "0");
+          const updateExpenseData: any = {};
+          
+          // Map vendor type to expense head
+          if (payment.vendorType === "bank_loan_liaison") {
+            // Bank vendor payments go to bankLoanApprovalCost
+            updateExpenseData.bankLoanApprovalCost = String(
+              parseFloat(siteExpense.bankLoanApprovalCost || "0") + paymentAmount
+            );
+          } else if (payment.vendorType === "discom_net_metering") {
+            // DISCOM vendor payments go to discomApprovalCost
+            updateExpenseData.discomApprovalCost = String(
+              parseFloat(siteExpense.discomApprovalCost || "0") + paymentAmount
+            );
+          }
+          
+          if (Object.keys(updateExpenseData).length > 0) {
+            await storage.updateSiteExpense(siteExpense.id, updateExpenseData);
+          }
+        }
+      }
+      
       res.json(payment);
     } catch (error) {
       console.error("Update vendor payment error:", error);
