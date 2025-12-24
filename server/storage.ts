@@ -78,6 +78,9 @@ import {
   type InsertVendor,
   type CustomerVendorAssignment,
   type InsertCustomerVendorAssignment,
+  type VendorPayment,
+  type InsertVendorPayment,
+  vendorPayments,
   type SiteExpense,
   type InsertSiteExpense,
   type BankLoanSubmission,
@@ -379,6 +382,14 @@ export interface IStorage {
   getVendorAssignmentsByVendor(vendorId: string): Promise<CustomerVendorAssignment[]>;
   updateVendorAssignment(id: string, data: Partial<CustomerVendorAssignment>): Promise<CustomerVendorAssignment | undefined>;
   deleteVendorAssignment(id: string): Promise<void>;
+  
+  // Vendor Payment operations
+  createVendorPayment(payment: InsertVendorPayment): Promise<VendorPayment>;
+  getVendorPayments(): Promise<VendorPayment[]>;
+  getVendorPayment(id: string): Promise<VendorPayment | undefined>;
+  getVendorPaymentsByCustomer(customerId: string): Promise<VendorPayment[]>;
+  getVendorPaymentsByVendor(vendorId: string): Promise<VendorPayment[]>;
+  updateVendorPayment(id: string, data: Partial<VendorPayment>): Promise<VendorPayment | undefined>;
   
   // Site Expense operations
   createSiteExpense(expense: InsertSiteExpense): Promise<SiteExpense>;
@@ -2144,6 +2155,41 @@ export class DatabaseStorage implements IStorage {
   
   async deleteVendorAssignment(id: string): Promise<void> {
     await db.delete(customerVendorAssignments).where(eq(customerVendorAssignments.id, id));
+  }
+  
+  // Vendor Payment operations
+  async createVendorPayment(payment: InsertVendorPayment): Promise<VendorPayment> {
+    const [created] = await db.insert(vendorPayments).values(payment).returning();
+    return created;
+  }
+  
+  async getVendorPayments(): Promise<VendorPayment[]> {
+    return await db.select().from(vendorPayments).orderBy(desc(vendorPayments.createdAt));
+  }
+  
+  async getVendorPayment(id: string): Promise<VendorPayment | undefined> {
+    const [payment] = await db.select().from(vendorPayments).where(eq(vendorPayments.id, id));
+    return payment || undefined;
+  }
+  
+  async getVendorPaymentsByCustomer(customerId: string): Promise<VendorPayment[]> {
+    return await db.select().from(vendorPayments)
+      .where(eq(vendorPayments.customerId, customerId))
+      .orderBy(desc(vendorPayments.createdAt));
+  }
+  
+  async getVendorPaymentsByVendor(vendorId: string): Promise<VendorPayment[]> {
+    return await db.select().from(vendorPayments)
+      .where(eq(vendorPayments.vendorId, vendorId))
+      .orderBy(desc(vendorPayments.createdAt));
+  }
+  
+  async updateVendorPayment(id: string, data: Partial<VendorPayment>): Promise<VendorPayment | undefined> {
+    const [updated] = await db.update(vendorPayments)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(vendorPayments.id, id))
+      .returning();
+    return updated || undefined;
   }
   
   // Site Expense operations

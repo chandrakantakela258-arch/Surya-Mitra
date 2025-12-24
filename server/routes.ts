@@ -3910,6 +3910,126 @@ export async function registerRoutes(
     }
   });
 
+  // ===== VENDOR PAYMENT ROUTES =====
+  
+  // Admin: Get all vendor payments
+  app.get("/api/admin/vendor-payments", requireAdmin, async (req, res) => {
+    try {
+      const payments = await storage.getVendorPayments();
+      res.json(payments);
+    } catch (error) {
+      console.error("Get vendor payments error:", error);
+      res.status(500).json({ message: "Failed to get vendor payments" });
+    }
+  });
+  
+  // Admin: Get vendor payments by customer
+  app.get("/api/admin/customers/:customerId/vendor-payments", requireAdmin, async (req, res) => {
+    try {
+      const payments = await storage.getVendorPaymentsByCustomer(req.params.customerId);
+      res.json(payments);
+    } catch (error) {
+      console.error("Get customer vendor payments error:", error);
+      res.status(500).json({ message: "Failed to get customer vendor payments" });
+    }
+  });
+  
+  // Admin: Create vendor payment (manual or triggered by milestone)
+  app.post("/api/admin/vendor-payments", requireAdmin, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const paymentData = {
+        ...req.body,
+        milestoneCompletedBy: user.id,
+        milestoneCompletedAt: new Date(),
+      };
+      const payment = await storage.createVendorPayment(paymentData);
+      res.status(201).json(payment);
+    } catch (error) {
+      console.error("Create vendor payment error:", error);
+      res.status(500).json({ message: "Failed to create vendor payment" });
+    }
+  });
+  
+  // Admin: Update vendor payment status
+  app.patch("/api/admin/vendor-payments/:id", requireAdmin, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { status, notes } = req.body;
+      
+      const updateData: any = { status, notes };
+      
+      if (status === "ready_for_payout") {
+        updateData.payoutApprovedBy = user.id;
+        updateData.payoutApprovedAt = new Date();
+      } else if (status === "paid") {
+        updateData.paidAt = new Date();
+      }
+      
+      const payment = await storage.updateVendorPayment(req.params.id, updateData);
+      if (!payment) {
+        return res.status(404).json({ message: "Vendor payment not found" });
+      }
+      res.json(payment);
+    } catch (error) {
+      console.error("Update vendor payment error:", error);
+      res.status(500).json({ message: "Failed to update vendor payment" });
+    }
+  });
+  
+  // Admin: Trigger vendor payment for a milestone (when milestone is completed)
+  app.post("/api/admin/vendor-payments/trigger", requireAdmin, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { customerId, vendorType, milestone } = req.body;
+      
+      // Find the vendor assignment for this customer and vendor type
+      const assignments = await storage.getVendorAssignmentsByCustomer(customerId);
+      const assignment = assignments.find(a => a.jobRole === vendorType);
+      
+      if (!assignment) {
+        return res.status(404).json({ message: `No ${vendorType} vendor assigned to this customer` });
+      }
+      
+      // Check if payment already exists for this milestone
+      const existingPayments = await storage.getVendorPaymentsByCustomer(customerId);
+      const existing = existingPayments.find(
+        p => p.vendorId === assignment.vendorId && p.milestone === milestone
+      );
+      
+      if (existing) {
+        return res.status(400).json({ message: "Payment already created for this milestone", payment: existing });
+      }
+      
+      // Get milestone config
+      const { vendorPaymentMilestones } = await import("@shared/schema");
+      const milestones = vendorPaymentMilestones[vendorType as keyof typeof vendorPaymentMilestones];
+      const milestoneConfig = milestones?.find((m: any) => m.milestone === milestone);
+      
+      if (!milestoneConfig) {
+        return res.status(400).json({ message: "Invalid milestone for vendor type" });
+      }
+      
+      // Create the payment
+      const payment = await storage.createVendorPayment({
+        customerId,
+        vendorId: assignment.vendorId,
+        assignmentId: assignment.id,
+        vendorType,
+        milestone,
+        amount: milestoneConfig.amount.toString(),
+        description: milestoneConfig.description,
+        milestoneCompletedBy: user.id,
+        milestoneCompletedAt: new Date(),
+      });
+      
+      res.status(201).json(payment);
+    } catch (error) {
+      console.error("Trigger vendor payment error:", error);
+      res.status(500).json({ message: "Failed to trigger vendor payment" });
+    }
+  });
+
   // ===== SITE EXPENSE ROUTES =====
   
   // Admin: Get all site expenses
