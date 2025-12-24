@@ -120,8 +120,7 @@ export default function AdminSiteExecutionOrders() {
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("POST", "/api/admin/site-execution-orders", data);
-      return response.json();
+      return await apiRequest("POST", "/api/admin/site-execution-orders", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/site-execution-orders"] });
@@ -136,8 +135,7 @@ export default function AdminSiteExecutionOrders() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const response = await apiRequest("PATCH", `/api/admin/site-execution-orders/${id}`, data);
-      return response.json();
+      return await apiRequest("PATCH", `/api/admin/site-execution-orders/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/site-execution-orders"] });

@@ -189,8 +189,7 @@ export default function AdminCompletionReports() {
 
   const reviewMutation = useMutation({
     mutationFn: async ({ id, action, notes, rejectionReason }: { id: string; action: string; notes: string; rejectionReason: string }) => {
-      const response = await apiRequest("POST", `/api/admin/completion-reports/${id}/review`, { action, notes, rejectionReason });
-      return response.json();
+      return await apiRequest("POST", `/api/admin/completion-reports/${id}/review`, { action, notes, rejectionReason });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/completion-reports"] });

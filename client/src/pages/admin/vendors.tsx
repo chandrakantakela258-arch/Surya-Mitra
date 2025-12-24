@@ -32,8 +32,7 @@ export default function AdminVendors() {
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status, notes }: { id: string; status: string; notes?: string }) => {
-      const response = await apiRequest("PATCH", `/api/admin/vendors/${id}/status`, { status, notes });
-      return response.json();
+      return await apiRequest("PATCH", `/api/admin/vendors/${id}/status`, { status, notes });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/vendors"] });
