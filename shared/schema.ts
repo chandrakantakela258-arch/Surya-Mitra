@@ -1268,7 +1268,17 @@ export const vendorPaymentMilestones = {
   logistic: [
     { milestone: "goods_delivered", label: "Goods Delivered", ratePerKw: 20, description: "After successful goods delivery confirmation (Rs 20/kW roundtrip)" },
   ],
+  site_installation: [
+    { milestone: "site_completion_report", label: "Site Completion Report Submitted", ratePerWatt: 2.5, description: "After site completion report is submitted on PM Surya Ghar Portal (Rs 2.5-3/watt)" },
+  ],
 };
+
+// Site installation rate options (per watt)
+export const siteInstallationRates = [
+  { value: "2.5", label: "Rs 2.5/watt" },
+  { value: "2.75", label: "Rs 2.75/watt" },
+  { value: "3", label: "Rs 3/watt" },
+];
 
 // Vendor Payments - Track milestone-based vendor payments
 export const vendorPayments = pgTable("vendor_payments", {
@@ -2480,6 +2490,9 @@ export const siteExecutionOrders = pgTable("site_execution_orders", {
   panelCapacity: text("panel_capacity"),
   inverterType: text("inverter_type"),
   numberOfPanels: integer("number_of_panels"),
+  
+  // Site Installation Rate (Rs per watt - for erection + electrical work)
+  siteInstallationRate: text("site_installation_rate").default("2.5"), // Rs 2.5-3 per watt
   
   // Required Resources
   requiredMaterials: text("required_materials").array(),

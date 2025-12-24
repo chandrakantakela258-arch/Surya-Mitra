@@ -4108,6 +4108,16 @@ export async function registerRoutes(
             updateExpenseData.discomApprovalCost = String(
               parseFloat(siteExpense.discomApprovalCost || "0") + paymentAmount
             );
+          } else if (payment.vendorType === "logistic") {
+            // Logistic vendor payments go to logisticCost
+            updateExpenseData.logisticCost = String(
+              parseFloat(siteExpense.logisticCost || "0") + paymentAmount
+            );
+          } else if (payment.vendorType === "site_installation") {
+            // Site installation vendor payments go to electricianCost (combined site erection + electrical work)
+            updateExpenseData.electricianCost = String(
+              parseFloat(siteExpense.electricianCost || "0") + paymentAmount
+            );
           }
           
           if (Object.keys(updateExpenseData).length > 0) {
@@ -6704,13 +6714,56 @@ export async function registerRoutes(
       
       const updated = await storage.updateCompletionReport(req.params.id, updateData);
       
-      // If approved, also mark the execution order as completed
+      // If approved, also mark the execution order as completed and trigger site installation payment
       if (action === 'approve' && report.executionOrderId) {
+        const executionOrder = await storage.getSiteExecutionOrder(report.executionOrderId);
+        
         await storage.updateSiteExecutionOrder(report.executionOrderId, {
           status: 'completed',
           actualEndDate: new Date().toISOString() as any,
           progressPercentage: 100,
         });
+        
+        // Trigger site_installation vendor payment when completion report is approved
+        if (executionOrder && executionOrder.customerId) {
+          try {
+            const assignments = await storage.getVendorAssignmentsByCustomer(executionOrder.customerId);
+            const installationAssignment = assignments.find(a => a.jobRole === "solar_installation");
+            
+            if (installationAssignment) {
+              // Get customer capacity
+              const customer = await storage.getCustomer(executionOrder.customerId);
+              const capacityKw = customer?.proposedCapacity ? parseFloat(customer.proposedCapacity) : 0;
+              const capacityWatts = capacityKw * 1000;
+              const ratePerWatt = parseFloat(executionOrder.siteInstallationRate || "2.5");
+              
+              // Calculate payment: rate per watt x capacity in watts
+              const paymentAmount = ratePerWatt * capacityWatts;
+              
+              // Check if payment already exists
+              const existingPayments = await storage.getVendorPaymentsByCustomer(executionOrder.customerId);
+              const existingInstallationPayment = existingPayments.find(
+                p => p.vendorId === installationAssignment.vendorId && p.milestone === "site_completion_report"
+              );
+              
+              if (!existingInstallationPayment && paymentAmount > 0) {
+                await storage.createVendorPayment({
+                  customerId: executionOrder.customerId,
+                  vendorId: installationAssignment.vendorId,
+                  assignmentId: installationAssignment.id,
+                  vendorType: "site_installation",
+                  milestone: "site_completion_report",
+                  amount: String(paymentAmount),
+                  description: `Site completion report approved - Rs ${ratePerWatt}/watt x ${capacityKw}kW (${capacityWatts}W)`,
+                  milestoneCompletedBy: req.user?.id,
+                  milestoneCompletedAt: new Date(),
+                });
+              }
+            }
+          } catch (paymentError) {
+            console.error("Error creating site installation vendor payment:", paymentError);
+          }
+        }
       }
       
       res.json(updated);

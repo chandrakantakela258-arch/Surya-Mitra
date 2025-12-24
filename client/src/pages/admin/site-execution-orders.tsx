@@ -85,6 +85,7 @@ export default function AdminSiteExecutionOrders() {
     panelCapacity: "",
     inverterType: "",
     numberOfPanels: "",
+    siteInstallationRate: "2.5",
     specialInstructions: "",
     safetyChecklistCompleted: false,
     safetyNotes: "",
@@ -192,6 +193,7 @@ export default function AdminSiteExecutionOrders() {
       panelCapacity: "",
       inverterType: "",
       numberOfPanels: "",
+      siteInstallationRate: "2.5",
       specialInstructions: "",
       safetyChecklistCompleted: false,
       safetyNotes: "",
@@ -245,6 +247,7 @@ export default function AdminSiteExecutionOrders() {
       panelCapacity: order.panelCapacity || "",
       inverterType: order.inverterType || "",
       numberOfPanels: order.numberOfPanels?.toString() || "",
+      siteInstallationRate: order.siteInstallationRate || "2.5",
       specialInstructions: order.specialInstructions || "",
       safetyChecklistCompleted: order.safetyChecklistCompleted || false,
       safetyNotes: order.safetyNotes || "",
@@ -631,18 +634,33 @@ export default function AdminSiteExecutionOrders() {
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label>Inverter Type</Label>
-          <Select value={formData.inverterType} onValueChange={(value) => setFormData(prev => ({ ...prev, inverterType: value }))}>
-            <SelectTrigger data-testid="select-inverter">
-              <SelectValue placeholder="Select inverter type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ongrid">On-Grid Inverter</SelectItem>
-              <SelectItem value="hybrid">3-in-1 Hybrid Inverter</SelectItem>
-              <SelectItem value="offgrid">Off-Grid Inverter</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Inverter Type</Label>
+            <Select value={formData.inverterType} onValueChange={(value) => setFormData(prev => ({ ...prev, inverterType: value }))}>
+              <SelectTrigger data-testid="select-inverter">
+                <SelectValue placeholder="Select inverter type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ongrid">On-Grid Inverter</SelectItem>
+                <SelectItem value="hybrid">3-in-1 Hybrid Inverter</SelectItem>
+                <SelectItem value="offgrid">Off-Grid Inverter</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Site Installation Rate (Rs/watt)</Label>
+            <Select value={formData.siteInstallationRate} onValueChange={(value) => setFormData(prev => ({ ...prev, siteInstallationRate: value }))}>
+              <SelectTrigger data-testid="select-installation-rate">
+                <SelectValue placeholder="Select rate" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="2.5">Rs 2.5/watt</SelectItem>
+                <SelectItem value="2.75">Rs 2.75/watt</SelectItem>
+                <SelectItem value="3">Rs 3/watt</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -919,6 +937,7 @@ export default function AdminSiteExecutionOrders() {
                   <TableHead>Customer</TableHead>
                   <TableHead>Vendor</TableHead>
                   <TableHead>Scheduled</TableHead>
+                  <TableHead>Rate</TableHead>
                   <TableHead>Progress</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -927,7 +946,7 @@ export default function AdminSiteExecutionOrders() {
               <TableBody>
                 {filteredOrders.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                       No execution orders found
                     </TableCell>
                   </TableRow>
@@ -946,6 +965,7 @@ export default function AdminSiteExecutionOrders() {
                       <TableCell>
                         {order.scheduledStartDate ? format(new Date(order.scheduledStartDate), "dd MMM yyyy") : "-"}
                       </TableCell>
+                      <TableCell>Rs {order.siteInstallationRate || "2.5"}/W</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <div className="w-16 bg-muted rounded-full h-2">
