@@ -1084,6 +1084,11 @@ export const vendors = pgTable("vendors", {
   bankName: text("bank_name"),
   upiId: text("upi_id"),
   
+  // Best Price Quotation (auto-populated to work orders when approved)
+  bestPriceQuotation: text("best_price_quotation"), // Rate/price offered by vendor for their services
+  quotationUnit: text("quotation_unit"), // per_kw, per_watt, per_trip, per_unit, lumpsum
+  quotationDescription: text("quotation_description"), // Additional details about the quotation
+  
   // Status
   status: text("status").notNull().default("pending"), // pending, approved, rejected
   notes: text("notes"),

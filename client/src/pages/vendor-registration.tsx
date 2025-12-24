@@ -72,6 +72,9 @@ const formSchema = z.object({
   bankIfsc: z.string().optional(),
   bankName: z.string().optional(),
   upiId: z.string().optional(),
+  bestPriceQuotation: z.string().optional(),
+  quotationUnit: z.string().optional(),
+  quotationDescription: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -135,6 +138,9 @@ export default function VendorRegistration() {
       bankIfsc: "",
       bankName: "",
       upiId: "",
+      bestPriceQuotation: "",
+      quotationUnit: "",
+      quotationDescription: "",
     },
   });
 
@@ -1147,6 +1153,80 @@ export default function VendorRegistration() {
                       )}
                     />
                   </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5 text-orange-500" />
+                    Best Price Quotation
+                  </CardTitle>
+                  <CardDescription>
+                    Enter your best price for services. This will be auto-populated to work orders when approved.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="bestPriceQuotation"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Best Price (Rs)</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="Enter your best rate" {...field} data-testid="input-vendor-best-price" />
+                          </FormControl>
+                          <FormDescription>Your competitive rate for services</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="quotationUnit"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Price Unit</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-quotation-unit">
+                                <SelectValue placeholder="Select unit" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="per_kw">Per kW</SelectItem>
+                              <SelectItem value="per_watt">Per Watt</SelectItem>
+                              <SelectItem value="per_trip">Per Trip</SelectItem>
+                              <SelectItem value="per_unit">Per Unit</SelectItem>
+                              <SelectItem value="lumpsum">Lumpsum</SelectItem>
+                              <SelectItem value="percentage">Percentage</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="quotationDescription"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Quotation Details (Optional)</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Describe what's included in your rate (e.g., materials, labor, etc.)" 
+                            {...field} 
+                            data-testid="input-vendor-quotation-description" 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </CardContent>
               </Card>
 
