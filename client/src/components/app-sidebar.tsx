@@ -124,6 +124,7 @@ const adminMenuSections: MenuSection[] = [
       { title: "Service Requests", url: "/admin/service-requests", icon: Wrench },
       { title: "Testimonials", url: "/admin/testimonials", icon: MessageSquare },
       { title: "Vendor Approvals", url: "/admin/vendors", icon: Wrench },
+      { title: "Vendor Payments", url: "/admin/vendor-payments", icon: Wallet },
       { title: "Notifications", url: "/admin/notifications", icon: Bell },
       { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },
     ],

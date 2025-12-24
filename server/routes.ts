@@ -1600,6 +1600,98 @@ export async function registerRoutes(
         
         // If installation is complete, create commission for the DDP and/or Customer Partner
         // Skip commission for independent/direct website registrations (no referral code)
+        // Trigger vendor payments based on milestone completion
+        const vendorAssignments = await storage.getVendorAssignmentsByCustomer(customer.id);
+        
+        // Bank Vendor: Rs 1,500 after bank_loan milestone (disbursement)
+        if (milestone.milestone === "bank_loan") {
+          const bankVendorAssignment = vendorAssignments.find(a => a.vendorType === "bank_loan_liaison");
+          if (bankVendorAssignment) {
+            // Check if payment already exists for this milestone
+            const existingPayments = await storage.getVendorPaymentsByCustomer(customer.id);
+            const existingBankPayment = existingPayments.find(
+              p => p.vendorId === bankVendorAssignment.vendorId && p.milestone === "bank_disbursement"
+            );
+            
+            if (!existingBankPayment) {
+              await storage.createVendorPayment({
+                vendorId: bankVendorAssignment.vendorId,
+                customerId: customer.id,
+                vendorType: "bank_loan_liaison",
+                milestone: "bank_disbursement",
+                amount: "1500",
+                status: "pending",
+              });
+            }
+          }
+        }
+        
+        // DISCOM Vendor: Rs 1,000 after site_survey milestone (DISCOM survey completed)
+        if (milestone.milestone === "site_survey") {
+          const discomVendorAssignment = vendorAssignments.find(a => a.vendorType === "discom_net_metering");
+          if (discomVendorAssignment) {
+            const existingPayments = await storage.getVendorPaymentsByCustomer(customer.id);
+            const existingDiscomPayment = existingPayments.find(
+              p => p.vendorId === discomVendorAssignment.vendorId && p.milestone === "discom_survey_completed"
+            );
+            
+            if (!existingDiscomPayment) {
+              await storage.createVendorPayment({
+                vendorId: discomVendorAssignment.vendorId,
+                customerId: customer.id,
+                vendorType: "discom_net_metering",
+                milestone: "discom_survey_completed",
+                amount: "1000",
+                status: "pending",
+              });
+            }
+          }
+        }
+        
+        // DISCOM Vendor: Rs 2,000 after grid_connected milestone
+        if (milestone.milestone === "grid_connected") {
+          const discomVendorAssignment = vendorAssignments.find(a => a.vendorType === "discom_net_metering");
+          if (discomVendorAssignment) {
+            const existingPayments = await storage.getVendorPaymentsByCustomer(customer.id);
+            const existingGridPayment = existingPayments.find(
+              p => p.vendorId === discomVendorAssignment.vendorId && p.milestone === "grid_connected"
+            );
+            
+            if (!existingGridPayment) {
+              await storage.createVendorPayment({
+                vendorId: discomVendorAssignment.vendorId,
+                customerId: customer.id,
+                vendorType: "discom_net_metering",
+                milestone: "grid_connected",
+                amount: "2000",
+                status: "pending",
+              });
+            }
+          }
+        }
+        
+        // Bank Vendor: Rs 1,500 after subsidy_received milestone (full and final payment)
+        if (milestone.milestone === "subsidy_received") {
+          const bankVendorAssignment = vendorAssignments.find(a => a.vendorType === "bank_loan_liaison");
+          if (bankVendorAssignment) {
+            const existingPayments = await storage.getVendorPaymentsByCustomer(customer.id);
+            const existingFinalPayment = existingPayments.find(
+              p => p.vendorId === bankVendorAssignment.vendorId && p.milestone === "full_final_payment"
+            );
+            
+            if (!existingFinalPayment) {
+              await storage.createVendorPayment({
+                vendorId: bankVendorAssignment.vendorId,
+                customerId: customer.id,
+                vendorType: "bank_loan_liaison",
+                milestone: "full_final_payment",
+                amount: "1500",
+                status: "pending",
+              });
+            }
+          }
+        }
+        
         if (milestone.milestone === "installation_complete") {
           // Only create commission if customer was referred (not direct website registration)
           const isIndependentCustomer = customer.source === "website_direct";
