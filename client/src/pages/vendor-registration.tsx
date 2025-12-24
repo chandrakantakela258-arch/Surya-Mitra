@@ -169,8 +169,7 @@ export default function VendorRegistration() {
 
   const registerMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      const response = await apiRequest("POST", "/api/public/vendors/register", data);
-      return response.json();
+      return await apiRequest("POST", "/api/public/vendors/register", data);
     },
     onSuccess: () => {
       setSubmitted(true);
