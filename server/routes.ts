@@ -5878,6 +5878,67 @@ export async function registerRoutes(
       if (!order) {
         return res.status(404).json({ message: "Purchase order not found" });
       }
+      
+      // Auto-populate site expense when payment status is "paid"
+      if (req.body.paymentStatus === "paid" && order.customerId) {
+        const siteExpense = await storage.getSiteExpenseByCustomerId(order.customerId);
+        if (siteExpense && order.vendorId) {
+          const vendor = await storage.getVendor(order.vendorId);
+          if (vendor) {
+            const paymentAmount = parseFloat(order.totalAmount || "0");
+            const updateExpenseData: Record<string, string> = {};
+            
+            // Map vendor type to expense head
+            switch (vendor.vendorType) {
+              case "solar_panel_supplier":
+                updateExpenseData.solarPanelsCost = String(
+                  parseFloat(siteExpense.solarPanelsCost || "0") + paymentAmount
+                );
+                break;
+              case "inverter_supplier":
+                updateExpenseData.inverterCost = String(
+                  parseFloat(siteExpense.inverterCost || "0") + paymentAmount
+                );
+                break;
+              case "electrical_supplier":
+              case "electrical":
+                updateExpenseData.electricalCost = String(
+                  parseFloat(siteExpense.electricalCost || "0") + paymentAmount
+                );
+                break;
+              case "logistic":
+                updateExpenseData.logisticCost = String(
+                  parseFloat(siteExpense.logisticCost || "0") + paymentAmount
+                );
+                break;
+              case "civil_material_supplier":
+                updateExpenseData.civilWorkCost = String(
+                  parseFloat(siteExpense.civilWorkCost || "0") + paymentAmount
+                );
+                break;
+              case "solar_installation":
+                updateExpenseData.electricianCost = String(
+                  parseFloat(siteExpense.electricianCost || "0") + paymentAmount
+                );
+                break;
+              case "solar_mounting_supplier":
+              case "accessories_supplier":
+              case "lithium_battery_supplier":
+              case "tubular_battery_supplier":
+                // These go to miscellaneous expense
+                updateExpenseData.miscellaneousExpense = String(
+                  parseFloat(siteExpense.miscellaneousExpense || "0") + paymentAmount
+                );
+                break;
+            }
+            
+            if (Object.keys(updateExpenseData).length > 0) {
+              await storage.updateSiteExpense(siteExpense.id, updateExpenseData);
+            }
+          }
+        }
+      }
+      
       res.json(order);
     } catch (error) {
       console.error("Update vendor purchase order error:", error);
