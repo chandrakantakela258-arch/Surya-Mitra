@@ -3788,6 +3788,18 @@ export async function registerRoutes(
     }
   });
   
+  // Admin: Get approved DISCOM vendors (for File Submission milestone)
+  app.get("/api/admin/vendors/discom", requireAdmin, async (req, res) => {
+    try {
+      const allApproved = await storage.getApprovedVendors();
+      const discomVendors = allApproved.filter(v => v.vendorType === "discom_net_metering");
+      res.json(discomVendors);
+    } catch (error) {
+      console.error("Get DISCOM vendors error:", error);
+      res.status(500).json({ message: "Failed to get DISCOM vendors" });
+    }
+  });
+  
   // ===== VENDOR ASSIGNMENT ROUTES =====
   
   // Admin: Assign vendor to customer job

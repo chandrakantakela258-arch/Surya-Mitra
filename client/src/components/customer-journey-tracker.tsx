@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Check, Clock, ChevronRight, ChevronDown, ChevronUp } from "lucide-react";
+import { Check, Clock, ChevronRight, ChevronDown, ChevronUp, Building2, User, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,24 +9,39 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
-import { installationMilestones, type Milestone } from "@shared/schema";
+import { installationMilestones, type Milestone, type Vendor, type CustomerVendorAssignment } from "@shared/schema";
+import { DiscomVendorSelector } from "./discom-vendor-selector";
+
+interface EnrichedAssignment extends CustomerVendorAssignment {
+  vendor?: Vendor;
+}
 
 interface CustomerJourneyTrackerProps {
   customerId: string;
   customerName: string;
+  customerState?: string;
   showActions?: boolean;
 }
 
 export function CustomerJourneyTracker({ 
   customerId, 
   customerName,
+  customerState,
   showActions = true 
 }: CustomerJourneyTrackerProps) {
   const { toast } = useToast();
+  const [showDiscomSelector, setShowDiscomSelector] = useState(false);
+  const [pendingMilestoneId, setPendingMilestoneId] = useState<string | null>(null);
 
   const { data: milestones = [], isLoading } = useQuery<Milestone[]>({
     queryKey: ["/api/customers", customerId, "milestones"],
   });
+
+  const { data: vendorAssignments = [] } = useQuery<EnrichedAssignment[]>({
+    queryKey: ["/api/customers", customerId, "vendor-assignments"],
+  });
+
+  const discomAssignment = vendorAssignments.find(a => a.jobRole === "discom_net_metering");
 
   const completeMilestoneMutation = useMutation({
     mutationFn: async (milestoneId: string) => {
@@ -49,6 +64,15 @@ export function CustomerJourneyTracker({
       });
     },
   });
+
+  const handleMilestoneComplete = (milestoneKey: string, milestoneId: string) => {
+    if (milestoneKey === "file_submission") {
+      setPendingMilestoneId(milestoneId);
+      setShowDiscomSelector(true);
+    } else {
+      completeMilestoneMutation.mutate(milestoneId);
+    }
+  };
 
   const getMilestoneData = (milestoneKey: string) => {
     return milestones.find((m) => m.milestone === milestoneKey);
@@ -154,13 +178,31 @@ export function CustomerJourneyTracker({
                     {showActions && isNext && !isCompleted && milestoneData && (
                       <Button
                         size="sm"
-                        onClick={() => completeMilestoneMutation.mutate(milestoneData.id)}
+                        onClick={() => handleMilestoneComplete(milestone.key, milestoneData.id)}
                         disabled={completeMilestoneMutation.isPending}
                         data-testid={`button-complete-${milestone.key}`}
                       >
-                        Complete
+                        {milestone.key === "file_submission" ? "Complete & Assign DISCOM" : "Complete"}
                         <ChevronRight className="h-4 w-4 ml-1" />
                       </Button>
+                    )}
+                    
+                    {milestone.key === "file_submission" && isCompleted && discomAssignment?.vendor && (
+                      <div className="mt-2 p-2 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          <span className="font-medium text-blue-700 dark:text-blue-300">DISCOM Vendor:</span>
+                          <span className="text-blue-600 dark:text-blue-400">{discomAssignment.vendor.vendorCode}</span>
+                          <span className="text-muted-foreground">-</span>
+                          <span>{discomAssignment.vendor.name}</span>
+                        </div>
+                        {discomAssignment.vendor.phone && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                            <Phone className="h-3 w-3" />
+                            {discomAssignment.vendor.phone}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -168,6 +210,23 @@ export function CustomerJourneyTracker({
             })}
           </div>
         </div>
+
+        {pendingMilestoneId && (
+          <DiscomVendorSelector
+            customerId={customerId}
+            customerName={customerName}
+            customerState={customerState}
+            milestoneId={pendingMilestoneId}
+            isOpen={showDiscomSelector}
+            onClose={() => {
+              setShowDiscomSelector(false);
+              setPendingMilestoneId(null);
+            }}
+            onSuccess={() => {
+              queryClient.invalidateQueries({ queryKey: ["/api/customers", customerId, "vendor-assignments"] });
+            }}
+          />
+        )}
       </CardContent>
     </Card>
   );
