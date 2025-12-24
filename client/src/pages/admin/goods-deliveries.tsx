@@ -283,8 +283,8 @@ export default function AdminGoodsDeliveries() {
     const vendor = vendors.find((v) => v.id === vendorId);
     if (vendor) {
       setFormData(prev => {
-        // Use vendor-type-specific rate: logisticRatePerKw for logistic vendors
-        const logisticRate = vendor.logisticRatePerKw || vendor.bestPriceQuotation || prev.logisticRate;
+        // Use vendor-type-specific rate: logisticRatePerKm for logistic vendors
+        const logisticRate = vendor.logisticRatePerKm || vendor.bestPriceQuotation || prev.logisticRate;
         return {
           ...prev,
           vendorId,

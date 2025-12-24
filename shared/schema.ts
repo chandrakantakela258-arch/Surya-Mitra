@@ -1091,7 +1091,7 @@ export const vendors = pgTable("vendors", {
   
   // Vendor-type-specific quotation rates (in INR)
   // Logistic Vendor
-  logisticRatePerKw: decimal("logistic_rate_per_kw", { precision: 10, scale: 2 }), // Rate per kW for transportation
+  logisticRatePerKm: decimal("logistic_rate_per_km", { precision: 10, scale: 2 }), // Rate per KM for transportation
   
   // Bank Loan Liaison
   bankLoanApprovalRate: decimal("bank_loan_approval_rate", { precision: 10, scale: 2 }), // Rate per loan approval
@@ -1173,8 +1173,8 @@ export const vendorQuotationConfig: Record<string, {
   description: string;
 }> = {
   logistic: {
-    fields: [{ key: "logisticRatePerKw", label: "Rate per kW", unit: "per kW", placeholder: "e.g., 500" }],
-    description: "Transportation rate per kilowatt of installation capacity"
+    fields: [{ key: "logisticRatePerKm", label: "Rate per KM", unit: "per KM", placeholder: "e.g., 15" }],
+    description: "Transportation rate per kilometer traveled"
   },
   bank_loan_liaison: {
     fields: [{ key: "bankLoanApprovalRate", label: "Bank Loan Approval Rate", unit: "per approval", placeholder: "e.g., 2000" }],

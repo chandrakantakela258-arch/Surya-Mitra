@@ -76,7 +76,7 @@ const formSchema = z.object({
   quotationUnit: z.string().optional(),
   quotationDescription: z.string().optional(),
   // Vendor-type-specific quotation fields
-  logisticRatePerKw: z.string().optional(),
+  logisticRatePerKm: z.string().optional(),
   bankLoanApprovalRate: z.string().optional(),
   gridConnectionRate: z.string().optional(),
   solarPanelRatePerWatt: z.string().optional(),
@@ -153,7 +153,7 @@ export default function VendorRegistration() {
       bestPriceQuotation: "",
       quotationUnit: "",
       quotationDescription: "",
-      logisticRatePerKw: "",
+      logisticRatePerKm: "",
       bankLoanApprovalRate: "",
       gridConnectionRate: "",
       solarPanelRatePerWatt: "",
