@@ -48,7 +48,9 @@ export class NotificationService {
   private twilioAuthToken: string | undefined;
   private twilioPhoneNumber: string | undefined;
   private fast2smsApiKey: string | undefined;
+  private aisensyApiKey: string | undefined;
   private smsProvider: "twilio" | "fast2sms";
+  private whatsappProvider: "twilio" | "aisensy";
   private resendApiKey: string | undefined;
   private fromEmail: string;
 
@@ -57,7 +59,9 @@ export class NotificationService {
     this.twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
     this.twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
     this.fast2smsApiKey = process.env.FAST2SMS_API_KEY;
+    this.aisensyApiKey = process.env.AISENSY_API_KEY;
     this.smsProvider = (process.env.SMS_PROVIDER as "twilio" | "fast2sms") || "fast2sms";
+    this.whatsappProvider = (process.env.WHATSAPP_PROVIDER as "twilio" | "aisensy") || "aisensy";
     this.resendApiKey = process.env.RESEND_API_KEY;
     this.fromEmail = process.env.FROM_EMAIL || "notifications@divyanshisolar.com";
   }
@@ -73,7 +77,56 @@ export class NotificationService {
     return cleaned;
   }
 
-  async sendWhatsAppMessage(to: string, message: string): Promise<boolean> {
+  async sendWhatsAppMessage(to: string, message: string, campaignName?: string, templateParams?: string[], userName?: string): Promise<boolean> {
+    if (this.whatsappProvider === "aisensy") {
+      return this.sendWhatsAppViaAiSensy(to, message, campaignName, templateParams, userName);
+    }
+    return this.sendWhatsAppViaTwilio(to, message);
+  }
+
+  private async sendWhatsAppViaAiSensy(to: string, message: string, campaignName?: string, templateParams?: string[], userName?: string): Promise<boolean> {
+    if (!this.aisensyApiKey) {
+      console.log("WhatsApp notification skipped - AiSensy not configured");
+      return false;
+    }
+
+    try {
+      let phoneNumber = to.replace(/\D/g, "");
+      if (phoneNumber.length === 10) {
+        phoneNumber = "91" + phoneNumber;
+      }
+
+      const response = await fetch("https://backend.aisensy.com/campaign/t1/api/v2", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          apiKey: this.aisensyApiKey,
+          campaignName: campaignName || "general_notification",
+          destination: phoneNumber,
+          userName: userName || "Customer",
+          source: "divyanshi_solar_app",
+          templateParams: templateParams || [message],
+        }),
+      });
+
+      const responseData = await response.json();
+      
+      if (!response.ok || responseData.status === "error") {
+        console.error("AiSensy WhatsApp error:", responseData);
+        return false;
+      }
+
+      console.log(`WhatsApp message sent to ${phoneNumber} via AiSensy`);
+      return true;
+    } catch (error) {
+      console.error("Error sending WhatsApp via AiSensy:", error);
+      return false;
+    }
+  }
+
+  private async sendWhatsAppViaTwilio(to: string, message: string): Promise<boolean> {
     if (!this.twilioAccountSid || !this.twilioAuthToken || !this.twilioPhoneNumber) {
       console.log("WhatsApp notification skipped - Twilio not configured");
       return false;
@@ -106,10 +159,10 @@ export class NotificationService {
         return false;
       }
 
-      console.log(`WhatsApp message sent to ${formattedPhone}`);
+      console.log(`WhatsApp message sent to ${formattedPhone} via Twilio`);
       return true;
     } catch (error) {
-      console.error("Error sending WhatsApp message:", error);
+      console.error("Error sending WhatsApp via Twilio:", error);
       return false;
     }
   }
@@ -167,11 +220,21 @@ export class NotificationService {
     }
   }
 
-  async sendOTP(to: string, otp: string): Promise<boolean> {
+  async sendOTP(to: string, otp: string, channel: "sms" | "whatsapp" = "sms"): Promise<boolean> {
+    if (channel === "whatsapp") {
+      return this.sendWhatsAppOTP(to, otp);
+    }
     if (this.smsProvider === "fast2sms" && this.fast2smsApiKey) {
       return this.sendOTPViaFast2SMS(to, otp);
     }
     return this.sendSMS(to, `Your DivyanshiSolar verification code is: ${otp}`);
+  }
+
+  async sendWhatsAppOTP(to: string, otp: string): Promise<boolean> {
+    if (this.whatsappProvider === "aisensy" && this.aisensyApiKey) {
+      return this.sendWhatsAppMessage(to, otp, "otp_verification", [otp]);
+    }
+    return this.sendWhatsAppMessage(to, `Your DivyanshiSolar verification code is: ${otp}`);
   }
 
   private async sendOTPViaFast2SMS(to: string, otp: string): Promise<boolean> {

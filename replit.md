@@ -44,12 +44,19 @@ The system uses session-based authentication stored in PostgreSQL, with role-bas
 ### Communication Services
 - **Fast2SMS**: Primary SMS provider for India (cost-effective, Rs 50 starting trial). Uses 'q' route for general messages and 'otp' route for OTP.
 - **Twilio**: Alternative SMS provider and WhatsApp Business API support. Set `SMS_PROVIDER=twilio` to use Twilio for SMS.
+- **AiSensy**: Primary WhatsApp Business API provider (prepaid model, free setup). Supports template-based messaging and OTP via WhatsApp.
 - **Resend**: For professional HTML email notifications.
 
 **SMS Provider Configuration**:
 - Set `SMS_PROVIDER` environment variable to `fast2sms` (default) or `twilio`
 - For Fast2SMS: Set `FAST2SMS_API_KEY` (get from https://www.fast2sms.com/dashboard/dev-api)
 - For Twilio: Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_PHONE_NUMBER`
+
+**WhatsApp Provider Configuration**:
+- Set `WHATSAPP_PROVIDER` environment variable to `aisensy` (default) or `twilio`
+- For AiSensy: Set `AISENSY_API_KEY` (get from AiSensy Dashboard -> Manage -> API Key at https://aisensy.com)
+- For Twilio: Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_PHONE_NUMBER`
+- AiSensy requires pre-approved WhatsApp message templates. Create campaigns in AiSensy dashboard before using.
 
 ### AI Integration
 - **OpenAI (via Replit AI Integrations)**: For AI-powered lead scoring.
