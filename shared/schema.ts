@@ -935,17 +935,22 @@ export const roofTypes = [
   "Other"
 ];
 
-// Installation milestones for customer journey
+// Installation milestones for customer journey (14 steps)
 export const installationMilestones = [
-  { key: "application_submitted", label: "Application Submitted", description: "Customer registration completed" },
-  { key: "documents_verified", label: "Documents Verified", description: "All required documents verified" },
-  { key: "site_survey", label: "Site Survey", description: "Technical survey of installation site" },
-  { key: "approval_received", label: "Approval Received", description: "DISCOM/Government approval received" },
-  { key: "installation_scheduled", label: "Installation Scheduled", description: "Installation date confirmed" },
-  { key: "installation_complete", label: "Installation Complete", description: "Solar panels installed" },
-  { key: "grid_connected", label: "Grid Connected", description: "System connected to electricity grid" },
-  { key: "subsidy_applied", label: "Subsidy Applied", description: "Subsidy application submitted" },
-  { key: "subsidy_received", label: "Subsidy Received", description: "Subsidy amount credited" },
+  { key: "application_submitted", label: "Application Submitted", description: "Customer registration completed", stage: "pre_installation" },
+  { key: "documents_verified", label: "Documents Verified", description: "All required documents verified", stage: "pre_installation" },
+  { key: "file_submission", label: "File Submission", description: "Application file submitted to DISCOM", stage: "pre_installation" },
+  { key: "bank_loan", label: "Bank Loan", description: "Loan application and approval process", stage: "pre_installation" },
+  { key: "site_survey", label: "Site Survey", description: "Technical survey of installation site", stage: "pre_installation" },
+  { key: "discom_approval", label: "DISCOM Approval", description: "DISCOM/Government approval received", stage: "pre_installation" },
+  { key: "material_procurement", label: "Material Procurement", description: "Solar panels and equipment procured", stage: "installation" },
+  { key: "installation_scheduled", label: "Installation Scheduled", description: "Installation date confirmed", stage: "installation" },
+  { key: "installation_complete", label: "Installation Complete", description: "Solar panels installed on roof", stage: "installation" },
+  { key: "wiring_connection", label: "Wiring & Connection", description: "Electrical wiring and inverter connection", stage: "installation" },
+  { key: "net_meter_application", label: "Net Meter Application", description: "Net metering application submitted", stage: "post_installation" },
+  { key: "grid_connected", label: "Grid Connected", description: "System connected to electricity grid", stage: "post_installation" },
+  { key: "subsidy_applied", label: "Subsidy Applied", description: "Subsidy application submitted to portal", stage: "post_installation" },
+  { key: "subsidy_received", label: "Subsidy Received", description: "Subsidy amount credited to account", stage: "post_installation" },
 ];
 
 // Panel types

@@ -859,8 +859,8 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Customer not found" });
       }
       
-      // Get milestones visible to customer only (server-side filtering)
-      const allMilestones = await storage.getMilestonesByCustomerId(session.customerId);
+      // Initialize and get milestones visible to customer only (server-side filtering)
+      const allMilestones = await storage.initializeCustomerMilestones(session.customerId);
       const visibleMilestones = allMilestones.filter(m => m.visibleToCustomer !== false);
       
       // Calculate progress
@@ -926,8 +926,8 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Session expired" });
       }
       
-      // Get milestones visible to customer
-      const allMilestones = await storage.getMilestonesByCustomerId(session.customerId);
+      // Initialize and get milestones visible to customer
+      const allMilestones = await storage.initializeCustomerMilestones(session.customerId);
       const visibleMilestones = allMilestones.filter(m => m.visibleToCustomer !== false);
       
       // Hide internal notes from customers

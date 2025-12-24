@@ -683,22 +683,28 @@ export class DatabaseStorage implements IStorage {
   
   async initializeCustomerMilestones(customerId: string): Promise<Milestone[]> {
     const existingMilestones = await this.getMilestonesByCustomerId(customerId);
-    if (existingMilestones.length > 0) {
-      return existingMilestones;
+    const existingKeys = new Set(existingMilestones.map(m => m.milestone));
+    
+    const createdMilestones: Milestone[] = [...existingMilestones];
+    
+    for (const milestone of installationMilestones) {
+      if (!existingKeys.has(milestone.key)) {
+        const created = await this.createMilestone({
+          customerId,
+          milestone: milestone.key,
+          status: milestone.key === "application_submitted" ? "completed" : "pending",
+          completedAt: milestone.key === "application_submitted" ? new Date() : null,
+          notes: null,
+        });
+        createdMilestones.push(created);
+      }
     }
     
-    const createdMilestones: Milestone[] = [];
-    for (const milestone of installationMilestones) {
-      const created = await this.createMilestone({
-        customerId,
-        milestone: milestone.key,
-        status: milestone.key === "application_submitted" ? "completed" : "pending",
-        completedAt: milestone.key === "application_submitted" ? new Date() : null,
-        notes: null,
-      });
-      createdMilestones.push(created);
-    }
-    return createdMilestones;
+    return createdMilestones.sort((a, b) => {
+      const indexA = installationMilestones.findIndex(m => m.key === a.milestone);
+      const indexB = installationMilestones.findIndex(m => m.key === b.milestone);
+      return indexA - indexB;
+    });
   }
   
   async getCommissionsByPartnerId(partnerId: string, partnerType?: string): Promise<Commission[]> {
