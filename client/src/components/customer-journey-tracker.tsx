@@ -212,7 +212,7 @@ export function CustomerJourneyTracker({
                       </Button>
                     )}
                     
-                    {milestone.key === "application_submitted" && bankLoanAssignment?.vendor && (
+                    {milestone.key === "documents_verified" && bankLoanAssignment?.vendor && (
                       <div className="mt-2 p-2 rounded-md bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800">
                         <div className="flex items-center gap-2 text-sm">
                           <Landmark className="h-4 w-4 text-green-600 dark:text-green-400" />
