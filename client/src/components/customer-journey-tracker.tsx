@@ -70,7 +70,10 @@ export function CustomerJourneyTracker({
   });
 
   const handleMilestoneComplete = (milestoneKey: string, milestoneId: string) => {
-    if (milestoneKey === "file_submission") {
+    if (milestoneKey === "application_submitted") {
+      setPendingMilestoneId(milestoneId);
+      setVendorDialogType("discom");
+    } else if (milestoneKey === "file_submission") {
       setPendingMilestoneId(milestoneId);
       setVendorDialogType("discom");
     } else if (milestoneKey === "bank_loan") {
@@ -91,6 +94,7 @@ export function CustomerJourneyTracker({
   };
 
   const getButtonLabel = (milestoneKey: string) => {
+    if (milestoneKey === "application_submitted") return "Complete & Assign DISCOM";
     if (milestoneKey === "file_submission") return "Complete & Assign DISCOM";
     if (milestoneKey === "bank_loan") return "Complete & Assign Bank";
     if (milestoneKey === "material_procurement") return "Complete & Assign Logistics";
@@ -210,6 +214,27 @@ export function CustomerJourneyTracker({
                         {getButtonLabel(milestone.key)}
                         <ChevronRight className="h-4 w-4 ml-1" />
                       </Button>
+                    )}
+                    
+                    {milestone.key === "application_submitted" && isCompleted && discomAssignment?.vendor && (
+                      <div className="mt-2 p-2 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          <span className="font-medium text-blue-700 dark:text-blue-300">DISCOM Vendor (Site Survey):</span>
+                          <span className="text-blue-600 dark:text-blue-400">{discomAssignment.vendor.vendorCode}</span>
+                          <span className="text-muted-foreground">-</span>
+                          <span>{discomAssignment.vendor.name}</span>
+                        </div>
+                        {discomAssignment.vendor.phone && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                            <Phone className="h-3 w-3" />
+                            {discomAssignment.vendor.phone}
+                          </div>
+                        )}
+                        <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                          Notify vendor to expedite site survey
+                        </p>
+                      </div>
                     )}
                     
                     {milestone.key === "documents_verified" && bankLoanAssignment?.vendor && (
