@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Check, Clock, ChevronRight, ChevronDown, ChevronUp, Building2, Landmark, Phone, Truck, Zap, Wrench } from "lucide-react";
+import { Check, Clock, ChevronRight, ChevronDown, ChevronUp, Building2, Landmark, Phone, Truck, Zap, Wrench, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
@@ -40,6 +41,42 @@ export function CustomerJourneyTracker({
   const { data: vendorAssignments = [] } = useQuery<EnrichedAssignment[]>({
     queryKey: ["/api/customers", customerId, "vendor-assignments"],
   });
+
+  const { data: approvedVendors = [] } = useQuery<Vendor[]>({
+    queryKey: ["/api/admin/vendors/approved"],
+  });
+
+  const discomVendors = approvedVendors.filter(v => v.vendorType === "discom_net_metering");
+  const bankVendors = approvedVendors.filter(v => v.vendorType === "bank_loan_liaison");
+
+  const assignVendorMutation = useMutation({
+    mutationFn: async (data: { vendorId: string; jobRole: string; journeyStage: string }) => {
+      await apiRequest("POST", "/api/admin/vendor-assignments", {
+        customerId,
+        ...data,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers", customerId, "vendor-assignments"] });
+      toast({
+        title: "Vendor Assigned",
+        description: "The vendor has been assigned successfully.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to assign vendor",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleInlineVendorAssign = (vendorId: string, jobRole: string, journeyStage: string) => {
+    if (vendorId) {
+      assignVendorMutation.mutate({ vendorId, jobRole, journeyStage });
+    }
+  };
 
   const discomAssignment = vendorAssignments.find(a => a.jobRole === "discom_net_metering");
   const bankLoanAssignment = vendorAssignments.find(a => a.jobRole === "bank_loan_facilitation");
@@ -216,42 +253,88 @@ export function CustomerJourneyTracker({
                       </Button>
                     )}
                     
-                    {milestone.key === "application_submitted" && isCompleted && discomAssignment?.vendor && (
-                      <div className="mt-2 p-2 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
-                        <div className="flex items-center gap-2 text-sm">
-                          <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                          <span className="font-medium text-blue-700 dark:text-blue-300">DISCOM Vendor (Site Survey):</span>
-                          <span className="text-blue-600 dark:text-blue-400">{discomAssignment.vendor.vendorCode}</span>
-                          <span className="text-muted-foreground">-</span>
-                          <span>{discomAssignment.vendor.name}</span>
-                        </div>
-                        {discomAssignment.vendor.phone && (
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                            <Phone className="h-3 w-3" />
-                            {discomAssignment.vendor.phone}
+                    {milestone.key === "application_submitted" && (
+                      <div className="mt-2">
+                        {discomAssignment?.vendor ? (
+                          <div className="p-2 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
+                            <div className="flex items-center gap-2 text-sm">
+                              <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                              <span className="font-medium text-blue-700 dark:text-blue-300">DISCOM Vendor:</span>
+                              <span className="text-blue-600 dark:text-blue-400">{discomAssignment.vendor.vendorCode}</span>
+                              <span className="text-muted-foreground">-</span>
+                              <span>{discomAssignment.vendor.name}</span>
+                            </div>
+                            {discomAssignment.vendor.phone && (
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                                <Phone className="h-3 w-3" />
+                                {discomAssignment.vendor.phone}
+                              </div>
+                            )}
+                            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                              Notify vendor to expedite site survey
+                            </p>
                           </div>
-                        )}
-                        <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                          Notify vendor to expedite site survey
-                        </p>
+                        ) : showActions && discomVendors.length > 0 ? (
+                          <div className="flex items-center gap-2">
+                            <Building2 className="h-4 w-4 text-blue-600" />
+                            <Select
+                              onValueChange={(value) => handleInlineVendorAssign(value, "discom_net_metering", "pre_installation")}
+                              disabled={assignVendorMutation.isPending}
+                            >
+                              <SelectTrigger className="w-48" data-testid="select-discom-vendor-step1">
+                                <SelectValue placeholder="Select DISCOM Vendor" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {discomVendors.map((vendor) => (
+                                  <SelectItem key={vendor.id} value={vendor.id}>
+                                    {vendor.vendorCode} - {vendor.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ) : null}
                       </div>
                     )}
                     
-                    {milestone.key === "documents_verified" && bankLoanAssignment?.vendor && (
-                      <div className="mt-2 p-2 rounded-md bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800">
-                        <div className="flex items-center gap-2 text-sm">
-                          <Landmark className="h-4 w-4 text-green-600 dark:text-green-400" />
-                          <span className="font-medium text-green-700 dark:text-green-300">Bank Vendor:</span>
-                          <span className="text-green-600 dark:text-green-400">{bankLoanAssignment.vendor.vendorCode}</span>
-                          <span className="text-muted-foreground">-</span>
-                          <span>{bankLoanAssignment.vendor.name}</span>
-                        </div>
-                        {bankLoanAssignment.vendor.phone && (
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                            <Phone className="h-3 w-3" />
-                            {bankLoanAssignment.vendor.phone}
+                    {milestone.key === "documents_verified" && (
+                      <div className="mt-2">
+                        {bankLoanAssignment?.vendor ? (
+                          <div className="p-2 rounded-md bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800">
+                            <div className="flex items-center gap-2 text-sm">
+                              <Landmark className="h-4 w-4 text-green-600 dark:text-green-400" />
+                              <span className="font-medium text-green-700 dark:text-green-300">Bank Vendor:</span>
+                              <span className="text-green-600 dark:text-green-400">{bankLoanAssignment.vendor.vendorCode}</span>
+                              <span className="text-muted-foreground">-</span>
+                              <span>{bankLoanAssignment.vendor.name}</span>
+                            </div>
+                            {bankLoanAssignment.vendor.phone && (
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                                <Phone className="h-3 w-3" />
+                                {bankLoanAssignment.vendor.phone}
+                              </div>
+                            )}
                           </div>
-                        )}
+                        ) : showActions && bankVendors.length > 0 ? (
+                          <div className="flex items-center gap-2">
+                            <Landmark className="h-4 w-4 text-green-600" />
+                            <Select
+                              onValueChange={(value) => handleInlineVendorAssign(value, "bank_loan_facilitation", "pre_installation")}
+                              disabled={assignVendorMutation.isPending}
+                            >
+                              <SelectTrigger className="w-48" data-testid="select-bank-vendor-step2">
+                                <SelectValue placeholder="Select Bank Vendor" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {bankVendors.map((vendor) => (
+                                  <SelectItem key={vendor.id} value={vendor.id}>
+                                    {vendor.vendorCode} - {vendor.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ) : null}
                       </div>
                     )}
                     
