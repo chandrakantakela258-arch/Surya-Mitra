@@ -67,6 +67,25 @@ Each EMI displays the effective monthly payment after deducting power savings.
 - DDP: Rs 4,000 | BDP: Rs 1,000
 - Commissions auto-generated when inverter order payment is verified
 
+### Vendor Payment Milestones
+Vendors assigned to customers receive milestone-based payments that are automatically triggered when customer journey milestones are completed:
+
+**Bank Loan Liaison Vendor:**
+- Rs 1,500 after "Bank Loan" milestone (disbursement)
+- Rs 1,500 after "Subsidy Received" milestone (full and final payment)
+
+**DISCOM Net Metering Vendor:**
+- Rs 1,000 after "Site Survey" milestone (DISCOM survey completed)
+- Rs 2,000 after "Grid Connected" milestone
+
+**Payment Flow:**
+1. Vendor is assigned to customer via Site Survey or other journey forms
+2. When milestone is completed, vendor payment is auto-created with "pending" status
+3. Admin approves payment (pending → ready_for_payout)
+4. Admin marks payment as paid after processing
+
+**Admin Route:** `/admin/vendor-payments`
+
 ### Razorpay Integration
 The platform uses Razorpay for two distinct payment flows:
 
