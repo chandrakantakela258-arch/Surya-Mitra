@@ -284,6 +284,27 @@ export function CustomerJourneyTracker({
                       </div>
                     )}
                     
+                    {milestone.key === "installation_complete" && bankLoanAssignment?.vendor && (
+                      <div className="mt-2 p-2 rounded-md bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Landmark className="h-4 w-4 text-green-600 dark:text-green-400" />
+                          <span className="font-medium text-green-700 dark:text-green-300">Bank Loan Vendor:</span>
+                          <span className="text-green-600 dark:text-green-400">{bankLoanAssignment.vendor.vendorCode}</span>
+                          <span className="text-muted-foreground">-</span>
+                          <span>{bankLoanAssignment.vendor.name}</span>
+                        </div>
+                        {bankLoanAssignment.vendor.phone && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                            <Phone className="h-3 w-3" />
+                            {bankLoanAssignment.vendor.phone}
+                          </div>
+                        )}
+                        <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                          Notify vendor for loan disbursement after site completion
+                        </p>
+                      </div>
+                    )}
+                    
                     {milestone.key === "wiring_connection" && isCompleted && electricalAssignment?.vendor && (
                       <div className="mt-2 p-2 rounded-md bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-100 dark:border-yellow-800">
                         <div className="flex items-center gap-2 text-sm">
