@@ -3847,8 +3847,23 @@ export async function registerRoutes(
   // Public: Register as a vendor
   app.post("/api/public/vendors/register", async (req, res) => {
     try {
+      // Clean empty strings from numeric fields before validation
+      const decimalFields = [
+        'logisticRatePerKm', 'bankLoanApprovalRate', 'gridConnectionRate',
+        'solarPanelRatePerWatt', 'ongridInverterRate', 'hybridInverter3in1Rate',
+        'acdbRate', 'dcdbRate', 'solarMountingRatePerWatt', 'siteErectionRatePerWatt',
+        'bestPriceQuotation', 'experienceYears', 'teamSize', 'supervisorCount', 'helperCount'
+      ];
+      
+      const cleanedBody = { ...req.body };
+      for (const field of decimalFields) {
+        if (cleanedBody[field] === '' || cleanedBody[field] === undefined) {
+          cleanedBody[field] = null;
+        }
+      }
+      
       // Validate and parse input using schema (strips disallowed fields like status, notes)
-      const validatedData = insertVendorSchema.parse(req.body);
+      const validatedData = insertVendorSchema.parse(cleanedBody);
       
       // Verify state is one of the allowed states
       const allowedStates = vendorStates.map(s => s.value);
