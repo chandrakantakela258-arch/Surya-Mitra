@@ -24,7 +24,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Vendor } from "@shared/schema";
 
-export type VendorAssignmentType = "discom" | "bank_loan" | "logistics";
+export type VendorAssignmentType = "discom" | "bank_loan" | "logistics" | "electrical" | "site_erection";
 
 interface VendorAssignmentConfig {
   title: string;
@@ -67,6 +67,26 @@ const vendorConfigs: Record<VendorAssignmentType, VendorAssignmentConfig> = {
     journeyStage: "installation",
     defaultNotes: "Material procurement completed, delivery assigned",
     emptyStateMessage: "No approved Logistics vendors available for this state.",
+  },
+  electrical: {
+    title: "Assign Electrical Vendor",
+    description: "Assign an Electrical vendor for wiring, inverter connection, and electrical work execution.",
+    vendorLabel: "Electrical Vendor",
+    apiEndpoint: "/api/admin/vendors/electrical",
+    jobRole: "electrical_work",
+    journeyStage: "installation",
+    defaultNotes: "Electrical work assigned for immediate execution",
+    emptyStateMessage: "No approved Electrical vendors available for this state.",
+  },
+  site_erection: {
+    title: "Assign Site Erection Vendor",
+    description: "Assign a Solar Installation & Erection vendor for panel mounting and site erection work.",
+    vendorLabel: "Site Erection Vendor",
+    apiEndpoint: "/api/admin/vendors/site-erection",
+    jobRole: "site_erection",
+    journeyStage: "installation",
+    defaultNotes: "Site erection work assigned for immediate execution",
+    emptyStateMessage: "No approved Site Erection vendors available for this state.",
   },
 };
 

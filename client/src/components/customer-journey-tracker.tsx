@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Check, Clock, ChevronRight, ChevronDown, ChevronUp, Building2, Landmark, Phone, Truck } from "lucide-react";
+import { Check, Clock, ChevronRight, ChevronDown, ChevronUp, Building2, Landmark, Phone, Truck, Zap, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +44,8 @@ export function CustomerJourneyTracker({
   const discomAssignment = vendorAssignments.find(a => a.jobRole === "discom_net_metering");
   const bankLoanAssignment = vendorAssignments.find(a => a.jobRole === "bank_loan_facilitation");
   const logisticsAssignment = vendorAssignments.find(a => a.jobRole === "goods_delivery");
+  const electricalAssignment = vendorAssignments.find(a => a.jobRole === "electrical_work");
+  const siteErectionAssignment = vendorAssignments.find(a => a.jobRole === "site_erection");
 
   const completeMilestoneMutation = useMutation({
     mutationFn: async (milestoneId: string) => {
@@ -77,6 +79,12 @@ export function CustomerJourneyTracker({
     } else if (milestoneKey === "material_procurement") {
       setPendingMilestoneId(milestoneId);
       setVendorDialogType("logistics");
+    } else if (milestoneKey === "installation_scheduled") {
+      setPendingMilestoneId(milestoneId);
+      setVendorDialogType("site_erection");
+    } else if (milestoneKey === "wiring_connection") {
+      setPendingMilestoneId(milestoneId);
+      setVendorDialogType("electrical");
     } else {
       completeMilestoneMutation.mutate(milestoneId);
     }
@@ -86,6 +94,8 @@ export function CustomerJourneyTracker({
     if (milestoneKey === "file_submission") return "Complete & Assign DISCOM";
     if (milestoneKey === "bank_loan") return "Complete & Assign Bank";
     if (milestoneKey === "material_procurement") return "Complete & Assign Logistics";
+    if (milestoneKey === "installation_scheduled") return "Complete & Assign Erection Team";
+    if (milestoneKey === "wiring_connection") return "Complete & Assign Electrical";
     return "Complete";
   };
 
@@ -251,6 +261,42 @@ export function CustomerJourneyTracker({
                           <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
                             <Phone className="h-3 w-3" />
                             {logisticsAssignment.vendor.phone}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {milestone.key === "installation_scheduled" && isCompleted && siteErectionAssignment?.vendor && (
+                      <div className="mt-2 p-2 rounded-md bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Wrench className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                          <span className="font-medium text-purple-700 dark:text-purple-300">Site Erection Vendor:</span>
+                          <span className="text-purple-600 dark:text-purple-400">{siteErectionAssignment.vendor.vendorCode}</span>
+                          <span className="text-muted-foreground">-</span>
+                          <span>{siteErectionAssignment.vendor.name}</span>
+                        </div>
+                        {siteErectionAssignment.vendor.phone && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                            <Phone className="h-3 w-3" />
+                            {siteErectionAssignment.vendor.phone}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {milestone.key === "wiring_connection" && isCompleted && electricalAssignment?.vendor && (
+                      <div className="mt-2 p-2 rounded-md bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-100 dark:border-yellow-800">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Zap className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                          <span className="font-medium text-yellow-700 dark:text-yellow-300">Electrical Vendor:</span>
+                          <span className="text-yellow-600 dark:text-yellow-400">{electricalAssignment.vendor.vendorCode}</span>
+                          <span className="text-muted-foreground">-</span>
+                          <span>{electricalAssignment.vendor.name}</span>
+                        </div>
+                        {electricalAssignment.vendor.phone && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                            <Phone className="h-3 w-3" />
+                            {electricalAssignment.vendor.phone}
                           </div>
                         )}
                       </div>

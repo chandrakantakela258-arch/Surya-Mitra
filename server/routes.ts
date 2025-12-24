@@ -3823,6 +3823,30 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get Logistics vendors" });
     }
   });
+
+  // Admin: Get approved Electrical vendors (for Installation milestone)
+  app.get("/api/admin/vendors/electrical", requireAdmin, async (req, res) => {
+    try {
+      const allApproved = await storage.getApprovedVendors();
+      const electricalVendors = allApproved.filter(v => v.vendorType === "electrical");
+      res.json(electricalVendors);
+    } catch (error) {
+      console.error("Get Electrical vendors error:", error);
+      res.status(500).json({ message: "Failed to get Electrical vendors" });
+    }
+  });
+
+  // Admin: Get approved Site Erection vendors (for Installation milestone)
+  app.get("/api/admin/vendors/site-erection", requireAdmin, async (req, res) => {
+    try {
+      const allApproved = await storage.getApprovedVendors();
+      const siteErectionVendors = allApproved.filter(v => v.vendorType === "solar_installation");
+      res.json(siteErectionVendors);
+    } catch (error) {
+      console.error("Get Site Erection vendors error:", error);
+      res.status(500).json({ message: "Failed to get Site Erection vendors" });
+    }
+  });
   
   // ===== VENDOR ASSIGNMENT ROUTES =====
   
