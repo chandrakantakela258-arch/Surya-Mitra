@@ -3852,7 +3852,8 @@ export async function registerRoutes(
         'logisticRatePerKm', 'bankLoanApprovalRate', 'gridConnectionRate',
         'solarPanelRatePerWatt', 'ongridInverterRate', 'hybridInverter3in1Rate',
         'acdbRate', 'dcdbRate', 'solarMountingRatePerWatt', 'siteErectionRatePerWatt',
-        'bestPriceQuotation', 'experienceYears', 'teamSize', 'supervisorCount', 'helperCount'
+        'bestPriceQuotation', 'experienceYears', 'teamSize', 'supervisorCount', 'helperCount',
+        'totalInstallations', 'projectsCompleted'
       ];
       
       const cleanedBody = { ...req.body };
