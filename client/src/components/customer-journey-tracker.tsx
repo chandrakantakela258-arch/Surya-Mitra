@@ -212,6 +212,24 @@ export function CustomerJourneyTracker({
                       </Button>
                     )}
                     
+                    {milestone.key === "application_submitted" && bankLoanAssignment?.vendor && (
+                      <div className="mt-2 p-2 rounded-md bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Landmark className="h-4 w-4 text-green-600 dark:text-green-400" />
+                          <span className="font-medium text-green-700 dark:text-green-300">Bank Vendor:</span>
+                          <span className="text-green-600 dark:text-green-400">{bankLoanAssignment.vendor.vendorCode}</span>
+                          <span className="text-muted-foreground">-</span>
+                          <span>{bankLoanAssignment.vendor.name}</span>
+                        </div>
+                        {bankLoanAssignment.vendor.phone && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                            <Phone className="h-3 w-3" />
+                            {bankLoanAssignment.vendor.phone}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
                     {milestone.key === "file_submission" && isCompleted && discomAssignment?.vendor && (
                       <div className="mt-2 p-2 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
                         <div className="flex items-center gap-2 text-sm">
