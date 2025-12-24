@@ -45,8 +45,9 @@ import {
   XCircle
 } from "lucide-react";
 import { format } from "date-fns";
-import type { CustomerFileSubmission, Customer } from "@shared/schema";
+import type { CustomerFileSubmission, Customer, Vendor } from "@shared/schema";
 import { customerFileStatuses } from "@shared/schema";
+import { Building2 } from "lucide-react";
 
 export default function AdminCustomerFileSubmissions() {
   const { toast } = useToast();
@@ -63,6 +64,7 @@ export default function AdminCustomerFileSubmissions() {
     submissionDate: format(new Date(), "yyyy-MM-dd"),
     remarks: "",
     status: "submitted",
+    discomVendorId: "",
   });
 
   const { data: submissions = [], isLoading } = useQuery<CustomerFileSubmission[]>({
@@ -72,6 +74,12 @@ export default function AdminCustomerFileSubmissions() {
   const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ["/api/admin/customers"],
   });
+
+  const { data: approvedVendors = [] } = useQuery<Vendor[]>({
+    queryKey: ["/api/admin/vendors/approved"],
+  });
+
+  const discomVendors = approvedVendors.filter(v => v.vendorType === "discom_net_metering");
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -130,6 +138,7 @@ export default function AdminCustomerFileSubmissions() {
       submissionDate: format(new Date(), "yyyy-MM-dd"),
       remarks: "",
       status: "submitted",
+      discomVendorId: "",
     });
   };
 
@@ -144,6 +153,7 @@ export default function AdminCustomerFileSubmissions() {
       submissionDate: submission.submissionDate ? format(new Date(submission.submissionDate), "yyyy-MM-dd") : "",
       remarks: submission.remarks || "",
       status: submission.status || "submitted",
+      discomVendorId: (submission as any).discomVendorId || "",
     });
     setIsEditOpen(true);
   };
@@ -384,6 +394,29 @@ export default function AdminCustomerFileSubmissions() {
                 onChange={(e) => setFormData({ ...formData, submissionDate: e.target.value })}
                 data-testid="input-submission-date"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>DISCOM Vendor (Site Survey)</Label>
+              <Select
+                value={formData.discomVendorId}
+                onValueChange={(value) => setFormData({ ...formData, discomVendorId: value })}
+              >
+                <SelectTrigger data-testid="select-discom-vendor">
+                  <SelectValue placeholder="Select DISCOM Vendor..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {discomVendors.map((vendor) => (
+                    <SelectItem key={vendor.id} value={vendor.id}>
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-blue-600" />
+                        {vendor.vendorCode} - {vendor.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Assign DISCOM vendor to expedite site survey</p>
             </div>
 
             <div className="space-y-2">

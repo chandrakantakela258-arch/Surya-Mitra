@@ -44,7 +44,7 @@ import {
   FileText
 } from "lucide-react";
 import { format } from "date-fns";
-import type { BankLoanSubmission, Customer } from "@shared/schema";
+import type { BankLoanSubmission, Customer, Vendor } from "@shared/schema";
 import { bankLoanStatuses } from "@shared/schema";
 
 export default function AdminBankLoanSubmissions() {
@@ -63,6 +63,7 @@ export default function AdminBankLoanSubmissions() {
     loanAmount: "",
     remarks: "",
     status: "submitted",
+    bankVendorId: "",
   });
 
   const { data: submissions = [], isLoading } = useQuery<BankLoanSubmission[]>({
@@ -72,6 +73,12 @@ export default function AdminBankLoanSubmissions() {
   const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ["/api/admin/customers"],
   });
+
+  const { data: approvedVendors = [] } = useQuery<Vendor[]>({
+    queryKey: ["/api/admin/vendors/approved"],
+  });
+
+  const bankVendors = approvedVendors.filter(v => v.vendorType === "bank_loan_liaison");
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -131,6 +138,7 @@ export default function AdminBankLoanSubmissions() {
       loanAmount: "",
       remarks: "",
       status: "submitted",
+      bankVendorId: "",
     });
   };
 
@@ -146,6 +154,7 @@ export default function AdminBankLoanSubmissions() {
       loanAmount: submission.loanAmount || "",
       remarks: submission.remarks || "",
       status: submission.status,
+      bankVendorId: (submission as any).bankVendorId || "",
     });
     setIsEditOpen(true);
   };
@@ -463,6 +472,29 @@ export default function AdminBankLoanSubmissions() {
                   data-testid="input-loan-amount"
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="bankVendor">Bank Loan Vendor</Label>
+              <Select
+                value={formData.bankVendorId}
+                onValueChange={(value) => setFormData({ ...formData, bankVendorId: value })}
+              >
+                <SelectTrigger data-testid="select-bank-vendor">
+                  <SelectValue placeholder="Select Bank Vendor..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {bankVendors.map((vendor) => (
+                    <SelectItem key={vendor.id} value={vendor.id}>
+                      <div className="flex items-center gap-2">
+                        <Landmark className="h-4 w-4 text-green-600" />
+                        {vendor.vendorCode} - {vendor.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Assign bank vendor to facilitate loan application</p>
             </div>
 
             <div className="space-y-2">
