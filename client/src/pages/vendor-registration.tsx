@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { vendorServices, vendorStates, vendorSpecializations, vendorCertifications, vendorEquipment, companyTypes } from "@shared/schema";
+import { vendorServices, vendorStates, vendorSpecializations, vendorCertifications, vendorEquipment, companyTypes, vendorQuotationConfig } from "@shared/schema";
 import { Link } from "wouter";
 
 const vendorTypes = [
@@ -75,6 +75,18 @@ const formSchema = z.object({
   bestPriceQuotation: z.string().optional(),
   quotationUnit: z.string().optional(),
   quotationDescription: z.string().optional(),
+  // Vendor-type-specific quotation fields
+  logisticRatePerKw: z.string().optional(),
+  bankLoanApprovalRate: z.string().optional(),
+  gridConnectionRate: z.string().optional(),
+  solarPanelRatePerWatt: z.string().optional(),
+  ongridInverterRate: z.string().optional(),
+  hybridInverter3in1Rate: z.string().optional(),
+  acdbRate: z.string().optional(),
+  dcdbRate: z.string().optional(),
+  electricalWireRates: z.string().optional(),
+  solarMountingRatePerWatt: z.string().optional(),
+  siteErectionRatePerWatt: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -141,6 +153,17 @@ export default function VendorRegistration() {
       bestPriceQuotation: "",
       quotationUnit: "",
       quotationDescription: "",
+      logisticRatePerKw: "",
+      bankLoanApprovalRate: "",
+      gridConnectionRate: "",
+      solarPanelRatePerWatt: "",
+      ongridInverterRate: "",
+      hybridInverter3in1Rate: "",
+      acdbRate: "",
+      dcdbRate: "",
+      electricalWireRates: "",
+      solarMountingRatePerWatt: "",
+      siteErectionRatePerWatt: "",
     },
   });
 
@@ -1156,79 +1179,149 @@ export default function VendorRegistration() {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CreditCard className="h-5 w-5 text-orange-500" />
-                    Best Price Quotation
-                  </CardTitle>
-                  <CardDescription>
-                    Enter your best price for services. This will be auto-populated to work orders when approved.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {selectedVendorType && vendorQuotationConfig[selectedVendorType] && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <CreditCard className="h-5 w-5 text-orange-500" />
+                      Best Price Quotation
+                    </CardTitle>
+                    <CardDescription>
+                      {vendorQuotationConfig[selectedVendorType].description}. This will be auto-populated to work orders when approved.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {vendorQuotationConfig[selectedVendorType].fields.map((fieldConfig) => (
+                        <FormField
+                          key={fieldConfig.key}
+                          control={form.control}
+                          name={fieldConfig.key as keyof FormData}
+                          render={({ field }) => (
+                            <FormItem className={fieldConfig.key === 'electricalWireRates' ? 'md:col-span-2' : ''}>
+                              <FormLabel>{fieldConfig.label} (Rs)</FormLabel>
+                              <FormControl>
+                                {fieldConfig.key === 'electricalWireRates' ? (
+                                  <Textarea 
+                                    placeholder={fieldConfig.placeholder}
+                                    {...field}
+                                    value={field.value as string || ''}
+                                    data-testid={`input-vendor-${fieldConfig.key}`}
+                                  />
+                                ) : (
+                                  <Input 
+                                    type="number" 
+                                    placeholder={fieldConfig.placeholder}
+                                    {...field}
+                                    value={field.value as string || ''}
+                                    data-testid={`input-vendor-${fieldConfig.key}`}
+                                  />
+                                )}
+                              </FormControl>
+                              <FormDescription>{fieldConfig.unit}</FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      ))}
+                    </div>
+
                     <FormField
                       control={form.control}
-                      name="bestPriceQuotation"
+                      name="quotationDescription"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Best Price (Rs)</FormLabel>
+                          <FormLabel>Additional Quotation Details (Optional)</FormLabel>
                           <FormControl>
-                            <Input type="number" placeholder="Enter your best rate" {...field} data-testid="input-vendor-best-price" />
+                            <Textarea 
+                              placeholder="Describe what's included in your rate (e.g., materials, labor, etc.)" 
+                              {...field} 
+                              data-testid="input-vendor-quotation-description" 
+                            />
                           </FormControl>
-                          <FormDescription>Your competitive rate for services</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
+                  </CardContent>
+                </Card>
+              )}
+
+              {selectedVendorType && !vendorQuotationConfig[selectedVendorType] && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <CreditCard className="h-5 w-5 text-orange-500" />
+                      Best Price Quotation
+                    </CardTitle>
+                    <CardDescription>
+                      Enter your best price for services. This will be auto-populated to work orders when approved.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="bestPriceQuotation"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Best Price (Rs)</FormLabel>
+                            <FormControl>
+                              <Input type="number" placeholder="Enter your best rate" {...field} data-testid="input-vendor-best-price" />
+                            </FormControl>
+                            <FormDescription>Your competitive rate for services</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="quotationUnit"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Price Unit</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-quotation-unit">
+                                  <SelectValue placeholder="Select unit" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="per_kw">Per kW</SelectItem>
+                                <SelectItem value="per_watt">Per Watt</SelectItem>
+                                <SelectItem value="per_trip">Per Trip</SelectItem>
+                                <SelectItem value="per_unit">Per Unit</SelectItem>
+                                <SelectItem value="lumpsum">Lumpsum</SelectItem>
+                                <SelectItem value="percentage">Percentage</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
                     <FormField
                       control={form.control}
-                      name="quotationUnit"
+                      name="quotationDescription"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Price Unit</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger data-testid="select-quotation-unit">
-                                <SelectValue placeholder="Select unit" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="per_kw">Per kW</SelectItem>
-                              <SelectItem value="per_watt">Per Watt</SelectItem>
-                              <SelectItem value="per_trip">Per Trip</SelectItem>
-                              <SelectItem value="per_unit">Per Unit</SelectItem>
-                              <SelectItem value="lumpsum">Lumpsum</SelectItem>
-                              <SelectItem value="percentage">Percentage</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <FormLabel>Quotation Details (Optional)</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Describe what's included in your rate (e.g., materials, labor, etc.)" 
+                              {...field} 
+                              data-testid="input-vendor-quotation-description" 
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                  </div>
-
-                  <FormField
-                    control={form.control}
-                    name="quotationDescription"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Quotation Details (Optional)</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            placeholder="Describe what's included in your rate (e.g., materials, labor, etc.)" 
-                            {...field} 
-                            data-testid="input-vendor-quotation-description" 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
 
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
                 <Button type="submit" className="flex-1" disabled={registerMutation.isPending} data-testid="button-submit-vendor">

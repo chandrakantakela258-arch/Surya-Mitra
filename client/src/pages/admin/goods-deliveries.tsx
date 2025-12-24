@@ -282,12 +282,16 @@ export default function AdminGoodsDeliveries() {
   const handleVendorSelect = (vendorId: string) => {
     const vendor = vendors.find((v) => v.id === vendorId);
     if (vendor) {
-      setFormData(prev => ({
-        ...prev,
-        vendorId,
-        vendorName: vendor.companyName || vendor.name,
-        logisticRate: vendor.bestPriceQuotation || prev.logisticRate,
-      }));
+      setFormData(prev => {
+        // Use vendor-type-specific rate: logisticRatePerKw for logistic vendors
+        const logisticRate = vendor.logisticRatePerKw || vendor.bestPriceQuotation || prev.logisticRate;
+        return {
+          ...prev,
+          vendorId,
+          vendorName: vendor.companyName || vendor.name,
+          logisticRate,
+        };
+      });
     }
   };
 

@@ -1085,9 +1085,37 @@ export const vendors = pgTable("vendors", {
   upiId: text("upi_id"),
   
   // Best Price Quotation (auto-populated to work orders when approved)
-  bestPriceQuotation: text("best_price_quotation"), // Rate/price offered by vendor for their services
-  quotationUnit: text("quotation_unit"), // per_kw, per_watt, per_trip, per_unit, lumpsum
+  bestPriceQuotation: text("best_price_quotation"), // Legacy: Rate/price offered by vendor for their services
+  quotationUnit: text("quotation_unit"), // Legacy: per_kw, per_watt, per_trip, per_unit, lumpsum
   quotationDescription: text("quotation_description"), // Additional details about the quotation
+  
+  // Vendor-type-specific quotation rates (in INR)
+  // Logistic Vendor
+  logisticRatePerKw: decimal("logistic_rate_per_kw", { precision: 10, scale: 2 }), // Rate per kW for transportation
+  
+  // Bank Loan Liaison
+  bankLoanApprovalRate: decimal("bank_loan_approval_rate", { precision: 10, scale: 2 }), // Rate per loan approval
+  
+  // Discom Net Metering Liaison
+  gridConnectionRate: decimal("grid_connection_rate", { precision: 10, scale: 2 }), // Rate per grid connection
+  
+  // Solar Panel Supplier (Material Supplier)
+  solarPanelRatePerWatt: decimal("solar_panel_rate_per_watt", { precision: 10, scale: 4 }), // Rate per watt for panels
+  
+  // Inverter Supplier
+  ongridInverterRate: decimal("ongrid_inverter_rate", { precision: 10, scale: 2 }), // Rate per ongrid inverter unit
+  hybridInverter3in1Rate: decimal("hybrid_inverter_3in1_rate", { precision: 10, scale: 2 }), // Rate per 3-in-1 hybrid inverter
+  
+  // Electrical Supplier (ACDB/DCDB & Electrical)
+  acdbRate: decimal("acdb_rate", { precision: 10, scale: 2 }), // Rate per ACDB unit
+  dcdbRate: decimal("dcdb_rate", { precision: 10, scale: 2 }), // Rate per DCDB unit
+  electricalWireRates: text("electrical_wire_rates"), // JSON: {"1.5mm": rate, "2.5mm": rate, "4mm": rate, "6mm": rate}
+  
+  // Solar Mounting Supplier
+  solarMountingRatePerWatt: decimal("solar_mounting_rate_per_watt", { precision: 10, scale: 4 }), // Rate per watt
+  
+  // Site Erection/Installation
+  siteErectionRatePerWatt: decimal("site_erection_rate_per_watt", { precision: 10, scale: 4 }), // Rate per watt for installation
   
   // Status
   status: text("status").notNull().default("pending"), // pending, approved, rejected
@@ -1138,6 +1166,83 @@ export function getVendorCodePrefix(vendorType: string): string {
 
 export type InsertVendor = z.infer<typeof insertVendorSchema>;
 export type Vendor = typeof vendors.$inferSelect;
+
+// Vendor quotation configuration by vendor type
+export const vendorQuotationConfig: Record<string, { 
+  fields: Array<{ key: string; label: string; unit: string; placeholder: string }>;
+  description: string;
+}> = {
+  logistic: {
+    fields: [{ key: "logisticRatePerKw", label: "Rate per kW", unit: "per kW", placeholder: "e.g., 500" }],
+    description: "Transportation rate per kilowatt of installation capacity"
+  },
+  bank_loan_liaison: {
+    fields: [{ key: "bankLoanApprovalRate", label: "Bank Loan Approval Rate", unit: "per approval", placeholder: "e.g., 2000" }],
+    description: "Rate charged per successful bank loan approval"
+  },
+  discom_net_metering: {
+    fields: [{ key: "gridConnectionRate", label: "Grid Connection Rate", unit: "per connection", placeholder: "e.g., 3000" }],
+    description: "Rate charged per grid connection completion"
+  },
+  solar_panel_supplier: {
+    fields: [{ key: "solarPanelRatePerWatt", label: "Solar Panel Rate", unit: "per watt", placeholder: "e.g., 25" }],
+    description: "Cost per watt for solar panels"
+  },
+  inverter_supplier: {
+    fields: [
+      { key: "ongridInverterRate", label: "Ongrid Inverter Rate", unit: "per unit", placeholder: "e.g., 25000" },
+      { key: "hybridInverter3in1Rate", label: "3-in-1 Hybrid Inverter Rate", unit: "per unit", placeholder: "e.g., 45000" }
+    ],
+    description: "Cost per inverter unit"
+  },
+  electrical_supplier: {
+    fields: [
+      { key: "acdbRate", label: "ACDB Rate", unit: "per unit", placeholder: "e.g., 1500" },
+      { key: "dcdbRate", label: "DCDB Rate", unit: "per unit", placeholder: "e.g., 1200" },
+      { key: "electricalWireRates", label: "Electrical Wire Rates", unit: "JSON", placeholder: '{"1.5mm": 15, "2.5mm": 25, "4mm": 40, "6mm": 60}' }
+    ],
+    description: "Rates for ACDB, DCDB and electrical wires by thickness (per meter)"
+  },
+  solar_mounting_supplier: {
+    fields: [{ key: "solarMountingRatePerWatt", label: "Mounting Rate", unit: "per watt", placeholder: "e.g., 8" }],
+    description: "Cost per watt for solar mounting structure"
+  },
+  solar_installation: {
+    fields: [{ key: "siteErectionRatePerWatt", label: "Site Erection Rate", unit: "per watt", placeholder: "e.g., 3" }],
+    description: "Installation/erection rate per watt"
+  },
+  electrical: {
+    fields: [{ key: "siteErectionRatePerWatt", label: "Electrical Work Rate", unit: "per watt", placeholder: "e.g., 2" }],
+    description: "Electrical work rate per watt"
+  }
+};
+
+// Get vendor quotation display for a vendor
+export function getVendorQuotationDisplay(vendor: Vendor): string {
+  const config = vendorQuotationConfig[vendor.vendorType];
+  if (!config) return vendor.bestPriceQuotation ? `₹${vendor.bestPriceQuotation} ${vendor.quotationUnit || ''}` : '-';
+  
+  const parts: string[] = [];
+  
+  for (const field of config.fields) {
+    const value = vendor[field.key as keyof Vendor];
+    if (value) {
+      if (field.key === 'electricalWireRates') {
+        try {
+          const rates = JSON.parse(value as string);
+          const wireDetails = Object.entries(rates).map(([size, rate]) => `${size}: ₹${rate}/m`).join(', ');
+          parts.push(`Wires: ${wireDetails}`);
+        } catch {
+          parts.push(`Wires: ${value}`);
+        }
+      } else {
+        parts.push(`₹${value} ${field.unit}`);
+      }
+    }
+  }
+  
+  return parts.length > 0 ? parts.join(' | ') : (vendor.bestPriceQuotation ? `₹${vendor.bestPriceQuotation} ${vendor.quotationUnit || ''}` : '-');
+}
 
 // Vendor service options
 export const vendorServices = [

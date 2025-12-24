@@ -30,6 +30,15 @@ The system uses session-based authentication stored in PostgreSQL, with role-bas
 - **Public Customer Registration**: Self-service registration form with real-time subsidy and savings estimates, supporting both independent and referred customers.
 - **AI-Powered Lead Scoring**: Uses OpenAI to analyze customer conversion potential based on various factors, assigning lead tiers (Hot, Warm, Cold) and providing recommendations.
 - **Notification System**: Multi-channel notifications (WhatsApp, SMS, Email, In-App) for status changes and milestones, with user-configurable preferences.
+- **Vendor Quotation System**: Category-specific pricing structures for 13 vendor types with auto-population to work orders:
+  - Logistic: Per kW rate (logisticRatePerKw)
+  - Bank Loan Liaison: Per loan approval rate (bankLoanApprovalRate)
+  - Discom Net Metering: Per grid connection rate (gridConnectionRate)
+  - Solar Panel Supplier: Per watt cost (solarPanelRatePerWatt)
+  - Inverter Supplier: Ongrid inverter per unit (ongridInverterRate), 3-in-1 hybrid inverter per unit (hybridInverter3in1Rate)
+  - Electrical Supplier: ACDB rate, DCDB rate, wire rates by thickness (electricalWireRates as JSON)
+  - Solar Mounting Supplier: Per watt rate (solarMountingRatePerWatt)
+  - Site Installation/Erection: Per watt rate (siteErectionRatePerWatt)
 
 ## External Dependencies
 

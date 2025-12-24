@@ -297,14 +297,18 @@ export default function AdminSiteExecutionOrders() {
   const handleVendorSelect = (vendorId: string) => {
     const vendor = vendors.find(v => v.id === vendorId);
     if (vendor) {
-      setFormData(prev => ({
-        ...prev,
-        vendorId,
-        vendorName: vendor.name,
-        vendorContactPerson: vendor.companyName || "",
-        vendorPhone: vendor.phone || "",
-        siteInstallationRate: vendor.bestPriceQuotation || prev.siteInstallationRate,
-      }));
+      setFormData(prev => {
+        // Use vendor-type-specific rate: siteErectionRatePerWatt for installation vendors
+        const installationRate = vendor.siteErectionRatePerWatt || vendor.bestPriceQuotation || prev.siteInstallationRate;
+        return {
+          ...prev,
+          vendorId,
+          vendorName: vendor.name,
+          vendorContactPerson: vendor.companyName || "",
+          vendorPhone: vendor.phone || "",
+          siteInstallationRate: installationRate,
+        };
+      });
     }
   };
 

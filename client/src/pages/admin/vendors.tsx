@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Vendor, vendorServices, vendorSpecializations, vendorCertifications, vendorEquipment, vendorTypeOptions } from "@shared/schema";
+import { Vendor, vendorServices, vendorSpecializations, vendorCertifications, vendorEquipment, vendorTypeOptions, getVendorQuotationDisplay, vendorQuotationConfig } from "@shared/schema";
 import { Search, CheckCircle, XCircle, Clock, Eye, Phone, Mail, MapPin, Building2, Wrench, Users, Award, Truck, CreditCard, FileText } from "lucide-react";
 import { format } from "date-fns";
 
@@ -228,16 +228,9 @@ export default function AdminVendors() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {vendor.bestPriceQuotation ? (
-                          <div className="text-sm">
-                            <div className="font-mono">Rs {vendor.bestPriceQuotation}</div>
-                            {vendor.quotationUnit && (
-                              <div className="text-xs text-muted-foreground">{vendor.quotationUnit.replace("_", " ")}</div>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">-</span>
-                        )}
+                        <div className="text-sm max-w-[200px]">
+                          <div className="font-mono text-xs break-words">{getVendorQuotationDisplay(vendor)}</div>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <a href={`tel:+91${vendor.phone}`} className="text-blue-600 hover:underline">
@@ -522,6 +515,51 @@ export default function AdminVendors() {
                         <p className="text-sm text-muted-foreground">UPI ID</p>
                         <p className="font-medium">{selectedVendor.upiId || "-"}</p>
                       </div>
+                    </div>
+                  </div>
+                  <div className="border-t pt-4">
+                    <h4 className="font-medium mb-2 flex items-center gap-2"><CreditCard className="w-4 h-4" /> Best Price Quotation</h4>
+                    <div className="space-y-2">
+                      <p className="font-mono text-sm">{getVendorQuotationDisplay(selectedVendor)}</p>
+                      {vendorQuotationConfig[selectedVendor.vendorType] && (
+                        <div className="grid grid-cols-2 gap-4 mt-2">
+                          {vendorQuotationConfig[selectedVendor.vendorType].fields.map((fieldConfig) => {
+                            const value = selectedVendor[fieldConfig.key as keyof Vendor];
+                            const displayValue = value ? String(value) : null;
+                            return (
+                              <div key={fieldConfig.key} className="space-y-1">
+                                <p className="text-sm text-muted-foreground">{fieldConfig.label}</p>
+                                <p className="font-medium font-mono">
+                                  {displayValue ? (
+                                    fieldConfig.key === 'electricalWireRates' ? (
+                                      (() => {
+                                        try {
+                                          const rates = JSON.parse(displayValue);
+                                          return Object.entries(rates).map(([size, rate]) => (
+                                            <span key={size} className="block">
+                                              {size}: ₹{String(rate)}/m
+                                            </span>
+                                          ));
+                                        } catch {
+                                          return displayValue;
+                                        }
+                                      })()
+                                    ) : (
+                                      `₹${displayValue} ${fieldConfig.unit}`
+                                    )
+                                  ) : '-'}
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {selectedVendor.quotationDescription && (
+                        <div className="mt-2">
+                          <p className="text-sm text-muted-foreground">Details</p>
+                          <p className="text-sm">{selectedVendor.quotationDescription}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                   {selectedVendor.notes && (
