@@ -1255,6 +1255,94 @@ export const vendorJourneyStages = [
   { value: "post_installation", label: "Post-Installation" },
 ];
 
+// Vendor Payment Milestones - Defines when vendors receive payments
+export const vendorPaymentMilestones = {
+  bank_loan_liaison: [
+    { milestone: "bank_disbursement", label: "Bank Disbursement", amount: 1500, description: "After bank loan is disbursed" },
+    { milestone: "full_final_payment", label: "Full & Final Payment", amount: 1500, description: "After customer's full payment is completed" },
+  ],
+  discom_net_metering: [
+    { milestone: "discom_survey_completed", label: "DISCOM Survey Completed", amount: 1000, description: "After DISCOM site survey is completed" },
+    { milestone: "grid_connected", label: "Grid Connected", amount: 2000, description: "After successful grid connection" },
+  ],
+};
+
+// Vendor Payments - Track milestone-based vendor payments
+export const vendorPayments = pgTable("vendor_payments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // References
+  customerId: varchar("customer_id").notNull().references(() => customers.id),
+  vendorId: varchar("vendor_id").notNull().references(() => vendors.id),
+  assignmentId: varchar("assignment_id").references(() => customerVendorAssignments.id),
+  
+  // Payment Details
+  vendorType: text("vendor_type").notNull(), // bank_loan_liaison, discom_net_metering
+  milestone: text("milestone").notNull(), // bank_disbursement, full_final_payment, discom_survey_completed, grid_connected
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  description: text("description"),
+  
+  // Status tracking
+  status: text("status").notNull().default("pending"), // pending, ready_for_payout, processing, paid, cancelled
+  
+  // Milestone completion tracking
+  milestoneCompletedAt: timestamp("milestone_completed_at"),
+  milestoneCompletedBy: varchar("milestone_completed_by").references(() => users.id),
+  
+  // Payout tracking (Razorpay integration)
+  payoutApprovedBy: varchar("payout_approved_by").references(() => users.id),
+  payoutApprovedAt: timestamp("payout_approved_at"),
+  razorpayPayoutId: text("razorpay_payout_id"),
+  razorpayPayoutStatus: text("razorpay_payout_status"),
+  paidAt: timestamp("paid_at"),
+  
+  // Notes
+  notes: text("notes"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const vendorPaymentsRelations = relations(vendorPayments, ({ one }) => ({
+  customer: one(customers, {
+    fields: [vendorPayments.customerId],
+    references: [customers.id],
+  }),
+  vendor: one(vendors, {
+    fields: [vendorPayments.vendorId],
+    references: [vendors.id],
+  }),
+  assignment: one(customerVendorAssignments, {
+    fields: [vendorPayments.assignmentId],
+    references: [customerVendorAssignments.id],
+  }),
+  milestoneCompletedByUser: one(users, {
+    fields: [vendorPayments.milestoneCompletedBy],
+    references: [users.id],
+  }),
+  payoutApprovedByUser: one(users, {
+    fields: [vendorPayments.payoutApprovedBy],
+    references: [users.id],
+  }),
+}));
+
+export const insertVendorPaymentSchema = createInsertSchema(vendorPayments).omit({
+  id: true,
+  status: true,
+  milestoneCompletedAt: true,
+  milestoneCompletedBy: true,
+  payoutApprovedBy: true,
+  payoutApprovedAt: true,
+  razorpayPayoutId: true,
+  razorpayPayoutStatus: true,
+  paidAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertVendorPayment = z.infer<typeof insertVendorPaymentSchema>;
+export type VendorPayment = typeof vendorPayments.$inferSelect;
+
 // Site Installation Expenses - Track all costs and profit per installation
 export const siteExpenses = pgTable("site_expenses", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
