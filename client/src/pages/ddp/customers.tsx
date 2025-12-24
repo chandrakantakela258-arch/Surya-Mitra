@@ -259,7 +259,7 @@ export default function DDPCustomers() {
                         <ExpandableSiteProgress 
                           customerId={customer.id} 
                           customerName={customer.name}
-                          showActions={true}
+                          showActions={false}
                         />
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>

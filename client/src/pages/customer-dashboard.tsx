@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { SiFacebook, SiInstagram } from "react-icons/si";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { CustomerJourneyTracker } from "@/components/customer-journey-tracker";
 
 interface CustomerData {
   id: string;
@@ -1086,58 +1087,11 @@ export default function CustomerDashboard() {
                   </Card>
                 </div>
 
-                {progress.milestones.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <FileText className="h-5 w-5" />
-                        Installation Milestones
-                      </CardTitle>
-                      <CardDescription>
-                        Track each step of your solar installation journey
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="relative">
-                        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border" />
-                        <div className="space-y-6">
-                          {progress.milestones.map((milestone, index) => (
-                            <div key={milestone.id} className="relative pl-10">
-                              <div className={`absolute left-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                                milestone.status === "completed" 
-                                  ? "bg-green-500 text-white" 
-                                  : milestone.status === "in_progress"
-                                  ? "bg-primary text-white"
-                                  : "bg-muted"
-                              }`}>
-                                {milestone.status === "completed" ? (
-                                  <CheckCircle2 className="h-4 w-4" />
-                                ) : milestone.status === "in_progress" ? (
-                                  <Clock className="h-4 w-4" />
-                                ) : (
-                                  <span className="text-sm font-medium">{index + 1}</span>
-                                )}
-                              </div>
-                              <div>
-                                <h4 className="font-medium">{milestone.title}</h4>
-                                {milestone.description && (
-                                  <p className="text-sm text-muted-foreground mt-1">
-                                    {milestone.description}
-                                  </p>
-                                )}
-                                {milestone.completedAt && (
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    Completed on {new Date(milestone.completedAt).toLocaleDateString("en-IN")}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+                <CustomerJourneyTracker 
+                  customerId={progress.customer.id}
+                  customerName={progress.customer.name}
+                  showActions={false}
+                />
               </TabsContent>
 
               <TabsContent value="service" className="space-y-6 mt-6">
