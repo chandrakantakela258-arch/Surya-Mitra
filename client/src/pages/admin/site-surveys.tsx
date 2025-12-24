@@ -55,7 +55,8 @@ import {
   Home
 } from "lucide-react";
 import { format } from "date-fns";
-import type { SiteSurvey, Customer } from "@shared/schema";
+import type { SiteSurvey, Customer, Vendor } from "@shared/schema";
+import { Landmark, Building2 } from "lucide-react";
 
 const surveyStatuses = [
   { value: "scheduled", label: "Scheduled" },
@@ -166,6 +167,41 @@ export default function AdminSiteSurveys() {
   const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ["/api/admin/customers"],
   });
+
+  const { data: approvedVendors = [] } = useQuery<Vendor[]>({
+    queryKey: ["/api/admin/vendors/approved"],
+  });
+
+  const bankVendors = approvedVendors.filter(v => v.vendorType === "bank_loan_liaison");
+  const discomVendors = approvedVendors.filter(v => v.vendorType === "discom_net_metering");
+
+  const handleBankVendorSelect = (vendorId: string) => {
+    const vendor = bankVendors.find(v => v.id === vendorId);
+    if (vendor) {
+      setFormData(prev => ({
+        ...prev,
+        bankName: vendor.companyName || vendor.name,
+        bankBranch: vendor.district || "",
+        bankStaffName: vendor.name || "",
+        bankStaffDesignation: vendor.companyType || "Bank Representative",
+        bankStaffPhone: vendor.phone || "",
+      }));
+    }
+  };
+
+  const handleDiscomVendorSelect = (vendorId: string) => {
+    const vendor = discomVendors.find(v => v.id === vendorId);
+    if (vendor) {
+      setFormData(prev => ({
+        ...prev,
+        discomName: vendor.companyName || vendor.name,
+        discomDivision: vendor.district || "",
+        discomRepName: vendor.name || "",
+        discomRepDesignation: vendor.companyType || "DISCOM Representative",
+        discomRepPhone: vendor.phone || "",
+      }));
+    }
+  };
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -633,6 +669,29 @@ export default function AdminSiteSurveys() {
               </div>
             </TabsContent>
             <TabsContent value="bank" className="space-y-4 mt-4">
+              <div className="p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md mb-4">
+                <Label className="flex items-center gap-2 mb-2">
+                  <Landmark className="h-4 w-4 text-green-600" />
+                  Select Bank Vendor to Auto-populate
+                </Label>
+                <Select onValueChange={handleBankVendorSelect}>
+                  <SelectTrigger data-testid="select-bank-vendor">
+                    <SelectValue placeholder="Choose approved bank vendor..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bankVendors.map((vendor) => (
+                      <SelectItem key={vendor.id} value={vendor.id}>
+                        <div className="flex items-center gap-2">
+                          <Landmark className="h-4 w-4 text-green-600" />
+                          {vendor.vendorCode} - {vendor.companyName || vendor.name}
+                          {vendor.phone && <span className="text-muted-foreground">({vendor.phone})</span>}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">Select a vendor to auto-fill bank staff details below</p>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Bank Name</Label>
@@ -677,6 +736,29 @@ export default function AdminSiteSurveys() {
               </div>
             </TabsContent>
             <TabsContent value="discom" className="space-y-4 mt-4">
+              <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md mb-4">
+                <Label className="flex items-center gap-2 mb-2">
+                  <Building2 className="h-4 w-4 text-blue-600" />
+                  Select DISCOM Vendor to Auto-populate
+                </Label>
+                <Select onValueChange={handleDiscomVendorSelect}>
+                  <SelectTrigger data-testid="select-discom-vendor">
+                    <SelectValue placeholder="Choose approved DISCOM vendor..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {discomVendors.map((vendor) => (
+                      <SelectItem key={vendor.id} value={vendor.id}>
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4 text-blue-600" />
+                          {vendor.vendorCode} - {vendor.companyName || vendor.name}
+                          {vendor.phone && <span className="text-muted-foreground">({vendor.phone})</span>}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">Select a vendor to auto-fill DISCOM rep details below</p>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>DISCOM Name</Label>
@@ -821,6 +903,29 @@ export default function AdminSiteSurveys() {
               </div>
             </TabsContent>
             <TabsContent value="bank" className="space-y-4 mt-4">
+              <div className="p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md mb-4">
+                <Label className="flex items-center gap-2 mb-2">
+                  <Landmark className="h-4 w-4 text-green-600" />
+                  Select Bank Vendor to Auto-populate
+                </Label>
+                <Select onValueChange={handleBankVendorSelect}>
+                  <SelectTrigger data-testid="select-edit-bank-vendor">
+                    <SelectValue placeholder="Choose approved bank vendor..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bankVendors.map((vendor) => (
+                      <SelectItem key={vendor.id} value={vendor.id}>
+                        <div className="flex items-center gap-2">
+                          <Landmark className="h-4 w-4 text-green-600" />
+                          {vendor.vendorCode} - {vendor.companyName || vendor.name}
+                          {vendor.phone && <span className="text-muted-foreground">({vendor.phone})</span>}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">Select a vendor to auto-fill bank staff details below</p>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Bank Name</Label>
@@ -906,6 +1011,29 @@ export default function AdminSiteSurveys() {
               </div>
             </TabsContent>
             <TabsContent value="discom" className="space-y-4 mt-4">
+              <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md mb-4">
+                <Label className="flex items-center gap-2 mb-2">
+                  <Building2 className="h-4 w-4 text-blue-600" />
+                  Select DISCOM Vendor to Auto-populate
+                </Label>
+                <Select onValueChange={handleDiscomVendorSelect}>
+                  <SelectTrigger data-testid="select-edit-discom-vendor">
+                    <SelectValue placeholder="Choose approved DISCOM vendor..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {discomVendors.map((vendor) => (
+                      <SelectItem key={vendor.id} value={vendor.id}>
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4 text-blue-600" />
+                          {vendor.vendorCode} - {vendor.companyName || vendor.name}
+                          {vendor.phone && <span className="text-muted-foreground">({vendor.phone})</span>}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">Select a vendor to auto-fill DISCOM rep details below</p>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>DISCOM Name</Label>
