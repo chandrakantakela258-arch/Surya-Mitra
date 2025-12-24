@@ -80,6 +80,8 @@ export default function AdminGoodsDeliveries() {
     inverterType: "",
     quantityOrdered: "1",
     quantityDelivered: "",
+    logisticRate: "20",
+    deliveryDistanceKm: "",
     receiverName: "",
     receiverPhone: "",
     verificationNotes: "",
@@ -176,6 +178,8 @@ export default function AdminGoodsDeliveries() {
       inverterType: "",
       quantityOrdered: "1",
       quantityDelivered: "",
+      logisticRate: "20",
+      deliveryDistanceKm: "",
       receiverName: "",
       receiverPhone: "",
       verificationNotes: "",
@@ -217,6 +221,8 @@ export default function AdminGoodsDeliveries() {
       inverterType: delivery.inverterType || "",
       quantityOrdered: String(delivery.quantityOrdered || 1),
       quantityDelivered: String(delivery.quantityDelivered || ""),
+      logisticRate: delivery.logisticRate || "20",
+      deliveryDistanceKm: delivery.deliveryDistanceKm || "",
       receiverName: delivery.receiverName || "",
       receiverPhone: delivery.receiverPhone || "",
       verificationNotes: delivery.verificationNotes || "",
@@ -623,6 +629,29 @@ export default function AdminGoodsDeliveries() {
           </div>
         </div>
 
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Logistic Rate (Rs/kW)</Label>
+            <Input
+              type="number"
+              value={formData.logisticRate}
+              onChange={(e) => setFormData(prev => ({ ...prev, logisticRate: e.target.value }))}
+              placeholder="Rate per kW"
+              data-testid="input-logistic-rate"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Distance (km)</Label>
+            <Input
+              type="number"
+              value={formData.deliveryDistanceKm}
+              onChange={(e) => setFormData(prev => ({ ...prev, deliveryDistanceKm: e.target.value }))}
+              placeholder="One-way distance"
+              data-testid="input-delivery-distance"
+            />
+          </div>
+        </div>
+
         <div className="space-y-2">
           <Label>Actual Delivery Date</Label>
           <Input
@@ -786,6 +815,8 @@ export default function AdminGoodsDeliveries() {
                   <TableHead>Address</TableHead>
                   <TableHead>Scheduled Date</TableHead>
                   <TableHead>Panel</TableHead>
+                  <TableHead>Rate/km</TableHead>
+                  <TableHead>Distance</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>PO Number</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -794,7 +825,7 @@ export default function AdminGoodsDeliveries() {
               <TableBody>
                 {filteredDeliveries.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                       No deliveries found
                     </TableCell>
                   </TableRow>
@@ -823,6 +854,8 @@ export default function AdminGoodsDeliveries() {
                           {delivery.panelType === "dcr" ? "DCR" : delivery.panelType === "non_dcr" ? "Non-DCR" : "-"}
                         </div>
                       </TableCell>
+                      <TableCell>Rs {delivery.logisticRate || "20"}/kW</TableCell>
+                      <TableCell>{delivery.deliveryDistanceKm ? `${delivery.deliveryDistanceKm} km` : "-"}</TableCell>
                       <TableCell>{getStatusBadge(delivery.status || "scheduled")}</TableCell>
                       <TableCell>{delivery.poNumber || "-"}</TableCell>
                       <TableCell className="text-right">
