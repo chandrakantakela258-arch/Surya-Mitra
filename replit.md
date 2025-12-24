@@ -42,8 +42,14 @@ The system uses session-based authentication stored in PostgreSQL, with role-bas
 - **Razorpay Checkout**: For collecting customer payments for products and services.
 
 ### Communication Services
-- **Twilio**: For WhatsApp Business API (primary) and SMS (fallback) notifications.
+- **Fast2SMS**: Primary SMS provider for India (cost-effective, Rs 50 starting trial). Uses 'q' route for general messages and 'otp' route for OTP.
+- **Twilio**: Alternative SMS provider and WhatsApp Business API support. Set `SMS_PROVIDER=twilio` to use Twilio for SMS.
 - **Resend**: For professional HTML email notifications.
+
+**SMS Provider Configuration**:
+- Set `SMS_PROVIDER` environment variable to `fast2sms` (default) or `twilio`
+- For Fast2SMS: Set `FAST2SMS_API_KEY` (get from https://www.fast2sms.com/dashboard/dev-api)
+- For Twilio: Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_PHONE_NUMBER`
 
 ### AI Integration
 - **OpenAI (via Replit AI Integrations)**: For AI-powered lead scoring.

@@ -47,6 +47,8 @@ export class NotificationService {
   private twilioAccountSid: string | undefined;
   private twilioAuthToken: string | undefined;
   private twilioPhoneNumber: string | undefined;
+  private fast2smsApiKey: string | undefined;
+  private smsProvider: "twilio" | "fast2sms";
   private resendApiKey: string | undefined;
   private fromEmail: string;
 
@@ -54,6 +56,8 @@ export class NotificationService {
     this.twilioAccountSid = process.env.TWILIO_ACCOUNT_SID;
     this.twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
     this.twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
+    this.fast2smsApiKey = process.env.FAST2SMS_API_KEY;
+    this.smsProvider = (process.env.SMS_PROVIDER as "twilio" | "fast2sms") || "fast2sms";
     this.resendApiKey = process.env.RESEND_API_KEY;
     this.fromEmail = process.env.FROM_EMAIL || "notifications@divyanshisolar.com";
   }
@@ -111,6 +115,110 @@ export class NotificationService {
   }
 
   async sendSMS(to: string, message: string): Promise<boolean> {
+    if (this.smsProvider === "fast2sms") {
+      return this.sendSMSViaFast2SMS(to, message);
+    }
+    return this.sendSMSViaTwilio(to, message);
+  }
+
+  private async sendSMSViaFast2SMS(to: string, message: string): Promise<boolean> {
+    if (!this.fast2smsApiKey) {
+      console.log("SMS notification skipped - Fast2SMS not configured");
+      return false;
+    }
+
+    try {
+      let phoneNumber = to.replace(/\D/g, "");
+      if (phoneNumber.startsWith("91") && phoneNumber.length === 12) {
+        phoneNumber = phoneNumber.substring(2);
+      }
+      if (phoneNumber.length !== 10) {
+        console.error("Invalid phone number format for Fast2SMS:", to);
+        return false;
+      }
+
+      const response = await fetch("https://www.fast2sms.com/dev/bulkV2", {
+        method: "POST",
+        headers: {
+          "authorization": this.fast2smsApiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          route: "q",
+          message: message,
+          language: "english",
+          flash: 0,
+          numbers: phoneNumber,
+        }),
+      });
+
+      const responseData = await response.json();
+      
+      if (!response.ok || responseData.return === false) {
+        console.error("Fast2SMS error:", responseData);
+        return false;
+      }
+
+      console.log(`SMS sent to ${phoneNumber} via Fast2SMS`);
+      return true;
+    } catch (error) {
+      console.error("Error sending SMS via Fast2SMS:", error);
+      return false;
+    }
+  }
+
+  async sendOTP(to: string, otp: string): Promise<boolean> {
+    if (this.smsProvider === "fast2sms" && this.fast2smsApiKey) {
+      return this.sendOTPViaFast2SMS(to, otp);
+    }
+    return this.sendSMS(to, `Your DivyanshiSolar verification code is: ${otp}`);
+  }
+
+  private async sendOTPViaFast2SMS(to: string, otp: string): Promise<boolean> {
+    if (!this.fast2smsApiKey) {
+      console.log("OTP notification skipped - Fast2SMS not configured");
+      return false;
+    }
+
+    try {
+      let phoneNumber = to.replace(/\D/g, "");
+      if (phoneNumber.startsWith("91") && phoneNumber.length === 12) {
+        phoneNumber = phoneNumber.substring(2);
+      }
+      if (phoneNumber.length !== 10) {
+        console.error("Invalid phone number format for Fast2SMS OTP:", to);
+        return false;
+      }
+
+      const response = await fetch("https://www.fast2sms.com/dev/bulkV2", {
+        method: "POST",
+        headers: {
+          "authorization": this.fast2smsApiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          route: "otp",
+          variables_values: otp,
+          numbers: phoneNumber,
+        }),
+      });
+
+      const responseData = await response.json();
+      
+      if (!response.ok || responseData.return === false) {
+        console.error("Fast2SMS OTP error:", responseData);
+        return false;
+      }
+
+      console.log(`OTP sent to ${phoneNumber} via Fast2SMS`);
+      return true;
+    } catch (error) {
+      console.error("Error sending OTP via Fast2SMS:", error);
+      return false;
+    }
+  }
+
+  private async sendSMSViaTwilio(to: string, message: string): Promise<boolean> {
     if (!this.twilioAccountSid || !this.twilioAuthToken || !this.twilioPhoneNumber) {
       console.log("SMS notification skipped - Twilio not configured");
       return false;
@@ -141,10 +249,10 @@ export class NotificationService {
         return false;
       }
 
-      console.log(`SMS sent to ${formattedPhone}`);
+      console.log(`SMS sent to ${formattedPhone} via Twilio`);
       return true;
     } catch (error) {
-      console.error("Error sending SMS:", error);
+      console.error("Error sending SMS via Twilio:", error);
       return false;
     }
   }
