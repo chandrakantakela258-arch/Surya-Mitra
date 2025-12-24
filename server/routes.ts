@@ -3811,6 +3811,18 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get Bank Loan vendors" });
     }
   });
+
+  // Admin: Get approved Logistics vendors (for Material Procurement/Delivery milestone)
+  app.get("/api/admin/vendors/logistics", requireAdmin, async (req, res) => {
+    try {
+      const allApproved = await storage.getApprovedVendors();
+      const logisticsVendors = allApproved.filter(v => v.vendorType === "logistic");
+      res.json(logisticsVendors);
+    } catch (error) {
+      console.error("Get Logistics vendors error:", error);
+      res.status(500).json({ message: "Failed to get Logistics vendors" });
+    }
+  });
   
   // ===== VENDOR ASSIGNMENT ROUTES =====
   

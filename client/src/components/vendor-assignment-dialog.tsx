@@ -24,7 +24,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Vendor } from "@shared/schema";
 
-export type VendorAssignmentType = "discom" | "bank_loan";
+export type VendorAssignmentType = "discom" | "bank_loan" | "logistics";
 
 interface VendorAssignmentConfig {
   title: string;
@@ -57,6 +57,16 @@ const vendorConfigs: Record<VendorAssignmentType, VendorAssignmentConfig> = {
     journeyStage: "pre_installation",
     defaultNotes: "Bank loan file submitted for processing",
     emptyStateMessage: "No approved Bank Loan vendors available for this state.",
+  },
+  logistics: {
+    title: "Assign Logistics Vendor",
+    description: "Assign a Logistics vendor to ensure timely delivery of solar equipment and materials to the customer site.",
+    vendorLabel: "Logistics Vendor",
+    apiEndpoint: "/api/admin/vendors/logistics",
+    jobRole: "goods_delivery",
+    journeyStage: "installation",
+    defaultNotes: "Material procurement completed, delivery assigned",
+    emptyStateMessage: "No approved Logistics vendors available for this state.",
   },
 };
 

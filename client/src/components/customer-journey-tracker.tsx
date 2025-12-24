@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Check, Clock, ChevronRight, ChevronDown, ChevronUp, Building2, Landmark, Phone } from "lucide-react";
+import { Check, Clock, ChevronRight, ChevronDown, ChevronUp, Building2, Landmark, Phone, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +43,7 @@ export function CustomerJourneyTracker({
 
   const discomAssignment = vendorAssignments.find(a => a.jobRole === "discom_net_metering");
   const bankLoanAssignment = vendorAssignments.find(a => a.jobRole === "bank_loan_facilitation");
+  const logisticsAssignment = vendorAssignments.find(a => a.jobRole === "goods_delivery");
 
   const completeMilestoneMutation = useMutation({
     mutationFn: async (milestoneId: string) => {
@@ -70,9 +71,12 @@ export function CustomerJourneyTracker({
     if (milestoneKey === "file_submission") {
       setPendingMilestoneId(milestoneId);
       setVendorDialogType("discom");
-    } else if (milestoneKey === "bank_loan_file_submission") {
+    } else if (milestoneKey === "bank_loan") {
       setPendingMilestoneId(milestoneId);
       setVendorDialogType("bank_loan");
+    } else if (milestoneKey === "material_procurement") {
+      setPendingMilestoneId(milestoneId);
+      setVendorDialogType("logistics");
     } else {
       completeMilestoneMutation.mutate(milestoneId);
     }
@@ -80,7 +84,8 @@ export function CustomerJourneyTracker({
 
   const getButtonLabel = (milestoneKey: string) => {
     if (milestoneKey === "file_submission") return "Complete & Assign DISCOM";
-    if (milestoneKey === "bank_loan_file_submission") return "Complete & Assign Bank";
+    if (milestoneKey === "bank_loan") return "Complete & Assign Bank";
+    if (milestoneKey === "material_procurement") return "Complete & Assign Logistics";
     return "Complete";
   };
 
@@ -215,7 +220,7 @@ export function CustomerJourneyTracker({
                       </div>
                     )}
                     
-                    {milestone.key === "bank_loan_file_submission" && isCompleted && bankLoanAssignment?.vendor && (
+                    {milestone.key === "bank_loan" && isCompleted && bankLoanAssignment?.vendor && (
                       <div className="mt-2 p-2 rounded-md bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800">
                         <div className="flex items-center gap-2 text-sm">
                           <Landmark className="h-4 w-4 text-green-600 dark:text-green-400" />
@@ -228,6 +233,24 @@ export function CustomerJourneyTracker({
                           <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
                             <Phone className="h-3 w-3" />
                             {bankLoanAssignment.vendor.phone}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {milestone.key === "material_procurement" && isCompleted && logisticsAssignment?.vendor && (
+                      <div className="mt-2 p-2 rounded-md bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Truck className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                          <span className="font-medium text-orange-700 dark:text-orange-300">Logistics Vendor:</span>
+                          <span className="text-orange-600 dark:text-orange-400">{logisticsAssignment.vendor.vendorCode}</span>
+                          <span className="text-muted-foreground">-</span>
+                          <span>{logisticsAssignment.vendor.name}</span>
+                        </div>
+                        {logisticsAssignment.vendor.phone && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                            <Phone className="h-3 w-3" />
+                            {logisticsAssignment.vendor.phone}
                           </div>
                         )}
                       </div>
