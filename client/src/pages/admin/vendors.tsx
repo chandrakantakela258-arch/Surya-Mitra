@@ -194,6 +194,7 @@ export default function AdminVendors() {
                     <TableHead>Code</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Type</TableHead>
+                    <TableHead>Best Price</TableHead>
                     <TableHead>Phone</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead>Status</TableHead>
@@ -225,6 +226,18 @@ export default function AdminVendors() {
                         <Badge variant="secondary" className="text-xs">
                           {getVendorTypeLabel(vendor.vendorType)}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {vendor.bestPriceQuotation ? (
+                          <div className="text-sm">
+                            <div className="font-mono">Rs {vendor.bestPriceQuotation}</div>
+                            {vendor.quotationUnit && (
+                              <div className="text-xs text-muted-foreground">{vendor.quotationUnit.replace("_", " ")}</div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">-</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <a href={`tel:+91${vendor.phone}`} className="text-blue-600 hover:underline">
