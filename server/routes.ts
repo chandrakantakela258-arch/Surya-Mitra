@@ -1695,6 +1695,7 @@ export async function registerRoutes(
         if (milestone.milestone === "installation_complete") {
           // Only create commission if customer was referred (not direct website registration)
           const isIndependentCustomer = customer.source === "website_direct";
+          console.log(`[COMMISSION] Customer ${customer.name} - source: ${customer.source}, isIndependent: ${isIndependentCustomer}, ddpId: ${customer.ddpId}`);
           
           if (!isIndependentCustomer) {
             // Check if referred by a Customer Partner
@@ -1743,9 +1744,11 @@ export async function registerRoutes(
                   }
                 }
               }
-            } else {
+            } else if (customer.ddpId) {
               // Original BDP/DDP commission logic (for non-customer-partner referrals)
+              console.log(`[COMMISSION] Creating commission for DDP ${customer.ddpId}, capacity: ${customer.proposedCapacity}kW`);
               const commissions = await storage.createCommissionForCustomer(customer.id, customer.ddpId);
+              console.log(`[COMMISSION] Created - DDP: ${commissions.ddpCommission?.id || 'none'}, BDP: ${commissions.bdpCommission?.id || 'none'}`);
               
               // Notify about commission earned via WhatsApp/Email
               if (commissions.ddpCommission) {
@@ -1788,10 +1791,14 @@ export async function registerRoutes(
         const completedMilestonesCount = allMilestones.filter(m => m.status === "completed").length;
         const totalMilestones = 14; // 14 installation milestones
         
+        console.log(`[STATUS] Customer ${customer.name}: ${completedMilestonesCount}/${totalMilestones} milestones completed, current status: ${customer.status}`);
+        
         if (completedMilestonesCount >= totalMilestones && customer.status !== "completed") {
           // Update customer status to completed
           await storage.updateCustomer(customer.id, { status: "completed" });
-          console.log(`Customer ${customer.name} (${customer.id}) journey completed - status updated to completed`);
+          console.log(`[STATUS] Customer ${customer.name} (${customer.id}) journey completed - status updated to completed`);
+        } else if (completedMilestonesCount >= totalMilestones) {
+          console.log(`[STATUS] Customer ${customer.name} already marked as completed`);
         }
       }
       
