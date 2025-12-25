@@ -2119,9 +2119,8 @@ export async function registerRoutes(
       
       // Check and create commission if installation is complete and not already created
       if (installationCompleteMilestone) {
-        const isIndependentCustomer = customer.source === "website_direct";
-        
-        if (!isIndependentCustomer && customer.ddpId) {
+        // Create commission for any customer with a DDP assigned, regardless of source
+        if (customer.ddpId) {
           // Check if customer has valid capacity - commission requires this
           if (!customer.proposedCapacity) {
             result.details.push("ERROR: Cannot create commission - proposedCapacity is missing!");
@@ -2147,9 +2146,7 @@ export async function registerRoutes(
               result.details.push(`Commission already exists: Rs ${existingCommission.commissionAmount}`);
             }
           }
-        } else if (isIndependentCustomer) {
-          result.details.push("Skipped commission: Independent customer (website_direct)");
-        } else if (!customer.ddpId) {
+        } else {
           result.details.push("Skipped commission: No DDP assigned");
         }
       }
