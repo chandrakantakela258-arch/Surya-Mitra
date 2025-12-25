@@ -541,11 +541,9 @@ export default function AdminPortalSubmissionReports() {
             <DialogTitle>New Portal Submission Report</DialogTitle>
           </DialogHeader>
           <Tabs defaultValue="customer">
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="customer">Customer</TabsTrigger>
               <TabsTrigger value="portal">Portal</TabsTrigger>
-              <TabsTrigger value="subsidy">Subsidy</TabsTrigger>
-              <TabsTrigger value="verification">Verification</TabsTrigger>
               <TabsTrigger value="disbursement">Disbursement</TabsTrigger>
               <TabsTrigger value="status">Status</TabsTrigger>
             </TabsList>
@@ -664,122 +662,6 @@ export default function AdminPortalSubmissionReports() {
               </div>
             </TabsContent>
             
-            <TabsContent value="subsidy" className="space-y-4 mt-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Subsidy Scheme</Label>
-                  <Select value={formData.subsidyScheme} onValueChange={(v) => setFormData({...formData, subsidyScheme: v})}>
-                    <SelectTrigger data-testid="select-subsidy-scheme">
-                      <SelectValue placeholder="Select scheme" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {subsidySchemes.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Central Subsidy Amount (Rs)</Label>
-                  <Input type="number" value={formData.centralSubsidyAmount} onChange={(e) => setFormData({...formData, centralSubsidyAmount: e.target.value})} data-testid="input-central-subsidy" />
-                </div>
-                <div>
-                  <Label>State Subsidy Amount (Rs)</Label>
-                  <Input type="number" value={formData.stateSubsidyAmount} onChange={(e) => setFormData({...formData, stateSubsidyAmount: e.target.value})} data-testid="input-state-subsidy" />
-                </div>
-                <div>
-                  <Label>Total Subsidy Claimed (Rs)</Label>
-                  <Input type="number" value={formData.totalSubsidyClaimed} onChange={(e) => setFormData({...formData, totalSubsidyClaimed: e.target.value})} data-testid="input-total-subsidy" />
-                </div>
-                <div>
-                  <Label>Subsidy Approved Amount (Rs)</Label>
-                  <Input type="number" value={formData.subsidyApprovedAmount} onChange={(e) => setFormData({...formData, subsidyApprovedAmount: e.target.value})} data-testid="input-subsidy-approved" />
-                </div>
-                <div className="col-span-2">
-                  <Label>Subsidy Rejection Reason (if any)</Label>
-                  <Textarea value={formData.subsidyRejectionReason} onChange={(e) => setFormData({...formData, subsidyRejectionReason: e.target.value})} data-testid="input-subsidy-rejection" />
-                </div>
-                <div className="col-span-2 border-t pt-4 mt-2">
-                  <h4 className="font-semibold mb-3">Beneficiary Bank Details</h4>
-                </div>
-                <div>
-                  <Label>Beneficiary Name</Label>
-                  <Input value={formData.beneficiaryName} onChange={(e) => setFormData({...formData, beneficiaryName: e.target.value})} data-testid="input-beneficiary-name" />
-                </div>
-                <div>
-                  <Label>Account Number</Label>
-                  <Input value={formData.beneficiaryAccountNumber} onChange={(e) => setFormData({...formData, beneficiaryAccountNumber: e.target.value})} data-testid="input-beneficiary-account" />
-                </div>
-                <div>
-                  <Label>IFSC Code</Label>
-                  <Input value={formData.beneficiaryIfsc} onChange={(e) => setFormData({...formData, beneficiaryIfsc: e.target.value})} data-testid="input-beneficiary-ifsc" />
-                </div>
-                <div>
-                  <Label>Bank Name</Label>
-                  <Input value={formData.beneficiaryBankName} onChange={(e) => setFormData({...formData, beneficiaryBankName: e.target.value})} data-testid="input-beneficiary-bank" />
-                </div>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="verification" className="space-y-4 mt-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <h4 className="font-semibold mb-3">Document Verification</h4>
-                </div>
-                <div>
-                  <Label>Document Verification Status</Label>
-                  <Select value={formData.documentVerificationStatus} onValueChange={(v) => setFormData({...formData, documentVerificationStatus: v})}>
-                    <SelectTrigger data-testid="select-doc-verification-status">
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {verificationStatuses.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Verification Date</Label>
-                  <Input type="date" value={formData.documentVerificationDate} onChange={(e) => setFormData({...formData, documentVerificationDate: e.target.value})} data-testid="input-doc-verification-date" />
-                </div>
-                <div className="col-span-2">
-                  <Label>Document Verification Remarks</Label>
-                  <Textarea value={formData.documentVerificationRemarks} onChange={(e) => setFormData({...formData, documentVerificationRemarks: e.target.value})} data-testid="input-doc-verification-remarks" />
-                </div>
-                <div className="col-span-2 border-t pt-4 mt-2">
-                  <h4 className="font-semibold mb-3">Physical Verification</h4>
-                </div>
-                <div className="col-span-2 flex items-center gap-2">
-                  <Checkbox 
-                    checked={formData.physicalVerificationRequired} 
-                    onCheckedChange={(checked) => setFormData({...formData, physicalVerificationRequired: !!checked})}
-                    data-testid="checkbox-physical-verification-required"
-                  />
-                  <Label>Physical Verification Required</Label>
-                </div>
-                <div>
-                  <Label>Physical Verification Status</Label>
-                  <Select value={formData.physicalVerificationStatus} onValueChange={(v) => setFormData({...formData, physicalVerificationStatus: v})}>
-                    <SelectTrigger data-testid="select-physical-verification-status">
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {physicalVerificationStatuses.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Verification Date</Label>
-                  <Input type="date" value={formData.physicalVerificationDate} onChange={(e) => setFormData({...formData, physicalVerificationDate: e.target.value})} data-testid="input-physical-verification-date" />
-                </div>
-                <div>
-                  <Label>Verification Officer</Label>
-                  <Input value={formData.physicalVerificationOfficer} onChange={(e) => setFormData({...formData, physicalVerificationOfficer: e.target.value})} data-testid="input-verification-officer" />
-                </div>
-                <div className="col-span-2">
-                  <Label>Physical Verification Remarks</Label>
-                  <Textarea value={formData.physicalVerificationRemarks} onChange={(e) => setFormData({...formData, physicalVerificationRemarks: e.target.value})} data-testid="input-physical-verification-remarks" />
-                </div>
-              </div>
-            </TabsContent>
-            
             <TabsContent value="disbursement" className="space-y-4 mt-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -879,11 +761,9 @@ export default function AdminPortalSubmissionReports() {
             <DialogTitle>Edit Portal Submission Report - {selectedReport?.reportNumber}</DialogTitle>
           </DialogHeader>
           <Tabs defaultValue="customer">
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="customer">Customer</TabsTrigger>
               <TabsTrigger value="portal">Portal</TabsTrigger>
-              <TabsTrigger value="subsidy">Subsidy</TabsTrigger>
-              <TabsTrigger value="verification">Verification</TabsTrigger>
               <TabsTrigger value="disbursement">Disbursement</TabsTrigger>
               <TabsTrigger value="status">Status</TabsTrigger>
             </TabsList>
@@ -985,122 +865,6 @@ export default function AdminPortalSubmissionReports() {
                 <div>
                   <Label>Acknowledgment Date</Label>
                   <Input type="date" value={formData.portalAcknowledgmentDate} onChange={(e) => setFormData({...formData, portalAcknowledgmentDate: e.target.value})} data-testid="input-edit-ack-date" />
-                </div>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="subsidy" className="space-y-4 mt-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Subsidy Scheme</Label>
-                  <Select value={formData.subsidyScheme} onValueChange={(v) => setFormData({...formData, subsidyScheme: v})}>
-                    <SelectTrigger data-testid="select-edit-subsidy-scheme">
-                      <SelectValue placeholder="Select scheme" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {subsidySchemes.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Central Subsidy Amount (Rs)</Label>
-                  <Input type="number" value={formData.centralSubsidyAmount} onChange={(e) => setFormData({...formData, centralSubsidyAmount: e.target.value})} data-testid="input-edit-central-subsidy" />
-                </div>
-                <div>
-                  <Label>State Subsidy Amount (Rs)</Label>
-                  <Input type="number" value={formData.stateSubsidyAmount} onChange={(e) => setFormData({...formData, stateSubsidyAmount: e.target.value})} data-testid="input-edit-state-subsidy" />
-                </div>
-                <div>
-                  <Label>Total Subsidy Claimed (Rs)</Label>
-                  <Input type="number" value={formData.totalSubsidyClaimed} onChange={(e) => setFormData({...formData, totalSubsidyClaimed: e.target.value})} data-testid="input-edit-total-subsidy" />
-                </div>
-                <div>
-                  <Label>Subsidy Approved Amount (Rs)</Label>
-                  <Input type="number" value={formData.subsidyApprovedAmount} onChange={(e) => setFormData({...formData, subsidyApprovedAmount: e.target.value})} data-testid="input-edit-subsidy-approved" />
-                </div>
-                <div className="col-span-2">
-                  <Label>Subsidy Rejection Reason (if any)</Label>
-                  <Textarea value={formData.subsidyRejectionReason} onChange={(e) => setFormData({...formData, subsidyRejectionReason: e.target.value})} data-testid="input-edit-subsidy-rejection" />
-                </div>
-                <div className="col-span-2 border-t pt-4 mt-2">
-                  <h4 className="font-semibold mb-3">Beneficiary Bank Details</h4>
-                </div>
-                <div>
-                  <Label>Beneficiary Name</Label>
-                  <Input value={formData.beneficiaryName} onChange={(e) => setFormData({...formData, beneficiaryName: e.target.value})} data-testid="input-edit-beneficiary-name" />
-                </div>
-                <div>
-                  <Label>Account Number</Label>
-                  <Input value={formData.beneficiaryAccountNumber} onChange={(e) => setFormData({...formData, beneficiaryAccountNumber: e.target.value})} data-testid="input-edit-beneficiary-account" />
-                </div>
-                <div>
-                  <Label>IFSC Code</Label>
-                  <Input value={formData.beneficiaryIfsc} onChange={(e) => setFormData({...formData, beneficiaryIfsc: e.target.value})} data-testid="input-edit-beneficiary-ifsc" />
-                </div>
-                <div>
-                  <Label>Bank Name</Label>
-                  <Input value={formData.beneficiaryBankName} onChange={(e) => setFormData({...formData, beneficiaryBankName: e.target.value})} data-testid="input-edit-beneficiary-bank" />
-                </div>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="verification" className="space-y-4 mt-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <h4 className="font-semibold mb-3">Document Verification</h4>
-                </div>
-                <div>
-                  <Label>Document Verification Status</Label>
-                  <Select value={formData.documentVerificationStatus} onValueChange={(v) => setFormData({...formData, documentVerificationStatus: v})}>
-                    <SelectTrigger data-testid="select-edit-doc-verification-status">
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {verificationStatuses.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Verification Date</Label>
-                  <Input type="date" value={formData.documentVerificationDate} onChange={(e) => setFormData({...formData, documentVerificationDate: e.target.value})} data-testid="input-edit-doc-verification-date" />
-                </div>
-                <div className="col-span-2">
-                  <Label>Document Verification Remarks</Label>
-                  <Textarea value={formData.documentVerificationRemarks} onChange={(e) => setFormData({...formData, documentVerificationRemarks: e.target.value})} data-testid="input-edit-doc-verification-remarks" />
-                </div>
-                <div className="col-span-2 border-t pt-4 mt-2">
-                  <h4 className="font-semibold mb-3">Physical Verification</h4>
-                </div>
-                <div className="col-span-2 flex items-center gap-2">
-                  <Checkbox 
-                    checked={formData.physicalVerificationRequired} 
-                    onCheckedChange={(checked) => setFormData({...formData, physicalVerificationRequired: !!checked})}
-                    data-testid="checkbox-edit-physical-verification-required"
-                  />
-                  <Label>Physical Verification Required</Label>
-                </div>
-                <div>
-                  <Label>Physical Verification Status</Label>
-                  <Select value={formData.physicalVerificationStatus} onValueChange={(v) => setFormData({...formData, physicalVerificationStatus: v})}>
-                    <SelectTrigger data-testid="select-edit-physical-verification-status">
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {physicalVerificationStatuses.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Verification Date</Label>
-                  <Input type="date" value={formData.physicalVerificationDate} onChange={(e) => setFormData({...formData, physicalVerificationDate: e.target.value})} data-testid="input-edit-physical-verification-date" />
-                </div>
-                <div>
-                  <Label>Verification Officer</Label>
-                  <Input value={formData.physicalVerificationOfficer} onChange={(e) => setFormData({...formData, physicalVerificationOfficer: e.target.value})} data-testid="input-edit-verification-officer" />
-                </div>
-                <div className="col-span-2">
-                  <Label>Physical Verification Remarks</Label>
-                  <Textarea value={formData.physicalVerificationRemarks} onChange={(e) => setFormData({...formData, physicalVerificationRemarks: e.target.value})} data-testid="input-edit-physical-verification-remarks" />
                 </div>
               </div>
             </TabsContent>
