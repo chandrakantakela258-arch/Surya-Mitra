@@ -33,6 +33,7 @@ const ddpNavItems: NavItem[] = [
   { icon: Calculator, label: "Calculator", href: "/calculator" },
   { icon: Wallet, label: "Earnings", href: "/ddp/earnings" },
   { icon: ShoppingCart, label: "Store", href: "/ddp/store" },
+  { icon: User, label: "Profile", href: "/profile" },
 ];
 
 const bdpNavItems: NavItem[] = [
@@ -41,6 +42,7 @@ const bdpNavItems: NavItem[] = [
   { icon: Wallet, label: "Wallet", href: "/bdp/wallet" },
   { icon: ShoppingCart, label: "Store", href: "/bdp/store" },
   { icon: Calculator, label: "Calculator", href: "/calculator" },
+  { icon: User, label: "Profile", href: "/profile" },
 ];
 
 const adminNavItems: NavItem[] = [
