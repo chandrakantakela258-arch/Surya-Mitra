@@ -13,9 +13,12 @@ import { useToast } from "@/hooks/use-toast";
 import type { Vendor, CustomerVendorAssignment } from "@shared/schema";
 
 const journeyStages = [
-  { value: "pre_installation", label: "Pre-Installation", description: "Survey, documentation, approvals" },
-  { value: "installation", label: "Installation", description: "Panel mounting, wiring, inverter setup" },
-  { value: "post_installation", label: "Post-Installation", description: "Meter installation, subsidy, commissioning" },
+  { value: "portal_submission", label: "PM Surya Ghar Portal Submission", description: "Portal registration and documentation" },
+  { value: "loan_file_submission", label: "Loan File Submission", description: "Bank loan processing and file submission" },
+  { value: "discom_survey", label: "Discom Survey Visit", description: "DISCOM site survey and feasibility check" },
+  { value: "purchase_order", label: "Purchase Order Issuing", description: "Material procurement and purchase orders" },
+  { value: "logistics_delivery", label: "Logistic Vendor for Delivery", description: "Equipment delivery to customer site" },
+  { value: "site_erection_electrical", label: "Site Erection & Electrical Work", description: "Panel mounting, wiring, and installation" },
 ];
 
 const vendorTypeLabels: Record<string, string> = {
