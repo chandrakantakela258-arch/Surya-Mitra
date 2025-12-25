@@ -1523,18 +1523,34 @@ export default function CustomerDashboard() {
                     <p className="text-sm text-muted-foreground mt-1">
                       Contact our support team for any queries about your installation
                     </p>
-                    <div className="flex flex-wrap gap-3 mt-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
                       <a 
-                        href="tel:+919801005212" 
-                        className="text-sm font-medium text-primary hover:underline"
+                        href="tel:9801005212" 
+                        className="text-sm text-primary hover:underline"
+                        data-testid="contact-chandrakant"
                       >
-                        +91 9801005212
+                        Chandrakant Akela - 9801005212
                       </a>
                       <a 
-                        href="tel:+918777684575" 
-                        className="text-sm font-medium text-primary hover:underline"
+                        href="tel:8709248597" 
+                        className="text-sm text-primary hover:underline"
+                        data-testid="contact-abhijeet"
                       >
-                        +91 8777684575
+                        Abhijeet Chauhan - 8709248597
+                      </a>
+                      <a 
+                        href="tel:8777684575" 
+                        className="text-sm text-primary hover:underline"
+                        data-testid="contact-sanjay"
+                      >
+                        Sanjay Kumar - 8777684575
+                      </a>
+                      <a 
+                        href="tel:9123141987" 
+                        className="text-sm text-primary hover:underline"
+                        data-testid="contact-anil"
+                      >
+                        Anil Kumar - 9123141987
                       </a>
                     </div>
                   </div>

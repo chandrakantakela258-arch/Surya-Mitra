@@ -35,6 +35,7 @@ import {
   IndianRupee,
   Banknote,
   Files,
+  Phone,
 } from "lucide-react";
 import { FeedbackDialog } from "@/components/feedback-dialog";
 import { ChatbotAssistant } from "@/components/chatbot-assistant";
@@ -421,6 +422,33 @@ export function AppSidebar() {
                 />
               </SidebarMenuItem>
             </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Contact Section */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
+            Contact Us
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <div className="px-2 space-y-2 text-xs">
+              <a href="tel:9801005212" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors" data-testid="contact-chandrakant">
+                <Phone className="w-3 h-3" />
+                <span>Chandrakant Akela - 9801005212</span>
+              </a>
+              <a href="tel:8709248597" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors" data-testid="contact-abhijeet">
+                <Phone className="w-3 h-3" />
+                <span>Abhijeet Chauhan - 8709248597</span>
+              </a>
+              <a href="tel:8777684575" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors" data-testid="contact-sanjay">
+                <Phone className="w-3 h-3" />
+                <span>Sanjay Kumar - 8777684575</span>
+              </a>
+              <a href="tel:9123141987" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors" data-testid="contact-anil">
+                <Phone className="w-3 h-3" />
+                <span>Anil Kumar - 9123141987</span>
+              </a>
+            </div>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>

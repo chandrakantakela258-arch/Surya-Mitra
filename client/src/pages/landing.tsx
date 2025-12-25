@@ -1192,7 +1192,7 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6">
             <Card>
               <CardContent className="p-6">
                 <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
@@ -1213,11 +1213,7 @@ export default function LandingPage() {
                 </div>
                 <h3 className="font-semibold text-lg mb-2">Chandrakant Akela</h3>
                 <p className="text-muted-foreground text-sm">
-                  <a href="tel:9801005212" className="hover:text-primary">9801005212</a><br />
-                  <a href="tel:8709127232" className="hover:text-primary">8709127232</a>
-                </p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  <a href="mailto:chandrakant@divyanshisolar.com" className="hover:text-primary">chandrakant@divyanshisolar.com</a>
+                  <a href="tel:9801005212" className="hover:text-primary">9801005212</a>
                 </p>
               </CardContent>
             </Card>
@@ -1227,12 +1223,9 @@ export default function LandingPage() {
                 <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
                   <Phone className="w-6 h-6 text-primary" />
                 </div>
-                <h3 className="font-semibold text-lg mb-2">Anil</h3>
+                <h3 className="font-semibold text-lg mb-2">Abhijeet Chauhan</h3>
                 <p className="text-muted-foreground text-sm">
-                  <a href="tel:9123141987" className="hover:text-primary">9123141987</a>
-                </p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  <a href="mailto:anil@divyanshisolar.com" className="hover:text-primary">anil@divyanshisolar.com</a>
+                  <a href="tel:8709248597" className="hover:text-primary">8709248597</a>
                 </p>
               </CardContent>
             </Card>
@@ -1242,12 +1235,21 @@ export default function LandingPage() {
                 <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
                   <Phone className="w-6 h-6 text-primary" />
                 </div>
-                <h3 className="font-semibold text-lg mb-2">Sanjay</h3>
+                <h3 className="font-semibold text-lg mb-2">Sanjay Kumar</h3>
                 <p className="text-muted-foreground text-sm">
                   <a href="tel:8777684575" className="hover:text-primary">8777684575</a>
                 </p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  <a href="mailto:sanjay@divyanshisolar.com" className="hover:text-primary">sanjay@divyanshisolar.com</a>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <Phone className="w-6 h-6 text-primary" />
+                </div>
+                <h3 className="font-semibold text-lg mb-2">Anil Kumar</h3>
+                <p className="text-muted-foreground text-sm">
+                  <a href="tel:9123141987" className="hover:text-primary">9123141987</a>
                 </p>
               </CardContent>
             </Card>
