@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Check, Clock, ChevronRight, ChevronDown, ChevronUp, Building2, Landmark, Phone, Truck, Zap, Wrench, UserPlus } from "lucide-react";
+import { Check, Clock, ChevronRight, ChevronDown, ChevronUp, Building2, Landmark, Phone, Truck, Zap, Wrench, UserPlus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -106,6 +106,29 @@ export function CustomerJourneyTracker({
     },
   });
 
+  const reprocessMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", `/api/admin/customers/${customerId}/reprocess`);
+    },
+    onSuccess: (data: { statusUpdated: boolean; commissionCreated: boolean; message: string; details: string[] }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers", customerId, "milestones"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ddp/commissions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bdp/commissions"] });
+      toast({
+        title: data.message,
+        description: data.details.join(", "),
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Reprocess failed",
+        description: error.message || "Failed to reprocess customer",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleMilestoneComplete = (milestoneKey: string, milestoneId: string) => {
     if (milestoneKey === "application_submitted") {
       setPendingMilestoneId(milestoneId);
@@ -171,9 +194,23 @@ export function CustomerJourneyTracker({
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <CardTitle className="text-lg">Installation Journey</CardTitle>
-          <Badge variant={progress === 100 ? "default" : "secondary"}>
-            {completedCount} / {installationMilestones.length} Complete
-          </Badge>
+          <div className="flex items-center gap-2">
+            {progress === 100 && showActions && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => reprocessMutation.mutate()}
+                disabled={reprocessMutation.isPending}
+                data-testid="button-reprocess-customer"
+              >
+                <RefreshCw className={`h-4 w-4 mr-1 ${reprocessMutation.isPending ? "animate-spin" : ""}`} />
+                {reprocessMutation.isPending ? "Processing..." : "Sync Status"}
+              </Button>
+            )}
+            <Badge variant={progress === 100 ? "default" : "secondary"}>
+              {completedCount} / {installationMilestones.length} Complete
+            </Badge>
+          </div>
         </div>
         <p className="text-sm text-muted-foreground">
           Track progress for {customerName}

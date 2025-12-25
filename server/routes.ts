@@ -2089,6 +2089,81 @@ export async function registerRoutes(
     }
   });
 
+  // Admin: Reprocess customer commission and status for completed journeys
+  app.post("/api/admin/customers/:id/reprocess", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const customer = await storage.getCustomer(id);
+      
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      
+      const milestones = await storage.getMilestonesByCustomerId(id);
+      const completedCount = milestones.filter(m => m.status === "completed").length;
+      const installationCompleteMilestone = milestones.find(m => m.milestone === "installation_complete" && m.status === "completed");
+      
+      const result: { statusUpdated: boolean; commissionCreated: boolean; message: string; details: string[] } = {
+        statusUpdated: false,
+        commissionCreated: false,
+        message: "",
+        details: []
+      };
+      
+      result.details.push(`Completed milestones: ${completedCount}/14`);
+      result.details.push(`Installation complete milestone: ${installationCompleteMilestone ? "Yes" : "No"}`);
+      result.details.push(`Customer source: ${customer.source || "partner"}`);
+      result.details.push(`Customer DDP: ${customer.ddpId || "None"}`);
+      
+      // Check and create commission if installation is complete and not already created
+      if (installationCompleteMilestone) {
+        const isIndependentCustomer = customer.source === "website_direct";
+        
+        if (!isIndependentCustomer && customer.ddpId) {
+          // Check if commission already exists
+          const existingCommissions = await storage.getCommissionsByPartnerId(customer.ddpId, "ddp");
+          const existingCommission = existingCommissions.find(c => c.customerId === customer.id);
+          
+          if (!existingCommission) {
+            const commissions = await storage.createCommissionForCustomer(customer.id, customer.ddpId);
+            if (commissions.ddpCommission) {
+              result.commissionCreated = true;
+              result.details.push(`DDP Commission created: Rs ${commissions.ddpCommission.commissionAmount}`);
+            }
+            if (commissions.bdpCommission) {
+              result.details.push(`BDP Commission created: Rs ${commissions.bdpCommission.commissionAmount}`);
+            }
+          } else {
+            result.details.push(`Commission already exists: Rs ${existingCommission.commissionAmount}`);
+          }
+        } else if (isIndependentCustomer) {
+          result.details.push("Skipped commission: Independent customer (website_direct)");
+        } else if (!customer.ddpId) {
+          result.details.push("Skipped commission: No DDP assigned");
+        }
+      }
+      
+      // Update status if all 14 milestones complete
+      if (completedCount >= 14 && customer.status !== "completed") {
+        await storage.updateCustomer(id, { status: "completed" });
+        result.statusUpdated = true;
+        result.details.push("Status updated to 'completed'");
+      } else if (customer.status === "completed") {
+        result.details.push("Status already 'completed'");
+      }
+      
+      result.message = result.statusUpdated || result.commissionCreated 
+        ? "Customer reprocessed successfully" 
+        : "No updates needed";
+      
+      console.log(`[REPROCESS] Customer ${customer.name}: ${JSON.stringify(result)}`);
+      res.json(result);
+    } catch (error) {
+      console.error("Reprocess customer error:", error);
+      res.status(500).json({ message: "Failed to reprocess customer" });
+    }
+  });
+
   // Get all customers (with DDP and BDP info)
   app.get("/api/admin/customers", requireAdmin, async (req, res) => {
     try {
