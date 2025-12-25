@@ -52,11 +52,16 @@ const bdpNavItems: NavItem[] = [
   { icon: User, label: "Profile", href: "/profile" },
 ];
 
-const adminNavItems: NavItem[] = [
+// Bottom bar items for admin (first 4 shown in bottom nav)
+const adminBottomNavItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Home", href: "/admin/dashboard" },
   { icon: Users, label: "Partners", href: "/admin/partners" },
   { icon: FileText, label: "Journey", href: "/admin/customer-journey" },
   { icon: Receipt, label: "Expenses", href: "/admin/site-expenses" },
+];
+
+// Additional menu items for admin (shown in More menu only)
+const adminMenuItems: NavItem[] = [
   { icon: GitBranch, label: "Hierarchy", href: "/admin/partner-hierarchy" },
   { icon: UserCheck, label: "Partner Approval", href: "/admin/partners" },
   { icon: CreditCard, label: "Commission Payout", href: "/admin/payouts" },
@@ -82,16 +87,18 @@ export function MobileNav() {
 
   if (!user) return null;
 
+  // Bottom nav items (first 4 shown)
   const navItems = user.role === "admin" 
-    ? adminNavItems 
+    ? adminBottomNavItems 
     : user.role === "bdp" 
       ? bdpNavItems 
       : user.role === "customer_partner"
         ? customerPartnerNavItems
         : ddpNavItems;
 
-  const allNavItems = user.role === "admin" 
-    ? adminNavItems 
+  // Menu items for More section (admin gets separate menu items, others get full list)
+  const menuItems = user.role === "admin" 
+    ? adminMenuItems 
     : user.role === "bdp" 
       ? bdpNavItems 
       : user.role === "customer_partner"
@@ -147,7 +154,7 @@ export function MobileNav() {
               <SheetTitle className="text-left">Menu</SheetTitle>
             </SheetHeader>
             <div className="mt-6 space-y-1">
-              {allNavItems.map((item) => {
+              {menuItems.map((item) => {
                 const isActive = location === item.href || location.startsWith(item.href + "/");
                 const Icon = item.icon;
                 
