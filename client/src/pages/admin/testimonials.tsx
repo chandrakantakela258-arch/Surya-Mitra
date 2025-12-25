@@ -92,6 +92,19 @@ export default function AdminTestimonials() {
     toast({ title: "Opening X (Twitter) share" });
   };
 
+  const handleShareInstagram = async (testimonial: CustomerTestimonial) => {
+    try {
+      await navigator.clipboard.writeText(getShareText(testimonial));
+      window.open("https://www.instagram.com/", "_blank");
+      toast({ 
+        title: "Text copied! Instagram opened", 
+        description: "Paste the copied text in your Instagram story or post" 
+      });
+    } catch {
+      toast({ title: "Failed to copy for Instagram", variant: "destructive" });
+    }
+  };
+
   const handleCopyToClipboard = async (testimonial: CustomerTestimonial) => {
     try {
       await navigator.clipboard.writeText(getShareText(testimonial));
@@ -123,6 +136,10 @@ export default function AdminTestimonials() {
         <DropdownMenuItem onClick={() => handleShareTwitter(testimonial)} data-testid={`share-twitter-${testimonial.id}`}>
           <SiX className="h-4 w-4 mr-2" />
           Share on X (Twitter)
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleShareInstagram(testimonial)} data-testid={`share-instagram-${testimonial.id}`}>
+          <SiInstagram className="h-4 w-4 mr-2 text-pink-500" />
+          Share on Instagram
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => handleCopyToClipboard(testimonial)} data-testid={`share-copy-${testimonial.id}`}>
           {copiedId === testimonial.id ? (
