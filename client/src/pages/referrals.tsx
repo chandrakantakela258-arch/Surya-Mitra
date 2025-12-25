@@ -48,12 +48,13 @@ export default function ReferralsPage() {
 
   const shareReferral = async () => {
     const shareUrl = `${window.location.origin}/register?ref=${referralCode?.code}`;
+    const websiteUrl = "https://divyanshisolar.com/";
     
     if (navigator.share) {
       try {
         await navigator.share({
           title: "Join Divyanshi Solar",
-          text: `Use my referral code ${referralCode?.code} to join Divyanshi Solar and get rewards!`,
+          text: `Use my referral code ${referralCode?.code} to join Divyanshi Solar and get rewards! Visit our website: ${websiteUrl}`,
           url: shareUrl,
         });
       } catch (error) {
@@ -265,28 +266,27 @@ export default function ReferralsPage() {
           <DialogHeader>
             <DialogTitle>Share Your Referral Code</DialogTitle>
             <DialogDescription>
-              Copy and share this link with customers and partners
+              Copy and share this message with customers and partners
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              value={`${window.location.origin}/register?ref=${referralCode?.code}`}
-              readOnly
-              className="font-mono text-sm"
-            />
+            <div className="p-3 bg-muted rounded-md text-sm">
+              <p>Use my referral code <strong>{referralCode?.code}</strong> to join Divyanshi Solar and get rewards!</p>
+              <p className="mt-2">Register here: {window.location.origin}/register?ref={referralCode?.code}</p>
+              <p className="mt-1">Visit our website: https://divyanshisolar.com/</p>
+            </div>
             <div className="flex gap-2">
               <Button
                 className="flex-1"
                 onClick={async () => {
-                  await navigator.clipboard.writeText(
-                    `${window.location.origin}/register?ref=${referralCode?.code}`
-                  );
-                  toast({ title: "Link copied!" });
+                  const shareText = `Use my referral code ${referralCode?.code} to join Divyanshi Solar and get rewards!\n\nRegister here: ${window.location.origin}/register?ref=${referralCode?.code}\n\nVisit our website: https://divyanshisolar.com/`;
+                  await navigator.clipboard.writeText(shareText);
+                  toast({ title: "Message copied!" });
                   setShowShareDialog(false);
                 }}
               >
                 <Copy className="w-4 h-4 mr-2" />
-                Copy Link
+                Copy Message
               </Button>
             </div>
           </div>
