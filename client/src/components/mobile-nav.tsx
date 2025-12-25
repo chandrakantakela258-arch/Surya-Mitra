@@ -14,7 +14,14 @@ import {
   Calculator,
   Menu,
   LogOut,
-  X
+  X,
+  UserCheck,
+  CreditCard,
+  Wrench,
+  MessageSquare,
+  Truck,
+  ClipboardCheck,
+  MessagesSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -51,6 +58,13 @@ const adminNavItems: NavItem[] = [
   { icon: FileText, label: "Journey", href: "/admin/customer-journey" },
   { icon: Receipt, label: "Expenses", href: "/admin/site-expenses" },
   { icon: GitBranch, label: "Hierarchy", href: "/admin/partner-hierarchy" },
+  { icon: UserCheck, label: "Partner Approval", href: "/admin/partners" },
+  { icon: CreditCard, label: "Commission Payout", href: "/admin/payouts" },
+  { icon: Wrench, label: "Service Requests", href: "/admin/service-requests" },
+  { icon: MessageSquare, label: "Testimonials", href: "/admin/testimonials" },
+  { icon: Truck, label: "Vendor Payments", href: "/admin/vendor-payments" },
+  { icon: ClipboardCheck, label: "Vendor Approval", href: "/admin/vendors" },
+  { icon: MessagesSquare, label: "User Feedback", href: "/admin/feedback" },
 ];
 
 const customerPartnerNavItems: NavItem[] = [
