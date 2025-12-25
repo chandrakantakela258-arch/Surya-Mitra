@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -183,16 +184,82 @@ export default function AdminTestimonials() {
     return matchesSearch && matchesStatus;
   });
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+      },
+    },
+  };
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 20, scale: 0.95 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: {
+        type: "spring",
+        stiffness: 100,
+        damping: 15,
+      },
+    },
+    exit: {
+      opacity: 0,
+      scale: 0.95,
+      transition: { duration: 0.2 },
+    },
+  };
+
+  const statsVariants = {
+    hidden: { opacity: 0, x: -20 },
+    visible: (i: number) => ({
+      opacity: 1,
+      x: 0,
+      transition: {
+        delay: i * 0.1,
+        type: "spring",
+        stiffness: 100,
+      },
+    }),
+  };
+
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-10 w-64" />
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} className="h-48" />
+      <motion.div
+        className="space-y-6"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        <Skeleton className="h-10 w-64 animate-pulse" />
+        <div className="grid gap-4 md:grid-cols-3">
+          {[...Array(3)].map((_, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+            >
+              <Skeleton className="h-24 animate-pulse" />
+            </motion.div>
           ))}
         </div>
-      </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[...Array(6)].map((_, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 + i * 0.08 }}
+            >
+              <Skeleton className="h-48 animate-pulse" />
+            </motion.div>
+          ))}
+        </div>
+      </motion.div>
     );
   }
 
@@ -201,8 +268,18 @@ export default function AdminTestimonials() {
   const featuredCount = testimonials?.filter((t) => t.isFeatured).length || 0;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <motion.div
+      className="space-y-6"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
+      <motion.div
+        className="flex flex-col md:flex-row md:items-center justify-between gap-4"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <MessageSquare className="h-6 w-6" />
@@ -210,48 +287,102 @@ export default function AdminTestimonials() {
           </h1>
           <p className="text-muted-foreground">Review and manage customer testimonials</p>
         </div>
-      </div>
+      </motion.div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-full bg-yellow-100 dark:bg-yellow-900">
-                <Clock className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+        <motion.div
+          custom={0}
+          variants={statsVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <motion.div
+                  className="p-3 rounded-full bg-yellow-100 dark:bg-yellow-900"
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ type: "spring", stiffness: 400 }}
+                >
+                  <Clock className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+                </motion.div>
+                <div>
+                  <motion.p
+                    className="text-2xl font-bold"
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.2, type: "spring" }}
+                  >
+                    {pendingCount}
+                  </motion.p>
+                  <p className="text-sm text-muted-foreground">Pending Review</p>
+                </div>
               </div>
-              <div>
-                <p className="text-2xl font-bold">{pendingCount}</p>
-                <p className="text-sm text-muted-foreground">Pending Review</p>
+            </CardContent>
+          </Card>
+        </motion.div>
+        <motion.div
+          custom={1}
+          variants={statsVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <motion.div
+                  className="p-3 rounded-full bg-green-100 dark:bg-green-900"
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ type: "spring", stiffness: 400 }}
+                >
+                  <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+                </motion.div>
+                <div>
+                  <motion.p
+                    className="text-2xl font-bold"
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.3, type: "spring" }}
+                  >
+                    {approvedCount}
+                  </motion.p>
+                  <p className="text-sm text-muted-foreground">Approved</p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-full bg-green-100 dark:bg-green-900">
-                <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+            </CardContent>
+          </Card>
+        </motion.div>
+        <motion.div
+          custom={2}
+          variants={statsVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <motion.div
+                  className="p-3 rounded-full bg-purple-100 dark:bg-purple-900"
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ type: "spring", stiffness: 400 }}
+                >
+                  <Star className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                </motion.div>
+                <div>
+                  <motion.p
+                    className="text-2xl font-bold"
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.4, type: "spring" }}
+                  >
+                    {featuredCount}
+                  </motion.p>
+                  <p className="text-sm text-muted-foreground">Featured</p>
+                </div>
               </div>
-              <div>
-                <p className="text-2xl font-bold">{approvedCount}</p>
-                <p className="text-sm text-muted-foreground">Approved</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-full bg-purple-100 dark:bg-purple-900">
-                <Star className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{featuredCount}</p>
-                <p className="text-sm text-muted-foreground">Featured</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
 
       <Card>
@@ -285,80 +416,108 @@ export default function AdminTestimonials() {
           </div>
 
           {!filteredTestimonials || filteredTestimonials.length === 0 ? (
-            <div className="text-center py-8">
+            <motion.div
+              className="text-center py-8"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3 }}
+            >
               <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-muted-foreground">No testimonials found</p>
-            </div>
+            </motion.div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {filteredTestimonials.map((testimonial) => (
-                <Card key={testimonial.id} className="overflow-hidden" data-testid={`card-testimonial-${testimonial.id}`}>
-                  <CardContent className="p-4 space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <Badge className={statusColors[testimonial.status]}>
-                          {testimonial.status}
-                        </Badge>
-                        {testimonial.isFeatured && (
-                          <Badge variant="outline" className="border-purple-500 text-purple-600">
-                            <Star className="h-3 w-3 mr-1" />
-                            Featured
-                          </Badge>
+            <motion.div
+              className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+            >
+              <AnimatePresence mode="popLayout">
+                {filteredTestimonials.map((testimonial, index) => (
+                  <motion.div
+                    key={testimonial.id}
+                    variants={cardVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    layout
+                    custom={index}
+                  >
+                    <Card className="overflow-visible h-full" data-testid={`card-testimonial-${testimonial.id}`}>
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge className={statusColors[testimonial.status]}>
+                              {testimonial.status}
+                            </Badge>
+                            {testimonial.isFeatured && (
+                              <Badge variant="outline" className="border-purple-500 text-purple-600">
+                                <Star className="h-3 w-3 mr-1" />
+                                Featured
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex gap-1">
+                            {testimonial.videoUrl && <Video className="h-4 w-4 text-muted-foreground" />}
+                            {testimonial.plantPhotos && testimonial.plantPhotos.length > 0 && (
+                              <Image className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <p className="font-medium">{testimonial.customerName}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {testimonial.customerDistrict}, {testimonial.customerState}
+                          </p>
+                          {testimonial.installedCapacity && (
+                            <p className="text-xs text-muted-foreground">{testimonial.installedCapacity} kW System</p>
+                          )}
+                        </div>
+                        {testimonial.rating && (
+                          <div className="flex gap-1">
+                            {[...Array(5)].map((_, i) => (
+                              <motion.div
+                                key={i}
+                                initial={{ opacity: 0, scale: 0 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ delay: 0.3 + i * 0.05 }}
+                              >
+                                <Star
+                                  className={`h-4 w-4 ${i < testimonial.rating! ? "text-yellow-500 fill-yellow-500" : "text-muted-foreground"}`}
+                                />
+                              </motion.div>
+                            ))}
+                          </div>
                         )}
-                      </div>
-                      <div className="flex gap-1">
-                        {testimonial.videoUrl && <Video className="h-4 w-4 text-muted-foreground" />}
-                        {testimonial.plantPhotos && testimonial.plantPhotos.length > 0 && (
-                          <Image className="h-4 w-4 text-muted-foreground" />
+                        {testimonial.testimonialText && (
+                          <p className="text-sm line-clamp-3">{testimonial.testimonialText}</p>
                         )}
-                      </div>
-                    </div>
-                    <div>
-                      <p className="font-medium">{testimonial.customerName}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {testimonial.customerDistrict}, {testimonial.customerState}
-                      </p>
-                      {testimonial.installedCapacity && (
-                        <p className="text-xs text-muted-foreground">{testimonial.installedCapacity} kW System</p>
-                      )}
-                    </div>
-                    {testimonial.rating && (
-                      <div className="flex gap-1">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`h-4 w-4 ${i < testimonial.rating! ? "text-yellow-500 fill-yellow-500" : "text-muted-foreground"}`}
-                          />
-                        ))}
-                      </div>
-                    )}
-                    {testimonial.testimonialText && (
-                      <p className="text-sm line-clamp-3">{testimonial.testimonialText}</p>
-                    )}
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      {testimonial.sharedOnFacebook && <SiFacebook className="h-3 w-3" />}
-                      {testimonial.sharedOnInstagram && <SiInstagram className="h-3 w-3" />}
-                      <span>{new Date(testimonial.createdAt!).toLocaleDateString("en-IN")}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => setSelectedTestimonial(testimonial)}
-                        data-testid={`button-view-${testimonial.id}`}
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        View
-                      </Button>
-                      {(testimonial.status === "approved" || testimonial.status === "featured") && (
-                        <ShareDropdown testimonial={testimonial} />
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          {testimonial.sharedOnFacebook && <SiFacebook className="h-3 w-3" />}
+                          {testimonial.sharedOnInstagram && <SiInstagram className="h-3 w-3" />}
+                          <span>{new Date(testimonial.createdAt!).toLocaleDateString("en-IN")}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => setSelectedTestimonial(testimonial)}
+                            data-testid={`button-view-${testimonial.id}`}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            View
+                          </Button>
+                          {(testimonial.status === "approved" || testimonial.status === "featured") && (
+                            <ShareDropdown testimonial={testimonial} />
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </motion.div>
           )}
         </CardContent>
       </Card>
@@ -492,6 +651,6 @@ export default function AdminTestimonials() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </motion.div>
   );
 }
