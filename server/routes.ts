@@ -2320,6 +2320,38 @@ export async function registerRoutes(
     }
   });
 
+  // Update user location (GeoTagging)
+  app.post("/api/user/location", requireAuth, async (req, res) => {
+    try {
+      const { latitude, longitude } = req.body;
+      
+      if (!latitude || !longitude) {
+        return res.status(400).json({ message: "Latitude and longitude are required" });
+      }
+      
+      const updated = await storage.updateUserLocation(req.session.userId!, latitude, longitude);
+      if (!updated) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json({ success: true, latitude, longitude });
+    } catch (error) {
+      console.error("Update location error:", error);
+      res.status(500).json({ message: "Failed to update location" });
+    }
+  });
+
+  // Get all partners with locations for map view
+  app.get("/api/public/partners-map", async (req, res) => {
+    try {
+      const partners = await storage.getAllPartnersWithLocations();
+      res.json(partners);
+    } catch (error) {
+      console.error("Get partners map error:", error);
+      res.status(500).json({ message: "Failed to get partners" });
+    }
+  });
+
   // ==================== PAYOUT ROUTES (ADMIN) ====================
 
   // Get all commissions
@@ -3798,13 +3830,16 @@ export async function registerRoutes(
   app.get("/api/public/partner-network-map", async (req, res) => {
     try {
       const partners = await storage.getPartnersForMap();
-      // Return only public partner data (no sensitive info)
+      // Return only public partner data (no sensitive info, but include GPS for map)
       const publicData = partners.map(p => ({
         id: p.id,
         name: p.name,
         role: p.role,
         district: p.district,
         state: p.state,
+        latitude: p.latitude,
+        longitude: p.longitude,
+        phone: p.phone,
       }));
       res.json(publicData);
     } catch (error) {

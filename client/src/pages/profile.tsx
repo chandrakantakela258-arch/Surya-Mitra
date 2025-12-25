@@ -12,6 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { User, Building2, Phone, Mail, MapPin, CreditCard, Landmark } from "lucide-react";
+import { LocationCapture } from "@/components/location-capture";
 import type { BankAccount } from "@shared/schema";
 
 const bankAccountSchema = z.object({
@@ -60,8 +61,29 @@ export default function ProfilePage() {
     },
   });
 
+  const locationMutation = useMutation({
+    mutationFn: async ({ latitude, longitude }: { latitude: string; longitude: string }) => {
+      return apiRequest("POST", "/api/user/location", { latitude, longitude });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      toast({ title: "Location updated successfully" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to update location",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: BankAccountFormData) => {
     saveBankMutation.mutate(data);
+  };
+
+  const handleLocationCaptured = (lat: string, lng: string) => {
+    locationMutation.mutate({ latitude: lat, longitude: lng });
   };
 
   if (!user) {
@@ -285,6 +307,29 @@ export default function ProfilePage() {
                 </form>
               </Form>
             )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Location GeoTagging Section */}
+      <div className="mt-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MapPin className="w-5 h-5" />
+              My Location
+            </CardTitle>
+            <CardDescription>
+              Set your GPS location for visibility on the partner network map
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <LocationCapture
+              latitude={user.latitude}
+              longitude={user.longitude}
+              onLocationCaptured={handleLocationCaptured}
+              isLoading={locationMutation.isPending}
+            />
           </CardContent>
         </Card>
       </div>

@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { MapPin, Zap, Calendar, Camera, Video, Play, Sun, Users, Building, Clock, CheckCircle, Loader2 } from "lucide-react";
+import { MapPin, Zap, Calendar, Camera, Video, Play, Sun, Users, Building, Clock, CheckCircle, Loader2, Phone, Navigation } from "lucide-react";
 import type { Customer, User } from "@shared/schema";
 
 const INDIA_DISTRICT_COORDS: Record<string, { lat: number; lng: number }> = {
@@ -155,6 +155,9 @@ type PartnerMapData = {
   role: string;
   district: string | null;
   state: string | null;
+  latitude: string | null;
+  longitude: string | null;
+  phone: string | null;
 };
 
 type InstallationMapData = {
@@ -196,6 +199,9 @@ export default function NetworkMap() {
   const ddpPartners = partners?.filter(p => p.role === "ddp") || [];
 
   const getPartnerCoords = (partner: PartnerMapData): [number, number] | null => {
+    if (partner.latitude && partner.longitude) {
+      return [parseFloat(partner.latitude), parseFloat(partner.longitude)];
+    }
     if (partner.district && INDIA_DISTRICT_COORDS[partner.district]) {
       const coords = INDIA_DISTRICT_COORDS[partner.district];
       const jitter = (Math.random() - 0.5) * 0.1;
@@ -416,6 +422,7 @@ export default function NetworkMap() {
               {(activeTab === "all" || activeTab === "partners") && showPartners && bdpPartners.map((partner) => {
                 const coords = getPartnerCoords(partner);
                 if (!coords) return null;
+                const hasGPS = partner.latitude && partner.longitude;
                 return (
                   <Marker
                     key={`bdp-${partner.id}`}
@@ -427,12 +434,36 @@ export default function NetworkMap() {
                         <div className="font-bold text-blue-600">
                           Business Development Partner
                         </div>
-                        <Badge className="bg-blue-500">BDP</Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-blue-500">BDP</Badge>
+                          {hasGPS && (
+                            <Badge variant="outline" className="text-green-600 text-xs">
+                              <Navigation className="w-2 h-2 mr-1" />
+                              GPS
+                            </Badge>
+                          )}
+                        </div>
                         <div className="text-sm font-medium">{partner.name}</div>
+                        {partner.phone && (
+                          <div className="flex items-center gap-1 text-sm">
+                            <Phone className="w-3 h-3" />
+                            <a href={`tel:${partner.phone}`} className="text-blue-600">{partner.phone}</a>
+                          </div>
+                        )}
                         <div className="flex items-center gap-1 text-sm text-muted-foreground">
                           <MapPin className="w-3 h-3" />
                           <span>{partner.district}, {partner.state}</span>
                         </div>
+                        {hasGPS && (
+                          <a 
+                            href={`https://www.google.com/maps?q=${partner.latitude},${partner.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 underline"
+                          >
+                            Open in Google Maps
+                          </a>
+                        )}
                       </div>
                     </Popup>
                   </Marker>
@@ -442,6 +473,7 @@ export default function NetworkMap() {
               {(activeTab === "all" || activeTab === "partners") && showPartners && ddpPartners.map((partner) => {
                 const coords = getPartnerCoords(partner);
                 if (!coords) return null;
+                const hasGPS = partner.latitude && partner.longitude;
                 return (
                   <Marker
                     key={`ddp-${partner.id}`}
@@ -453,12 +485,36 @@ export default function NetworkMap() {
                         <div className="font-bold text-green-600">
                           District Development Partner
                         </div>
-                        <Badge className="bg-green-500">DDP</Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-green-500">DDP</Badge>
+                          {hasGPS && (
+                            <Badge variant="outline" className="text-green-600 text-xs">
+                              <Navigation className="w-2 h-2 mr-1" />
+                              GPS
+                            </Badge>
+                          )}
+                        </div>
                         <div className="text-sm font-medium">{partner.name}</div>
+                        {partner.phone && (
+                          <div className="flex items-center gap-1 text-sm">
+                            <Phone className="w-3 h-3" />
+                            <a href={`tel:${partner.phone}`} className="text-green-600">{partner.phone}</a>
+                          </div>
+                        )}
                         <div className="flex items-center gap-1 text-sm text-muted-foreground">
                           <MapPin className="w-3 h-3" />
                           <span>{partner.district}, {partner.state}</span>
                         </div>
+                        {hasGPS && (
+                          <a 
+                            href={`https://www.google.com/maps?q=${partner.latitude},${partner.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-green-600 underline"
+                          >
+                            Open in Google Maps
+                          </a>
+                        )}
                       </div>
                     </Popup>
                   </Marker>

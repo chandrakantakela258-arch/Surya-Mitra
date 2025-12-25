@@ -207,6 +207,10 @@ export interface IStorage {
   createBankAccount(bankAccount: InsertBankAccount): Promise<BankAccount>;
   updateBankAccount(partnerId: string, data: Partial<BankAccount>): Promise<BankAccount | undefined>;
   
+  // Location/GeoTagging operations
+  updateUserLocation(userId: string, latitude: string, longitude: string): Promise<User | undefined>;
+  getAllPartnersWithLocations(): Promise<User[]>;
+  
   // Payout operations
   getPayoutsByPartnerId(partnerId: string): Promise<Payout[]>;
   getAllPayouts(): Promise<Payout[]>;
@@ -1081,6 +1085,32 @@ export class DatabaseStorage implements IStorage {
       .where(eq(bankAccounts.partnerId, partnerId))
       .returning();
     return account || undefined;
+  }
+
+  // Location/GeoTagging operations
+  async updateUserLocation(userId: string, latitude: string, longitude: string): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ 
+        latitude, 
+        longitude, 
+        locationUpdatedAt: new Date() 
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user || undefined;
+  }
+
+  async getAllPartnersWithLocations(): Promise<User[]> {
+    return db
+      .select()
+      .from(users)
+      .where(
+        and(
+          or(eq(users.role, "bdp"), eq(users.role, "ddp")),
+          eq(users.status, "approved")
+        )
+      );
   }
 
   // Payout operations
