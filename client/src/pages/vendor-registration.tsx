@@ -237,10 +237,87 @@ export default function VendorRegistration() {
             </div>
           </div>
 
+          {/* Quick Navigation for Mobile */}
+          <div className="mb-6 overflow-x-auto pb-2">
+            <div className="flex gap-2 min-w-max">
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                onClick={() => document.getElementById('section-vendor-type')?.scrollIntoView({ behavior: 'smooth' })}
+                data-testid="nav-vendor-type"
+              >
+                <Package className="w-3 h-3 mr-1" />
+                Type
+              </Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                onClick={() => document.getElementById('section-personal')?.scrollIntoView({ behavior: 'smooth' })}
+                data-testid="nav-personal"
+              >
+                <User className="w-3 h-3 mr-1" />
+                Personal
+              </Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                onClick={() => document.getElementById('section-company')?.scrollIntoView({ behavior: 'smooth' })}
+                data-testid="nav-company"
+              >
+                <Building2 className="w-3 h-3 mr-1" />
+                Company
+              </Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                onClick={() => document.getElementById('section-location')?.scrollIntoView({ behavior: 'smooth' })}
+                data-testid="nav-location"
+              >
+                <MapPin className="w-3 h-3 mr-1" />
+                Location
+              </Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                onClick={() => document.getElementById('section-documents')?.scrollIntoView({ behavior: 'smooth' })}
+                data-testid="nav-documents"
+              >
+                <FileText className="w-3 h-3 mr-1" />
+                Documents
+              </Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                onClick={() => document.getElementById('section-bank')?.scrollIntoView({ behavior: 'smooth' })}
+                data-testid="nav-bank"
+              >
+                <Landmark className="w-3 h-3 mr-1" />
+                Bank
+              </Button>
+              <Button 
+                type="button" 
+                variant="default" 
+                size="sm" 
+                onClick={() => document.getElementById('section-quotation')?.scrollIntoView({ behavior: 'smooth' })}
+                className="bg-orange-500 hover:bg-orange-600"
+                data-testid="nav-quotation"
+              >
+                <CreditCard className="w-3 h-3 mr-1" />
+                Best Price Quote
+              </Button>
+            </div>
+          </div>
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               
-              <Card>
+              <Card id="section-vendor-type">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Package className="w-5 h-5" />
@@ -340,7 +417,7 @@ export default function VendorRegistration() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card id="section-personal">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <User className="w-5 h-5" />
@@ -456,7 +533,7 @@ export default function VendorRegistration() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card id="section-company">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Building2 className="w-5 h-5" />
@@ -507,7 +584,7 @@ export default function VendorRegistration() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card id="section-location">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <MapPin className="w-5 h-5" />
@@ -1039,7 +1116,7 @@ export default function VendorRegistration() {
               </Card>
               )}
 
-              <Card>
+              <Card id="section-documents">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <FileText className="w-5 h-5" />
@@ -1093,7 +1170,7 @@ export default function VendorRegistration() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card id="section-bank">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <CreditCard className="w-5 h-5" />
@@ -1179,7 +1256,7 @@ export default function VendorRegistration() {
               </Card>
 
               {selectedVendorType && vendorQuotationConfig[selectedVendorType] && (
-                <Card>
+                <Card id="section-quotation">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <CreditCard className="h-5 w-5 text-orange-500" />
@@ -1247,7 +1324,7 @@ export default function VendorRegistration() {
               )}
 
               {selectedVendorType && !vendorQuotationConfig[selectedVendorType] && (
-                <Card>
+                <Card id="section-quotation">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <CreditCard className="h-5 w-5 text-orange-500" />
