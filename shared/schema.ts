@@ -19,6 +19,10 @@ export const users = pgTable("users", {
   parentId: varchar("parent_id"), // For DDP, this is the BDP who onboarded them
   referralCode: text("referral_code").unique(), // Unique referral code for referral program
   linkedCustomerId: varchar("linked_customer_id"), // For customer_partner, links to their customer record
+  // GeoTagging for partner location
+  latitude: text("latitude"),
+  longitude: text("longitude"),
+  locationUpdatedAt: timestamp("location_updated_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
