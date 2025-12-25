@@ -2114,27 +2114,38 @@ export async function registerRoutes(
       result.details.push(`Installation complete milestone: ${installationCompleteMilestone ? "Yes" : "No"}`);
       result.details.push(`Customer source: ${customer.source || "partner"}`);
       result.details.push(`Customer DDP: ${customer.ddpId || "None"}`);
+      result.details.push(`Proposed capacity: ${customer.proposedCapacity || "NOT SET"}`);
+      result.details.push(`Panel type: ${customer.panelType || "NOT SET"}`);
       
       // Check and create commission if installation is complete and not already created
       if (installationCompleteMilestone) {
         const isIndependentCustomer = customer.source === "website_direct";
         
         if (!isIndependentCustomer && customer.ddpId) {
-          // Check if commission already exists
-          const existingCommissions = await storage.getCommissionsByPartnerId(customer.ddpId, "ddp");
-          const existingCommission = existingCommissions.find(c => c.customerId === customer.id);
-          
-          if (!existingCommission) {
-            const commissions = await storage.createCommissionForCustomer(customer.id, customer.ddpId);
-            if (commissions.ddpCommission) {
-              result.commissionCreated = true;
-              result.details.push(`DDP Commission created: Rs ${commissions.ddpCommission.commissionAmount}`);
-            }
-            if (commissions.bdpCommission) {
-              result.details.push(`BDP Commission created: Rs ${commissions.bdpCommission.commissionAmount}`);
-            }
+          // Check if customer has valid capacity - commission requires this
+          if (!customer.proposedCapacity) {
+            result.details.push("ERROR: Cannot create commission - proposedCapacity is missing!");
+            console.log(`[REPROCESS] Customer ${customer.name} missing proposedCapacity`);
           } else {
-            result.details.push(`Commission already exists: Rs ${existingCommission.commissionAmount}`);
+            // Check if commission already exists
+            const existingCommissions = await storage.getCommissionsByPartnerId(customer.ddpId, "ddp");
+            const existingCommission = existingCommissions.find(c => c.customerId === customer.id);
+            
+            if (!existingCommission) {
+              console.log(`[REPROCESS] Creating commission for customer ${customer.name}, capacity: ${customer.proposedCapacity}, ddpId: ${customer.ddpId}`);
+              const commissions = await storage.createCommissionForCustomer(customer.id, customer.ddpId);
+              if (commissions.ddpCommission) {
+                result.commissionCreated = true;
+                result.details.push(`DDP Commission created: Rs ${commissions.ddpCommission.commissionAmount}`);
+              } else {
+                result.details.push("DDP Commission NOT created - check logs");
+              }
+              if (commissions.bdpCommission) {
+                result.details.push(`BDP Commission created: Rs ${commissions.bdpCommission.commissionAmount}`);
+              }
+            } else {
+              result.details.push(`Commission already exists: Rs ${existingCommission.commissionAmount}`);
+            }
           }
         } else if (isIndependentCustomer) {
           result.details.push("Skipped commission: Independent customer (website_direct)");
