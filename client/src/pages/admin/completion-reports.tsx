@@ -616,7 +616,6 @@ export default function AdminCompletionReports() {
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="mb-4">
                 <TabsTrigger value="basic">Basic Info</TabsTrigger>
-                <TabsTrigger value="work">Work Details</TabsTrigger>
                 <TabsTrigger value="installation">Installation</TabsTrigger>
                 <TabsTrigger value="photos">Photos</TabsTrigger>
                 <TabsTrigger value="checklist">Checklists</TabsTrigger>
@@ -700,77 +699,6 @@ export default function AdminCompletionReports() {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="work" className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Work Summary</Label>
-                  <Textarea
-                    value={formData.workSummary}
-                    onChange={(e) => setFormData(prev => ({ ...prev, workSummary: e.target.value }))}
-                    rows={4}
-                    data-testid="input-work-summary"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Scope Completed As</Label>
-                    <Select value={formData.scopeCompletedAs} onValueChange={(v) => setFormData(prev => ({ ...prev, scopeCompletedAs: v }))}>
-                      <SelectTrigger data-testid="select-scope">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="as_planned">As Planned</SelectItem>
-                        <SelectItem value="with_modifications">With Modifications</SelectItem>
-                        <SelectItem value="partial">Partial Completion</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Total Work Hours</Label>
-                    <Input
-                      type="number"
-                      value={formData.totalWorkHours}
-                      onChange={(e) => setFormData(prev => ({ ...prev, totalWorkHours: e.target.value }))}
-                      data-testid="input-work-hours"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Deviations/Notes</Label>
-                  <Textarea
-                    value={formData.deviationsNotes}
-                    onChange={(e) => setFormData(prev => ({ ...prev, deviationsNotes: e.target.value }))}
-                    data-testid="input-deviations"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Materials Used</Label>
-                    <Textarea
-                      value={formData.materialsUsed}
-                      onChange={(e) => setFormData(prev => ({ ...prev, materialsUsed: e.target.value }))}
-                      data-testid="input-materials"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Extra Materials Used</Label>
-                    <Textarea
-                      value={formData.extraMaterialsUsed}
-                      onChange={(e) => setFormData(prev => ({ ...prev, extraMaterialsUsed: e.target.value }))}
-                      data-testid="input-extra-materials"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Crew Size</Label>
-                  <Input
-                    type="number"
-                    value={formData.crewSize}
-                    onChange={(e) => setFormData(prev => ({ ...prev, crewSize: e.target.value }))}
-                    data-testid="input-crew-size"
-                  />
                 </div>
               </TabsContent>
 
