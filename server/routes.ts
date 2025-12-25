@@ -1782,6 +1782,17 @@ export async function registerRoutes(
             }
           }
         }
+        
+        // Check if all 14 milestones are now completed - auto-update customer status
+        const allMilestones = await storage.getMilestonesByCustomerId(customer.id);
+        const completedMilestonesCount = allMilestones.filter(m => m.status === "completed").length;
+        const totalMilestones = 14; // 14 installation milestones
+        
+        if (completedMilestonesCount >= totalMilestones && customer.status !== "completed") {
+          // Update customer status to completed
+          await storage.updateCustomer(customer.id, { status: "completed" });
+          console.log(`Customer ${customer.name} (${customer.id}) journey completed - status updated to completed`);
+        }
       }
       
       res.json(milestone);
