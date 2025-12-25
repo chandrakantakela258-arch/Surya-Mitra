@@ -31,9 +31,18 @@ import {
   Video,
   Image,
   Clock,
+  Share2,
+  Copy,
+  Check,
 } from "lucide-react";
-import { SiFacebook, SiInstagram } from "react-icons/si";
+import { SiFacebook, SiInstagram, SiWhatsapp, SiX } from "react-icons/si";
 import { useToast } from "@/hooks/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { CustomerTestimonial } from "@shared/schema";
 
@@ -49,6 +58,82 @@ export default function AdminTestimonials() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedTestimonial, setSelectedTestimonial] = useState<CustomerTestimonial | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const getShareText = (testimonial: CustomerTestimonial) => {
+    const rating = testimonial.rating ? `${"*".repeat(testimonial.rating)} (${testimonial.rating}/5 stars)` : "";
+    const text = testimonial.testimonialText 
+      ? `"${testimonial.testimonialText.slice(0, 200)}${testimonial.testimonialText.length > 200 ? "..." : ""}"`
+      : "";
+    const capacity = testimonial.installedCapacity ? `${testimonial.installedCapacity} kW Solar System` : "Solar System";
+    
+    return `${testimonial.customerName} from ${testimonial.customerDistrict}, ${testimonial.customerState} installed a ${capacity} under PM Surya Ghar Yojana! ${rating}\n\n${text}\n\n#PMSuryaGhar #SolarEnergy #DivyanshiSolar #GreenEnergy #RenewableEnergy`;
+  };
+
+  const handleShareFacebook = (testimonial: CustomerTestimonial) => {
+    const shareText = encodeURIComponent(getShareText(testimonial));
+    const url = `https://www.facebook.com/sharer/sharer.php?quote=${shareText}`;
+    window.open(url, "_blank", "width=600,height=400");
+    toast({ title: "Opening Facebook share" });
+  };
+
+  const handleShareWhatsApp = (testimonial: CustomerTestimonial) => {
+    const shareText = encodeURIComponent(getShareText(testimonial));
+    const url = `https://wa.me/?text=${shareText}`;
+    window.open(url, "_blank");
+    toast({ title: "Opening WhatsApp share" });
+  };
+
+  const handleShareTwitter = (testimonial: CustomerTestimonial) => {
+    const shareText = encodeURIComponent(getShareText(testimonial).slice(0, 280));
+    const url = `https://twitter.com/intent/tweet?text=${shareText}`;
+    window.open(url, "_blank", "width=600,height=400");
+    toast({ title: "Opening X (Twitter) share" });
+  };
+
+  const handleCopyToClipboard = async (testimonial: CustomerTestimonial) => {
+    try {
+      await navigator.clipboard.writeText(getShareText(testimonial));
+      setCopiedId(testimonial.id);
+      toast({ title: "Copied to clipboard" });
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      toast({ title: "Failed to copy", variant: "destructive" });
+    }
+  };
+
+  const ShareDropdown = ({ testimonial, size = "sm" }: { testimonial: CustomerTestimonial; size?: "sm" | "default" }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size={size} data-testid={`button-share-${testimonial.id}`}>
+          <Share2 className="h-4 w-4 mr-1" />
+          Share
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => handleShareFacebook(testimonial)} data-testid={`share-facebook-${testimonial.id}`}>
+          <SiFacebook className="h-4 w-4 mr-2 text-blue-600" />
+          Share on Facebook
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleShareWhatsApp(testimonial)} data-testid={`share-whatsapp-${testimonial.id}`}>
+          <SiWhatsapp className="h-4 w-4 mr-2 text-green-500" />
+          Share on WhatsApp
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleShareTwitter(testimonial)} data-testid={`share-twitter-${testimonial.id}`}>
+          <SiX className="h-4 w-4 mr-2" />
+          Share on X (Twitter)
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleCopyToClipboard(testimonial)} data-testid={`share-copy-${testimonial.id}`}>
+          {copiedId === testimonial.id ? (
+            <Check className="h-4 w-4 mr-2 text-green-500" />
+          ) : (
+            <Copy className="h-4 w-4 mr-2" />
+          )}
+          Copy to Clipboard
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   const { data: testimonials, isLoading } = useQuery<CustomerTestimonial[]>({
     queryKey: ["/api/admin/testimonials"],
@@ -255,16 +340,21 @@ export default function AdminTestimonials() {
                       {testimonial.sharedOnInstagram && <SiInstagram className="h-3 w-3" />}
                       <span>{new Date(testimonial.createdAt!).toLocaleDateString("en-IN")}</span>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => setSelectedTestimonial(testimonial)}
-                      data-testid={`button-view-${testimonial.id}`}
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      View Details
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => setSelectedTestimonial(testimonial)}
+                        data-testid={`button-view-${testimonial.id}`}
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        View
+                      </Button>
+                      {(testimonial.status === "approved" || testimonial.status === "featured") && (
+                        <ShareDropdown testimonial={testimonial} />
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               ))}
