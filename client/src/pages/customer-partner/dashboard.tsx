@@ -71,14 +71,17 @@ export default function CustomerPartnerDashboard() {
 
   const shareReferralLink = () => {
     const referralLink = `${window.location.origin}/customer-registration?ref=${stats?.referralCode}`;
+    const websiteUrl = "https://divyanshisolar.com/";
+    const hashtags = "#DivyanshiSolar #PMSuryaGhar #SolarEnergy #RooftopSolar #GreenEnergy #MakeInIndia";
     if (navigator.share) {
       navigator.share({
         title: "Join Divyanshi Solar",
-        text: `Use my referral code ${stats?.referralCode} to get solar installation benefits!`,
+        text: `Use my referral code ${stats?.referralCode} to get solar installation benefits!\n\nRegister: ${referralLink}\nWebsite: ${websiteUrl}\n\n${hashtags}`,
         url: referralLink,
       });
     } else {
-      navigator.clipboard.writeText(referralLink);
+      const shareText = `Use my referral code ${stats?.referralCode} to get solar installation benefits!\n\nRegister: ${referralLink}\nWebsite: ${websiteUrl}\n\n${hashtags}`;
+      navigator.clipboard.writeText(shareText);
       toast({
         title: "Link Copied!",
         description: "Referral link copied to clipboard",

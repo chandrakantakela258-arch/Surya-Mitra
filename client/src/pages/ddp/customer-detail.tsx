@@ -1,6 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute, useLocation, Link } from "wouter";
-import { ArrowLeft, User, MapPin, Zap, Home, Phone, Mail, FileText, CheckCircle, Circle, Clock, Loader2, Camera, Video, X, Upload, Image, Play } from "lucide-react";
+import { ArrowLeft, User, MapPin, Zap, Home, Phone, Mail, FileText, CheckCircle, Circle, Clock, Loader2, Camera, Video, X, Upload, Image, Play, Share2 } from "lucide-react";
+import { InstallationShareCard } from "@/components/social-share";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -202,20 +203,25 @@ function SiteMediaUpload({ customer }: { customer: Customer }) {
   
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Camera className="w-5 h-5 text-primary" />
-          Site Media
-        </CardTitle>
-        <CardDescription>
-          Upload site pictures (6 angles) and highlight video (9:16, max 60 sec)
-          {customer.latitude && customer.longitude && (
-            <span className="block mt-1 text-xs">
-              <MapPin className="w-3 h-3 inline mr-1" />
-              GPS: {parseFloat(customer.latitude).toFixed(4)}, {parseFloat(customer.longitude).toFixed(4)}
-            </span>
-          )}
-        </CardDescription>
+      <CardHeader className="flex flex-row items-start justify-between gap-4">
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            <Camera className="w-5 h-5 text-primary" />
+            Site Media
+          </CardTitle>
+          <CardDescription>
+            Upload site pictures (6 angles) and highlight video (9:16, max 60 sec)
+            {customer.latitude && customer.longitude && (
+              <span className="block mt-1 text-xs">
+                <MapPin className="w-3 h-3 inline mr-1" />
+                GPS: {parseFloat(customer.latitude).toFixed(4)}, {parseFloat(customer.longitude).toFixed(4)}
+              </span>
+            )}
+          </CardDescription>
+        </div>
+        {sitePictures.length > 0 && (
+          <InstallationShareCard customer={customer} />
+        )}
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-3">

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
-import { Plus, Search, Download, MoreVertical, Users, Eye, User, Camera, Sparkles, TrendingUp, AlertCircle, ThermometerSun } from "lucide-react";
+import { Plus, Search, Download, MoreVertical, Users, Eye, User, Camera, Sparkles, TrendingUp, AlertCircle, ThermometerSun, Share2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

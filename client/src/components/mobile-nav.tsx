@@ -21,12 +21,19 @@ import {
   MessageSquare,
   Truck,
   ClipboardCheck,
-  MessagesSquare
+  MessagesSquare,
+  Share2,
+  Globe
 } from "lucide-react";
+import { SiFacebook, SiX, SiWhatsapp } from "react-icons/si";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
+
+const WEBSITE_URL = "https://divyanshisolar.com/";
+const HASHTAGS = "#DivyanshiSolar #PMSuryaGhar #SolarEnergy #RooftopSolar #GreenEnergy #MakeInIndia";
 
 interface NavItem {
   icon: any;
@@ -84,8 +91,31 @@ export function MobileNav() {
   const [location, setLocation] = useLocation();
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const { toast } = useToast();
 
   if (!user) return null;
+
+  const shareText = `Join Divyanshi Solar - India's trusted partner for PM Surya Ghar Muft Bijli Yojana! Get FREE rooftop solar installation with government subsidy.\n\nVisit: ${WEBSITE_URL}\n\n${HASHTAGS}`;
+  const encodedText = encodeURIComponent(shareText);
+
+  const shareToFacebook = () => {
+    const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(WEBSITE_URL)}&quote=${encodedText}`;
+    window.open(fbUrl, "_blank", "width=600,height=400");
+  };
+
+  const shareToTwitter = () => {
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodedText}`;
+    window.open(twitterUrl, "_blank", "width=600,height=400");
+  };
+
+  const shareToWhatsApp = () => {
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodedText}`;
+    window.open(whatsappUrl, "_blank");
+  };
+
+  const openWebsite = () => {
+    window.open(WEBSITE_URL, "_blank");
+  };
 
   // Bottom nav items (first 4 shown)
   const navItems = user.role === "admin" 
@@ -176,6 +206,48 @@ export function MobileNav() {
                   </Link>
                 );
               })}
+            </div>
+            <Separator className="my-4" />
+            <div className="px-3 mb-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Share & Connect</p>
+            </div>
+            <div className="space-y-1">
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3 px-3"
+                onClick={openWebsite}
+                data-testid="button-mobile-website"
+              >
+                <Globe className="h-5 w-5 text-primary" />
+                <span className="font-medium">Visit Website</span>
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3 px-3"
+                onClick={shareToWhatsApp}
+                data-testid="button-mobile-share-whatsapp"
+              >
+                <SiWhatsapp className="h-5 w-5 text-green-500" />
+                <span className="font-medium">Share on WhatsApp</span>
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3 px-3"
+                onClick={shareToFacebook}
+                data-testid="button-mobile-share-facebook"
+              >
+                <SiFacebook className="h-5 w-5 text-blue-600" />
+                <span className="font-medium">Share on Facebook</span>
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3 px-3"
+                onClick={shareToTwitter}
+                data-testid="button-mobile-share-twitter"
+              >
+                <SiX className="h-5 w-5" />
+                <span className="font-medium">Share on X (Twitter)</span>
+              </Button>
             </div>
             <Separator className="my-4" />
             <div className="space-y-1">

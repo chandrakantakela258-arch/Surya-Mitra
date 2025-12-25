@@ -49,12 +49,13 @@ export default function ReferralsPage() {
   const shareReferral = async () => {
     const shareUrl = `${window.location.origin}/register?ref=${referralCode?.code}`;
     const websiteUrl = "https://divyanshisolar.com/";
+    const hashtags = "#DivyanshiSolar #PMSuryaGhar #SolarEnergy #RooftopSolar #GreenEnergy #MakeInIndia";
     
     if (navigator.share) {
       try {
         await navigator.share({
           title: "Join Divyanshi Solar",
-          text: `Use my referral code ${referralCode?.code} to join Divyanshi Solar and get rewards! Visit our website: ${websiteUrl}`,
+          text: `Use my referral code ${referralCode?.code} to join Divyanshi Solar and get rewards!\n\nVisit our website: ${websiteUrl}\n\n${hashtags}`,
           url: shareUrl,
         });
       } catch (error) {
@@ -274,12 +275,13 @@ export default function ReferralsPage() {
               <p>Use my referral code <strong>{referralCode?.code}</strong> to join Divyanshi Solar and get rewards!</p>
               <p className="mt-2">Register here: {window.location.origin}/register?ref={referralCode?.code}</p>
               <p className="mt-1">Visit our website: https://divyanshisolar.com/</p>
+              <p className="mt-2 text-muted-foreground">#DivyanshiSolar #PMSuryaGhar #SolarEnergy #RooftopSolar #GreenEnergy #MakeInIndia</p>
             </div>
             <div className="flex gap-2">
               <Button
                 className="flex-1"
                 onClick={async () => {
-                  const shareText = `Use my referral code ${referralCode?.code} to join Divyanshi Solar and get rewards!\n\nRegister here: ${window.location.origin}/register?ref=${referralCode?.code}\n\nVisit our website: https://divyanshisolar.com/`;
+                  const shareText = `Use my referral code ${referralCode?.code} to join Divyanshi Solar and get rewards!\n\nRegister here: ${window.location.origin}/register?ref=${referralCode?.code}\n\nVisit our website: https://divyanshisolar.com/\n\n#DivyanshiSolar #PMSuryaGhar #SolarEnergy #RooftopSolar #GreenEnergy #MakeInIndia`;
                   await navigator.clipboard.writeText(shareText);
                   toast({ title: "Message copied!" });
                   setShowShareDialog(false);
