@@ -907,31 +907,31 @@ export default function LandingPage() {
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-10">
             <Card>
               <CardContent className="p-4 text-center">
-                <div className="text-xl font-bold text-primary" data-testid="text-national-applications">54,45,589</div>
+                <div className="text-xl font-bold text-primary" data-testid="text-national-applications">55,08,964</div>
                 <div className="text-xs text-muted-foreground">Applications (India)</div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4 text-center">
-                <div className="text-xl font-bold text-primary" data-testid="text-national-installations">20,12,203</div>
+                <div className="text-xl font-bold text-primary" data-testid="text-national-installations">20,48,049</div>
                 <div className="text-xs text-muted-foreground">Installations</div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4 text-center">
-                <div className="text-xl font-bold text-primary" data-testid="text-national-households">25,12,142</div>
+                <div className="text-xl font-bold text-primary" data-testid="text-national-households">25,59,209</div>
                 <div className="text-xs text-muted-foreground">Households Covered</div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4 text-center">
-                <div className="text-xl font-bold text-primary" data-testid="text-national-capacity">7,442.81 MW</div>
+                <div className="text-xl font-bold text-primary" data-testid="text-national-capacity">7,569.86 MW</div>
                 <div className="text-xs text-muted-foreground">Capacity Installed</div>
               </CardContent>
             </Card>
             <Card className="col-span-2 lg:col-span-1">
               <CardContent className="p-4 text-center">
-                <div className="text-xl font-bold text-primary" data-testid="text-national-subsidy">Rs 14,361.31 Cr</div>
+                <div className="text-xl font-bold text-primary" data-testid="text-national-subsidy">Rs 14,709.86 Cr</div>
                 <div className="text-xs text-muted-foreground">Subsidy Released</div>
               </CardContent>
             </Card>
@@ -988,28 +988,28 @@ export default function LandingPage() {
                   </div>
                   <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                     <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <div className="text-xl font-bold" data-testid="text-bihar-applications">54,075</div>
+                      <div className="text-xl font-bold" data-testid="text-bihar-applications">54,519</div>
                       <div className="text-xs text-muted-foreground">Applications</div>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <div className="text-xl font-bold" data-testid="text-bihar-installations">13,953</div>
+                      <div className="text-xl font-bold" data-testid="text-bihar-installations">14,112</div>
                       <div className="text-xs text-muted-foreground">Installations</div>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <div className="text-xl font-bold" data-testid="text-bihar-households">14,601</div>
+                      <div className="text-xl font-bold" data-testid="text-bihar-households">14,760</div>
                       <div className="text-xs text-muted-foreground">Households Covered</div>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <div className="text-xl font-bold" data-testid="text-bihar-capacity">50.14 MW</div>
+                      <div className="text-xl font-bold" data-testid="text-bihar-capacity">50.73 MW</div>
                       <div className="text-xs text-muted-foreground">Capacity Installed</div>
                     </div>
                     <div className="p-4 bg-primary/10 rounded-lg text-center col-span-2 lg:col-span-1">
-                      <div className="text-xl font-bold text-primary" data-testid="text-bihar-subsidy">Rs 99.33 Cr</div>
+                      <div className="text-xl font-bold text-primary" data-testid="text-bihar-subsidy">Rs 101.48 Cr</div>
                       <div className="text-xs text-muted-foreground">Subsidy Released</div>
                     </div>
                   </div>
                   <p className="text-muted-foreground">
-                    Bihar is making strong progress under PM Surya Ghar Yojana with over 54,000 applications and nearly 14,000 installations completed. 
+                    Bihar is making strong progress under PM Surya Ghar Yojana with over 54,519 applications and nearly 14,000 installations completed. 
                     Our partner network covers major districts including Patna, Gaya, Bhagalpur, and Muzaffarpur.
                   </p>
                 </CardContent>
@@ -1030,28 +1030,28 @@ export default function LandingPage() {
                   </div>
                   <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                     <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <div className="text-xl font-bold" data-testid="text-jharkhand-applications">7,553</div>
+                      <div className="text-xl font-bold" data-testid="text-jharkhand-applications">7,645</div>
                       <div className="text-xs text-muted-foreground">Applications</div>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <div className="text-xl font-bold" data-testid="text-jharkhand-installations">1,372</div>
+                      <div className="text-xl font-bold" data-testid="text-jharkhand-installations">1,413</div>
                       <div className="text-xs text-muted-foreground">Installations</div>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <div className="text-xl font-bold" data-testid="text-jharkhand-households">1,374</div>
+                      <div className="text-xl font-bold" data-testid="text-jharkhand-households">1,415</div>
                       <div className="text-xs text-muted-foreground">Households Covered</div>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <div className="text-xl font-bold" data-testid="text-jharkhand-capacity">5.49 MW</div>
+                      <div className="text-xl font-bold" data-testid="text-jharkhand-capacity">5.65 MW</div>
                       <div className="text-xs text-muted-foreground">Capacity Installed</div>
                     </div>
                     <div className="p-4 bg-primary/10 rounded-lg text-center col-span-2 lg:col-span-1">
-                      <div className="text-xl font-bold text-primary" data-testid="text-jharkhand-subsidy">Rs 9.32 Cr</div>
+                      <div className="text-xl font-bold text-primary" data-testid="text-jharkhand-subsidy">Rs 9.71 Cr</div>
                       <div className="text-xs text-muted-foreground">Subsidy Released</div>
                     </div>
                   </div>
                   <p className="text-muted-foreground">
-                    Jharkhand is steadily growing under PM Surya Ghar Yojana with over 7,500 applications and 1,372 installations completed. 
+                    Jharkhand is steadily growing under PM Surya Ghar Yojana with over 7,645 applications and 1,372 installations completed. 
                     Our network is expanding in Ranchi, Jamshedpur, Dhanbad, and Bokaro regions.
                   </p>
                 </CardContent>
@@ -1072,28 +1072,28 @@ export default function LandingPage() {
                   </div>
                   <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                     <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <div className="text-xl font-bold" data-testid="text-up-applications">10,06,682</div>
+                      <div className="text-xl font-bold" data-testid="text-up-applications">10,17,242</div>
                       <div className="text-xs text-muted-foreground">Applications</div>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <div className="text-xl font-bold" data-testid="text-up-installations">3,12,953</div>
+                      <div className="text-xl font-bold" data-testid="text-up-installations">3,18,973</div>
                       <div className="text-xs text-muted-foreground">Installations</div>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <div className="text-xl font-bold" data-testid="text-up-households">3,16,267</div>
+                      <div className="text-xl font-bold" data-testid="text-up-households">3,22,287</div>
                       <div className="text-xs text-muted-foreground">Households Covered</div>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <div className="text-xl font-bold" data-testid="text-up-capacity">1,078.93 MW</div>
+                      <div className="text-xl font-bold" data-testid="text-up-capacity">1,098.77 MW</div>
                       <div className="text-xs text-muted-foreground">Capacity Installed</div>
                     </div>
                     <div className="p-4 bg-primary/10 rounded-lg text-center col-span-2 lg:col-span-1">
-                      <div className="text-xl font-bold text-primary" data-testid="text-up-subsidy">Rs 2,162.79 Cr</div>
+                      <div className="text-xl font-bold text-primary" data-testid="text-up-subsidy">Rs 2,218.79 Cr</div>
                       <div className="text-xs text-muted-foreground">Subsidy Released</div>
                     </div>
                   </div>
                   <p className="text-muted-foreground">
-                    Uttar Pradesh leads with over 10 lakh applications and 3.12 lakh installations. The state offers an additional 
+                    Uttar Pradesh leads with over 10 lakh applications and 3.22 lakh installations. The state offers an additional 
                     Rs 10,000/kW subsidy. We operate across Lucknow, Varanasi, Agra, Kanpur, and more.
                   </p>
                 </CardContent>
@@ -1114,28 +1114,28 @@ export default function LandingPage() {
                   </div>
                   <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                     <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <div className="text-xl font-bold" data-testid="text-odisha-applications">1,50,935</div>
+                      <div className="text-xl font-bold" data-testid="text-odisha-applications">1,54,068</div>
                       <div className="text-xs text-muted-foreground">Applications</div>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <div className="text-xl font-bold" data-testid="text-odisha-installations">25,544</div>
+                      <div className="text-xl font-bold" data-testid="text-odisha-installations">26,558</div>
                       <div className="text-xs text-muted-foreground">Installations</div>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <div className="text-xl font-bold" data-testid="text-odisha-households">25,892</div>
+                      <div className="text-xl font-bold" data-testid="text-odisha-households">26,906</div>
                       <div className="text-xs text-muted-foreground">Households Covered</div>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg text-center">
-                      <div className="text-xl font-bold" data-testid="text-odisha-capacity">83.1 MW</div>
+                      <div className="text-xl font-bold" data-testid="text-odisha-capacity">86.18 MW</div>
                       <div className="text-xs text-muted-foreground">Capacity Installed</div>
                     </div>
                     <div className="p-4 bg-primary/10 rounded-lg text-center col-span-2 lg:col-span-1">
-                      <div className="text-xl font-bold text-primary" data-testid="text-odisha-subsidy">Rs 158.07 Cr</div>
+                      <div className="text-xl font-bold text-primary" data-testid="text-odisha-subsidy">Rs 170.35 Cr</div>
                       <div className="text-xs text-muted-foreground">Subsidy Released</div>
                     </div>
                   </div>
                   <p className="text-muted-foreground">
-                    Odisha has 1.5 lakh applications with 25,544 installations completed. The state offers the highest additional 
+                    Odisha has 1.54 lakh applications with 25,544 installations completed. The state offers the highest additional 
                     subsidy of Rs 20,000/kW. Our network covers Bhubaneswar, Cuttack, Rourkela, and Puri.
                   </p>
                 </CardContent>
