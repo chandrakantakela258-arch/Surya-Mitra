@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,30 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sun, IndianRupee, Zap, TrendingDown, MapPin, BatteryCharging, Power, Check, Users, Home, Building2, Factory, FileText, Share2, Mail, MessageCircle, Download, Wallet } from "lucide-react";
 import { indianStates } from "@shared/schema";
 import { jsPDF } from "jspdf";
+import pmSuryaGharImage from "@assets/PM_Surya_Ghar_Yojana_-_Bluebird_Solar_ce42b9b9-5592-4660-b4f5_1766775803880.webp";
+
+// Helper function to load image and convert to base64
+const loadImageAsBase64 = (imageSrc: string): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0);
+        const dataURL = canvas.toDataURL('image/png');
+        resolve(dataURL);
+      } else {
+        reject(new Error('Failed to get canvas context'));
+      }
+    };
+    img.onerror = () => reject(new Error('Failed to load image'));
+    img.src = imageSrc;
+  });
+};
 
 const stateSubsidies: Record<string, { ratePerKw: number; maxSubsidy: number; label: string }> = {
   "Odisha": { ratePerKw: 20000, maxSubsidy: 60000, label: "Odisha State Subsidy" },
@@ -251,6 +275,7 @@ interface ProposalData {
   customerName: string;
   partnerName: string;
   partnerPhone: string;
+  installationAddress: string;
   capacity: number;
   panelType: string;
   inverterType: string;
@@ -275,8 +300,11 @@ interface ProposalData {
   state: string;
   ratePerWatt: number;
   emi36Months: number;
+  emi48Months: number;
   emi60Months: number;
+  emi72Months: number;
   emi84Months: number;
+  pmSuryaGharImageData?: string;
 }
 
 function generateProposalPDF(data: ProposalData): jsPDF {
@@ -294,7 +322,7 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   const blueColor: [number, number, number] = [41, 98, 255];
   const whiteColor: [number, number, number] = [255, 255, 255];
   
-  const totalPages = 7;
+  const totalPages = 8;
   
   const addHeader = (pageNum: number, sectionTitle: string) => {
     doc.setFillColor(...primaryColor);
@@ -331,126 +359,172 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   };
   
   // ========== PAGE 1: COVER PAGE ==========
-  // Full orange header
+  // Add PM Surya Ghar Yojana image at the top if available
+  let headerEndY = 0;
+  if (data.pmSuryaGharImageData) {
+    try {
+      // Image dimensions: original is ~900x600, we'll scale proportionally
+      const imgWidth = pageWidth;
+      const imgHeight = 55; // Reduced height for header banner
+      doc.addImage(data.pmSuryaGharImageData, 'PNG', 0, 0, imgWidth, imgHeight);
+      headerEndY = imgHeight;
+    } catch (e) {
+      console.error('Failed to add image to PDF:', e);
+      headerEndY = 0;
+    }
+  }
+  
+  // Company branding section below image
+  const brandingY = headerEndY > 0 ? headerEndY : 0;
   doc.setFillColor(...primaryColor);
-  doc.rect(0, 0, pageWidth, 70, 'F');
+  doc.rect(0, brandingY, pageWidth, 35, 'F');
   
   doc.setTextColor(...whiteColor);
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "italic");
-  doc.text("\"For us Customers are not clients - They are Family\"", pageWidth / 2, 18, { align: "center" });
-  
-  doc.setFontSize(26);
+  doc.setFontSize(20);
   doc.setFont("helvetica", "bold");
-  doc.text("DIVYANSHI SOLAR", pageWidth / 2, 42, { align: "center" });
+  doc.text("DIVYANSHI SOLAR", pageWidth / 2, brandingY + 15, { align: "center" });
   
-  doc.setFontSize(11);
+  doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text("PM Surya Ghar Yojana Authorized Partner", pageWidth / 2, 56, { align: "center" });
+  doc.text("(Divyanshi Digital Services Pvt. Ltd.)", pageWidth / 2, brandingY + 24, { align: "center" });
+  
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "italic");
+  doc.text("\"For us Customers are not clients - They are Family\"", pageWidth / 2, brandingY + 32, { align: "center" });
   
   // Main title
-  let y = 100;
+  let y = brandingY + 50;
   doc.setTextColor(...darkColor);
-  doc.setFontSize(32);
+  doc.setFontSize(26);
   doc.setFont("helvetica", "bold");
-  doc.text("SOLAR ROOFTOP", pageWidth / 2, y, { align: "center" });
-  doc.text("SYSTEM PROPOSAL", pageWidth / 2, y + 14, { align: "center" });
+  doc.text("SOLAR ROOFTOP SYSTEM PROPOSAL", pageWidth / 2, y, { align: "center" });
   
   // Decorative line
-  y = 125;
+  y += 8;
   doc.setDrawColor(...primaryColor);
-  doc.setLineWidth(2);
-  doc.line(pageWidth / 2 - 40, y, pageWidth / 2 + 40, y);
+  doc.setLineWidth(3);
+  doc.line(pageWidth / 2 - 60, y, pageWidth / 2 + 60, y);
   
-  // Customer details grid
-  y = 145;
-  const boxWidth = 85;
-  const boxHeight = 38;
-  const boxGap = 10;
+  // Customer details grid with prominent borders
+  y += 18;
+  const boxWidth = 82;
+  const boxHeight = 36;
+  const boxGap = 8;
   const leftX = (pageWidth - (boxWidth * 2 + boxGap)) / 2;
   const rightX = leftX + boxWidth + boxGap;
   
-  // Row 1
-  doc.setFillColor(248, 248, 248);
-  doc.roundedRect(leftX, y, boxWidth, boxHeight, 3, 3, 'F');
-  doc.roundedRect(rightX, y, boxWidth, boxHeight, 3, 3, 'F');
+  // Row 1 - Customer Name & Location
+  doc.setFillColor(255, 250, 245);
+  doc.roundedRect(leftX, y, boxWidth, boxHeight, 4, 4, 'F');
+  doc.roundedRect(rightX, y, boxWidth, boxHeight, 4, 4, 'F');
+  doc.setDrawColor(...primaryColor);
+  doc.setLineWidth(1);
+  doc.roundedRect(leftX, y, boxWidth, boxHeight, 4, 4, 'S');
+  doc.roundedRect(rightX, y, boxWidth, boxHeight, 4, 4, 'S');
   
-  doc.setTextColor(...lightGray);
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
-  doc.text("PREPARED FOR", leftX + 8, y + 12);
-  doc.text("LOCATION", rightX + 8, y + 12);
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.text("PREPARED FOR", leftX + 6, y + 10);
+  doc.text("STATE", rightX + 6, y + 10);
   
   doc.setTextColor(...darkColor);
-  doc.setFontSize(12);
+  doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text(data.customerName || "Valued Customer", leftX + 8, y + 28);
-  doc.text(data.state || "India", rightX + 8, y + 28);
+  doc.text(data.customerName || "Valued Customer", leftX + 6, y + 25);
+  doc.text(data.state || "India", rightX + 6, y + 25);
   
-  // Row 2
-  y += boxHeight + 8;
-  doc.setFillColor(248, 248, 248);
-  doc.roundedRect(leftX, y, boxWidth, boxHeight, 3, 3, 'F');
-  doc.roundedRect(rightX, y, boxWidth, boxHeight, 3, 3, 'F');
+  // Row 2 - Capacity & Date
+  y += boxHeight + 6;
+  doc.setFillColor(255, 250, 245);
+  doc.roundedRect(leftX, y, boxWidth, boxHeight, 4, 4, 'F');
+  doc.roundedRect(rightX, y, boxWidth, boxHeight, 4, 4, 'F');
+  doc.setDrawColor(...primaryColor);
+  doc.roundedRect(leftX, y, boxWidth, boxHeight, 4, 4, 'S');
+  doc.roundedRect(rightX, y, boxWidth, boxHeight, 4, 4, 'S');
   
-  doc.setTextColor(...lightGray);
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
-  doc.text("SYSTEM CAPACITY", leftX + 8, y + 12);
-  doc.text("PROPOSAL DATE", rightX + 8, y + 12);
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.text("SYSTEM CAPACITY", leftX + 6, y + 10);
+  doc.text("PROPOSAL DATE", rightX + 6, y + 10);
   
   doc.setTextColor(...darkColor);
-  doc.setFontSize(12);
+  doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text(`${data.capacity} kWp`, leftX + 8, y + 28);
-  doc.text(new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }), rightX + 8, y + 28);
+  doc.text(`${data.capacity} kWp`, leftX + 6, y + 25);
+  doc.text(new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }), rightX + 6, y + 25);
   
-  // Row 3
-  y += boxHeight + 8;
-  doc.setFillColor(248, 248, 248);
-  doc.roundedRect(leftX, y, boxWidth, boxHeight, 3, 3, 'F');
-  doc.roundedRect(rightX, y, boxWidth, boxHeight, 3, 3, 'F');
+  // Row 3 - Property & System Type
+  y += boxHeight + 6;
+  doc.setFillColor(255, 250, 245);
+  doc.roundedRect(leftX, y, boxWidth, boxHeight, 4, 4, 'F');
+  doc.roundedRect(rightX, y, boxWidth, boxHeight, 4, 4, 'F');
+  doc.setDrawColor(...primaryColor);
+  doc.roundedRect(leftX, y, boxWidth, boxHeight, 4, 4, 'S');
+  doc.roundedRect(rightX, y, boxWidth, boxHeight, 4, 4, 'S');
   
-  doc.setTextColor(...lightGray);
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
-  doc.text("PROPERTY TYPE", leftX + 8, y + 12);
-  doc.text("SYSTEM TYPE", rightX + 8, y + 12);
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.text("PROPERTY TYPE", leftX + 6, y + 10);
+  doc.text("SYSTEM TYPE", rightX + 6, y + 10);
   
   doc.setTextColor(...darkColor);
-  doc.setFontSize(12);
+  doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text(data.customerType.charAt(0).toUpperCase() + data.customerType.slice(1), leftX + 8, y + 28);
-  doc.text(data.inverterType === "hybrid" ? "Hybrid Inverter" : "Ongrid Inverter", rightX + 8, y + 28);
+  doc.text(data.customerType.charAt(0).toUpperCase() + data.customerType.slice(1), leftX + 6, y + 25);
+  doc.text(data.inverterType === "hybrid" ? "Hybrid Inverter" : "Ongrid Inverter", rightX + 6, y + 25);
+  
+  // Installation Address Section (if provided)
+  if (data.installationAddress) {
+    y += boxHeight + 10;
+    doc.setFillColor(240, 255, 240);
+    doc.roundedRect(margin, y, contentWidth, 28, 4, 4, 'F');
+    doc.setDrawColor(...greenColor);
+    doc.setLineWidth(1.5);
+    doc.roundedRect(margin, y, contentWidth, 28, 4, 4, 'S');
+    
+    doc.setTextColor(...greenColor);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.text("PROPOSED PLANT INSTALLATION SITE", margin + 10, y + 10);
+    
+    doc.setTextColor(...darkColor);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    const addressLines = doc.splitTextToSize(data.installationAddress, contentWidth - 20);
+    doc.text(addressLines.slice(0, 2), margin + 10, y + 20);
+  }
   
   // Partner info section (if provided)
   if (data.partnerName || data.partnerPhone) {
-    y = pageHeight - 85;
+    y = pageHeight - 88;
     doc.setFillColor(240, 248, 255);
-    doc.roundedRect(margin, y, contentWidth, 25, 3, 3, 'F');
+    doc.roundedRect(margin, y, contentWidth, 28, 4, 4, 'F');
     doc.setDrawColor(...blueColor);
-    doc.setLineWidth(0.5);
-    doc.roundedRect(margin, y, contentWidth, 25, 3, 3, 'S');
+    doc.setLineWidth(1.5);
+    doc.roundedRect(margin, y, contentWidth, 28, 4, 4, 'S');
     
     doc.setTextColor(...blueColor);
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
-    doc.text("Your District Partner", margin + 10, y + 10);
+    doc.text("YOUR DISTRICT PARTNER", margin + 10, y + 10);
     
     doc.setTextColor(...darkColor);
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     const partnerInfo = data.partnerName ? `${data.partnerName}${data.partnerPhone ? ` | +91-${data.partnerPhone}` : ''}` : `+91-${data.partnerPhone}`;
-    doc.text(partnerInfo, margin + 10, y + 19);
+    doc.text(partnerInfo, margin + 10, y + 21);
   }
   
-  // Bottom info box
+  // Bottom info box - Panel & System details
   y = pageHeight - 55;
   doc.setFillColor(255, 248, 240);
-  doc.roundedRect(margin, y, contentWidth, 32, 3, 3, 'F');
+  doc.roundedRect(margin, y, contentWidth, 32, 4, 4, 'F');
   doc.setDrawColor(...primaryColor);
-  doc.setLineWidth(0.5);
-  doc.roundedRect(margin, y, contentWidth, 32, 3, 3, 'S');
+  doc.setLineWidth(1);
+  doc.roundedRect(margin, y, contentWidth, 32, 4, 4, 'S');
   
   doc.setTextColor(...darkColor);
   doc.setFontSize(9);
@@ -648,7 +722,7 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   
   addFooter(3);
   
-  // ========== PAGE 3: BENEFITS ==========
+  // ========== PAGE 4: BENEFITS ==========
   doc.addPage();
   
   doc.setTextColor(...grayColor);
@@ -705,9 +779,9 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   doc.setFont("helvetica", "normal");
   doc.text("Complete peace of mind with our industry-leading warranty coverage.", pageWidth / 2, y + 30, { align: "center" });
   
-  addFooter(3);
+  addFooter(4);
   
-  // ========== PAGE 4: INVESTMENT SUMMARY ==========
+  // ========== PAGE 5: INVESTMENT SUMMARY ==========
   doc.addPage();
   
   doc.setTextColor(...grayColor);
@@ -764,112 +838,219 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   doc.text("Net Investment", 30, y + 62);
   doc.text(formatINR(data.netCost), pageWidth - 30, y + 62, { align: "right" });
   
-  // Payment Structure Section
+  // Payment Structure Section - Fixed layout with stacked rows
   y = 175;
   doc.setFillColor(240, 255, 240);
-  doc.rect(20, y, pageWidth - 40, 35, 'F');
+  doc.roundedRect(20, y, pageWidth - 40, 50, 4, 4, 'F');
+  doc.setDrawColor(...greenColor);
+  doc.setLineWidth(1);
+  doc.roundedRect(20, y, pageWidth - 40, 50, 4, 4, 'S');
   
   doc.setTextColor(...greenColor);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text("Payment Structure", 30, y + 12);
+  doc.text("Payment Structure", 30, y + 14);
+  
+  // Row 1 - Down Payment
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Down Payment (${data.downPaymentPercent}%):`, 30, y + 30);
+  doc.setFont("helvetica", "bold");
+  doc.text(formatINR(data.downPayment), 120, y + 30);
+  
+  // Row 2 - Net Loan Amount
+  doc.setFont("helvetica", "normal");
+  doc.text("Net Loan Amount:", 30, y + 42);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...primaryColor);
+  doc.text(formatINR(data.loanAmount), 120, y + 42);
+  
+  y = 235;
+  const savingsBoxWidth = (pageWidth - 60) / 3;
+  
+  doc.setFillColor(240, 255, 240);
+  doc.roundedRect(20, y, savingsBoxWidth, 50, 4, 4, 'F');
+  doc.setDrawColor(...greenColor);
+  doc.roundedRect(20, y, savingsBoxWidth, 50, 4, 4, 'S');
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("ANNUAL SAVINGS", 25, y + 14);
+  doc.setTextColor(...greenColor);
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text(formatINR(data.annualSavings), 25, y + 35);
+  
+  doc.setFillColor(255, 250, 240);
+  doc.roundedRect(30 + savingsBoxWidth, y, savingsBoxWidth, 50, 4, 4, 'F');
+  doc.setDrawColor(...primaryColor);
+  doc.roundedRect(30 + savingsBoxWidth, y, savingsBoxWidth, 50, 4, 4, 'S');
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("25-YEAR SAVINGS", 35 + savingsBoxWidth, y + 14);
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text(formatINR(data.annualSavings * 25), 35 + savingsBoxWidth, y + 35);
+  
+  doc.setFillColor(240, 248, 255);
+  doc.roundedRect(40 + savingsBoxWidth * 2, y, savingsBoxWidth, 50, 4, 4, 'F');
+  doc.setDrawColor(...blueColor);
+  doc.roundedRect(40 + savingsBoxWidth * 2, y, savingsBoxWidth, 50, 4, 4, 'S');
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("PAYBACK PERIOD", 45 + savingsBoxWidth * 2, y + 14);
+  doc.setTextColor(...blueColor);
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${data.paybackYears} Years`, 45 + savingsBoxWidth * 2, y + 35);
+  
+  addFooter(5);
+  
+  // ========== PAGE 6: EMI SCHEDULE ==========
+  doc.addPage();
+  
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("LOAN EMI SCHEDULE", pageWidth - 20, 20, { align: "right" });
+  
+  y = 50;
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.text("Loan EMI Options", 20, y);
+  
+  y = 70;
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  doc.text("Choose the EMI tenure that suits your financial planning:", 20, y);
+  
+  // Loan Summary Box
+  y = 85;
+  doc.setFillColor(255, 248, 240);
+  doc.roundedRect(20, y, pageWidth - 40, 35, 4, 4, 'F');
+  doc.setDrawColor(...primaryColor);
+  doc.setLineWidth(1.5);
+  doc.roundedRect(20, y, pageWidth - 40, 35, 4, 4, 'S');
+  
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text("LOAN DETAILS", 30, y + 12);
   
   doc.setTextColor(...darkColor);
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  doc.text(`Down Payment (${data.downPaymentPercent}%):`, 30, y + 24);
+  doc.text(`Loan Amount: ${formatINR(data.loanAmount)}`, 30, y + 26);
+  doc.text(`Interest Rate: ${data.interestRate}% p.a.`, pageWidth / 2, y + 26);
+  
+  // EMI Options Table
+  y = 135;
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
-  doc.text(formatINR(data.downPayment), 100, y + 24);
+  doc.text("EMI Payment Schedule", 20, y);
   
-  doc.setFont("helvetica", "normal");
-  doc.text("Effective Loan Amount:", pageWidth / 2, y + 24);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...primaryColor);
-  doc.text(formatINR(data.loanAmount), pageWidth - 30, y + 24, { align: "right" });
-  
-  y = 220;
-  const savingsBoxWidth = (pageWidth - 60) / 3;
-  
-  doc.setFillColor(240, 255, 240);
-  doc.rect(20, y, savingsBoxWidth, 45, 'F');
-  doc.setTextColor(...grayColor);
+  // Table Header
+  y = 150;
+  doc.setFillColor(...primaryColor);
+  doc.rect(20, y, pageWidth - 40, 12, 'F');
+  doc.setTextColor(...whiteColor);
   doc.setFontSize(9);
-  doc.text("ANNUAL SAVINGS", 25, y + 12);
+  doc.setFont("helvetica", "bold");
+  doc.text("TENURE", 30, y + 8);
+  doc.text("MONTHLY EMI", 80, y + 8);
+  doc.text("TOTAL PAYMENT", 130, y + 8);
+  doc.text("TOTAL INTEREST", pageWidth - 30, y + 8, { align: "right" });
+  
+  // Table Rows - Calculate EMI details
+  const emiTenures = [
+    { months: 36, emi: data.emi36Months },
+    { months: 48, emi: data.emi48Months },
+    { months: 60, emi: data.emi60Months },
+    { months: 72, emi: data.emi72Months },
+    { months: 84, emi: data.emi84Months },
+  ];
+  
+  y = 162;
+  emiTenures.forEach((tenure, index) => {
+    const totalPayment = tenure.emi * tenure.months;
+    const totalInterest = totalPayment - data.loanAmount;
+    const isSelected = tenure.months === data.selectedTenure;
+    
+    if (isSelected) {
+      doc.setFillColor(240, 255, 240);
+      doc.rect(20, y, pageWidth - 40, 14, 'F');
+      doc.setDrawColor(...greenColor);
+      doc.setLineWidth(1);
+      doc.rect(20, y, pageWidth - 40, 14, 'S');
+    } else if (index % 2 === 0) {
+      doc.setFillColor(250, 250, 250);
+      doc.rect(20, y, pageWidth - 40, 14, 'F');
+    }
+    
+    doc.setTextColor(...darkColor);
+    doc.setFontSize(10);
+    doc.setFont(isSelected ? "helvetica" : "helvetica", isSelected ? "bold" : "normal");
+    doc.text(`${tenure.months} Months`, 30, y + 10);
+    doc.text(formatINR(tenure.emi), 80, y + 10);
+    doc.text(formatINR(totalPayment), 130, y + 10);
+    doc.text(formatINR(totalInterest), pageWidth - 30, y + 10, { align: "right" });
+    
+    y += 14;
+  });
+  
+  // Highlight Selected EMI
+  y += 15;
+  doc.setFillColor(240, 255, 240);
+  doc.roundedRect(20, y, pageWidth - 40, 45, 4, 4, 'F');
+  doc.setDrawColor(...greenColor);
+  doc.setLineWidth(2);
+  doc.roundedRect(20, y, pageWidth - 40, 45, 4, 4, 'S');
+  
+  doc.setTextColor(...greenColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text("YOUR SELECTED EMI PLAN", 30, y + 14);
+  
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Tenure: ${data.selectedTenure} Months`, 30, y + 30);
+  doc.setTextColor(...greenColor);
+  doc.setFontSize(16);
+  doc.text(`EMI: ${formatINR(data.selectedEmi)}/month`, pageWidth / 2, y + 30);
+  
+  // Effective EMI after savings
+  y += 55;
+  doc.setFillColor(255, 250, 240);
+  doc.roundedRect(20, y, pageWidth - 40, 35, 4, 4, 'F');
+  doc.setDrawColor(...primaryColor);
+  doc.setLineWidth(1);
+  doc.roundedRect(20, y, pageWidth - 40, 35, 4, 4, 'S');
+  
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text("EFFECTIVE MONTHLY PAYMENT (After Power Savings)", 30, y + 14);
+  
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text(`EMI: ${formatINR(data.selectedEmi)} - Monthly Savings: ${formatINR(data.monthlySavings)} =`, 30, y + 26);
   doc.setTextColor(...greenColor);
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text(formatINR(data.annualSavings), 25, y + 28);
+  doc.text(formatINR(data.effectiveMonthlyPayment), pageWidth - 30, y + 26, { align: "right" });
   
-  doc.setFillColor(255, 250, 240);
-  doc.rect(30 + savingsBoxWidth, y, savingsBoxWidth, 45, 'F');
-  doc.setTextColor(...grayColor);
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.text("25-YEAR SAVINGS", 35 + savingsBoxWidth, y + 12);
-  doc.setTextColor(...primaryColor);
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "bold");
-  doc.text(formatINR(data.annualSavings * 25), 35 + savingsBoxWidth, y + 28);
+  addFooter(6);
   
-  doc.setFillColor(240, 248, 255);
-  doc.rect(40 + savingsBoxWidth * 2, y, savingsBoxWidth, 45, 'F');
-  doc.setTextColor(...grayColor);
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.text("PAYBACK PERIOD", 45 + savingsBoxWidth * 2, y + 12);
-  doc.setTextColor(...blueColor);
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "bold");
-  doc.text(`${data.paybackYears} Years`, 45 + savingsBoxWidth * 2, y + 28);
-  
-  y = 275;
-  doc.setTextColor(...darkColor);
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.text("EMI Options (on Loan Amount)", 20, y);
-  doc.setTextColor(...grayColor);
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Interest Rate: ${data.interestRate}% p.a. | Loan: ${formatINR(data.loanAmount)}`, pageWidth - 20, y, { align: "right" });
-  
-  y = 290;
-  const emiBoxWidth = (pageWidth - 60) / 3;
-  
-  doc.setFillColor(250, 250, 250);
-  doc.rect(20, y, emiBoxWidth, 40, 'F');
-  doc.setTextColor(...grayColor);
-  doc.setFontSize(9);
-  doc.text("36 MONTHS EMI", 25, y + 12);
-  doc.setTextColor(...darkColor);
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "bold");
-  doc.text(formatINR(data.emi36Months), 25, y + 28);
-  
-  doc.setFillColor(250, 250, 250);
-  doc.rect(30 + emiBoxWidth, y, emiBoxWidth, 40, 'F');
-  doc.setTextColor(...grayColor);
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.text("60 MONTHS EMI", 35 + emiBoxWidth, y + 12);
-  doc.setTextColor(...darkColor);
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "bold");
-  doc.text(formatINR(data.emi60Months), 35 + emiBoxWidth, y + 28);
-  
-  doc.setFillColor(250, 250, 250);
-  doc.rect(40 + emiBoxWidth * 2, y, emiBoxWidth, 40, 'F');
-  doc.setTextColor(...grayColor);
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.text("84 MONTHS EMI", 45 + emiBoxWidth * 2, y + 12);
-  doc.setTextColor(...darkColor);
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "bold");
-  doc.text(formatINR(data.emi84Months), 45 + emiBoxWidth * 2, y + 28);
-  
-  addFooter(4);
-  
-  // ========== PAGE 5: ENVIRONMENTAL IMPACT ==========
+  // ========== PAGE 7: ENVIRONMENTAL IMPACT ==========
   doc.addPage();
   
   doc.setTextColor(...grayColor);
@@ -925,9 +1106,9 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   doc.setFont("helvetica", "bold");
   doc.text(`${formatINRPlain(distanceEquivalent)} Kms`, pageWidth / 2, y + 38, { align: "center" });
   
-  addFooter(5);
+  addFooter(7);
   
-  // ========== PAGE 6: TERMS & CONDITIONS ==========
+  // ========== PAGE 8: TERMS & CONDITIONS ==========
   doc.addPage();
   
   doc.setTextColor(...grayColor);
@@ -981,7 +1162,7 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   doc.setFontSize(9);
   doc.text("info@divyanshisolar.com | www.divyanshisolar.com", pageWidth / 2, y, { align: "center" });
   
-  addFooter(6);
+  addFooter(8);
   
   return doc;
 }
@@ -1024,6 +1205,7 @@ export function SubsidyCalculator({
   const [customerEmail, setCustomerEmail] = useState<string>("");
   const [partnerName, setPartnerName] = useState<string>("");
   const [partnerPhone, setPartnerPhone] = useState<string>("");
+  const [installationAddress, setInstallationAddress] = useState<string>("");
   
   const maxCapacity = customerTypeConfig[customerType].maxCapacity;
   
@@ -1091,6 +1273,7 @@ export function SubsidyCalculator({
       customerName,
       partnerName,
       partnerPhone,
+      installationAddress,
       capacity,
       panelType,
       inverterType,
@@ -1115,15 +1298,28 @@ export function SubsidyCalculator({
       state: selectedState,
       ratePerWatt: result.ratePerWatt,
       emi36Months: result.emi36Months,
+      emi48Months: result.emi48Months,
       emi60Months: result.emi60Months,
+      emi72Months: result.emi72Months,
       emi84Months: result.emi84Months,
     };
-  }, [capacity, panelType, inverterType, customerType, result, selectedEmiTenure, selectedEmi, interestRate, electricityUnitRate, selectedState, customerName, partnerName, partnerPhone]);
+  }, [capacity, panelType, inverterType, customerType, result, selectedEmiTenure, selectedEmi, interestRate, electricityUnitRate, selectedState, customerName, partnerName, partnerPhone, installationAddress]);
   
-  function handleDownloadProposal() {
-    const data = getProposalData();
-    const doc = generateProposalPDF(data);
-    doc.save(`Divyanshi_Solar_Proposal_${capacity}kW_${new Date().toISOString().split('T')[0]}.pdf`);
+  async function handleDownloadProposal() {
+    try {
+      const data = getProposalData();
+      // Load PM Surya Ghar image for PDF
+      const imageData = await loadImageAsBase64(pmSuryaGharImage);
+      data.pmSuryaGharImageData = imageData;
+      const doc = generateProposalPDF(data);
+      doc.save(`Divyanshi_Solar_Proposal_${capacity}kW_${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      // Fallback: generate PDF without image
+      const data = getProposalData();
+      const doc = generateProposalPDF(data);
+      doc.save(`Divyanshi_Solar_Proposal_${capacity}kW_${new Date().toISOString().split('T')[0]}.pdf`);
+    }
   }
   
   function handleShareWhatsApp() {
@@ -1955,6 +2151,18 @@ PM Surya Ghar Yojana Authorized Partner`;
                     data-testid="input-partner-phone"
                   />
                 </div>
+              </div>
+              <div className="space-y-2 mt-4">
+                <Label htmlFor="installation-address">Proposed Plant Installation Site Address</Label>
+                <Input
+                  id="installation-address"
+                  type="text"
+                  placeholder="Enter complete address for solar plant installation"
+                  value={installationAddress}
+                  onChange={(e) => setInstallationAddress(e.target.value)}
+                  data-testid="input-installation-address"
+                />
+                <p className="text-xs text-muted-foreground">This address will appear on the proposal PDF</p>
               </div>
             </div>
             
