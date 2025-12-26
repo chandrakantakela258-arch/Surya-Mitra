@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sun, IndianRupee, Zap, TrendingDown, MapPin, BatteryCharging, Power, Check, Users, Home, Building2, Factory, FileText, Share2, Mail, MessageCircle, Download } from "lucide-react";
+import { Sun, IndianRupee, Zap, TrendingDown, MapPin, BatteryCharging, Power, Check, Users, Home, Building2, Factory, FileText, Share2, Mail, MessageCircle, Download, Wallet } from "lucide-react";
 import { indianStates } from "@shared/schema";
 import { jsPDF } from "jspdf";
 
@@ -247,6 +247,7 @@ interface ProposalData {
   totalSubsidy: number;
   netCost: number;
   downPayment: number;
+  downPaymentPercent: number;
   loanAmount: number;
   selectedTenure: number;
   selectedEmi: number;
@@ -385,7 +386,7 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   doc.setFontSize(10);
   
   const paymentItems = [
-    ["15% Down Payment:", formatINR(data.downPayment)],
+    [`${data.downPaymentPercent}% Down Payment:`, formatINR(data.downPayment)],
     ["Loan Amount:", formatINR(data.loanAmount)],
     [`EMI (${data.selectedTenure} months @ ${data.interestRate}% p.a.):`, formatINR(data.selectedEmi) + "/month"],
   ];
@@ -488,6 +489,7 @@ export function SubsidyCalculator({
   const [selectedEmiTenure, setSelectedEmiTenure] = useState<number>(60);
   const [interestRate, setInterestRate] = useState<number>(10);
   const [electricityUnitRate, setElectricityUnitRate] = useState<number>(7);
+  const [downPaymentPercent, setDownPaymentPercent] = useState<number>(15);
   const [customerPhone, setCustomerPhone] = useState<string>("");
   const [customerEmail, setCustomerEmail] = useState<string>("");
   
@@ -551,7 +553,7 @@ export function SubsidyCalculator({
   }
   
   const getProposalData = useCallback((): ProposalData => {
-    const downPayment = Math.round(result.netCost * 0.15);
+    const downPayment = Math.round(result.netCost * (downPaymentPercent / 100));
     const loanAmount = result.netCost - downPayment;
     const effectiveMonthlyPayment = Math.max(0, selectedEmi - result.monthlySavings);
     
@@ -566,6 +568,7 @@ export function SubsidyCalculator({
       totalSubsidy: result.totalSubsidy,
       netCost: result.netCost,
       downPayment,
+      downPaymentPercent,
       loanAmount,
       selectedTenure: selectedEmiTenure,
       selectedEmi,
@@ -579,7 +582,7 @@ export function SubsidyCalculator({
       state: selectedState,
       ratePerWatt: result.ratePerWatt,
     };
-  }, [capacity, panelType, inverterType, customerType, result, selectedEmiTenure, selectedEmi, interestRate, electricityUnitRate, selectedState]);
+  }, [capacity, panelType, inverterType, customerType, result, selectedEmiTenure, selectedEmi, interestRate, electricityUnitRate, selectedState, downPaymentPercent]);
   
   function handleDownloadProposal() {
     const data = getProposalData();
@@ -601,7 +604,7 @@ export function SubsidyCalculator({
 - Net Cost: Rs ${formatINRPlain(data.netCost)}
 
 *Payment Structure:*
-- Down Payment (15%): Rs ${formatINRPlain(data.downPayment)}
+- Down Payment (${data.downPaymentPercent}%): Rs ${formatINRPlain(data.downPayment)}
 - Loan Amount: Rs ${formatINRPlain(data.loanAmount)}
 - EMI (${data.selectedTenure} months): Rs ${formatINRPlain(data.selectedEmi)}/month
 
@@ -636,7 +639,7 @@ COST BREAKDOWN:
 - Net System Cost: Rs ${formatINRPlain(data.netCost)}
 
 PAYMENT STRUCTURE:
-- 15% Down Payment: Rs ${formatINRPlain(data.downPayment)}
+- ${data.downPaymentPercent}% Down Payment: Rs ${formatINRPlain(data.downPayment)}
 - Loan Amount: Rs ${formatINRPlain(data.loanAmount)}
 - EMI (${data.selectedTenure} months @ ${data.interestRate}% p.a.): Rs ${formatINRPlain(data.selectedEmi)}/month
 
@@ -874,7 +877,7 @@ PM Surya Ghar Yojana Authorized Partner`;
           </div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-muted/30 rounded-lg">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-muted/30 rounded-lg">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <IndianRupee className="h-4 w-4 text-muted-foreground" />
@@ -895,14 +898,38 @@ PM Surya Ghar Yojana Authorized Partner`;
               <span className="text-sm text-muted-foreground whitespace-nowrap">% p.a.</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Enter the applicable bank loan interest rate for accurate EMI calculation
+              Bank loan interest rate for EMI calculation
+            </p>
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Wallet className="h-4 w-4 text-muted-foreground" />
+              <Label htmlFor="down-payment">Down Payment (%)</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                id="down-payment"
+                type="number"
+                min="0"
+                max="100"
+                step="5"
+                value={downPaymentPercent}
+                onChange={(e) => setDownPaymentPercent(Math.min(100, Math.max(0, parseFloat(e.target.value) || 15)))}
+                className="w-full"
+                data-testid="input-down-payment"
+              />
+              <span className="text-sm text-muted-foreground whitespace-nowrap">%</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Initial payment ({formatINR(Math.round(result.netCost * (downPaymentPercent / 100)))})
             </p>
           </div>
           
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Zap className="h-4 w-4 text-muted-foreground" />
-              <Label htmlFor="electricity-rate">Electricity Unit Rate (Rs/kWh)</Label>
+              <Label htmlFor="electricity-rate">Electricity Rate (Rs/kWh)</Label>
             </div>
             <div className="flex items-center gap-2">
               <Input
@@ -919,7 +946,7 @@ PM Surya Ghar Yojana Authorized Partner`;
               <span className="text-sm text-muted-foreground whitespace-nowrap">Rs/kWh</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Enter the electricity rate from your bill for exact savings calculation
+              Your electricity bill rate for savings
             </p>
           </div>
         </div>
@@ -1344,7 +1371,7 @@ PM Surya Ghar Yojana Authorized Partner`;
                 <strong>Proposal includes:</strong> {capacity} kW {panelType === "dcr" ? "DCR" : "Non-DCR"} Plant | 
                 Material Cost: {formatINR(result.totalCost)} | 
                 Subsidy: {formatINR(result.totalSubsidy)} | 
-                Down Payment (15%): {formatINR(Math.round(result.netCost * 0.15))} | 
+                Down Payment ({downPaymentPercent}%): {formatINR(Math.round(result.netCost * (downPaymentPercent / 100)))} | 
                 EMI: {formatINR(selectedEmi)}/month ({selectedEmiTenure} months) | 
                 Monthly Savings: {formatINR(result.monthlySavings)}
               </p>
