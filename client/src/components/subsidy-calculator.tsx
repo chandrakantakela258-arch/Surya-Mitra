@@ -5,9 +5,11 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sun, IndianRupee, Zap, TrendingDown, MapPin, BatteryCharging, Power, Check, Users, Home, Building2, Factory, FileText, Share2, Mail, MessageCircle, Download, Wallet } from "lucide-react";
+import { Sun, IndianRupee, Zap, TrendingDown, MapPin, BatteryCharging, Power, Check, Users, Home, Building2, Factory, FileText, Share2, Mail, MessageCircle, Download, Wallet, Loader2 } from "lucide-react";
 import { indianStates } from "@shared/schema";
 import { jsPDF } from "jspdf";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import pmSuryaGharImage from "@assets/PM_Surya_Ghar_Yojana_-_Bluebird_Solar_ce42b9b9-5592-4660-b4f5_1766775803880.webp";
 
 // Helper function to load image and convert to base64
@@ -1326,6 +1328,9 @@ export function SubsidyCalculator({
   const [partnerName, setPartnerName] = useState<string>("");
   const [partnerPhone, setPartnerPhone] = useState<string>("");
   const [installationAddress, setInstallationAddress] = useState<string>("");
+  const [isSendingEmail, setIsSendingEmail] = useState<boolean>(false);
+  
+  const { toast } = useToast();
   
   const maxCapacity = customerTypeConfig[customerType].maxCapacity;
   
@@ -1471,45 +1476,58 @@ Website: https://divyanshisolar.com`;
     window.open(whatsappUrl, '_blank');
   }
   
-  function handleShareEmail() {
-    const data = getProposalData();
-    const subject = `Divyanshi Solar - ${data.capacity} kW Solar Rooftop Proposal`;
-    const body = `Dear Customer,
-
-Thank you for your interest in Divyanshi Solar's PM Surya Ghar Yojana Solar Rooftop Installation.
-
-PLANT DETAILS:
-- Plant Capacity: ${data.capacity} kW
-- Panel Type: ${data.panelType === "dcr" ? "DCR (Subsidy Eligible)" : "Non-DCR"}
-- Inverter: ${data.inverterType === "hybrid" ? "3-in-1 Hybrid Inverter" : "Ongrid Inverter"}
-
-COST BREAKDOWN:
-- Material Cost: Rs ${formatINRPlain(data.totalCost)}
-- Central Govt. Subsidy: Rs ${formatINRPlain(data.centralSubsidy)}
-- State Govt. Subsidy: Rs ${formatINRPlain(data.stateSubsidy)}
-- Total Subsidy Benefit: Rs ${formatINRPlain(data.totalSubsidy)}
-- Net System Cost: Rs ${formatINRPlain(data.netCost)}
-
-PAYMENT STRUCTURE:
-- ${data.downPaymentPercent}% Down Payment: Rs ${formatINRPlain(data.downPayment)}
-- Loan Amount: Rs ${formatINRPlain(data.loanAmount)}
-- EMI (${data.selectedTenure} months @ ${data.interestRate}% p.a.): Rs ${formatINRPlain(data.selectedEmi)}/month
-
-YOUR SAVINGS (@ Rs ${data.electricityRate}/unit):
-- Monthly Power Generation: ${data.monthlyGeneration} units
-- Monthly Savings: Rs ${formatINRPlain(data.monthlySavings)}
-- Annual Savings: Rs ${formatINRPlain(data.annualSavings)}
-- Effective Monthly Payment: Rs ${formatINRPlain(data.effectiveMonthlyPayment)}
-- Payback Period: ${data.paybackYears} years
-
-For more information, visit: https://divyanshisolar.com
-
-Best Regards,
-Divyanshi Solar Team
-PM Surya Ghar Yojana Authorized Partner`;
+  async function handleShareEmail() {
+    if (!customerEmail || !customerEmail.includes('@')) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address",
+        variant: "destructive"
+      });
+      return;
+    }
     
-    const mailtoUrl = `mailto:${customerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.open(mailtoUrl, '_blank');
+    if (!customerName.trim()) {
+      toast({
+        title: "Customer Name Required",
+        description: "Please enter the customer name to send the proposal",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsSendingEmail(true);
+    
+    try {
+      const data = getProposalData();
+      
+      const response = await apiRequest("POST", "/api/email/send-proposal", {
+        customerEmail: customerEmail,
+        customerName: customerName || "Valued Customer",
+        capacity: data.capacity,
+        netCost: data.netCost,
+        subsidy: data.totalSubsidy
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        toast({
+          title: "Email Sent Successfully",
+          description: `Proposal sent to ${customerEmail}`,
+        });
+      } else {
+        throw new Error(result.message || "Failed to send email");
+      }
+    } catch (error: any) {
+      console.error("Email send error:", error);
+      toast({
+        title: "Email Send Failed",
+        description: error.message || "Could not send email. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSendingEmail(false);
+    }
   }
   
   if (compact) {
@@ -2309,13 +2327,22 @@ PM Surya Ghar Yojana Authorized Partner`;
               
               <Button
                 onClick={handleShareEmail}
-                disabled={!customerEmail || !customerEmail.includes('@')}
+                disabled={!customerEmail || !customerEmail.includes('@') || isSendingEmail}
                 variant="outline"
                 className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/50 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
                 data-testid="button-share-email"
               >
-                <Mail className="w-4 h-4" />
-                Send via Email
+                {isSendingEmail ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="w-4 h-4" />
+                    Send via Email
+                  </>
+                )}
               </Button>
             </div>
             

@@ -54,7 +54,8 @@ The system uses session-based authentication stored in PostgreSQL, with role-bas
 - **Fast2SMS**: Primary SMS provider for India (cost-effective, Rs 50 starting trial). Uses 'q' route for general messages and 'otp' route for OTP.
 - **Twilio**: Alternative SMS provider and WhatsApp Business API support. Set `SMS_PROVIDER=twilio` to use Twilio for SMS.
 - **AiSensy**: Primary WhatsApp Business API provider (prepaid model, free setup). Supports template-based messaging and OTP via WhatsApp.
-- **Resend**: For professional HTML email notifications.
+- **Gmail API (via Replit Connectors)**: For sending professional HTML emails directly to customers. Uses OAuth2 authentication through Replit's Gmail connection. Supports proposal emails with solar system details, welcome emails, and custom HTML emails.
+- **Resend**: Alternative for professional HTML email notifications.
 
 **SMS Provider Configuration**:
 - Set `SMS_PROVIDER` environment variable to `fast2sms` (default) or `twilio`

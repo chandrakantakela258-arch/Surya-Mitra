@@ -12,6 +12,7 @@ import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSche
 import { z } from "zod";
 import { notificationService } from "./notification-service";
 import { calculateLeadScore, type LeadScoreResult } from "./lead-scoring-service";
+import { sendEmail, createProposalEmailTemplate, createWelcomeEmailTemplate } from "./gmail";
 
 // Configure multer for file uploads
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -7882,6 +7883,113 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Update testimonial error:", error);
       res.status(500).json({ message: "Failed to update testimonial" });
+    }
+  });
+
+  // ========== EMAIL ENDPOINTS ==========
+
+  // Send proposal email to customer
+  app.post("/api/email/send-proposal", requireAuth, async (req, res) => {
+    try {
+      const { customerEmail, customerName, capacity, netCost, subsidy } = req.body;
+
+      if (!customerEmail || !customerName || !capacity || netCost === undefined) {
+        return res.status(400).json({ message: "Missing required fields: customerEmail, customerName, capacity, netCost" });
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(customerEmail)) {
+        return res.status(400).json({ message: "Invalid email address" });
+      }
+
+      const htmlContent = createProposalEmailTemplate(
+        customerName,
+        Number(capacity),
+        Number(netCost),
+        Number(subsidy) || 0
+      );
+
+      const result = await sendEmail({
+        to: customerEmail,
+        subject: `Your Solar Proposal - ${capacity} kWp System | Divyanshi Solar`,
+        htmlContent,
+        fromName: 'Divyanshi Solar'
+      });
+
+      if (result.success) {
+        res.json({ success: true, message: "Proposal email sent successfully", messageId: result.messageId });
+      } else {
+        res.status(500).json({ success: false, message: result.error || "Failed to send email" });
+      }
+    } catch (error: any) {
+      console.error("Send proposal email error:", error);
+      res.status(500).json({ success: false, message: error.message || "Failed to send email" });
+    }
+  });
+
+  // Send welcome email to new customer
+  app.post("/api/email/send-welcome", requireAuth, async (req, res) => {
+    try {
+      const { customerEmail, customerName, partnerName } = req.body;
+
+      if (!customerEmail || !customerName) {
+        return res.status(400).json({ message: "Missing required fields: customerEmail, customerName" });
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(customerEmail)) {
+        return res.status(400).json({ message: "Invalid email address" });
+      }
+
+      const htmlContent = createWelcomeEmailTemplate(customerName, partnerName);
+
+      const result = await sendEmail({
+        to: customerEmail,
+        subject: 'Welcome to Divyanshi Solar - Your Solar Journey Begins!',
+        htmlContent,
+        fromName: 'Divyanshi Solar'
+      });
+
+      if (result.success) {
+        res.json({ success: true, message: "Welcome email sent successfully", messageId: result.messageId });
+      } else {
+        res.status(500).json({ success: false, message: result.error || "Failed to send email" });
+      }
+    } catch (error: any) {
+      console.error("Send welcome email error:", error);
+      res.status(500).json({ success: false, message: error.message || "Failed to send email" });
+    }
+  });
+
+  // Send custom email
+  app.post("/api/email/send", requireAuth, async (req, res) => {
+    try {
+      const { to, subject, htmlContent } = req.body;
+
+      if (!to || !subject || !htmlContent) {
+        return res.status(400).json({ message: "Missing required fields: to, subject, htmlContent" });
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(to)) {
+        return res.status(400).json({ message: "Invalid email address" });
+      }
+
+      const result = await sendEmail({
+        to,
+        subject,
+        htmlContent,
+        fromName: 'Divyanshi Solar'
+      });
+
+      if (result.success) {
+        res.json({ success: true, message: "Email sent successfully", messageId: result.messageId });
+      } else {
+        res.status(500).json({ success: false, message: result.error || "Failed to send email" });
+      }
+    } catch (error: any) {
+      console.error("Send email error:", error);
+      res.status(500).json({ success: false, message: error.message || "Failed to send email" });
     }
   });
 
