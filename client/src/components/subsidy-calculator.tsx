@@ -322,7 +322,7 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   const blueColor: [number, number, number] = [41, 98, 255];
   const whiteColor: [number, number, number] = [255, 255, 255];
   
-  const totalPages = 8;
+  const totalPages = 9;
   
   const addHeader = (pageNum: number, sectionTitle: string) => {
     doc.setFillColor(...primaryColor);
@@ -497,42 +497,42 @@ function generateProposalPDF(data: ProposalData): jsPDF {
     doc.text(addressLines.slice(0, 2), margin + 10, y + 20);
   }
   
-  // Partner info section (if provided)
+  // Partner info section (if provided) - positioned above panel info
   if (data.partnerName || data.partnerPhone) {
-    y = pageHeight - 88;
+    y += boxHeight + 10;
     doc.setFillColor(240, 248, 255);
-    doc.roundedRect(margin, y, contentWidth, 28, 4, 4, 'F');
+    doc.roundedRect(margin, y, contentWidth, 24, 4, 4, 'F');
     doc.setDrawColor(...blueColor);
     doc.setLineWidth(1.5);
-    doc.roundedRect(margin, y, contentWidth, 28, 4, 4, 'S');
+    doc.roundedRect(margin, y, contentWidth, 24, 4, 4, 'S');
     
     doc.setTextColor(...blueColor);
     doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
-    doc.text("YOUR DISTRICT PARTNER", margin + 10, y + 10);
+    doc.text("YOUR DISTRICT PARTNER", margin + 10, y + 9);
     
     doc.setTextColor(...darkColor);
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     const partnerInfo = data.partnerName ? `${data.partnerName}${data.partnerPhone ? ` | +91-${data.partnerPhone}` : ''}` : `+91-${data.partnerPhone}`;
-    doc.text(partnerInfo, margin + 10, y + 21);
+    doc.text(partnerInfo, margin + 10, y + 18);
   }
   
   // Bottom info box - Panel & System details
-  y = pageHeight - 55;
+  y += 30;
   doc.setFillColor(255, 248, 240);
-  doc.roundedRect(margin, y, contentWidth, 32, 4, 4, 'F');
+  doc.roundedRect(margin, y, contentWidth, 28, 4, 4, 'F');
   doc.setDrawColor(...primaryColor);
   doc.setLineWidth(1);
-  doc.roundedRect(margin, y, contentWidth, 32, 4, 4, 'S');
+  doc.roundedRect(margin, y, contentWidth, 28, 4, 4, 'S');
   
   doc.setTextColor(...darkColor);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   const panelInfo = data.panelType === "dcr" ? "DCR Panels (Subsidy Eligible)" : "Non-DCR Panels";
   const systemInfo = data.inverterType === "hybrid" ? "Hybrid system with battery backup capability" : "Grid-connected system for maximum savings";
-  doc.text(`Panel Type: ${panelInfo}`, margin + 10, y + 12);
-  doc.text(`System: ${systemInfo}`, margin + 10, y + 24);
+  doc.text(`Panel Type: ${panelInfo}`, margin + 10, y + 10);
+  doc.text(`System: ${systemInfo}`, margin + 10, y + 20);
   
   addFooter(1);
   
@@ -781,7 +781,126 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   
   addFooter(4);
   
-  // ========== PAGE 5: INVESTMENT SUMMARY ==========
+  // ========== PAGE 5: SUNPUNCH INVERTER ==========
+  doc.addPage();
+  
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("INVERTER TECHNOLOGY", pageWidth - 20, 20, { align: "right" });
+  
+  y = 50;
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.text("Sunpunch Inverter", 20, y);
+  
+  y = 68;
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  doc.text("Premium Quality Inverter for Your Solar System", 20, y);
+  
+  // Main inverter highlight box
+  y = 85;
+  doc.setFillColor(255, 248, 240);
+  doc.roundedRect(margin, y, contentWidth, 55, 4, 4, 'F');
+  doc.setDrawColor(...primaryColor);
+  doc.setLineWidth(2);
+  doc.roundedRect(margin, y, contentWidth, 55, 4, 4, 'S');
+  
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text("SUNPUNCH", margin + 15, y + 20);
+  doc.setFontSize(12);
+  doc.text(data.inverterType === "hybrid" ? "3-in-1 Hybrid Inverter" : "On-Grid Inverter", margin + 15, y + 35);
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("Made in India | BIS Certified | MNRE Approved", margin + 15, y + 48);
+  
+  // Key Features
+  y = 150;
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("Key Features", margin, y);
+  
+  const inverterFeatures = [
+    { title: "High Efficiency", desc: "Up to 98.6% conversion efficiency for maximum power output" },
+    { title: "Smart MPPT", desc: "Advanced Maximum Power Point Tracking for optimal energy harvest" },
+    { title: "WiFi Monitoring", desc: "Real-time monitoring via mobile app - track generation anytime" },
+    { title: "Wide Voltage Range", desc: "Works efficiently even in low voltage conditions" },
+    { title: "5 Year Warranty", desc: "Comprehensive manufacturer warranty with local service support" },
+    { title: "IP65 Protection", desc: "Dust and water resistant for outdoor installation" },
+  ];
+  
+  y = 165;
+  const featureW = (contentWidth - 10) / 2;
+  const featureH = 32;
+  
+  inverterFeatures.forEach((feat, i) => {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const fx = margin + col * (featureW + 10);
+    const fy = y + row * (featureH + 6);
+    
+    doc.setFillColor(250, 250, 250);
+    doc.roundedRect(fx, fy, featureW, featureH, 3, 3, 'F');
+    
+    doc.setTextColor(...primaryColor);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text(feat.title, fx + 8, fy + 12);
+    
+    doc.setTextColor(...grayColor);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    const descLines = doc.splitTextToSize(feat.desc, featureW - 16);
+    doc.text(descLines.slice(0, 2), fx + 8, fy + 23);
+  });
+  
+  // Hybrid vs Ongrid comparison (if hybrid)
+  if (data.inverterType === "hybrid") {
+    y = 285;
+    doc.setFillColor(240, 255, 240);
+    doc.roundedRect(margin, y - 25, contentWidth, 35, 4, 4, 'F');
+    doc.setDrawColor(...greenColor);
+    doc.setLineWidth(1);
+    doc.roundedRect(margin, y - 25, contentWidth, 35, 4, 4, 'S');
+    
+    doc.setTextColor(...greenColor);
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text("3-in-1 HYBRID ADVANTAGE", margin + 15, y - 12);
+    
+    doc.setTextColor(...darkColor);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text("Solar Inverter + Battery Charger + UPS in One Unit | Battery Backup Ready | Zero Export Capable", margin + 15, y);
+  } else {
+    y = 285;
+    doc.setFillColor(240, 248, 255);
+    doc.roundedRect(margin, y - 25, contentWidth, 35, 4, 4, 'F');
+    doc.setDrawColor(...blueColor);
+    doc.setLineWidth(1);
+    doc.roundedRect(margin, y - 25, contentWidth, 35, 4, 4, 'S');
+    
+    doc.setTextColor(...blueColor);
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text("ON-GRID INVERTER", margin + 15, y - 12);
+    
+    doc.setTextColor(...darkColor);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text("Direct Grid Connection | Net Metering Compatible | Maximum Savings on Electricity Bills", margin + 15, y);
+  }
+  
+  addFooter(5);
+  
+  // ========== PAGE 6: INVESTMENT SUMMARY ==========
   doc.addPage();
   
   doc.setTextColor(...grayColor);
@@ -866,51 +985,52 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   doc.setTextColor(...primaryColor);
   doc.text(formatINR(data.loanAmount), 120, y + 42);
   
-  y = 235;
+  y = 230;
   const savingsBoxWidth = (pageWidth - 60) / 3;
+  const savingsBoxHeight = 42;
   
   doc.setFillColor(240, 255, 240);
-  doc.roundedRect(20, y, savingsBoxWidth, 50, 4, 4, 'F');
+  doc.roundedRect(20, y, savingsBoxWidth, savingsBoxHeight, 4, 4, 'F');
   doc.setDrawColor(...greenColor);
-  doc.roundedRect(20, y, savingsBoxWidth, 50, 4, 4, 'S');
+  doc.roundedRect(20, y, savingsBoxWidth, savingsBoxHeight, 4, 4, 'S');
   doc.setTextColor(...grayColor);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text("ANNUAL SAVINGS", 25, y + 14);
+  doc.text("ANNUAL SAVINGS", 25, y + 12);
   doc.setTextColor(...greenColor);
-  doc.setFontSize(16);
+  doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text(formatINR(data.annualSavings), 25, y + 35);
+  doc.text(formatINR(data.annualSavings), 25, y + 30);
   
   doc.setFillColor(255, 250, 240);
-  doc.roundedRect(30 + savingsBoxWidth, y, savingsBoxWidth, 50, 4, 4, 'F');
+  doc.roundedRect(30 + savingsBoxWidth, y, savingsBoxWidth, savingsBoxHeight, 4, 4, 'F');
   doc.setDrawColor(...primaryColor);
-  doc.roundedRect(30 + savingsBoxWidth, y, savingsBoxWidth, 50, 4, 4, 'S');
+  doc.roundedRect(30 + savingsBoxWidth, y, savingsBoxWidth, savingsBoxHeight, 4, 4, 'S');
   doc.setTextColor(...grayColor);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text("25-YEAR SAVINGS", 35 + savingsBoxWidth, y + 14);
+  doc.text("25-YEAR SAVINGS", 35 + savingsBoxWidth, y + 12);
   doc.setTextColor(...primaryColor);
-  doc.setFontSize(16);
+  doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text(formatINR(data.annualSavings * 25), 35 + savingsBoxWidth, y + 35);
+  doc.text(formatINR(data.annualSavings * 25), 35 + savingsBoxWidth, y + 30);
   
   doc.setFillColor(240, 248, 255);
-  doc.roundedRect(40 + savingsBoxWidth * 2, y, savingsBoxWidth, 50, 4, 4, 'F');
+  doc.roundedRect(40 + savingsBoxWidth * 2, y, savingsBoxWidth, savingsBoxHeight, 4, 4, 'F');
   doc.setDrawColor(...blueColor);
-  doc.roundedRect(40 + savingsBoxWidth * 2, y, savingsBoxWidth, 50, 4, 4, 'S');
+  doc.roundedRect(40 + savingsBoxWidth * 2, y, savingsBoxWidth, savingsBoxHeight, 4, 4, 'S');
   doc.setTextColor(...grayColor);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text("PAYBACK PERIOD", 45 + savingsBoxWidth * 2, y + 14);
+  doc.text("PAYBACK PERIOD", 45 + savingsBoxWidth * 2, y + 12);
   doc.setTextColor(...blueColor);
-  doc.setFontSize(16);
+  doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text(`${data.paybackYears} Years`, 45 + savingsBoxWidth * 2, y + 35);
+  doc.text(`${data.paybackYears} Years`, 45 + savingsBoxWidth * 2, y + 30);
   
-  addFooter(5);
+  addFooter(6);
   
-  // ========== PAGE 6: EMI SCHEDULE ==========
+  // ========== PAGE 7: EMI SCHEDULE ==========
   doc.addPage();
   
   doc.setTextColor(...grayColor);
@@ -1005,52 +1125,52 @@ function generateProposalPDF(data: ProposalData): jsPDF {
     y += 14;
   });
   
-  // Highlight Selected EMI
-  y += 15;
+  // Highlight Selected EMI - compact version
+  y += 10;
   doc.setFillColor(240, 255, 240);
-  doc.roundedRect(20, y, pageWidth - 40, 45, 4, 4, 'F');
+  doc.roundedRect(20, y, pageWidth - 40, 38, 4, 4, 'F');
   doc.setDrawColor(...greenColor);
   doc.setLineWidth(2);
-  doc.roundedRect(20, y, pageWidth - 40, 45, 4, 4, 'S');
+  doc.roundedRect(20, y, pageWidth - 40, 38, 4, 4, 'S');
   
   doc.setTextColor(...greenColor);
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "bold");
-  doc.text("YOUR SELECTED EMI PLAN", 30, y + 14);
-  
-  doc.setTextColor(...darkColor);
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  doc.text(`Tenure: ${data.selectedTenure} Months`, 30, y + 30);
-  doc.setTextColor(...greenColor);
-  doc.setFontSize(16);
-  doc.text(`EMI: ${formatINR(data.selectedEmi)}/month`, pageWidth / 2, y + 30);
-  
-  // Effective EMI after savings
-  y += 55;
-  doc.setFillColor(255, 250, 240);
-  doc.roundedRect(20, y, pageWidth - 40, 35, 4, 4, 'F');
-  doc.setDrawColor(...primaryColor);
-  doc.setLineWidth(1);
-  doc.roundedRect(20, y, pageWidth - 40, 35, 4, 4, 'S');
-  
-  doc.setTextColor(...primaryColor);
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "bold");
-  doc.text("EFFECTIVE MONTHLY PAYMENT (After Power Savings)", 30, y + 14);
-  
-  doc.setTextColor(...darkColor);
   doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.text(`EMI: ${formatINR(data.selectedEmi)} - Monthly Savings: ${formatINR(data.monthlySavings)} =`, 30, y + 26);
+  doc.setFont("helvetica", "bold");
+  doc.text("YOUR SELECTED EMI PLAN", 30, y + 12);
+  
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Tenure: ${data.selectedTenure} Months`, 30, y + 28);
   doc.setTextColor(...greenColor);
   doc.setFontSize(14);
+  doc.text(`EMI: ${formatINR(data.selectedEmi)}/month`, pageWidth / 2, y + 28);
+  
+  // Effective EMI after savings - compact version
+  y += 45;
+  doc.setFillColor(255, 250, 240);
+  doc.roundedRect(20, y, pageWidth - 40, 30, 4, 4, 'F');
+  doc.setDrawColor(...primaryColor);
+  doc.setLineWidth(1);
+  doc.roundedRect(20, y, pageWidth - 40, 30, 4, 4, 'S');
+  
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
-  doc.text(formatINR(data.effectiveMonthlyPayment), pageWidth - 30, y + 26, { align: "right" });
+  doc.text("EFFECTIVE MONTHLY PAYMENT (After Power Savings)", 30, y + 12);
   
-  addFooter(6);
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.text(`EMI: ${formatINR(data.selectedEmi)} - Monthly Savings: ${formatINR(data.monthlySavings)} =`, 30, y + 23);
+  doc.setTextColor(...greenColor);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text(formatINR(data.effectiveMonthlyPayment), pageWidth - 30, y + 23, { align: "right" });
   
-  // ========== PAGE 7: ENVIRONMENTAL IMPACT ==========
+  addFooter(7);
+  
+  // ========== PAGE 8: ENVIRONMENTAL IMPACT ==========
   doc.addPage();
   
   doc.setTextColor(...grayColor);
@@ -1106,9 +1226,9 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   doc.setFont("helvetica", "bold");
   doc.text(`${formatINRPlain(distanceEquivalent)} Kms`, pageWidth / 2, y + 38, { align: "center" });
   
-  addFooter(7);
+  addFooter(8);
   
-  // ========== PAGE 8: TERMS & CONDITIONS ==========
+  // ========== PAGE 9: TERMS & CONDITIONS ==========
   doc.addPage();
   
   doc.setTextColor(...grayColor);
@@ -1162,7 +1282,7 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   doc.setFontSize(9);
   doc.text("info@divyanshisolar.com | www.divyanshisolar.com", pageWidth / 2, y, { align: "center" });
   
-  addFooter(8);
+  addFooter(9);
   
   return doc;
 }
