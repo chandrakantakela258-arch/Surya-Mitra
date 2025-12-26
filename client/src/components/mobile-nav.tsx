@@ -203,39 +203,43 @@ export function MobileNav() {
                 );
               })}
             </div>
-            <Separator className="my-4" />
-            <div className="px-3 mb-2">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Share & Connect</p>
-            </div>
-            <div className="space-y-1">
-              <Button
-                variant="ghost"
-                className="w-full justify-start gap-3 px-3"
-                onClick={shareToWhatsApp}
-                data-testid="button-mobile-share-whatsapp"
-              >
-                <SiWhatsapp className="h-5 w-5 text-green-500" />
-                <span className="font-medium">Share on WhatsApp</span>
-              </Button>
-              <Button
-                variant="ghost"
-                className="w-full justify-start gap-3 px-3"
-                onClick={shareToFacebook}
-                data-testid="button-mobile-share-facebook"
-              >
-                <SiFacebook className="h-5 w-5 text-blue-600" />
-                <span className="font-medium">Share on Facebook</span>
-              </Button>
-              <Button
-                variant="ghost"
-                className="w-full justify-start gap-3 px-3"
-                onClick={shareToTwitter}
-                data-testid="button-mobile-share-twitter"
-              >
-                <SiX className="h-5 w-5" />
-                <span className="font-medium">Share on X (Twitter)</span>
-              </Button>
-            </div>
+            {user.role !== "admin" && (
+              <>
+                <Separator className="my-4" />
+                <div className="px-3 mb-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Share & Connect</p>
+                </div>
+                <div className="space-y-1">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-3 px-3"
+                    onClick={shareToWhatsApp}
+                    data-testid="button-mobile-share-whatsapp"
+                  >
+                    <SiWhatsapp className="h-5 w-5 text-green-500" />
+                    <span className="font-medium">Share on WhatsApp</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-3 px-3"
+                    onClick={shareToFacebook}
+                    data-testid="button-mobile-share-facebook"
+                  >
+                    <SiFacebook className="h-5 w-5 text-blue-600" />
+                    <span className="font-medium">Share on Facebook</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-3 px-3"
+                    onClick={shareToTwitter}
+                    data-testid="button-mobile-share-twitter"
+                  >
+                    <SiX className="h-5 w-5" />
+                    <span className="font-medium">Share on X (Twitter)</span>
+                  </Button>
+                </div>
+              </>
+            )}
             <Separator className="my-4" />
             <div className="space-y-1">
               <Button
