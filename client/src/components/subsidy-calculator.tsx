@@ -135,7 +135,9 @@ function calculateSubsidy(
   state: string = "", 
   panelType: string = "dcr", 
   inverterType: InverterType = "hybrid",
-  customerType: CustomerType = "residential"
+  customerType: CustomerType = "residential",
+  interestRate: number = 10,
+  electricityUnitRate: number = 7
 ): SubsidyResult {
   // Calculate rate per watt based on panel type and inverter type
   let ratePerWatt: number;
@@ -175,21 +177,21 @@ function calculateSubsidy(
   const dailyGeneration = capacityKW * 4;
   const monthlyGeneration = dailyGeneration * 30;
   
-  // Electricity cost varies by customer type
-  const unitCost = customerType === "industrial" ? 9 : customerType === "commercial" ? 8 : 7;
+  // Use custom electricity unit rate for savings calculation
+  const unitCost = electricityUnitRate;
   const monthlySavings = monthlyGeneration * unitCost;
   const annualSavings = monthlySavings * 12;
   
   const paybackYears = netCost > 0 ? netCost / annualSavings : 0;
   
-  // Calculate EMI for different tenures (10% annual interest)
+  // Calculate EMI for different tenures using custom interest rate
   const emiTenure = 60;
-  const emiMonthly = calculateEMI(netCost, 10, emiTenure);
-  const emi36Months = calculateEMI(netCost, 10, 36);
-  const emi48Months = calculateEMI(netCost, 10, 48);
-  const emi60Months = calculateEMI(netCost, 10, 60);
-  const emi72Months = calculateEMI(netCost, 10, 72);
-  const emi84Months = calculateEMI(netCost, 10, 84);
+  const emiMonthly = calculateEMI(netCost, interestRate, emiTenure);
+  const emi36Months = calculateEMI(netCost, interestRate, 36);
+  const emi48Months = calculateEMI(netCost, interestRate, 48);
+  const emi60Months = calculateEMI(netCost, interestRate, 60);
+  const emi72Months = calculateEMI(netCost, interestRate, 72);
+  const emi84Months = calculateEMI(netCost, interestRate, 84);
   
   return {
     capacity: capacityKW,
@@ -255,10 +257,12 @@ export function SubsidyCalculator({
   const [customCapacity, setCustomCapacity] = useState(initialCapacity.toString());
   const [customerType, setCustomerType] = useState<CustomerType>(initialCustomerType);
   const [selectedEmiTenure, setSelectedEmiTenure] = useState<number>(60);
+  const [interestRate, setInterestRate] = useState<number>(10);
+  const [electricityUnitRate, setElectricityUnitRate] = useState<number>(7);
   
   const maxCapacity = customerTypeConfig[customerType].maxCapacity;
   
-  const result = useMemo(() => calculateSubsidy(capacity, selectedState, panelType, inverterType, customerType), [capacity, selectedState, panelType, inverterType, customerType]);
+  const result = useMemo(() => calculateSubsidy(capacity, selectedState, panelType, inverterType, customerType, interestRate, electricityUnitRate), [capacity, selectedState, panelType, inverterType, customerType, interestRate, electricityUnitRate]);
   const commission = useMemo(() => calculateCommission(capacity, panelType), [capacity, panelType]);
   
   // Get EMI for selected tenure
@@ -529,6 +533,56 @@ export function SubsidyCalculator({
                 {stateSubsidies[selectedState].label}: {formatINR(stateSubsidies[selectedState].ratePerKw)}/kW (Max {formatINR(stateSubsidies[selectedState].maxSubsidy)})
               </Badge>
             )}
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-muted/30 rounded-lg">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <IndianRupee className="h-4 w-4 text-muted-foreground" />
+              <Label htmlFor="interest-rate">Loan Interest Rate (%)</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                id="interest-rate"
+                type="number"
+                min="1"
+                max="25"
+                step="0.5"
+                value={interestRate}
+                onChange={(e) => setInterestRate(parseFloat(e.target.value) || 10)}
+                className="w-full"
+                data-testid="input-interest-rate"
+              />
+              <span className="text-sm text-muted-foreground whitespace-nowrap">% p.a.</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Enter the applicable bank loan interest rate for accurate EMI calculation
+            </p>
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-muted-foreground" />
+              <Label htmlFor="electricity-rate">Electricity Unit Rate (Rs/kWh)</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                id="electricity-rate"
+                type="number"
+                min="1"
+                max="20"
+                step="0.5"
+                value={electricityUnitRate}
+                onChange={(e) => setElectricityUnitRate(parseFloat(e.target.value) || 7)}
+                className="w-full"
+                data-testid="input-electricity-rate"
+              />
+              <span className="text-sm text-muted-foreground whitespace-nowrap">Rs/kWh</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Enter the electricity rate from your bill for exact savings calculation
+            </p>
           </div>
         </div>
         
