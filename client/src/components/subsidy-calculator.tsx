@@ -324,7 +324,7 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   const blueColor: [number, number, number] = [41, 98, 255];
   const whiteColor: [number, number, number] = [255, 255, 255];
   
-  const totalPages = 9;
+  const totalPages = 10;
   
   const addHeader = (pageNum: number, sectionTitle: string) => {
     doc.setFillColor(...primaryColor);
@@ -478,70 +478,111 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   doc.text(data.customerType.charAt(0).toUpperCase() + data.customerType.slice(1), leftX + 6, y + 25);
   doc.text(data.inverterType === "hybrid" ? "Hybrid Inverter" : "Ongrid Inverter", rightX + 6, y + 25);
   
-  // Installation Address Section (if provided) - compact version
-  y += boxHeight + 8;
-  if (data.installationAddress) {
-    doc.setFillColor(240, 255, 240);
-    doc.roundedRect(margin, y, contentWidth, 22, 4, 4, 'F');
-    doc.setDrawColor(...greenColor);
-    doc.setLineWidth(1.5);
-    doc.roundedRect(margin, y, contentWidth, 22, 4, 4, 'S');
-    
-    doc.setTextColor(...greenColor);
-    doc.setFontSize(7);
-    doc.setFont("helvetica", "bold");
-    doc.text("PROPOSED PLANT INSTALLATION SITE", margin + 8, y + 8);
-    
-    doc.setTextColor(...darkColor);
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
-    const addressLines = doc.splitTextToSize(data.installationAddress, contentWidth - 16);
-    doc.text(addressLines.slice(0, 1), margin + 8, y + 17);
-    y += 26;
-  }
-  
-  // Partner info section - always visible if data provided
-  if (data.partnerName || data.partnerPhone) {
-    doc.setFillColor(240, 248, 255);
-    doc.roundedRect(margin, y, contentWidth, 20, 4, 4, 'F');
-    doc.setDrawColor(...blueColor);
-    doc.setLineWidth(1.5);
-    doc.roundedRect(margin, y, contentWidth, 20, 4, 4, 'S');
-    
-    doc.setTextColor(...blueColor);
-    doc.setFontSize(7);
-    doc.setFont("helvetica", "bold");
-    doc.text("YOUR DISTRICT PARTNER", margin + 8, y + 7);
-    
-    doc.setTextColor(...darkColor);
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
-    const partnerInfo = data.partnerName ? `${data.partnerName}${data.partnerPhone ? ` | +91-${data.partnerPhone}` : ''}` : `+91-${data.partnerPhone}`;
-    doc.text(partnerInfo, margin + 8, y + 15);
-    y += 24;
-  }
-  
-  // Bottom info box - Panel & System details - positioned safely above footer
-  const panelBoxY = Math.min(y, pageHeight - 52);
+  // Bottom info box - Panel & System details on cover page
+  y += boxHeight + 12;
   doc.setFillColor(255, 248, 240);
-  doc.roundedRect(margin, panelBoxY, contentWidth, 24, 4, 4, 'F');
+  doc.roundedRect(margin, y, contentWidth, 24, 4, 4, 'F');
   doc.setDrawColor(...primaryColor);
   doc.setLineWidth(1);
-  doc.roundedRect(margin, panelBoxY, contentWidth, 24, 4, 4, 'S');
+  doc.roundedRect(margin, y, contentWidth, 24, 4, 4, 'S');
   
   doc.setTextColor(...darkColor);
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   const panelInfo = data.panelType === "dcr" ? "DCR Panels (Subsidy Eligible)" : "Non-DCR Panels";
   const systemInfo = data.inverterType === "hybrid" ? "Hybrid system with battery backup capability" : "Grid-connected system for maximum savings";
-  doc.text(`Panel Type: ${panelInfo}`, margin + 8, panelBoxY + 9);
-  doc.text(`System: ${systemInfo}`, margin + 8, panelBoxY + 18);
+  doc.text(`Panel Type: ${panelInfo}`, margin + 8, y + 9);
+  doc.text(`System: ${systemInfo}`, margin + 8, y + 18);
   
   addFooter(1);
   
-  // ========== PAGE 2: WHY SOLAR ==========
+  // ========== PAGE 2: PROJECT DETAILS ==========
   doc.addPage();
-  addHeader(2, "WHY SOLAR");
+  addHeader(2, "PROJECT DETAILS");
+  
+  y = 45;
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text("Installation & Partner Details", margin, y);
+  
+  // Installation Address Section
+  y += 20;
+  if (data.installationAddress) {
+    doc.setFillColor(240, 255, 240);
+    doc.roundedRect(margin, y, contentWidth, 35, 4, 4, 'F');
+    doc.setDrawColor(...greenColor);
+    doc.setLineWidth(1.5);
+    doc.roundedRect(margin, y, contentWidth, 35, 4, 4, 'S');
+    
+    doc.setTextColor(...greenColor);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("PROPOSED PLANT INSTALLATION SITE", margin + 10, y + 12);
+    
+    doc.setTextColor(...darkColor);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    const addressLines = doc.splitTextToSize(data.installationAddress, contentWidth - 20);
+    doc.text(addressLines.slice(0, 2), margin + 10, y + 25);
+    y += 45;
+  }
+  
+  // Partner info section
+  if (data.partnerName || data.partnerPhone) {
+    doc.setFillColor(240, 248, 255);
+    doc.roundedRect(margin, y, contentWidth, 35, 4, 4, 'F');
+    doc.setDrawColor(...blueColor);
+    doc.setLineWidth(1.5);
+    doc.roundedRect(margin, y, contentWidth, 35, 4, 4, 'S');
+    
+    doc.setTextColor(...blueColor);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("YOUR DISTRICT PARTNER", margin + 10, y + 12);
+    
+    doc.setTextColor(...darkColor);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    const partnerInfo = data.partnerName ? `${data.partnerName}${data.partnerPhone ? ` | +91-${data.partnerPhone}` : ''}` : `+91-${data.partnerPhone}`;
+    doc.text(partnerInfo, margin + 10, y + 25);
+    y += 45;
+  }
+  
+  // Quick system overview
+  y += 10;
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("System Overview", margin, y);
+  
+  y += 15;
+  const overviewItems = [
+    { label: "Customer Name", value: data.customerName || "Valued Customer" },
+    { label: "System Capacity", value: `${data.capacity} kWp` },
+    { label: "Panel Type", value: data.panelType === "dcr" ? "DCR (Subsidy Eligible)" : "Non-DCR" },
+    { label: "Inverter Type", value: data.inverterType === "hybrid" ? "Hybrid (Battery Ready)" : "Ongrid" },
+    { label: "State", value: data.state || "India" },
+  ];
+  
+  overviewItems.forEach((item, idx) => {
+    doc.setFillColor(idx % 2 === 0 ? 250 : 255, idx % 2 === 0 ? 250 : 255, idx % 2 === 0 ? 250 : 255);
+    doc.roundedRect(margin, y, contentWidth, 14, 2, 2, 'F');
+    
+    doc.setTextColor(...darkColor);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text(item.label, margin + 8, y + 9);
+    doc.setFont("helvetica", "bold");
+    doc.text(item.value, pageWidth - margin - 8, y + 9, { align: "right" });
+    y += 16;
+  });
+  
+  addFooter(2);
+  
+  // ========== PAGE 3: WHY SOLAR ==========
+  doc.addPage();
+  addHeader(3, "WHY SOLAR");
   
   y = 45;
   doc.setTextColor(...primaryColor);
@@ -616,11 +657,11 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   doc.text("720 Million Tonnes CO2 Saved over 25 years", margin + statW / 2, y + 30, { align: "center" });
   doc.text("17 Lakh Jobs Created in solar sector", margin + statW + statW / 2, y + 30, { align: "center" });
   
-  addFooter(2);
+  addFooter(3);
   
-  // ========== PAGE 3: ABOUT US ==========
+  // ========== PAGE 4: ABOUT US ==========
   doc.addPage();
-  addHeader(3, "ABOUT US");
+  addHeader(4, "ABOUT US");
   
   y = 45;
   doc.setTextColor(...primaryColor);
@@ -723,9 +764,9 @@ function generateProposalPDF(data: ProposalData): jsPDF {
     doc.text(val.desc, vx + 6, vy + 17);
   });
   
-  addFooter(3);
+  addFooter(4);
   
-  // ========== PAGE 4: BENEFITS ==========
+  // ========== PAGE 5: BENEFITS ==========
   doc.addPage();
   
   doc.setTextColor(...grayColor);
@@ -782,9 +823,9 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   doc.setFont("helvetica", "normal");
   doc.text("Complete peace of mind with our industry-leading warranty coverage.", pageWidth / 2, y + 30, { align: "center" });
   
-  addFooter(4);
+  addFooter(5);
   
-  // ========== PAGE 5: SUNPUNCH INVERTER ==========
+  // ========== PAGE 6: SUNPUNCH INVERTER ==========
   doc.addPage();
   
   doc.setTextColor(...grayColor);
@@ -900,9 +941,9 @@ function generateProposalPDF(data: ProposalData): jsPDF {
     doc.text("Direct Grid Connection | Net Metering Compatible | Maximum Savings", margin + 12, inverterBoxY + 20);
   }
   
-  addFooter(5);
+  addFooter(6);
   
-  // ========== PAGE 6: INVESTMENT SUMMARY ==========
+  // ========== PAGE 7: INVESTMENT SUMMARY ==========
   doc.addPage();
   
   doc.setTextColor(...grayColor);
@@ -1030,9 +1071,9 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   doc.setFont("helvetica", "bold");
   doc.text(`${data.paybackYears} Years`, 45 + savingsBoxWidth * 2, y + 30);
   
-  addFooter(6);
+  addFooter(7);
   
-  // ========== PAGE 7: EMI SCHEDULE ==========
+  // ========== PAGE 8: EMI SCHEDULE ==========
   doc.addPage();
   
   doc.setTextColor(...grayColor);
@@ -1148,9 +1189,9 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   doc.setFontSize(12);
   doc.text(`EMI: ${formatINR(data.selectedEmi)}/month`, pageWidth / 2, emiSummaryY + 24);
   
-  addFooter(7);
+  addFooter(8);
   
-  // ========== PAGE 8: ENVIRONMENTAL IMPACT ==========
+  // ========== PAGE 9: ENVIRONMENTAL IMPACT ==========
   doc.addPage();
   
   doc.setTextColor(...grayColor);
@@ -1206,9 +1247,9 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   doc.setFont("helvetica", "bold");
   doc.text(`${formatINRPlain(distanceEquivalent)} Kms`, pageWidth / 2, y + 38, { align: "center" });
   
-  addFooter(8);
+  addFooter(9);
   
-  // ========== PAGE 9: TERMS & CONDITIONS ==========
+  // ========== PAGE 10: TERMS & CONDITIONS ==========
   doc.addPage();
   
   doc.setTextColor(...grayColor);
@@ -1262,7 +1303,7 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   doc.setFontSize(9);
   doc.text("info@divyanshisolar.com | www.divyanshisolar.com", pageWidth / 2, y, { align: "center" });
   
-  addFooter(9);
+  addFooter(10);
   
   return doc;
 }

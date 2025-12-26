@@ -7888,8 +7888,8 @@ export async function registerRoutes(
 
   // ========== EMAIL ENDPOINTS ==========
 
-  // Send proposal email to customer
-  app.post("/api/email/send-proposal", requireAuth, async (req, res) => {
+  // Send proposal email to customer (public endpoint for proposal sharing)
+  app.post("/api/email/send-proposal", async (req, res) => {
     try {
       const { customerEmail, customerName, capacity, netCost, subsidy } = req.body;
 
