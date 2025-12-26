@@ -1503,15 +1503,13 @@ Website: https://divyanshisolar.com`;
     try {
       const data = getProposalData();
       
-      const response = await apiRequest("POST", "/api/email/send-proposal", {
+      const result = await apiRequest("POST", "/api/email/send-proposal", {
         customerEmail: customerEmail,
         customerName: customerName || "Valued Customer",
         capacity: data.capacity,
         netCost: data.netCost,
         subsidy: data.totalSubsidy
       });
-      
-      const result = await response.json();
       
       if (result.success) {
         toast({
