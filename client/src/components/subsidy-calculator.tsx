@@ -478,63 +478,64 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   doc.text(data.customerType.charAt(0).toUpperCase() + data.customerType.slice(1), leftX + 6, y + 25);
   doc.text(data.inverterType === "hybrid" ? "Hybrid Inverter" : "Ongrid Inverter", rightX + 6, y + 25);
   
-  // Installation Address Section (if provided)
+  // Installation Address Section (if provided) - compact version
+  y += boxHeight + 8;
   if (data.installationAddress) {
-    y += boxHeight + 10;
     doc.setFillColor(240, 255, 240);
-    doc.roundedRect(margin, y, contentWidth, 28, 4, 4, 'F');
+    doc.roundedRect(margin, y, contentWidth, 22, 4, 4, 'F');
     doc.setDrawColor(...greenColor);
     doc.setLineWidth(1.5);
-    doc.roundedRect(margin, y, contentWidth, 28, 4, 4, 'S');
+    doc.roundedRect(margin, y, contentWidth, 22, 4, 4, 'S');
     
     doc.setTextColor(...greenColor);
-    doc.setFontSize(8);
+    doc.setFontSize(7);
     doc.setFont("helvetica", "bold");
-    doc.text("PROPOSED PLANT INSTALLATION SITE", margin + 10, y + 10);
+    doc.text("PROPOSED PLANT INSTALLATION SITE", margin + 8, y + 8);
     
     doc.setTextColor(...darkColor);
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    const addressLines = doc.splitTextToSize(data.installationAddress, contentWidth - 20);
-    doc.text(addressLines.slice(0, 2), margin + 10, y + 20);
+    const addressLines = doc.splitTextToSize(data.installationAddress, contentWidth - 16);
+    doc.text(addressLines.slice(0, 1), margin + 8, y + 17);
+    y += 26;
   }
   
-  // Partner info section (if provided) - positioned above panel info
+  // Partner info section - always visible if data provided
   if (data.partnerName || data.partnerPhone) {
-    y += boxHeight + 10;
     doc.setFillColor(240, 248, 255);
-    doc.roundedRect(margin, y, contentWidth, 24, 4, 4, 'F');
+    doc.roundedRect(margin, y, contentWidth, 20, 4, 4, 'F');
     doc.setDrawColor(...blueColor);
     doc.setLineWidth(1.5);
-    doc.roundedRect(margin, y, contentWidth, 24, 4, 4, 'S');
+    doc.roundedRect(margin, y, contentWidth, 20, 4, 4, 'S');
     
     doc.setTextColor(...blueColor);
-    doc.setFontSize(8);
+    doc.setFontSize(7);
     doc.setFont("helvetica", "bold");
-    doc.text("YOUR DISTRICT PARTNER", margin + 10, y + 9);
+    doc.text("YOUR DISTRICT PARTNER", margin + 8, y + 7);
     
     doc.setTextColor(...darkColor);
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     const partnerInfo = data.partnerName ? `${data.partnerName}${data.partnerPhone ? ` | +91-${data.partnerPhone}` : ''}` : `+91-${data.partnerPhone}`;
-    doc.text(partnerInfo, margin + 10, y + 18);
+    doc.text(partnerInfo, margin + 8, y + 15);
+    y += 24;
   }
   
-  // Bottom info box - Panel & System details
-  y += 30;
+  // Bottom info box - Panel & System details - positioned safely above footer
+  const panelBoxY = Math.min(y, pageHeight - 52);
   doc.setFillColor(255, 248, 240);
-  doc.roundedRect(margin, y, contentWidth, 28, 4, 4, 'F');
+  doc.roundedRect(margin, panelBoxY, contentWidth, 24, 4, 4, 'F');
   doc.setDrawColor(...primaryColor);
   doc.setLineWidth(1);
-  doc.roundedRect(margin, y, contentWidth, 28, 4, 4, 'S');
+  doc.roundedRect(margin, panelBoxY, contentWidth, 24, 4, 4, 'S');
   
   doc.setTextColor(...darkColor);
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   const panelInfo = data.panelType === "dcr" ? "DCR Panels (Subsidy Eligible)" : "Non-DCR Panels";
   const systemInfo = data.inverterType === "hybrid" ? "Hybrid system with battery backup capability" : "Grid-connected system for maximum savings";
-  doc.text(`Panel Type: ${panelInfo}`, margin + 10, y + 10);
-  doc.text(`System: ${systemInfo}`, margin + 10, y + 20);
+  doc.text(`Panel Type: ${panelInfo}`, margin + 8, panelBoxY + 9);
+  doc.text(`System: ${systemInfo}`, margin + 8, panelBoxY + 18);
   
   addFooter(1);
   
@@ -863,41 +864,40 @@ function generateProposalPDF(data: ProposalData): jsPDF {
     doc.text(descLines.slice(0, 2), fx + 8, fy + 23);
   });
   
-  // Hybrid vs Ongrid comparison (if hybrid)
+  // Hybrid vs Ongrid comparison - positioned safely above footer (footer at pageHeight - 20 = 277)
+  const inverterBoxY = 248;
   if (data.inverterType === "hybrid") {
-    y = 285;
     doc.setFillColor(240, 255, 240);
-    doc.roundedRect(margin, y - 25, contentWidth, 35, 4, 4, 'F');
+    doc.roundedRect(margin, inverterBoxY, contentWidth, 26, 4, 4, 'F');
     doc.setDrawColor(...greenColor);
     doc.setLineWidth(1);
-    doc.roundedRect(margin, y - 25, contentWidth, 35, 4, 4, 'S');
+    doc.roundedRect(margin, inverterBoxY, contentWidth, 26, 4, 4, 'S');
     
     doc.setTextColor(...greenColor);
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text("3-in-1 HYBRID ADVANTAGE", margin + 15, y - 12);
+    doc.text("3-in-1 HYBRID ADVANTAGE", margin + 12, inverterBoxY + 10);
     
     doc.setTextColor(...darkColor);
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
-    doc.text("Solar Inverter + Battery Charger + UPS in One Unit | Battery Backup Ready | Zero Export Capable", margin + 15, y);
+    doc.text("Solar Inverter + Battery Charger + UPS in One Unit | Battery Backup Ready", margin + 12, inverterBoxY + 20);
   } else {
-    y = 285;
     doc.setFillColor(240, 248, 255);
-    doc.roundedRect(margin, y - 25, contentWidth, 35, 4, 4, 'F');
+    doc.roundedRect(margin, inverterBoxY, contentWidth, 26, 4, 4, 'F');
     doc.setDrawColor(...blueColor);
     doc.setLineWidth(1);
-    doc.roundedRect(margin, y - 25, contentWidth, 35, 4, 4, 'S');
+    doc.roundedRect(margin, inverterBoxY, contentWidth, 26, 4, 4, 'S');
     
     doc.setTextColor(...blueColor);
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text("ON-GRID INVERTER", margin + 15, y - 12);
+    doc.text("ON-GRID INVERTER BENEFITS", margin + 12, inverterBoxY + 10);
     
     doc.setTextColor(...darkColor);
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
-    doc.text("Direct Grid Connection | Net Metering Compatible | Maximum Savings on Electricity Bills", margin + 15, y);
+    doc.text("Direct Grid Connection | Net Metering Compatible | Maximum Savings", margin + 12, inverterBoxY + 20);
   }
   
   addFooter(5);
@@ -1127,48 +1127,26 @@ function generateProposalPDF(data: ProposalData): jsPDF {
     y += 14;
   });
   
-  // Highlight Selected EMI - compact version
-  y += 10;
+  // Highlight Selected EMI - positioned safely above footer
+  const emiSummaryY = 240;
   doc.setFillColor(240, 255, 240);
-  doc.roundedRect(20, y, pageWidth - 40, 38, 4, 4, 'F');
+  doc.roundedRect(20, emiSummaryY, pageWidth - 40, 32, 4, 4, 'F');
   doc.setDrawColor(...greenColor);
   doc.setLineWidth(2);
-  doc.roundedRect(20, y, pageWidth - 40, 38, 4, 4, 'S');
+  doc.roundedRect(20, emiSummaryY, pageWidth - 40, 32, 4, 4, 'S');
   
   doc.setTextColor(...greenColor);
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "bold");
-  doc.text("YOUR SELECTED EMI PLAN", 30, y + 12);
-  
-  doc.setTextColor(...darkColor);
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "bold");
-  doc.text(`Tenure: ${data.selectedTenure} Months`, 30, y + 28);
-  doc.setTextColor(...greenColor);
-  doc.setFontSize(14);
-  doc.text(`EMI: ${formatINR(data.selectedEmi)}/month`, pageWidth / 2, y + 28);
-  
-  // Effective EMI after savings - compact version
-  y += 45;
-  doc.setFillColor(255, 250, 240);
-  doc.roundedRect(20, y, pageWidth - 40, 30, 4, 4, 'F');
-  doc.setDrawColor(...primaryColor);
-  doc.setLineWidth(1);
-  doc.roundedRect(20, y, pageWidth - 40, 30, 4, 4, 'S');
-  
-  doc.setTextColor(...primaryColor);
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "bold");
-  doc.text("EFFECTIVE MONTHLY PAYMENT (After Power Savings)", 30, y + 12);
-  
-  doc.setTextColor(...darkColor);
   doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
-  doc.text(`EMI: ${formatINR(data.selectedEmi)} - Monthly Savings: ${formatINR(data.monthlySavings)} =`, 30, y + 23);
+  doc.setFont("helvetica", "bold");
+  doc.text("YOUR SELECTED EMI PLAN", 28, emiSummaryY + 10);
+  
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Tenure: ${data.selectedTenure} Months`, 28, emiSummaryY + 24);
   doc.setTextColor(...greenColor);
   doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  doc.text(formatINR(data.effectiveMonthlyPayment), pageWidth - 30, y + 23, { align: "right" });
+  doc.text(`EMI: ${formatINR(data.selectedEmi)}/month`, pageWidth / 2, emiSummaryY + 24);
   
   addFooter(7);
   
