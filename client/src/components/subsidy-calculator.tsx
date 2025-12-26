@@ -1015,7 +1015,9 @@ export function SubsidyCalculator({
   const [customerType, setCustomerType] = useState<CustomerType>(initialCustomerType);
   const [selectedEmiTenure, setSelectedEmiTenure] = useState<number>(60);
   const [interestRate, setInterestRate] = useState<number>(10);
+  const [interestRateInput, setInterestRateInput] = useState<string>("10");
   const [electricityUnitRate, setElectricityUnitRate] = useState<number>(7);
+  const [electricityRateInput, setElectricityRateInput] = useState<string>("7");
   const [downPaymentPercent, setDownPaymentPercent] = useState<number>(15);
   const [customerName, setCustomerName] = useState<string>("");
   const [customerPhone, setCustomerPhone] = useState<string>("");
@@ -1420,12 +1422,32 @@ PM Surya Ghar Yojana Authorized Partner`;
             <div className="flex items-center gap-2">
               <Input
                 id="interest-rate"
-                type="number"
-                min="1"
-                max="25"
-                step="0.5"
-                value={interestRate}
-                onChange={(e) => setInterestRate(parseFloat(e.target.value) || 10)}
+                type="text"
+                inputMode="decimal"
+                value={interestRateInput}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                    setInterestRateInput(val);
+                    const numVal = parseFloat(val);
+                    if (!isNaN(numVal) && numVal >= 1 && numVal <= 25) {
+                      setInterestRate(numVal);
+                    }
+                  }
+                }}
+                onBlur={() => {
+                  const numVal = parseFloat(interestRateInput);
+                  if (isNaN(numVal) || numVal < 1) {
+                    setInterestRate(10);
+                    setInterestRateInput("10");
+                  } else if (numVal > 25) {
+                    setInterestRate(25);
+                    setInterestRateInput("25");
+                  } else {
+                    setInterestRate(numVal);
+                    setInterestRateInput(numVal.toString());
+                  }
+                }}
                 className="w-full"
                 data-testid="input-interest-rate"
               />
@@ -1468,12 +1490,32 @@ PM Surya Ghar Yojana Authorized Partner`;
             <div className="flex items-center gap-2">
               <Input
                 id="electricity-rate"
-                type="number"
-                min="1"
-                max="20"
-                step="0.5"
-                value={electricityUnitRate}
-                onChange={(e) => setElectricityUnitRate(parseFloat(e.target.value) || 7)}
+                type="text"
+                inputMode="decimal"
+                value={electricityRateInput}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                    setElectricityRateInput(val);
+                    const numVal = parseFloat(val);
+                    if (!isNaN(numVal) && numVal >= 1 && numVal <= 20) {
+                      setElectricityUnitRate(numVal);
+                    }
+                  }
+                }}
+                onBlur={() => {
+                  const numVal = parseFloat(electricityRateInput);
+                  if (isNaN(numVal) || numVal < 1) {
+                    setElectricityUnitRate(7);
+                    setElectricityRateInput("7");
+                  } else if (numVal > 20) {
+                    setElectricityUnitRate(20);
+                    setElectricityRateInput("20");
+                  } else {
+                    setElectricityUnitRate(numVal);
+                    setElectricityRateInput(numVal.toString());
+                  }
+                }}
                 className="w-full"
                 data-testid="input-electricity-rate"
               />
