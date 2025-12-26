@@ -63,6 +63,9 @@ interface SubsidyResult {
   stateSubsidy: number;
   totalSubsidy: number;
   netCost: number;
+  downPayment: number;
+  downPaymentPercent: number;
+  loanAmount: number;
   monthlyGeneration: number;
   dailyGeneration: number;
   annualSavings: number;
@@ -76,7 +79,7 @@ interface SubsidyResult {
   ratePerWatt: number;
   customerType: CustomerType;
   subsidyEligible: boolean;
-  // EMI options for different tenures
+  // EMI options for different tenures (calculated on loan amount after down payment)
   emi36Months: number;
   emi48Months: number;
   emi60Months: number;
@@ -138,7 +141,8 @@ function calculateSubsidy(
   inverterType: InverterType = "hybrid",
   customerType: CustomerType = "residential",
   interestRate: number = 10,
-  electricityUnitRate: number = 7
+  electricityUnitRate: number = 7,
+  downPaymentPercent: number = 15
 ): SubsidyResult {
   // Calculate rate per watt based on panel type and inverter type
   let ratePerWatt: number;
@@ -174,6 +178,10 @@ function calculateSubsidy(
   const totalSubsidy = centralSubsidy + stateSubsidy;
   const netCost = Math.max(0, totalCost - totalSubsidy);
   
+  // Calculate down payment and effective loan amount
+  const downPayment = Math.round(netCost * (downPaymentPercent / 100));
+  const loanAmount = netCost - downPayment;
+  
   // Power generation: 4 units per kW per day average
   const dailyGeneration = capacityKW * 4;
   const monthlyGeneration = dailyGeneration * 30;
@@ -185,14 +193,14 @@ function calculateSubsidy(
   
   const paybackYears = netCost > 0 ? netCost / annualSavings : 0;
   
-  // Calculate EMI for different tenures using custom interest rate
+  // Calculate EMI for different tenures using custom interest rate on LOAN AMOUNT (not netCost)
   const emiTenure = 60;
-  const emiMonthly = calculateEMI(netCost, interestRate, emiTenure);
-  const emi36Months = calculateEMI(netCost, interestRate, 36);
-  const emi48Months = calculateEMI(netCost, interestRate, 48);
-  const emi60Months = calculateEMI(netCost, interestRate, 60);
-  const emi72Months = calculateEMI(netCost, interestRate, 72);
-  const emi84Months = calculateEMI(netCost, interestRate, 84);
+  const emiMonthly = calculateEMI(loanAmount, interestRate, emiTenure);
+  const emi36Months = calculateEMI(loanAmount, interestRate, 36);
+  const emi48Months = calculateEMI(loanAmount, interestRate, 48);
+  const emi60Months = calculateEMI(loanAmount, interestRate, 60);
+  const emi72Months = calculateEMI(loanAmount, interestRate, 72);
+  const emi84Months = calculateEMI(loanAmount, interestRate, 84);
   
   return {
     capacity: capacityKW,
@@ -201,6 +209,9 @@ function calculateSubsidy(
     stateSubsidy,
     totalSubsidy,
     netCost,
+    downPayment,
+    downPaymentPercent,
+    loanAmount,
     dailyGeneration,
     monthlyGeneration,
     monthlySavings,
@@ -557,7 +568,30 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   doc.text("Net Investment", 30, y + 62);
   doc.text(formatINR(data.netCost), pageWidth - 30, y + 62, { align: "right" });
   
-  y = 180;
+  // Payment Structure Section
+  y = 175;
+  doc.setFillColor(240, 255, 240);
+  doc.rect(20, y, pageWidth - 40, 35, 'F');
+  
+  doc.setTextColor(...greenColor);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("Payment Structure", 30, y + 12);
+  
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Down Payment (${data.downPaymentPercent}%):`, 30, y + 24);
+  doc.setFont("helvetica", "bold");
+  doc.text(formatINR(data.downPayment), 100, y + 24);
+  
+  doc.setFont("helvetica", "normal");
+  doc.text("Effective Loan Amount:", pageWidth / 2, y + 24);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...primaryColor);
+  doc.text(formatINR(data.loanAmount), pageWidth - 30, y + 24, { align: "right" });
+  
+  y = 220;
   const savingsBoxWidth = (pageWidth - 60) / 3;
   
   doc.setFillColor(240, 255, 240);
@@ -592,17 +626,17 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   doc.setFont("helvetica", "bold");
   doc.text(`${data.paybackYears} Years`, 45 + savingsBoxWidth * 2, y + 28);
   
-  y = 240;
+  y = 275;
   doc.setTextColor(...darkColor);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text("Financing Options (EMI)", 20, y);
+  doc.text("EMI Options (on Loan Amount)", 20, y);
   doc.setTextColor(...grayColor);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text(`Interest Rate: ${data.interestRate}% (Bank Loan)`, pageWidth - 20, y, { align: "right" });
+  doc.text(`Interest Rate: ${data.interestRate}% p.a. | Loan: ${formatINR(data.loanAmount)}`, pageWidth - 20, y, { align: "right" });
   
-  y = 255;
+  y = 290;
   const emiBoxWidth = (pageWidth - 60) / 3;
   
   doc.setFillColor(250, 250, 250);
@@ -793,7 +827,7 @@ export function SubsidyCalculator({
   
   const maxCapacity = customerTypeConfig[customerType].maxCapacity;
   
-  const result = useMemo(() => calculateSubsidy(capacity, selectedState, panelType, inverterType, customerType, interestRate, electricityUnitRate), [capacity, selectedState, panelType, inverterType, customerType, interestRate, electricityUnitRate]);
+  const result = useMemo(() => calculateSubsidy(capacity, selectedState, panelType, inverterType, customerType, interestRate, electricityUnitRate, downPaymentPercent), [capacity, selectedState, panelType, inverterType, customerType, interestRate, electricityUnitRate, downPaymentPercent]);
   const commission = useMemo(() => calculateCommission(capacity, panelType), [capacity, panelType]);
   
   // Get EMI for selected tenure
@@ -851,8 +885,6 @@ export function SubsidyCalculator({
   }
   
   const getProposalData = useCallback((): ProposalData => {
-    const downPayment = Math.round(result.netCost * (downPaymentPercent / 100));
-    const loanAmount = result.netCost - downPayment;
     const effectiveMonthlyPayment = Math.max(0, selectedEmi - result.monthlySavings);
     
     return {
@@ -866,9 +898,9 @@ export function SubsidyCalculator({
       stateSubsidy: result.stateSubsidy,
       totalSubsidy: result.totalSubsidy,
       netCost: result.netCost,
-      downPayment,
-      downPaymentPercent,
-      loanAmount,
+      downPayment: result.downPayment,
+      downPaymentPercent: result.downPaymentPercent,
+      loanAmount: result.loanAmount,
       selectedTenure: selectedEmiTenure,
       selectedEmi,
       interestRate,
@@ -884,7 +916,7 @@ export function SubsidyCalculator({
       emi60Months: result.emi60Months,
       emi84Months: result.emi84Months,
     };
-  }, [capacity, panelType, inverterType, customerType, result, selectedEmiTenure, selectedEmi, interestRate, electricityUnitRate, selectedState, downPaymentPercent, customerName]);
+  }, [capacity, panelType, inverterType, customerType, result, selectedEmiTenure, selectedEmi, interestRate, electricityUnitRate, selectedState, customerName]);
   
   function handleDownloadProposal() {
     const data = getProposalData();
@@ -1450,11 +1482,21 @@ PM Surya Ghar Yojana Authorized Partner`;
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
               <div className="p-4 bg-background rounded-lg">
-                <p className="text-sm text-muted-foreground mb-1">Loan Amount {result.subsidyEligible ? "(After Subsidy)" : ""}</p>
-                <p className="text-2xl font-bold font-mono text-primary">{formatINR(result.netCost)}</p>
+                <p className="text-sm text-muted-foreground mb-1">Net Cost {result.subsidyEligible ? "(After Subsidy)" : ""}</p>
+                <p className="text-xl font-bold font-mono">{formatINR(result.netCost)}</p>
               </div>
+              <div className="p-4 bg-background rounded-lg">
+                <p className="text-sm text-muted-foreground mb-1">Down Payment ({result.downPaymentPercent}%)</p>
+                <p className="text-xl font-bold font-mono text-green-600">{formatINR(result.downPayment)}</p>
+              </div>
+              <div className="p-4 bg-background rounded-lg">
+                <p className="text-sm text-muted-foreground mb-1">Effective Loan Amount</p>
+                <p className="text-xl font-bold font-mono text-primary">{formatINR(result.loanAmount)}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-4 text-center">
               <div className="p-4 bg-background rounded-lg">
                 <p className="text-sm text-muted-foreground mb-2">Select EMI Tenure</p>
                 <div className="flex gap-1 flex-wrap justify-center">
