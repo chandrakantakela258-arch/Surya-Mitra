@@ -57,18 +57,46 @@ async function getUncachableGmailClient() {
   return google.gmail({ version: 'v1', auth: oauth2Client });
 }
 
-function createEmailMessage(to: string, subject: string, htmlContent: string, fromName: string = 'Divyanshi Solar'): string {
+function createEmailMessage(to: string, subject: string, htmlContent: string, fromName: string = 'Divyanshi Solar', pdfAttachment?: { filename: string; data: string }): string {
   const fromEmail = connectionSettings?.settings?.email || 'noreply@divyanshisolar.com';
+  const boundary = '----=_Part_' + Date.now().toString(36);
   
-  const messageParts = [
-    `From: ${fromName} <${fromEmail}>`,
-    `To: ${to}`,
-    `Subject: ${subject}`,
-    'MIME-Version: 1.0',
-    'Content-Type: text/html; charset=utf-8',
-    '',
-    htmlContent
-  ];
+  let messageParts: string[];
+  
+  if (pdfAttachment) {
+    messageParts = [
+      `From: ${fromName} <${fromEmail}>`,
+      `To: ${to}`,
+      `Subject: ${subject}`,
+      'MIME-Version: 1.0',
+      `Content-Type: multipart/mixed; boundary="${boundary}"`,
+      '',
+      `--${boundary}`,
+      'Content-Type: text/html; charset=utf-8',
+      'Content-Transfer-Encoding: 7bit',
+      '',
+      htmlContent,
+      '',
+      `--${boundary}`,
+      'Content-Type: application/pdf',
+      'Content-Transfer-Encoding: base64',
+      `Content-Disposition: attachment; filename="${pdfAttachment.filename}"`,
+      '',
+      pdfAttachment.data,
+      '',
+      `--${boundary}--`
+    ];
+  } else {
+    messageParts = [
+      `From: ${fromName} <${fromEmail}>`,
+      `To: ${to}`,
+      `Subject: ${subject}`,
+      'MIME-Version: 1.0',
+      'Content-Type: text/html; charset=utf-8',
+      '',
+      htmlContent
+    ];
+  }
   
   const message = messageParts.join('\r\n');
   
@@ -84,6 +112,10 @@ export interface EmailOptions {
   subject: string;
   htmlContent: string;
   fromName?: string;
+  pdfAttachment?: {
+    filename: string;
+    data: string;  // Base64 encoded PDF data
+  };
 }
 
 export async function sendEmail(options: EmailOptions): Promise<{ success: boolean; messageId?: string; error?: string }> {
@@ -97,7 +129,8 @@ export async function sendEmail(options: EmailOptions): Promise<{ success: boole
       options.to,
       options.subject,
       options.htmlContent,
-      options.fromName
+      options.fromName,
+      options.pdfAttachment
     );
     
     console.log('Sending email via Gmail API...');
@@ -136,7 +169,7 @@ export async function sendEmail(options: EmailOptions): Promise<{ success: boole
   }
 }
 
-export function createProposalEmailTemplate(customerName: string, capacity: number, netCost: number, subsidy: number): string {
+export function createProposalEmailTemplate(customerName: string, capacity: number, netCost: number, subsidy: number, partnerName?: string): string {
   const formatINR = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -222,6 +255,13 @@ export function createProposalEmailTemplate(customerName: string, capacity: numb
                   </td>
                 </tr>
               </table>
+              
+              ${partnerName ? `
+              <div style="background-color: #E8F5E9; border-left: 4px solid #228B22; padding: 15px 20px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+                <p style="color: #228B22; margin: 0; font-weight: bold;">Your District Partner</p>
+                <p style="color: #333333; margin: 8px 0 0; font-size: 16px;">Contact <strong>${partnerName}</strong> for further installation process and site survey.</p>
+              </div>
+              ` : ''}
               
               <p style="color: #666666; line-height: 1.6; margin: 20px 0 0;">
                 If you have any questions, feel free to reach out to us. We're here to help you on your solar journey!

@@ -7891,7 +7891,7 @@ export async function registerRoutes(
   // Send proposal email to customer (public endpoint for proposal sharing)
   app.post("/api/email/send-proposal", async (req, res) => {
     try {
-      const { customerEmail, customerName, capacity, netCost, subsidy } = req.body;
+      const { customerEmail, customerName, capacity, netCost, subsidy, pdfBase64, partnerName } = req.body;
 
       if (!customerEmail || !customerName || !capacity || netCost === undefined) {
         return res.status(400).json({ message: "Missing required fields: customerEmail, customerName, capacity, netCost" });
@@ -7906,14 +7906,19 @@ export async function registerRoutes(
         customerName,
         Number(capacity),
         Number(netCost),
-        Number(subsidy) || 0
+        Number(subsidy) || 0,
+        partnerName || undefined
       );
 
       const result = await sendEmail({
         to: customerEmail,
         subject: `Your Solar Proposal - ${capacity} kWp System | Divyanshi Solar`,
         htmlContent,
-        fromName: 'Divyanshi Solar'
+        fromName: 'Divyanshi Solar',
+        pdfAttachment: pdfBase64 ? {
+          filename: `Solar_Proposal_${customerName.replace(/\s+/g, '_')}_${capacity}kWp.pdf`,
+          data: pdfBase64
+        } : undefined
       });
 
       if (result.success) {
