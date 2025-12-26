@@ -237,6 +237,7 @@ function formatINRPlain(amount: number): string {
 }
 
 interface ProposalData {
+  customerName: string;
   capacity: number;
   panelType: string;
   inverterType: string;
@@ -260,201 +261,497 @@ interface ProposalData {
   paybackYears: number;
   state: string;
   ratePerWatt: number;
+  emi36Months: number;
+  emi60Months: number;
+  emi84Months: number;
 }
 
 function generateProposalPDF(data: ProposalData): jsPDF {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
-  let y = 20;
+  const pageHeight = doc.internal.pageSize.getHeight();
   
   const primaryColor: [number, number, number] = [255, 102, 0];
   const darkColor: [number, number, number] = [51, 51, 51];
-  const grayColor: [number, number, number] = [128, 128, 128];
+  const grayColor: [number, number, number] = [100, 100, 100];
   const greenColor: [number, number, number] = [34, 139, 34];
+  const blueColor: [number, number, number] = [59, 130, 246];
   
+  const addFooter = (pageNum: number) => {
+    doc.setFillColor(51, 51, 51);
+    doc.rect(0, pageHeight - 15, pageWidth, 15, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text("Divyanshi Solar - PM Surya Ghar Yojana Authorized Partner", 15, pageHeight - 6);
+    doc.text(`Page ${pageNum}`, pageWidth - 15, pageHeight - 6, { align: "right" });
+  };
+  
+  // ========== PAGE 1: COVER PAGE ==========
   doc.setFillColor(255, 102, 0);
-  doc.rect(0, 0, pageWidth, 40, 'F');
+  doc.rect(0, 0, pageWidth, 50, 'F');
   
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(24);
-  doc.setFont("helvetica", "bold");
-  doc.text("DIVYANSHI SOLAR", pageWidth / 2, 18, { align: "center" });
-  
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "normal");
-  doc.text("PM Surya Ghar Yojana - Solar Rooftop Proposal", pageWidth / 2, 30, { align: "center" });
-  
-  y = 55;
-  
-  doc.setTextColor(...darkColor);
-  doc.setFontSize(16);
-  doc.setFont("helvetica", "bold");
-  doc.text("Solar Plant Proposal", 20, y);
-  
   doc.setFontSize(10);
-  doc.setTextColor(...grayColor);
-  doc.text(`Generated on: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}`, pageWidth - 20, y, { align: "right" });
+  doc.setFont("helvetica", "italic");
+  doc.text("\"For us Customers are not clients - They are Family\"", pageWidth / 2, 20, { align: "center" });
   
-  y += 15;
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("SOLAR PROPOSAL", pageWidth / 2, 38, { align: "center" });
+  
+  let y = 75;
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(28);
+  doc.setFont("helvetica", "bold");
+  doc.text("SOLAR ROOFTOP", pageWidth / 2, y, { align: "center" });
+  doc.text("SYSTEM PROPOSAL", pageWidth / 2, y + 12, { align: "center" });
+  
+  y = 110;
+  const boxWidth = 80;
+  const boxHeight = 35;
   
   doc.setFillColor(245, 245, 245);
-  doc.rect(15, y - 5, pageWidth - 30, 35, 'F');
+  doc.rect(20, y, boxWidth, boxHeight, 'F');
+  doc.rect(pageWidth - 20 - boxWidth, y, boxWidth, boxHeight, 'F');
+  
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("PREPARED FOR", 25, y + 10);
+  doc.text("LOCATION", pageWidth - 15 - boxWidth, y + 10);
+  
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text(data.customerName || "Valued Customer", 25, y + 22);
+  doc.text(data.state || "India", pageWidth - 15 - boxWidth, y + 22);
+  
+  y = 155;
+  doc.setFillColor(245, 245, 245);
+  doc.rect(20, y, boxWidth, boxHeight, 'F');
+  doc.rect(pageWidth - 20 - boxWidth, y, boxWidth, boxHeight, 'F');
+  
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("SYSTEM CAPACITY", 25, y + 10);
+  doc.text("DATE", pageWidth - 15 - boxWidth, y + 10);
+  
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${data.capacity} kWp Rooftop Solar`, 25, y + 22);
+  doc.text(new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }), pageWidth - 15 - boxWidth, y + 22);
+  
+  y = 200;
+  doc.setFillColor(245, 245, 245);
+  doc.rect(20, y, boxWidth, boxHeight, 'F');
+  doc.rect(pageWidth - 20 - boxWidth, y, boxWidth, boxHeight, 'F');
+  
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("PROPERTY TYPE", 25, y + 10);
+  doc.text("SYSTEM TYPE", pageWidth - 15 - boxWidth, y + 10);
+  
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text(data.customerType.charAt(0).toUpperCase() + data.customerType.slice(1), 25, y + 22);
+  doc.text(data.inverterType === "hybrid" ? "Hybrid" : "Ongrid", pageWidth - 15 - boxWidth, y + 22);
+  
+  y = 250;
+  doc.setFillColor(255, 250, 240);
+  doc.rect(15, y, pageWidth - 30, 25, 'F');
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  const propertyText = data.panelType === "dcr" 
+    ? `Property: Under PM Surya Ghar Yojana, ${data.capacity <= 10 ? '1-10kW' : '10-500kW'} for ${data.customerType.charAt(0).toUpperCase() + data.customerType.slice(1)} (Subsidy Eligible)`
+    : `Property: ${data.capacity}kW ${data.customerType.charAt(0).toUpperCase() + data.customerType.slice(1)} Solar Installation (Non-DCR)`;
+  doc.text(propertyText, 20, y + 10);
+  const systemText = data.inverterType === "hybrid" 
+    ? "System: Hybrid system with battery backup capability"
+    : "System: Grid-connected system - No battery backup, lower cost";
+  doc.text(systemText, 20, y + 18);
+  
+  addFooter(1);
+  
+  // ========== PAGE 2: ABOUT US ==========
+  doc.addPage();
+  
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("WHO WE ARE", pageWidth - 20, 20, { align: "right" });
+  
+  y = 50;
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.text("About DIVYANSHI SOLAR", 20, y);
+  
+  y = 70;
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  const aboutText = "DIVYANSHI SOLAR delivers premium renewable energy solutions focused on long-term value, substantial savings, and lifetime customer support. We are committed to transforming how India consumes energy through innovative solar technology.";
+  const splitAbout = doc.splitTextToSize(aboutText, pageWidth - 40);
+  doc.text(splitAbout, 20, y);
+  
+  y = 110;
+  const visionBoxWidth = (pageWidth - 50) / 3;
+  
+  doc.setFillColor(255, 250, 240);
+  doc.rect(20, y, visionBoxWidth, 60, 'F');
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("Our Vision", 25, y + 15);
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  const visionText = doc.splitTextToSize("Empower a billion lives through sustainable, clean energy solutions.", visionBoxWidth - 10);
+  doc.text(visionText, 25, y + 28);
+  
+  doc.setFillColor(240, 255, 240);
+  doc.rect(25 + visionBoxWidth, y, visionBoxWidth, 60, 'F');
+  doc.setTextColor(...greenColor);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("Our Mission", 30 + visionBoxWidth, y + 15);
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  const missionText = doc.splitTextToSize("Deliver innovative, reliable, and affordable solar solutions to every Indian.", visionBoxWidth - 10);
+  doc.text(missionText, 30 + visionBoxWidth, y + 28);
+  
+  doc.setFillColor(240, 248, 255);
+  doc.rect(30 + visionBoxWidth * 2, y, visionBoxWidth, 60, 'F');
+  doc.setTextColor(...blueColor);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("Our Values", 35 + visionBoxWidth * 2, y + 15);
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  const valuesText = doc.splitTextToSize("Trust, Integrity, and Service Excellence in every relationship.", visionBoxWidth - 10);
+  doc.text(valuesText, 35 + visionBoxWidth * 2, y + 28);
+  
+  addFooter(2);
+  
+  // ========== PAGE 3: BENEFITS ==========
+  doc.addPage();
+  
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("BENEFITS", pageWidth - 20, 20, { align: "right" });
+  
+  y = 50;
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.text("Why Choose DIVYANSHI SOLAR", 20, y);
+  
+  y = 75;
+  const benefitBoxWidth = (pageWidth - 50) / 2;
+  const benefitBoxHeight = 50;
+  
+  const benefits = [
+    { title: "Financial Savings", desc: "Dramatically reduce your monthly electricity bills and build lifetime savings with solar power.", color: primaryColor },
+    { title: "Government Support", desc: `PM Surya Ghar Yojana subsidy credited directly to your account - up to Rs ${formatINRPlain(data.totalSubsidy)} benefits.`, color: greenColor },
+    { title: "Sustainability", desc: "Zero emission clean energy that protects our environment for future generations.", color: blueColor },
+    { title: "Property Value", desc: "Solar installations significantly increase your property's market value and appeal.", color: [139, 69, 19] as [number, number, number] },
+  ];
+  
+  benefits.forEach((benefit, i) => {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const x = 20 + col * (benefitBoxWidth + 10);
+    const boxY = y + row * (benefitBoxHeight + 15);
+    
+    doc.setFillColor(250, 250, 250);
+    doc.rect(x, boxY, benefitBoxWidth, benefitBoxHeight, 'F');
+    
+    doc.setTextColor(...benefit.color);
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text(benefit.title, x + 10, boxY + 15);
+    
+    doc.setTextColor(...darkColor);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    const descText = doc.splitTextToSize(benefit.desc, benefitBoxWidth - 20);
+    doc.text(descText, x + 10, boxY + 28);
+  });
+  
+  y = 210;
+  doc.setFillColor(255, 102, 0);
+  doc.rect(20, y, pageWidth - 40, 40, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("25-Year Performance Warranty", pageWidth / 2, y + 18, { align: "center" });
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("Complete peace of mind with our industry-leading warranty coverage.", pageWidth / 2, y + 30, { align: "center" });
+  
+  addFooter(3);
+  
+  // ========== PAGE 4: INVESTMENT SUMMARY ==========
+  doc.addPage();
+  
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("INVESTMENT", pageWidth - 20, 20, { align: "right" });
+  
+  y = 50;
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.text("System Quotation & Financials", 20, y);
+  
+  y = 70;
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("Investment Summary", 20, y);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...grayColor);
+  doc.text(`${data.capacity} kWp ${data.inverterType === "hybrid" ? "Hybrid" : "Ongrid"} Solar Rooftop System`, 20, y + 10);
+  
+  y = 95;
+  doc.setFillColor(250, 250, 250);
+  doc.rect(20, y, pageWidth - 40, 70, 'F');
   
   doc.setTextColor(...darkColor);
   doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.text("SYSTEM SPECIFICATIONS", 20, y + 3);
-  
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  y += 12;
+  doc.text("Project Cost", 30, y + 15);
+  doc.setFont("helvetica", "bold");
+  doc.text(formatINR(data.totalCost), pageWidth - 30, y + 15, { align: "right" });
   
-  const specs = [
-    ["Plant Capacity:", `${data.capacity} kW`],
-    ["Panel Type:", data.panelType === "dcr" ? "DCR (Domestic Content Requirement)" : "Non-DCR"],
-    ["Inverter Type:", data.inverterType === "hybrid" ? "3-in-1 Hybrid Inverter" : "Ongrid Inverter"],
-    ["Customer Type:", data.customerType.charAt(0).toUpperCase() + data.customerType.slice(1)],
-  ];
-  
-  specs.forEach(([label, value], i) => {
-    doc.setTextColor(...grayColor);
-    doc.text(label, 25, y + (i * 6));
-    doc.setTextColor(...darkColor);
-    doc.setFont("helvetica", "bold");
-    doc.text(value, 75, y + (i * 6));
+  if (data.totalSubsidy > 0) {
     doc.setFont("helvetica", "normal");
-  });
+    doc.text("Government Subsidy", 30, y + 30);
+    doc.setTextColor(...grayColor);
+    doc.setFontSize(9);
+    doc.text("PM Surya Ghar", 30, y + 38);
+    doc.setTextColor(...greenColor);
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text("- " + formatINR(data.totalSubsidy), pageWidth - 30, y + 34, { align: "right" });
+  }
   
-  y += 40;
-  
-  doc.setFillColor(255, 250, 240);
-  doc.rect(15, y - 5, pageWidth - 30, 55, 'F');
   doc.setDrawColor(...primaryColor);
-  doc.setLineWidth(0.5);
-  doc.rect(15, y - 5, pageWidth - 30, 55, 'S');
+  doc.setLineWidth(1);
+  doc.line(30, y + 50, pageWidth - 30, y + 50);
   
   doc.setTextColor(...primaryColor);
-  doc.setFontSize(11);
+  doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
-  doc.text("COST BREAKDOWN", 20, y + 3);
+  doc.text("Net Investment", 30, y + 62);
+  doc.text(formatINR(data.netCost), pageWidth - 30, y + 62, { align: "right" });
   
-  y += 12;
-  doc.setFontSize(10);
-  
-  const costItems = [
-    ["Material Cost (@ Rs " + data.ratePerWatt + "/Watt):", formatINR(data.totalCost)],
-  ];
-  
-  if (data.centralSubsidy > 0) {
-    costItems.push(["Central Govt. Subsidy:", "- " + formatINR(data.centralSubsidy)]);
-  }
-  if (data.stateSubsidy > 0) {
-    costItems.push(["State Govt. Subsidy:", "- " + formatINR(data.stateSubsidy)]);
-  }
-  if (data.totalSubsidy > 0) {
-    costItems.push(["Total Subsidy Benefit:", "- " + formatINR(data.totalSubsidy)]);
-  }
-  costItems.push(["Net System Cost:", formatINR(data.netCost)]);
-  
-  costItems.forEach(([label, value], i) => {
-    doc.setTextColor(...grayColor);
-    doc.setFont("helvetica", "normal");
-    doc.text(label, 25, y + (i * 7));
-    
-    if (value.startsWith("-")) {
-      doc.setTextColor(...greenColor);
-    } else {
-      doc.setTextColor(...darkColor);
-    }
-    doc.setFont("helvetica", "bold");
-    doc.text(value, pageWidth - 30, y + (i * 7), { align: "right" });
-  });
-  
-  y += costItems.length * 7 + 15;
+  y = 180;
+  const savingsBoxWidth = (pageWidth - 60) / 3;
   
   doc.setFillColor(240, 255, 240);
-  doc.rect(15, y - 5, pageWidth - 30, 40, 'F');
-  doc.setDrawColor(...greenColor);
-  doc.rect(15, y - 5, pageWidth - 30, 40, 'S');
-  
+  doc.rect(20, y, savingsBoxWidth, 45, 'F');
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(9);
+  doc.text("ANNUAL SAVINGS", 25, y + 12);
   doc.setTextColor(...greenColor);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text(formatINR(data.annualSavings), 25, y + 28);
+  
+  doc.setFillColor(255, 250, 240);
+  doc.rect(30 + savingsBoxWidth, y, savingsBoxWidth, 45, 'F');
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("25-YEAR SAVINGS", 35 + savingsBoxWidth, y + 12);
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text(formatINR(data.annualSavings * 25), 35 + savingsBoxWidth, y + 28);
+  
+  doc.setFillColor(240, 248, 255);
+  doc.rect(40 + savingsBoxWidth * 2, y, savingsBoxWidth, 45, 'F');
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("PAYBACK PERIOD", 45 + savingsBoxWidth * 2, y + 12);
+  doc.setTextColor(...blueColor);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${data.paybackYears} Years`, 45 + savingsBoxWidth * 2, y + 28);
+  
+  y = 240;
+  doc.setTextColor(...darkColor);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text("PAYMENT STRUCTURE", 20, y + 3);
+  doc.text("Financing Options (EMI)", 20, y);
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Interest Rate: ${data.interestRate}% (Bank Loan)`, pageWidth - 20, y, { align: "right" });
   
-  y += 12;
-  doc.setFontSize(10);
+  y = 255;
+  const emiBoxWidth = (pageWidth - 60) / 3;
   
-  const paymentItems = [
-    [`${data.downPaymentPercent}% Down Payment:`, formatINR(data.downPayment)],
-    ["Loan Amount:", formatINR(data.loanAmount)],
-    [`EMI (${data.selectedTenure} months @ ${data.interestRate}% p.a.):`, formatINR(data.selectedEmi) + "/month"],
-  ];
-  
-  paymentItems.forEach(([label, value], i) => {
-    doc.setTextColor(...grayColor);
-    doc.setFont("helvetica", "normal");
-    doc.text(label, 25, y + (i * 7));
-    doc.setTextColor(...darkColor);
-    doc.setFont("helvetica", "bold");
-    doc.text(value, pageWidth - 30, y + (i * 7), { align: "right" });
-  });
-  
-  y += 40;
-  
-  doc.setFillColor(255, 248, 225);
-  doc.rect(15, y - 5, pageWidth - 30, 50, 'F');
-  doc.setDrawColor(255, 165, 0);
-  doc.rect(15, y - 5, pageWidth - 30, 50, 'S');
-  
-  doc.setTextColor(200, 100, 0);
-  doc.setFontSize(11);
+  doc.setFillColor(250, 250, 250);
+  doc.rect(20, y, emiBoxWidth, 40, 'F');
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(9);
+  doc.text("36 MONTHS EMI", 25, y + 12);
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text("YOUR SAVINGS (@ Rs " + data.electricityRate + "/unit)", 20, y + 3);
+  doc.text(formatINR(data.emi36Months), 25, y + 28);
   
-  y += 12;
+  doc.setFillColor(250, 250, 250);
+  doc.rect(30 + emiBoxWidth, y, emiBoxWidth, 40, 'F');
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("60 MONTHS EMI", 35 + emiBoxWidth, y + 12);
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text(formatINR(data.emi60Months), 35 + emiBoxWidth, y + 28);
+  
+  doc.setFillColor(250, 250, 250);
+  doc.rect(40 + emiBoxWidth * 2, y, emiBoxWidth, 40, 'F');
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("84 MONTHS EMI", 45 + emiBoxWidth * 2, y + 12);
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text(formatINR(data.emi84Months), 45 + emiBoxWidth * 2, y + 28);
+  
+  addFooter(4);
+  
+  // ========== PAGE 5: ENVIRONMENTAL IMPACT ==========
+  doc.addPage();
+  
+  doc.setTextColor(...grayColor);
   doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("SUSTAINABILITY", pageWidth - 20, 20, { align: "right" });
   
-  const savingsItems = [
-    ["Monthly Power Generation:", data.monthlyGeneration + " units"],
-    ["Monthly Savings:", formatINR(data.monthlySavings)],
-    ["Annual Savings:", formatINR(data.annualSavings)],
-    ["Effective Monthly Payment:", formatINR(data.effectiveMonthlyPayment)],
-    ["Payback Period:", data.paybackYears + " years"],
+  y = 50;
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.text("Environmental Impact", 20, y);
+  
+  const annualGeneration = data.capacity * 4 * 365;
+  const co2Mitigated = Math.round(annualGeneration * 0.82);
+  const treesEquivalent = Math.round(co2Mitigated / 21);
+  const distanceEquivalent = Math.round(co2Mitigated * 4);
+  const roi = ((data.annualSavings / data.netCost) * 100).toFixed(2);
+  
+  y = 80;
+  doc.setFillColor(240, 255, 240);
+  doc.rect(pageWidth / 2 - 50, y, 100, 50, 'F');
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("CO2 Mitigated (Annual)", pageWidth / 2, y + 15, { align: "center" });
+  doc.setTextColor(...greenColor);
+  doc.setFontSize(20);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${formatINRPlain(co2Mitigated)} Kg`, pageWidth / 2, y + 38, { align: "center" });
+  
+  y = 145;
+  doc.setFillColor(255, 250, 240);
+  doc.rect(pageWidth / 2 - 50, y, 100, 50, 'F');
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("Trees Planted Equivalent", pageWidth / 2, y + 15, { align: "center" });
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(20);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${treesEquivalent} Trees`, pageWidth / 2, y + 38, { align: "center" });
+  
+  y = 210;
+  doc.setFillColor(240, 248, 255);
+  doc.rect(pageWidth / 2 - 50, y, 100, 50, 'F');
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("Distance Equivalent", pageWidth / 2, y + 15, { align: "center" });
+  doc.setTextColor(...blueColor);
+  doc.setFontSize(20);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${formatINRPlain(distanceEquivalent)} Kms`, pageWidth / 2, y + 38, { align: "center" });
+  
+  addFooter(5);
+  
+  // ========== PAGE 6: TERMS & CONDITIONS ==========
+  doc.addPage();
+  
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("TERMS", pageWidth - 20, 20, { align: "right" });
+  
+  y = 50;
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.text("Terms & Conditions", 20, y);
+  
+  y = 75;
+  const terms = [
+    "This proposal is valid for 7 business days from the date of issuance.",
+    "Net-metering and subsidy approvals are subject to DISCOM and MNRE feasibility.",
+    "Final project cost may vary based on site-specific structural requirements.",
+    "System includes a comprehensive 5-year maintenance package.",
+    "All electrical work follows national safety standards.",
+    "Subsidy will be credited directly to customer bank account as per MNRE norms.",
   ];
   
-  savingsItems.forEach(([label, value], i) => {
-    doc.setTextColor(...grayColor);
-    doc.setFont("helvetica", "normal");
-    doc.text(label, 25, y + (i * 7));
-    doc.setTextColor(...darkColor);
-    doc.setFont("helvetica", "bold");
-    doc.text(value, pageWidth - 30, y + (i * 7), { align: "right" });
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  
+  terms.forEach((term, i) => {
+    doc.setFillColor(250, 250, 250);
+    doc.rect(20, y + (i * 20), pageWidth - 40, 15, 'F');
+    doc.text(term, 30, y + 10 + (i * 20));
   });
   
-  y += 55;
-  
-  if (data.effectiveMonthlyPayment <= 0) {
-    doc.setFillColor(0, 128, 0);
-    doc.rect(15, y - 5, pageWidth - 30, 15, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("SOLAR PAYS FOR ITSELF! Your savings cover the entire EMI!", pageWidth / 2, y + 5, { align: "center" });
-    y += 20;
-  }
-  
-  const footerY = doc.internal.pageSize.getHeight() - 25;
-  doc.setFillColor(51, 51, 51);
-  doc.rect(0, footerY - 5, pageWidth, 30, 'F');
-  
+  y = 210;
+  doc.setFillColor(255, 102, 0);
+  doc.rect(0, y, pageWidth, 50, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(10);
+  doc.setFont("helvetica", "italic");
+  doc.text("\"For us Customers are not clients - They are Family\"", pageWidth / 2, y + 15, { align: "center" });
+  
+  doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text("Divyanshi Solar - Your Trusted Solar Partner", pageWidth / 2, footerY + 5, { align: "center" });
-  doc.setFontSize(8);
+  doc.text("Divyanshi Solar", pageWidth / 2, y + 32, { align: "center" });
+  doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text("Website: https://divyanshisolar.com | PM Surya Ghar Yojana Authorized Partner", pageWidth / 2, footerY + 12, { align: "center" });
+  doc.text("PM Surya Ghar Yojana Authorized Partner", pageWidth / 2, y + 42, { align: "center" });
+  
+  y = 270;
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(9);
+  doc.text("info@divyanshisolar.com | www.divyanshisolar.com", pageWidth / 2, y, { align: "center" });
+  
+  addFooter(6);
   
   return doc;
 }
@@ -490,6 +787,7 @@ export function SubsidyCalculator({
   const [interestRate, setInterestRate] = useState<number>(10);
   const [electricityUnitRate, setElectricityUnitRate] = useState<number>(7);
   const [downPaymentPercent, setDownPaymentPercent] = useState<number>(15);
+  const [customerName, setCustomerName] = useState<string>("");
   const [customerPhone, setCustomerPhone] = useState<string>("");
   const [customerEmail, setCustomerEmail] = useState<string>("");
   
@@ -558,6 +856,7 @@ export function SubsidyCalculator({
     const effectiveMonthlyPayment = Math.max(0, selectedEmi - result.monthlySavings);
     
     return {
+      customerName,
       capacity,
       panelType,
       inverterType,
@@ -581,8 +880,11 @@ export function SubsidyCalculator({
       paybackYears: result.paybackYears,
       state: selectedState,
       ratePerWatt: result.ratePerWatt,
+      emi36Months: result.emi36Months,
+      emi60Months: result.emi60Months,
+      emi84Months: result.emi84Months,
     };
-  }, [capacity, panelType, inverterType, customerType, result, selectedEmiTenure, selectedEmi, interestRate, electricityUnitRate, selectedState, downPaymentPercent]);
+  }, [capacity, panelType, inverterType, customerType, result, selectedEmiTenure, selectedEmi, interestRate, electricityUnitRate, selectedState, downPaymentPercent, customerName]);
   
   function handleDownloadProposal() {
     const data = getProposalData();
@@ -1308,6 +1610,17 @@ PM Surya Ghar Yojana Authorized Partner`;
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="customer-name">Customer Name</Label>
+              <Input
+                id="customer-name"
+                type="text"
+                placeholder="Enter customer name for personalized proposal"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                data-testid="input-customer-name"
+              />
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="customer-phone">Customer WhatsApp Number</Label>
