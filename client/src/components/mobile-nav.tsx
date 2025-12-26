@@ -22,8 +22,7 @@ import {
   Truck,
   ClipboardCheck,
   MessagesSquare,
-  Share2,
-  Globe
+  Share2
 } from "lucide-react";
 import { SiFacebook, SiX, SiWhatsapp } from "react-icons/si";
 import { cn } from "@/lib/utils";
@@ -113,9 +112,6 @@ export function MobileNav() {
     window.open(whatsappUrl, "_blank");
   };
 
-  const openWebsite = () => {
-    window.open(WEBSITE_URL, "_blank");
-  };
 
   // Bottom nav items (first 4 shown)
   const navItems = user.role === "admin" 
@@ -212,15 +208,6 @@ export function MobileNav() {
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Share & Connect</p>
             </div>
             <div className="space-y-1">
-              <Button
-                variant="ghost"
-                className="w-full justify-start gap-3 px-3"
-                onClick={openWebsite}
-                data-testid="button-mobile-website"
-              >
-                <Globe className="h-5 w-5 text-primary" />
-                <span className="font-medium">Visit Website</span>
-              </Button>
               <Button
                 variant="ghost"
                 className="w-full justify-start gap-3 px-3"

@@ -68,7 +68,7 @@ export default function AdminTestimonials() {
       : "";
     const capacity = testimonial.installedCapacity ? `${testimonial.installedCapacity} kW Solar System` : "Solar System";
     
-    return `${testimonial.customerName} from ${testimonial.customerDistrict}, ${testimonial.customerState} installed a ${capacity} under PM Surya Ghar Yojana! ${rating}\n\n${text}\n\n#PMSuryaGhar #SolarEnergy #DivyanshiSolar #GreenEnergy #RenewableEnergy`;
+    return `${testimonial.customerName} from ${testimonial.customerDistrict}, ${testimonial.customerState} installed a ${capacity} under PM Surya Ghar Yojana! ${rating}\n\n${text}\n\nVisit: https://divyanshisolar.com/\n\n#PMSuryaGhar #SolarEnergy #DivyanshiSolar #GreenEnergy #RenewableEnergy`;
   };
 
   const handleShareFacebook = (testimonial: CustomerTestimonial) => {
