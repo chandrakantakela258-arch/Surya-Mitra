@@ -478,22 +478,6 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   doc.text(data.customerType.charAt(0).toUpperCase() + data.customerType.slice(1), leftX + 6, y + 25);
   doc.text(data.inverterType === "hybrid" ? "Hybrid Inverter" : "Ongrid Inverter", rightX + 6, y + 25);
   
-  // Bottom info box - Panel & System details on cover page
-  y += boxHeight + 12;
-  doc.setFillColor(255, 248, 240);
-  doc.roundedRect(margin, y, contentWidth, 24, 4, 4, 'F');
-  doc.setDrawColor(...primaryColor);
-  doc.setLineWidth(1);
-  doc.roundedRect(margin, y, contentWidth, 24, 4, 4, 'S');
-  
-  doc.setTextColor(...darkColor);
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
-  const panelInfo = data.panelType === "dcr" ? "DCR Panels (Subsidy Eligible)" : "Non-DCR Panels";
-  const systemInfo = data.inverterType === "hybrid" ? "Hybrid system with battery backup capability" : "Grid-connected system for maximum savings";
-  doc.text(`Panel Type: ${panelInfo}`, margin + 8, y + 9);
-  doc.text(`System: ${systemInfo}`, margin + 8, y + 18);
-  
   addFooter(1);
   
   // ========== PAGE 2: PROJECT DETAILS ==========
