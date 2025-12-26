@@ -81,7 +81,10 @@ export interface EmailOptions {
 
 export async function sendEmail(options: EmailOptions): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
+    console.log('Attempting to send email to:', options.to);
+    
     const gmail = await getUncachableGmailClient();
+    console.log('Gmail client obtained successfully');
     
     const encodedMessage = createEmailMessage(
       options.to,
@@ -90,6 +93,7 @@ export async function sendEmail(options: EmailOptions): Promise<{ success: boole
       options.fromName
     );
     
+    console.log('Sending email via Gmail API...');
     const response = await gmail.users.messages.send({
       userId: 'me',
       requestBody: {
@@ -97,15 +101,30 @@ export async function sendEmail(options: EmailOptions): Promise<{ success: boole
       }
     });
     
+    console.log('Email sent successfully, messageId:', response.data.id);
     return {
       success: true,
       messageId: response.data.id || undefined
     };
   } catch (error: any) {
-    console.error('Gmail send error:', error);
+    console.error('Gmail send error:', error.message);
+    console.error('Full error:', JSON.stringify(error, null, 2));
+    
+    // Provide more specific error messages
+    let errorMessage = 'Failed to send email';
+    if (error.message?.includes('Gmail not connected')) {
+      errorMessage = 'Gmail is not connected. Please reconnect your Gmail account.';
+    } else if (error.message?.includes('invalid_grant')) {
+      errorMessage = 'Gmail authorization expired. Please reconnect your Gmail account.';
+    } else if (error.message?.includes('X_REPLIT_TOKEN')) {
+      errorMessage = 'Authentication issue. Please try again.';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
     return {
       success: false,
-      error: error.message || 'Failed to send email'
+      error: errorMessage
     };
   }
 }
