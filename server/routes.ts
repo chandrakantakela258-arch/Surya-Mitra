@@ -8012,26 +8012,36 @@ export async function registerRoutes(
     }
   });
 
-  // Download generated proposal PDF
+  // Download generated proposal PDF (public endpoint - no auth required)
   app.get("/api/proposal/download/:fileName", (req, res) => {
+    console.log("[PDF Download] Request received for:", req.params.fileName);
     try {
       const { fileName } = req.params;
       
       // Validate filename to prevent path traversal
       if (!fileName || fileName.includes('..') || fileName.includes('/')) {
+        console.log("[PDF Download] Invalid filename");
         return res.status(400).json({ message: "Invalid file name" });
       }
 
       const filePath = getProposalPath(fileName);
+      console.log("[PDF Download] File path:", filePath);
+      
       if (!filePath) {
+        console.log("[PDF Download] File not found");
         return res.status(404).json({ message: "PDF not found or expired" });
       }
 
+      // Set headers for cross-origin download
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="Divyanshi_Solar_Proposal.pdf"`);
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cache-Control', 'no-cache');
+      
+      console.log("[PDF Download] Sending file...");
       res.sendFile(filePath);
     } catch (error: any) {
-      console.error("Download PDF error:", error);
+      console.error("[PDF Download] Error:", error);
       res.status(500).json({ message: "Failed to download PDF" });
     }
   });
