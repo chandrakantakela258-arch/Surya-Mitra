@@ -3971,16 +3971,22 @@ export async function registerRoutes(
       
       if (phone) {
         try {
-          await notificationService.sendSMS(phone, message);
-          results.sms = "sent";
+          const smsSuccess = await notificationService.sendSMS(phone, message);
+          results.sms = smsSuccess ? "sent" : "failed";
+          if (!smsSuccess) {
+            console.error("Test SMS failed - check Fast2SMS configuration");
+          }
         } catch (err) {
           results.sms = "failed";
           console.error("Test SMS error:", err);
         }
         
         try {
-          await notificationService.sendWhatsAppMessage(phone, message);
-          results.whatsapp = "sent";
+          const whatsappSuccess = await notificationService.sendWhatsAppMessage(phone, message, "test_notification", [message]);
+          results.whatsapp = whatsappSuccess ? "sent" : "failed";
+          if (!whatsappSuccess) {
+            console.error("Test WhatsApp failed - check AiSensy configuration");
+          }
         } catch (err) {
           results.whatsapp = "failed";
           console.error("Test WhatsApp error:", err);
