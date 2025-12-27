@@ -1503,26 +1503,29 @@ Website: https://divyanshisolar.com`;
     try {
       const data = getProposalData();
       
-      // Generate PDF and convert to base64
-      const doc = generateProposalPDF(data);
-      const pdfBlob = doc.output('blob');
-      const pdfBase64 = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64 = (reader.result as string).split(',')[1];
-          resolve(base64);
-        };
-        reader.readAsDataURL(pdfBlob);
-      });
-      
+      // Send proposal data to server - PDF will NOT be attached due to size limits
+      // The email contains all proposal details in HTML format
       const result = await apiRequest("POST", "/api/email/send-proposal", {
         customerEmail: customerEmail,
         customerName: customerName || "Valued Customer",
         capacity: data.capacity,
         netCost: data.netCost,
         subsidy: data.totalSubsidy,
-        pdfBase64: pdfBase64,
-        partnerName: partnerName || undefined
+        totalCost: data.totalCost,
+        panelType: data.panelType,
+        inverterType: data.inverterType,
+        downPayment: data.downPayment,
+        downPaymentPercent: data.downPaymentPercent,
+        loanAmount: data.loanAmount,
+        selectedEmi: data.selectedEmi,
+        selectedTenure: data.selectedTenure,
+        monthlySavings: data.monthlySavings,
+        annualSavings: data.annualSavings,
+        monthlyGeneration: data.monthlyGeneration,
+        paybackYears: data.paybackYears,
+        partnerName: partnerName || undefined,
+        partnerPhone: partnerPhone || undefined,
+        installationAddress: installationAddress || undefined
       });
       
       if (result.success) {

@@ -169,7 +169,29 @@ export async function sendEmail(options: EmailOptions): Promise<{ success: boole
   }
 }
 
-export function createProposalEmailTemplate(customerName: string, capacity: number, netCost: number, subsidy: number, partnerName?: string): string {
+export interface ProposalEmailData {
+  customerName: string;
+  capacity: number;
+  netCost: number;
+  subsidy: number;
+  totalCost?: number;
+  panelType?: string;
+  inverterType?: string;
+  downPayment?: number;
+  downPaymentPercent?: number;
+  loanAmount?: number;
+  selectedEmi?: number;
+  selectedTenure?: number;
+  monthlySavings?: number;
+  annualSavings?: number;
+  monthlyGeneration?: number;
+  paybackYears?: number;
+  partnerName?: string;
+  partnerPhone?: string;
+  installationAddress?: string;
+}
+
+export function createProposalEmailTemplate(data: ProposalEmailData): string {
   const formatINR = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -177,6 +199,16 @@ export function createProposalEmailTemplate(customerName: string, capacity: numb
       maximumFractionDigits: 0
     }).format(amount);
   };
+
+  const { 
+    customerName, capacity, netCost, subsidy, totalCost, panelType, inverterType,
+    downPayment, downPaymentPercent, loanAmount, selectedEmi, selectedTenure,
+    monthlySavings, annualSavings, monthlyGeneration, paybackYears,
+    partnerName, partnerPhone, installationAddress
+  } = data;
+
+  const panelTypeLabel = panelType === 'dcr' ? 'DCR (Subsidy Eligible)' : 'Non-DCR';
+  const inverterTypeLabel = inverterType === 'hybrid' ? '3-in-1 Hybrid Inverter' : 'Ongrid Inverter';
 
   return `
 <!DOCTYPE html>
@@ -209,41 +241,129 @@ export function createProposalEmailTemplate(customerName: string, capacity: numb
                 Thank you for your interest in going solar with Divyanshi Solar! We are pleased to share your personalized solar proposal.
               </p>
               
-              <!-- Proposal Summary Box -->
+              <!-- System Details Box -->
               <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #FFF5EE; border-radius: 8px; margin: 20px 0; border: 1px solid #FFCC99;">
                 <tr>
                   <td style="padding: 25px;">
-                    <h3 style="color: #FF6600; margin: 0 0 15px; font-size: 18px;">Your System Summary</h3>
+                    <h3 style="color: #FF6600; margin: 0 0 15px; font-size: 18px;">System Details</h3>
                     
                     <table width="100%" cellpadding="8" cellspacing="0">
                       <tr>
                         <td style="color: #666666;">System Capacity:</td>
                         <td style="color: #333333; font-weight: bold; text-align: right;">${capacity} kWp</td>
                       </tr>
+                      ${panelType ? `<tr>
+                        <td style="color: #666666;">Panel Type:</td>
+                        <td style="color: #333333; font-weight: bold; text-align: right;">${panelTypeLabel}</td>
+                      </tr>` : ''}
+                      ${inverterType ? `<tr>
+                        <td style="color: #666666;">Inverter:</td>
+                        <td style="color: #333333; font-weight: bold; text-align: right;">${inverterTypeLabel}</td>
+                      </tr>` : ''}
+                      ${monthlyGeneration ? `<tr>
+                        <td style="color: #666666;">Monthly Generation:</td>
+                        <td style="color: #333333; font-weight: bold; text-align: right;">${Math.round(monthlyGeneration)} kWh</td>
+                      </tr>` : ''}
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Cost Breakdown Box -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #E3F2FD; border-radius: 8px; margin: 20px 0; border: 1px solid #90CAF9;">
+                <tr>
+                  <td style="padding: 25px;">
+                    <h3 style="color: #1976D2; margin: 0 0 15px; font-size: 18px;">Investment Summary</h3>
+                    
+                    <table width="100%" cellpadding="8" cellspacing="0">
+                      ${totalCost ? `<tr>
+                        <td style="color: #666666;">Total System Cost:</td>
+                        <td style="color: #333333; font-weight: bold; text-align: right;">${formatINR(totalCost)}</td>
+                      </tr>` : ''}
                       <tr>
                         <td style="color: #666666;">Government Subsidy:</td>
-                        <td style="color: #228B22; font-weight: bold; text-align: right;">${formatINR(subsidy)}</td>
+                        <td style="color: #228B22; font-weight: bold; text-align: right;">- ${formatINR(subsidy)}</td>
                       </tr>
-                      <tr style="border-top: 1px solid #FFCC99;">
-                        <td style="color: #FF6600; font-weight: bold; padding-top: 15px;">Net Investment:</td>
-                        <td style="color: #FF6600; font-weight: bold; text-align: right; padding-top: 15px; font-size: 20px;">${formatINR(netCost)}</td>
+                      <tr style="border-top: 2px solid #90CAF9;">
+                        <td style="color: #1976D2; font-weight: bold; padding-top: 15px; font-size: 16px;">Net Investment:</td>
+                        <td style="color: #1976D2; font-weight: bold; text-align: right; padding-top: 15px; font-size: 20px;">${formatINR(netCost)}</td>
                       </tr>
                     </table>
                   </td>
                 </tr>
               </table>
-              
-              <p style="color: #666666; line-height: 1.6; margin: 20px 0;">
-                Your detailed proposal PDF is attached to this email. It includes complete system specifications, financial analysis, EMI options, and environmental impact.
-              </p>
+
+              ${downPayment || selectedEmi ? `
+              <!-- EMI Details Box -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #F3E5F5; border-radius: 8px; margin: 20px 0; border: 1px solid #CE93D8;">
+                <tr>
+                  <td style="padding: 25px;">
+                    <h3 style="color: #7B1FA2; margin: 0 0 15px; font-size: 18px;">Payment Structure</h3>
+                    
+                    <table width="100%" cellpadding="8" cellspacing="0">
+                      ${downPayment ? `<tr>
+                        <td style="color: #666666;">Down Payment (${downPaymentPercent || 5}%):</td>
+                        <td style="color: #333333; font-weight: bold; text-align: right;">${formatINR(downPayment)}</td>
+                      </tr>` : ''}
+                      ${loanAmount ? `<tr>
+                        <td style="color: #666666;">Loan Amount:</td>
+                        <td style="color: #333333; font-weight: bold; text-align: right;">${formatINR(loanAmount)}</td>
+                      </tr>` : ''}
+                      ${selectedEmi ? `<tr style="border-top: 1px solid #CE93D8;">
+                        <td style="color: #7B1FA2; font-weight: bold; padding-top: 10px;">Monthly EMI (${selectedTenure || 60} months):</td>
+                        <td style="color: #7B1FA2; font-weight: bold; text-align: right; padding-top: 10px; font-size: 18px;">${formatINR(selectedEmi)}/month</td>
+                      </tr>` : ''}
+                    </table>
+                  </td>
+                </tr>
+              </table>
+              ` : ''}
+
+              ${monthlySavings || annualSavings ? `
+              <!-- Savings Box -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #E8F5E9; border-radius: 8px; margin: 20px 0; border: 1px solid #A5D6A7;">
+                <tr>
+                  <td style="padding: 25px;">
+                    <h3 style="color: #388E3C; margin: 0 0 15px; font-size: 18px;">Your Savings</h3>
+                    
+                    <table width="100%" cellpadding="8" cellspacing="0">
+                      ${monthlySavings ? `<tr>
+                        <td style="color: #666666;">Monthly Savings:</td>
+                        <td style="color: #388E3C; font-weight: bold; text-align: right;">${formatINR(monthlySavings)}</td>
+                      </tr>` : ''}
+                      ${annualSavings ? `<tr>
+                        <td style="color: #666666;">Annual Savings:</td>
+                        <td style="color: #388E3C; font-weight: bold; text-align: right;">${formatINR(annualSavings)}</td>
+                      </tr>` : ''}
+                      ${paybackYears ? `<tr style="border-top: 1px solid #A5D6A7;">
+                        <td style="color: #388E3C; font-weight: bold; padding-top: 10px;">Payback Period:</td>
+                        <td style="color: #388E3C; font-weight: bold; text-align: right; padding-top: 10px;">${paybackYears.toFixed(1)} years</td>
+                      </tr>` : ''}
+                    </table>
+                  </td>
+                </tr>
+              </table>
+              ` : ''}
+
+              ${installationAddress ? `
+              <!-- Installation Address -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #ECEFF1; border-radius: 8px; margin: 20px 0; border: 1px solid #B0BEC5;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <p style="color: #546E7A; margin: 0 0 5px; font-size: 12px; text-transform: uppercase;">Installation Site</p>
+                    <p style="color: #333333; margin: 0; font-size: 14px;">${installationAddress}</p>
+                  </td>
+                </tr>
+              </table>
+              ` : ''}
               
               <!-- Benefits -->
               <h3 style="color: #333333; margin: 25px 0 15px;">Why Go Solar Now?</h3>
               <ul style="color: #666666; line-height: 1.8; padding-left: 20px; margin: 0;">
                 <li>Up to Rs 78,000 government subsidy under PM Surya Ghar Yojana</li>
                 <li>Reduce your electricity bills to near zero</li>
-                <li>25-year performance warranty</li>
-                <li>Easy EMI options available</li>
+                <li>25-year performance warranty on solar panels</li>
+                <li>Easy EMI options available with power savings deduction</li>
                 <li>Free site survey and installation support</li>
               </ul>
               
@@ -257,10 +377,16 @@ export function createProposalEmailTemplate(customerName: string, capacity: numb
               </table>
               
               ${partnerName ? `
-              <div style="background-color: #E8F5E9; border-left: 4px solid #228B22; padding: 15px 20px; margin: 20px 0; border-radius: 0 8px 8px 0;">
-                <p style="color: #228B22; margin: 0; font-weight: bold;">Your District Partner</p>
-                <p style="color: #333333; margin: 8px 0 0; font-size: 16px;">Contact <strong>${partnerName}</strong> for further installation process and site survey.</p>
-              </div>
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #E8F5E9; border-radius: 8px; margin: 20px 0;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <p style="color: #228B22; margin: 0 0 8px; font-weight: bold;">Your District Partner</p>
+                    <p style="color: #333333; margin: 0; font-size: 16px;"><strong>${partnerName}</strong></p>
+                    ${partnerPhone ? `<p style="color: #666666; margin: 5px 0 0; font-size: 14px;">Contact: ${partnerPhone}</p>` : ''}
+                    <p style="color: #666666; margin: 10px 0 0; font-size: 13px;">Contact your District Partner for further installation process and site survey.</p>
+                  </td>
+                </tr>
+              </table>
               ` : ''}
               
               <p style="color: #666666; line-height: 1.6; margin: 20px 0 0;">

@@ -7891,7 +7891,12 @@ export async function registerRoutes(
   // Send proposal email to customer (public endpoint for proposal sharing)
   app.post("/api/email/send-proposal", async (req, res) => {
     try {
-      const { customerEmail, customerName, capacity, netCost, subsidy, pdfBase64, partnerName } = req.body;
+      const { 
+        customerEmail, customerName, capacity, netCost, subsidy,
+        totalCost, panelType, inverterType, downPayment, downPaymentPercent,
+        loanAmount, selectedEmi, selectedTenure, monthlySavings, annualSavings,
+        monthlyGeneration, paybackYears, partnerName, partnerPhone, installationAddress
+      } = req.body;
 
       if (!customerEmail || !customerName || !capacity || netCost === undefined) {
         return res.status(400).json({ message: "Missing required fields: customerEmail, customerName, capacity, netCost" });
@@ -7902,23 +7907,33 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid email address" });
       }
 
-      const htmlContent = createProposalEmailTemplate(
+      const htmlContent = createProposalEmailTemplate({
         customerName,
-        Number(capacity),
-        Number(netCost),
-        Number(subsidy) || 0,
-        partnerName || undefined
-      );
+        capacity: Number(capacity),
+        netCost: Number(netCost),
+        subsidy: Number(subsidy) || 0,
+        totalCost: totalCost ? Number(totalCost) : undefined,
+        panelType,
+        inverterType,
+        downPayment: downPayment ? Number(downPayment) : undefined,
+        downPaymentPercent: downPaymentPercent ? Number(downPaymentPercent) : undefined,
+        loanAmount: loanAmount ? Number(loanAmount) : undefined,
+        selectedEmi: selectedEmi ? Number(selectedEmi) : undefined,
+        selectedTenure: selectedTenure ? Number(selectedTenure) : undefined,
+        monthlySavings: monthlySavings ? Number(monthlySavings) : undefined,
+        annualSavings: annualSavings ? Number(annualSavings) : undefined,
+        monthlyGeneration: monthlyGeneration ? Number(monthlyGeneration) : undefined,
+        paybackYears: paybackYears ? Number(paybackYears) : undefined,
+        partnerName: partnerName || undefined,
+        partnerPhone: partnerPhone || undefined,
+        installationAddress: installationAddress || undefined
+      });
 
       const result = await sendEmail({
         to: customerEmail,
         subject: `Your Solar Proposal - ${capacity} kWp System | Divyanshi Solar`,
         htmlContent,
-        fromName: 'Divyanshi Solar',
-        pdfAttachment: pdfBase64 ? {
-          filename: `Solar_Proposal_${customerName.replace(/\s+/g, '_')}_${capacity}kWp.pdf`,
-          data: pdfBase64
-        } : undefined
+        fromName: 'Divyanshi Solar'
       });
 
       if (result.success) {
