@@ -7952,6 +7952,7 @@ export async function registerRoutes(
 
   // Generate proposal PDF and return download link (public endpoint for WhatsApp sharing)
   app.post("/api/proposal/generate-pdf", async (req, res) => {
+    console.log("[PDF] Generate PDF endpoint called");
     try {
       const {
         customerName, capacity, panelType, inverterType, totalCost,
@@ -7960,8 +7961,11 @@ export async function registerRoutes(
         monthlySavings, annualSavings, monthlyGeneration, paybackYears,
         state, partnerName, partnerPhone, installationAddress
       } = req.body;
+      
+      console.log("[PDF] Received data - capacity:", capacity, "netCost:", netCost, "totalCost:", totalCost);
 
       if (!capacity || netCost === undefined || totalCost === undefined) {
+        console.log("[PDF] Missing required fields");
         return res.status(400).json({ message: "Missing required fields for PDF generation" });
       }
 
@@ -7990,8 +7994,11 @@ export async function registerRoutes(
         installationAddress: installationAddress || undefined
       };
 
+      console.log("[PDF] Generating PDF...");
       const fileName = await generateProposalPDF(pdfData);
+      console.log("[PDF] Generated file:", fileName);
       const downloadUrl = `/api/proposal/download/${fileName}`;
+      console.log("[PDF] Download URL:", downloadUrl);
 
       res.json({ 
         success: true, 
@@ -8000,7 +8007,7 @@ export async function registerRoutes(
         message: "PDF generated successfully" 
       });
     } catch (error: any) {
-      console.error("Generate PDF error:", error);
+      console.error("[PDF] Generate PDF error:", error);
       res.status(500).json({ success: false, message: error.message || "Failed to generate PDF" });
     }
   });

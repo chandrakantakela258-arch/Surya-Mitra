@@ -1454,11 +1454,18 @@ export function SubsidyCalculator({
   async function handleShareWhatsApp() {
     const data = getProposalData();
     
+    console.log("[WhatsApp] Starting PDF generation...");
+    console.log("[WhatsApp] Proposal data:", JSON.stringify(data));
+    
     setIsGeneratingPDF(true);
     
     try {
       // Generate PDF on server and get download link
-      const pdfResponse = await apiRequest("POST", "/api/proposal/generate-pdf", {
+      console.log("[WhatsApp] Calling API...");
+      const response = await fetch("/api/proposal/generate-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
         customerName: data.customerName,
         capacity: data.capacity,
         panelType: data.panelType,
@@ -1481,11 +1488,24 @@ export function SubsidyCalculator({
         partnerName: data.partnerName,
         partnerPhone: data.partnerPhone,
         installationAddress: data.installationAddress
+        })
       });
+      
+      console.log("[WhatsApp] API response status:", response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[WhatsApp] API error:", errorText);
+        throw new Error(`PDF generation failed: ${errorText}`);
+      }
+      
+      const pdfResponse = await response.json();
+      console.log("[WhatsApp] PDF response:", JSON.stringify(pdfResponse));
       
       // Build PDF download URL
       const baseUrl = window.location.origin;
       const pdfUrl = pdfResponse.downloadUrl ? `${baseUrl}${pdfResponse.downloadUrl}` : '';
+      console.log("[WhatsApp] PDF URL:", pdfUrl);
       
       const message = `*Divyanshi Solar - PM Surya Ghar Yojana Proposal*
 
