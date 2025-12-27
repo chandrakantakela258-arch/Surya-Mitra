@@ -203,9 +203,9 @@ export async function generateProposalPDF(data: ProposalPDFData): Promise<string
   
   y = pageHeight - 140;
   
-  // System Specifications
+  // System Specifications - increased height to accommodate all 6 items
   page2.drawRectangle({
-    x: margin, y: y - 130, width: contentWidth, height: 140,
+    x: margin, y: y - 160, width: contentWidth, height: 170,
     color: rgb(1, 0.97, 0.93), borderColor: orange, borderWidth: 1,
   });
   
@@ -230,10 +230,10 @@ export async function generateProposalPDF(data: ProposalPDFData): Promise<string
   specs.forEach(([label, value]) => {
     page2.drawText(label, { x: margin + 15, y: sy, size: 11, font: font, color: gray });
     page2.drawText(value, { x: margin + 220, y: sy, size: 11, font: fontBold, color: black });
-    sy -= 17;
+    sy -= 20;
   });
   
-  y -= 160;
+  y -= 190;
   
   // Investment Breakdown
   page2.drawRectangle({
