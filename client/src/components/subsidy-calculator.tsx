@@ -1498,43 +1498,48 @@ Website: https://divyanshisolar.com`;
       return;
     }
     
+    // Capture ALL form values synchronously BEFORE setting loading state
+    // This ensures values are preserved even if component state changes during async operation
+    const emailPayload = {
+      customerEmail: customerEmail,
+      customerName: customerName || "Valued Customer",
+      capacity: capacity,
+      netCost: result.netCost,
+      subsidy: result.totalSubsidy,
+      totalCost: result.totalCost,
+      panelType: panelType,
+      inverterType: inverterType,
+      downPayment: result.downPayment,
+      downPaymentPercent: result.downPaymentPercent,
+      loanAmount: result.loanAmount,
+      selectedEmi: selectedEmi,
+      selectedTenure: selectedEmiTenure,
+      monthlySavings: result.monthlySavings,
+      annualSavings: result.annualSavings,
+      monthlyGeneration: result.monthlyGeneration,
+      paybackYears: result.paybackYears,
+      partnerName: partnerName || undefined,
+      partnerPhone: partnerPhone || undefined,
+      installationAddress: installationAddress || undefined
+    };
+    
+    // Log for debugging mobile vs desktop differences
+    console.log("Email payload being sent:", JSON.stringify(emailPayload, null, 2));
+    
     setIsSendingEmail(true);
     
     try {
-      const data = getProposalData();
-      
       // Send proposal data to server - PDF will NOT be attached due to size limits
       // The email contains all proposal details in HTML format
-      const result = await apiRequest("POST", "/api/email/send-proposal", {
-        customerEmail: customerEmail,
-        customerName: customerName || "Valued Customer",
-        capacity: data.capacity,
-        netCost: data.netCost,
-        subsidy: data.totalSubsidy,
-        totalCost: data.totalCost,
-        panelType: data.panelType,
-        inverterType: data.inverterType,
-        downPayment: data.downPayment,
-        downPaymentPercent: data.downPaymentPercent,
-        loanAmount: data.loanAmount,
-        selectedEmi: data.selectedEmi,
-        selectedTenure: data.selectedTenure,
-        monthlySavings: data.monthlySavings,
-        annualSavings: data.annualSavings,
-        monthlyGeneration: data.monthlyGeneration,
-        paybackYears: data.paybackYears,
-        partnerName: partnerName || undefined,
-        partnerPhone: partnerPhone || undefined,
-        installationAddress: installationAddress || undefined
-      });
+      const apiResult = await apiRequest("POST", "/api/email/send-proposal", emailPayload);
       
-      if (result.success) {
+      if (apiResult.success) {
         toast({
           title: "Email Sent Successfully",
-          description: `Proposal sent to ${customerEmail}`,
+          description: `Proposal sent to ${emailPayload.customerEmail}`,
         });
       } else {
-        throw new Error(result.message || "Failed to send email");
+        throw new Error(apiResult.message || "Failed to send email");
       }
     } catch (error: any) {
       console.error("Email send error:", error);
