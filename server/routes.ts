@@ -3961,6 +3961,7 @@ export async function registerRoutes(
   // Admin: Test notification
   app.post("/api/admin/test-notification", requireAdmin, async (req, res) => {
     try {
+      console.log("[Test Notification] Request received:", JSON.stringify(req.body));
       const { phone, email, message } = req.body;
       
       if (!message) {
@@ -3982,7 +3983,7 @@ export async function registerRoutes(
         }
         
         try {
-          const whatsappSuccess = await notificationService.sendWhatsAppMessage(phone, message, "test_notification", [message]);
+          const whatsappSuccess = await notificationService.sendWhatsAppMessage(phone, message, "divyanshi_solar", [message]);
           results.whatsapp = whatsappSuccess ? "sent" : "failed";
           if (!whatsappSuccess) {
             console.error("Test WhatsApp failed - check AiSensy configuration");
@@ -4026,6 +4027,7 @@ export async function registerRoutes(
   // Admin: Broadcast message to all partners (WhatsApp and/or Email)
   app.post("/api/admin/broadcast-partners", requireAdmin, async (req, res) => {
     try {
+      console.log("[Broadcast] Request received:", JSON.stringify(req.body));
       const { subject, message, sendWhatsApp, sendEmail, partnerType } = req.body;
       
       if (!message) {
@@ -4064,7 +4066,7 @@ export async function registerRoutes(
           const whatsAppResult = await notificationService.sendBulkWhatsApp(
             whatsAppRecipients,
             `*Divyanshi Solar - Important Update*\n\n${subject ? `*${subject}*\n\n` : ''}Dear {{name}},\n\n${message}\n\n_Divyanshi Solar Admin Team_`,
-            "partner_broadcast"
+            "divyanshi_solar"
           );
           results.whatsapp = { sent: whatsAppResult.sent, failed: whatsAppResult.failed };
         }
