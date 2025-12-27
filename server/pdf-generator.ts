@@ -33,11 +33,11 @@ if (!fs.existsSync(pdfDir)) {
 }
 
 function formatINR(amount: number): string {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
+  // Use "Rs" instead of ₹ symbol since standard PDF fonts don't support Unicode rupee symbol
+  const formatted = new Intl.NumberFormat('en-IN', {
     maximumFractionDigits: 0
   }).format(amount);
+  return `Rs ${formatted}`;
 }
 
 export async function generateProposalPDF(data: ProposalPDFData): Promise<string> {
