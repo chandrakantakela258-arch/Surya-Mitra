@@ -12,7 +12,7 @@ import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSche
 import { z } from "zod";
 import { notificationService } from "./notification-service";
 import { calculateLeadScore, type LeadScoreResult } from "./lead-scoring-service";
-import { sendEmail, createProposalEmailTemplate, createWelcomeEmailTemplate } from "./gmail";
+import { sendEmail as sendGmailEmail, createProposalEmailTemplate, createWelcomeEmailTemplate } from "./gmail";
 import { generateProposalPDF, getProposalPath, type ProposalPDFData } from "./pdf-generator";
 
 // Configure multer for file uploads
@@ -3987,17 +3987,21 @@ export async function registerRoutes(
       
       if (email) {
         try {
-          await notificationService.sendEmail(
-            email,
-            "Test Notification - Divyanshi Solar",
-            `<div style="font-family: Arial, sans-serif; padding: 20px;">
+          // Use Gmail API for email
+          const emailResult = await sendGmailEmail({
+            to: email,
+            subject: "Test Notification - Divyanshi Solar",
+            htmlContent: `<div style="font-family: Arial, sans-serif; padding: 20px;">
               <h2>Test Notification</h2>
               <p>${message}</p>
               <hr />
               <p style="color: #666; font-size: 12px;">This is a test notification from Divyanshi Solar.</p>
             </div>`
-          );
-          results.email = "sent";
+          });
+          results.email = emailResult.success ? "sent" : "failed";
+          if (!emailResult.success) {
+            console.error("Test email error:", emailResult.error);
+          }
         } catch (err) {
           results.email = "failed";
           console.error("Test email error:", err);
@@ -4058,19 +4062,50 @@ export async function registerRoutes(
         }
       }
       
-      // Send Email messages
+      // Send Email messages using Gmail API
       if (sendEmail) {
         const emailRecipients = approvedPartners
           .filter(p => p.email)
           .map(p => ({ email: p.email!, name: p.name }));
         
         if (emailRecipients.length > 0) {
-          const emailResult = await notificationService.sendBulkEmail(
-            emailRecipients,
-            subject || "Important Update from Divyanshi Solar",
-            `Dear {{name}},\n\n${message}\n\nBest regards,\nDivyanshi Solar Admin Team`
-          );
-          results.email = { sent: emailResult.sent, failed: emailResult.failed };
+          let emailSent = 0;
+          let emailFailed = 0;
+          
+          for (const recipient of emailRecipients) {
+            try {
+              // Personalize the message
+              const personalizedMessage = message.replace(/\{\{name\}\}/g, recipient.name);
+              
+              const emailResult = await sendGmailEmail({
+                to: recipient.email,
+                subject: subject || "Important Update from Divyanshi Solar",
+                htmlContent: `<div style="font-family: Arial, sans-serif; padding: 20px;">
+                  <h2 style="color: #f97316;">Divyanshi Solar</h2>
+                  ${subject ? `<h3>${subject}</h3>` : ''}
+                  <p>Dear ${recipient.name},</p>
+                  <p>${personalizedMessage.replace(/\n/g, '<br>')}</p>
+                  <hr style="border-color: #eee;" />
+                  <p style="color: #666;">Best regards,<br>Divyanshi Solar Admin Team</p>
+                </div>`
+              });
+              
+              if (emailResult.success) {
+                emailSent++;
+              } else {
+                emailFailed++;
+                console.error(`Gmail broadcast failed for ${recipient.email}:`, emailResult.error);
+              }
+              
+              // Rate limiting: 300ms between emails
+              await new Promise(resolve => setTimeout(resolve, 300));
+            } catch (error) {
+              emailFailed++;
+              console.error(`Gmail broadcast error for ${recipient.email}:`, error);
+            }
+          }
+          
+          results.email = { sent: emailSent, failed: emailFailed };
         }
       }
       
@@ -8042,7 +8077,7 @@ export async function registerRoutes(
         installationAddress: installationAddress || undefined
       });
 
-      const result = await sendEmail({
+      const result = await sendGmailEmail({
         to: customerEmail,
         subject: `Your Solar Proposal - ${capacity} kWp System | Divyanshi Solar`,
         htmlContent,
@@ -8210,7 +8245,7 @@ export async function registerRoutes(
 
       const htmlContent = createWelcomeEmailTemplate(customerName, partnerName);
 
-      const result = await sendEmail({
+      const result = await sendGmailEmail({
         to: customerEmail,
         subject: 'Welcome to Divyanshi Solar - Your Solar Journey Begins!',
         htmlContent,
@@ -8242,7 +8277,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid email address" });
       }
 
-      const result = await sendEmail({
+      const result = await sendGmailEmail({
         to,
         subject,
         htmlContent,
