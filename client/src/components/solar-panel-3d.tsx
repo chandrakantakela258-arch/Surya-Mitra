@@ -55,6 +55,11 @@ export function SolarPanel3D({ onCapacityChange, initialCapacity = 3 }: SolarPan
   const [viewMode, setViewMode] = useState<"3d" | "top">("3d");
   const [isAnimating, setIsAnimating] = useState(false);
   
+  // String-based inputs for full editing control
+  const [widthInput, setWidthInput] = useState("12");
+  const [lengthInput, setLengthInput] = useState("10");
+  const [panelCountInput, setPanelCountInput] = useState(String(Math.ceil((initialCapacity * 1000) / PANEL_WATTAGE)));
+  
   const totalCapacity = (panelCount * PANEL_WATTAGE) / 1000;
   
   const maxPanelsPerRow = Math.floor(roofWidth / (PANEL_WIDTH + PANEL_GAP));
@@ -446,13 +451,59 @@ export function SolarPanel3D({ onCapacityChange, initialCapacity = 3 }: SolarPan
 
   const addPanel = () => {
     if (panelCount < maxPanels) {
-      setPanelCount(prev => prev + 1);
+      const newCount = panelCount + 1;
+      setPanelCount(newCount);
+      setPanelCountInput(String(newCount));
     }
   };
 
   const removePanel = () => {
     if (panelCount > 1) {
-      setPanelCount(prev => prev - 1);
+      const newCount = panelCount - 1;
+      setPanelCount(newCount);
+      setPanelCountInput(String(newCount));
+    }
+  };
+
+  // Handlers for string-based inputs
+  const handleWidthChange = (value: string) => {
+    setWidthInput(value);
+  };
+
+  const handleWidthBlur = () => {
+    const num = parseFloat(widthInput);
+    if (!isNaN(num) && num >= 3 && num <= 50) {
+      setRoofWidth(num);
+    } else {
+      setWidthInput(String(roofWidth));
+    }
+  };
+
+  const handleLengthChange = (value: string) => {
+    setLengthInput(value);
+  };
+
+  const handleLengthBlur = () => {
+    const num = parseFloat(lengthInput);
+    if (!isNaN(num) && num >= 3 && num <= 50) {
+      setRoofLength(num);
+    } else {
+      setLengthInput(String(roofLength));
+    }
+  };
+
+  const handlePanelCountChange = (value: string) => {
+    setPanelCountInput(value);
+  };
+
+  const handlePanelCountBlur = () => {
+    const num = parseInt(panelCountInput, 10);
+    if (!isNaN(num) && num >= 1) {
+      const clamped = Math.min(num, maxPanels);
+      setPanelCount(clamped);
+      setPanelCountInput(String(clamped));
+    } else {
+      setPanelCountInput(String(panelCount));
     }
   };
 
@@ -535,24 +586,26 @@ export function SolarPanel3D({ onCapacityChange, initialCapacity = 3 }: SolarPan
               </Label>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <Label className="text-xs text-muted-foreground">Width</Label>
+                  <Label className="text-xs text-muted-foreground">Width (3-50m)</Label>
                   <Input
-                    type="number"
-                    value={roofWidth}
-                    onChange={(e) => setRoofWidth(Math.max(5, Math.min(30, Number(e.target.value) || 5)))}
-                    min={5}
-                    max={30}
+                    type="text"
+                    inputMode="decimal"
+                    value={widthInput}
+                    onChange={(e) => handleWidthChange(e.target.value)}
+                    onBlur={handleWidthBlur}
+                    onKeyDown={(e) => e.key === "Enter" && handleWidthBlur()}
                     data-testid="input-roof-width"
                   />
                 </div>
                 <div>
-                  <Label className="text-xs text-muted-foreground">Length</Label>
+                  <Label className="text-xs text-muted-foreground">Length (3-50m)</Label>
                   <Input
-                    type="number"
-                    value={roofLength}
-                    onChange={(e) => setRoofLength(Math.max(5, Math.min(30, Number(e.target.value) || 5)))}
-                    min={5}
-                    max={30}
+                    type="text"
+                    inputMode="decimal"
+                    value={lengthInput}
+                    onChange={(e) => handleLengthChange(e.target.value)}
+                    onBlur={handleLengthBlur}
+                    onKeyDown={(e) => e.key === "Enter" && handleLengthBlur()}
                     data-testid="input-roof-length"
                   />
                 </div>
@@ -598,14 +651,12 @@ export function SolarPanel3D({ onCapacityChange, initialCapacity = 3 }: SolarPan
                   <Minus className="h-4 w-4" />
                 </Button>
                 <Input
-                  type="number"
-                  value={panelCount}
-                  onChange={(e) => {
-                    const val = Math.max(1, Math.min(maxPanels, Number(e.target.value) || 1));
-                    setPanelCount(val);
-                  }}
-                  min={1}
-                  max={maxPanels}
+                  type="text"
+                  inputMode="numeric"
+                  value={panelCountInput}
+                  onChange={(e) => handlePanelCountChange(e.target.value)}
+                  onBlur={handlePanelCountBlur}
+                  onKeyDown={(e) => e.key === "Enter" && handlePanelCountBlur()}
                   className="text-center"
                   data-testid="input-panel-count"
                 />
