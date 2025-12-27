@@ -4045,8 +4045,8 @@ export async function registerRoutes(
         partners = allPartners.filter(p => p.role === partnerType);
       }
       
-      // Filter only approved partners with valid contact info
-      const approvedPartners = partners.filter(p => p.status === "approved");
+      // Filter only active/approved partners with valid contact info
+      const approvedPartners = partners.filter(p => p.status === "approved" || p.status === "active");
       
       const results = {
         totalPartners: approvedPartners.length,
