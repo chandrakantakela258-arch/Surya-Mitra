@@ -13,6 +13,7 @@ import { z } from "zod";
 import { notificationService } from "./notification-service";
 import { calculateLeadScore, type LeadScoreResult } from "./lead-scoring-service";
 import { sendEmail, createProposalEmailTemplate, createWelcomeEmailTemplate } from "./gmail";
+import { generateProposalPDF, getProposalPath, type ProposalPDFData } from "./pdf-generator";
 
 // Configure multer for file uploads
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -7944,6 +7945,87 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Send proposal email error:", error);
       res.status(500).json({ success: false, message: error.message || "Failed to send email" });
+    }
+  });
+
+  // ========== PDF GENERATION ENDPOINTS ==========
+
+  // Generate proposal PDF and return download link (public endpoint for WhatsApp sharing)
+  app.post("/api/proposal/generate-pdf", async (req, res) => {
+    try {
+      const {
+        customerName, capacity, panelType, inverterType, totalCost,
+        centralSubsidy, stateSubsidy, totalSubsidy, netCost,
+        downPayment, downPaymentPercent, loanAmount, selectedTenure, selectedEmi,
+        monthlySavings, annualSavings, monthlyGeneration, paybackYears,
+        state, partnerName, partnerPhone, installationAddress
+      } = req.body;
+
+      if (!capacity || netCost === undefined || totalCost === undefined) {
+        return res.status(400).json({ message: "Missing required fields for PDF generation" });
+      }
+
+      const pdfData: ProposalPDFData = {
+        customerName: customerName || "Valued Customer",
+        capacity: Number(capacity),
+        panelType: panelType || "dcr",
+        inverterType: inverterType || "hybrid",
+        totalCost: Number(totalCost),
+        centralSubsidy: Number(centralSubsidy) || 0,
+        stateSubsidy: Number(stateSubsidy) || 0,
+        totalSubsidy: Number(totalSubsidy) || 0,
+        netCost: Number(netCost),
+        downPayment: Number(downPayment) || 0,
+        downPaymentPercent: Number(downPaymentPercent) || 5,
+        loanAmount: Number(loanAmount) || 0,
+        selectedTenure: Number(selectedTenure) || 60,
+        selectedEmi: Number(selectedEmi) || 0,
+        monthlySavings: Number(monthlySavings) || 0,
+        annualSavings: Number(annualSavings) || 0,
+        monthlyGeneration: Number(monthlyGeneration) || 0,
+        paybackYears: Number(paybackYears) || 0,
+        state: state || undefined,
+        partnerName: partnerName || undefined,
+        partnerPhone: partnerPhone || undefined,
+        installationAddress: installationAddress || undefined
+      };
+
+      const fileName = await generateProposalPDF(pdfData);
+      const downloadUrl = `/api/proposal/download/${fileName}`;
+
+      res.json({ 
+        success: true, 
+        downloadUrl,
+        fileName,
+        message: "PDF generated successfully" 
+      });
+    } catch (error: any) {
+      console.error("Generate PDF error:", error);
+      res.status(500).json({ success: false, message: error.message || "Failed to generate PDF" });
+    }
+  });
+
+  // Download generated proposal PDF
+  app.get("/api/proposal/download/:fileName", (req, res) => {
+    try {
+      const { fileName } = req.params;
+      
+      // Validate filename to prevent path traversal
+      if (!fileName || fileName.includes('..') || fileName.includes('/')) {
+        return res.status(400).json({ message: "Invalid file name" });
+      }
+
+      const filePath = getProposalPath(fileName);
+      if (!filePath) {
+        return res.status(404).json({ message: "PDF not found or expired" });
+      }
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="Divyanshi_Solar_Proposal.pdf"`);
+      res.sendFile(filePath);
+    } catch (error: any) {
+      console.error("Download PDF error:", error);
+      res.status(500).json({ message: "Failed to download PDF" });
     }
   });
 

@@ -1332,6 +1332,7 @@ export function SubsidyCalculator({
   const [partnerPhone, setPartnerPhone] = useState<string>("");
   const [installationAddress, setInstallationAddress] = useState<string>("");
   const [isSendingEmail, setIsSendingEmail] = useState<boolean>(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState<boolean>(false);
   
   const { toast } = useToast();
   
@@ -1450,9 +1451,77 @@ export function SubsidyCalculator({
     }
   }
   
-  function handleShareWhatsApp() {
+  async function handleShareWhatsApp() {
     const data = getProposalData();
-    const message = `*Divyanshi Solar - PM Surya Ghar Yojana Proposal*
+    
+    setIsGeneratingPDF(true);
+    
+    try {
+      // Generate PDF on server and get download link
+      const pdfResponse = await apiRequest("POST", "/api/proposal/generate-pdf", {
+        customerName: data.customerName,
+        capacity: data.capacity,
+        panelType: data.panelType,
+        inverterType: data.inverterType,
+        totalCost: data.totalCost,
+        centralSubsidy: data.centralSubsidy,
+        stateSubsidy: data.stateSubsidy,
+        totalSubsidy: data.totalSubsidy,
+        netCost: data.netCost,
+        downPayment: data.downPayment,
+        downPaymentPercent: data.downPaymentPercent,
+        loanAmount: data.loanAmount,
+        selectedTenure: data.selectedTenure,
+        selectedEmi: data.selectedEmi,
+        monthlySavings: data.monthlySavings,
+        annualSavings: data.annualSavings,
+        monthlyGeneration: data.monthlyGeneration,
+        paybackYears: data.paybackYears,
+        state: data.state,
+        partnerName: data.partnerName,
+        partnerPhone: data.partnerPhone,
+        installationAddress: data.installationAddress
+      });
+      
+      // Build PDF download URL
+      const baseUrl = window.location.origin;
+      const pdfUrl = pdfResponse.downloadUrl ? `${baseUrl}${pdfResponse.downloadUrl}` : '';
+      
+      const message = `*Divyanshi Solar - PM Surya Ghar Yojana Proposal*
+
+*Plant Details:*
+- Capacity: ${data.capacity} kW ${data.panelType === "dcr" ? "DCR" : "Non-DCR"}
+- Inverter: ${data.inverterType === "hybrid" ? "3-in-1 Hybrid" : "Ongrid"}
+
+*Cost Breakdown:*
+- Material Cost: Rs ${formatINRPlain(data.totalCost)}
+- Govt. Subsidy: Rs ${formatINRPlain(data.totalSubsidy)}
+- Net Cost: Rs ${formatINRPlain(data.netCost)}
+
+*Payment Structure:*
+- Down Payment (${data.downPaymentPercent}%): Rs ${formatINRPlain(data.downPayment)}
+- Loan Amount: Rs ${formatINRPlain(data.loanAmount)}
+- EMI (${data.selectedTenure} months): Rs ${formatINRPlain(data.selectedEmi)}/month
+
+*Your Savings @ Rs ${data.electricityRate}/unit:*
+- Monthly: Rs ${formatINRPlain(data.monthlySavings)}
+- Annual: Rs ${formatINRPlain(data.annualSavings)}
+- Effective EMI: Rs ${formatINRPlain(data.effectiveMonthlyPayment)}/month
+${data.partnerName ? `
+*Your District Partner:*
+${data.partnerName}${data.partnerPhone ? ` | +91-${data.partnerPhone}` : ''}` : ''}
+${pdfUrl ? `
+*Download Detailed PDF Proposal:*
+${pdfUrl}` : ''}
+
+Website: https://divyanshisolar.com`;
+      
+      const whatsappUrl = `https://wa.me/91${customerPhone}?text=${encodeURIComponent(message)}`;
+      window.open(whatsappUrl, '_blank');
+    } catch (error: any) {
+      console.error("WhatsApp share error:", error);
+      // Fallback: share without PDF link
+      const message = `*Divyanshi Solar - PM Surya Ghar Yojana Proposal*
 
 *Plant Details:*
 - Capacity: ${data.capacity} kW ${data.panelType === "dcr" ? "DCR" : "Non-DCR"}
@@ -1474,9 +1543,18 @@ export function SubsidyCalculator({
 - Effective EMI: Rs ${formatINRPlain(data.effectiveMonthlyPayment)}/month
 
 Website: https://divyanshisolar.com`;
-    
-    const whatsappUrl = `https://wa.me/91${customerPhone}?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
+      
+      const whatsappUrl = `https://wa.me/91${customerPhone}?text=${encodeURIComponent(message)}`;
+      window.open(whatsappUrl, '_blank');
+      
+      toast({
+        title: "PDF Generation Failed",
+        description: "Sharing without PDF link. You can still download the PDF separately.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingPDF(false);
+    }
   }
   
   async function handleShareEmail() {
@@ -2339,13 +2417,22 @@ Website: https://divyanshisolar.com`;
               
               <Button
                 onClick={handleShareWhatsApp}
-                disabled={customerPhone.length !== 10}
+                disabled={customerPhone.length !== 10 || isGeneratingPDF}
                 variant="outline"
                 className="flex items-center gap-2 bg-green-50 hover:bg-green-100 dark:bg-green-950/50 dark:hover:bg-green-900/50 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800"
                 data-testid="button-share-whatsapp"
               >
-                <MessageCircle className="w-4 h-4" />
-                Share on WhatsApp
+                {isGeneratingPDF ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Generating PDF...
+                  </>
+                ) : (
+                  <>
+                    <MessageCircle className="w-4 h-4" />
+                    Share on WhatsApp
+                  </>
+                )}
               </Button>
               
               <Button
