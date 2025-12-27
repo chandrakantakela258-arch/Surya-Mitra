@@ -569,10 +569,12 @@ _Thank you for choosing Divyanshi Solar!_`;
     }
   }
 
-  isConfigured(): { twilio: boolean; resend: boolean } {
+  isConfigured(): { twilio: boolean; resend: boolean; aisensy: boolean; fast2sms: boolean } {
     return {
       twilio: !!(this.twilioAccountSid && this.twilioAuthToken && this.twilioPhoneNumber),
       resend: !!this.resendApiKey,
+      aisensy: !!this.aisensyApiKey,
+      fast2sms: !!this.fast2smsApiKey,
     };
   }
 

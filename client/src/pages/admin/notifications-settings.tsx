@@ -226,7 +226,7 @@ export default function NotificationSettingsPage() {
                 </div>
                 <div>
                   <p className="font-medium">WhatsApp</p>
-                  <p className="text-xs text-muted-foreground">Twilio API</p>
+                  <p className="text-xs text-muted-foreground">AiSensy</p>
                 </div>
               </div>
               {configLoading ? (
@@ -255,7 +255,7 @@ export default function NotificationSettingsPage() {
                 </div>
                 <div>
                   <p className="font-medium">SMS</p>
-                  <p className="text-xs text-muted-foreground">Twilio API</p>
+                  <p className="text-xs text-muted-foreground">Fast2SMS</p>
                 </div>
               </div>
               {configLoading ? (
@@ -284,7 +284,7 @@ export default function NotificationSettingsPage() {
                 </div>
                 <div>
                   <p className="font-medium">Email</p>
-                  <p className="text-xs text-muted-foreground">Resend API</p>
+                  <p className="text-xs text-muted-foreground">Gmail API</p>
                 </div>
               </div>
               {configLoading ? (

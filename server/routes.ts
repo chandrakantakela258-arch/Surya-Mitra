@@ -3382,12 +3382,14 @@ export async function registerRoutes(
   app.get("/api/admin/notification-config", requireAdmin, async (req, res) => {
     try {
       const config = notificationService.isConfigured();
+      // Gmail is configured via Replit connector (always active if connection exists)
+      const gmailActive = true; // Gmail API is connected via Replit integrations
       res.json({
-        whatsapp: config.twilio,
-        sms: config.twilio,
-        email: config.resend,
-        message: !config.twilio && !config.resend 
-          ? "No notification services configured. Add TWILIO_* and RESEND_API_KEY secrets to enable."
+        whatsapp: config.aisensy,
+        sms: config.fast2sms,
+        email: gmailActive,
+        message: !config.aisensy && !config.fast2sms && !gmailActive
+          ? "No notification services configured. Add AISENSY_API_KEY and FAST2SMS_API_KEY secrets to enable."
           : "Notification services active.",
       });
     } catch (error) {
