@@ -39,20 +39,31 @@ import {
   Trash2,
   Send,
   Bell,
+  Users,
+  Megaphone,
 } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { NotificationTemplate } from "@shared/schema";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function NotificationSettingsPage() {
   const { toast } = useToast();
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [showTestDialog, setShowTestDialog] = useState(false);
+  const [showBroadcastDialog, setShowBroadcastDialog] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<NotificationTemplate | null>(null);
   const [testPhone, setTestPhone] = useState("");
   const [testEmail, setTestEmail] = useState("");
   const [testMessage, setTestMessage] = useState("Test notification from Divyanshi Solar");
+  
+  // Broadcast state
+  const [broadcastSubject, setBroadcastSubject] = useState("");
+  const [broadcastMessage, setBroadcastMessage] = useState("");
+  const [broadcastSendWhatsApp, setBroadcastSendWhatsApp] = useState(true);
+  const [broadcastSendEmail, setBroadcastSendEmail] = useState(true);
+  const [broadcastPartnerType, setBroadcastPartnerType] = useState("all");
 
   const { data: config, isLoading: configLoading } = useQuery<{
     whatsapp: boolean;
@@ -111,6 +122,24 @@ export default function NotificationSettingsPage() {
     },
     onError: () => {
       toast({ title: "Failed to send test notification", variant: "destructive" });
+    },
+  });
+
+  const broadcastMutation = useMutation({
+    mutationFn: (data: { subject: string; message: string; sendWhatsApp: boolean; sendEmail: boolean; partnerType: string }) =>
+      apiRequest("/api/admin/broadcast-partners", "POST", data),
+    onSuccess: (data: any) => {
+      setShowBroadcastDialog(false);
+      setBroadcastSubject("");
+      setBroadcastMessage("");
+      const results = data.results;
+      toast({ 
+        title: "Broadcast sent successfully!", 
+        description: `WhatsApp: ${results.whatsapp.sent} sent, ${results.whatsapp.failed} failed. Email: ${results.email.sent} sent, ${results.email.failed} failed.`
+      });
+    },
+    onError: () => {
+      toast({ title: "Failed to send broadcast", variant: "destructive" });
     },
   });
 
@@ -175,10 +204,16 @@ export default function NotificationSettingsPage() {
             Configure SMS, Email, and WhatsApp notifications
           </p>
         </div>
-        <Button onClick={() => setShowTestDialog(true)} data-testid="button-test-notification">
-          <Send className="w-4 h-4 mr-2" />
-          Test Notification
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button onClick={() => setShowBroadcastDialog(true)} data-testid="button-broadcast-partners">
+            <Megaphone className="w-4 h-4 mr-2" />
+            Broadcast to Partners
+          </Button>
+          <Button variant="outline" onClick={() => setShowTestDialog(true)} data-testid="button-test-notification">
+            <Send className="w-4 h-4 mr-2" />
+            Test Notification
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -512,6 +547,125 @@ export default function NotificationSettingsPage() {
             >
               <Send className="w-4 h-4 mr-2" />
               Send Test
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showBroadcastDialog} onOpenChange={setShowBroadcastDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Megaphone className="w-5 h-5" />
+              Broadcast to All Partners
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-muted/50 rounded-lg p-3 flex items-center gap-3">
+              <Users className="w-5 h-5 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                Send a message to all approved partners (BDPs and DDPs) at once via WhatsApp and/or Email.
+              </p>
+            </div>
+            
+            <div>
+              <Label>Partner Type</Label>
+              <Select
+                value={broadcastPartnerType}
+                onValueChange={setBroadcastPartnerType}
+              >
+                <SelectTrigger data-testid="select-partner-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Partners (BDPs + DDPs)</SelectItem>
+                  <SelectItem value="bdp">BDPs Only</SelectItem>
+                  <SelectItem value="ddp">DDPs Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="broadcastSubject">Subject / Title</Label>
+              <Input
+                id="broadcastSubject"
+                value={broadcastSubject}
+                onChange={(e) => setBroadcastSubject(e.target.value)}
+                placeholder="e.g., Important Meeting Tomorrow"
+                data-testid="input-broadcast-subject"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="broadcastMessage">Message</Label>
+              <Textarea
+                id="broadcastMessage"
+                value={broadcastMessage}
+                onChange={(e) => setBroadcastMessage(e.target.value)}
+                placeholder="Enter your message here. Use {{name}} to personalize with partner's name."
+                rows={5}
+                data-testid="input-broadcast-message"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Use {"{{name}}"} to include the partner's name in the message.
+              </p>
+            </div>
+            
+            <div className="space-y-3">
+              <Label>Send via</Label>
+              <div className="flex items-center gap-6 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="sendWhatsApp"
+                    checked={broadcastSendWhatsApp}
+                    onCheckedChange={(checked) => setBroadcastSendWhatsApp(checked as boolean)}
+                    data-testid="checkbox-whatsapp"
+                  />
+                  <Label htmlFor="sendWhatsApp" className="flex items-center gap-1 cursor-pointer font-normal">
+                    <MessageSquare className="w-4 h-4 text-green-600" />
+                    WhatsApp
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="sendEmail"
+                    checked={broadcastSendEmail}
+                    onCheckedChange={(checked) => setBroadcastSendEmail(checked as boolean)}
+                    data-testid="checkbox-email"
+                  />
+                  <Label htmlFor="sendEmail" className="flex items-center gap-1 cursor-pointer font-normal">
+                    <Mail className="w-4 h-4 text-purple-600" />
+                    Email
+                  </Label>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBroadcastDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() =>
+                broadcastMutation.mutate({
+                  subject: broadcastSubject,
+                  message: broadcastMessage,
+                  sendWhatsApp: broadcastSendWhatsApp,
+                  sendEmail: broadcastSendEmail,
+                  partnerType: broadcastPartnerType,
+                })
+              }
+              disabled={broadcastMutation.isPending || !broadcastMessage.trim() || (!broadcastSendWhatsApp && !broadcastSendEmail)}
+              data-testid="button-send-broadcast"
+            >
+              {broadcastMutation.isPending ? (
+                <>Sending...</>
+              ) : (
+                <>
+                  <Megaphone className="w-4 h-4 mr-2" />
+                  Send Broadcast
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
