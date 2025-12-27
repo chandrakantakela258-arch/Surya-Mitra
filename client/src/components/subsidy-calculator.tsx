@@ -1438,73 +1438,20 @@ export function SubsidyCalculator({
   }, [capacity, panelType, inverterType, customerType, result, selectedEmiTenure, selectedEmi, interestRate, electricityUnitRate, selectedState, customerName, partnerName, partnerPhone, installationAddress]);
   
   async function handleDownloadProposal() {
-    // Use the same server-side PDF generator as WhatsApp share for consistency
-    const data = getProposalData();
-    
-    setIsGeneratingPDF(true);
-    
+    // Use detailed client-side jsPDF generator for rich formatting with images
     try {
-      const response = await fetch("/api/proposal/generate-pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerName: data.customerName,
-          capacity: data.capacity,
-          panelType: data.panelType,
-          inverterType: data.inverterType,
-          totalCost: data.totalCost,
-          centralSubsidy: data.centralSubsidy,
-          stateSubsidy: data.stateSubsidy,
-          totalSubsidy: data.totalSubsidy,
-          netCost: data.netCost,
-          downPayment: data.downPayment,
-          downPaymentPercent: data.downPaymentPercent,
-          loanAmount: data.loanAmount,
-          selectedTenure: data.selectedTenure,
-          selectedEmi: data.selectedEmi,
-          monthlySavings: data.monthlySavings,
-          annualSavings: data.annualSavings,
-          monthlyGeneration: data.monthlyGeneration,
-          paybackYears: data.paybackYears,
-          state: data.state,
-          partnerName: data.partnerName,
-          partnerPhone: data.partnerPhone,
-          installationAddress: data.installationAddress,
-          interestRate: data.interestRate,
-          electricityRate: data.electricityRate,
-          emi36Months: data.emi36Months,
-          emi48Months: data.emi48Months,
-          emi60Months: data.emi60Months,
-          emi72Months: data.emi72Months,
-          emi84Months: data.emi84Months,
-          ratePerWatt: data.ratePerWatt
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error("Failed to generate PDF");
-      }
-      
-      const pdfResponse = await response.json();
-      
-      if (pdfResponse.downloadUrl) {
-        // Trigger download
-        const link = document.createElement('a');
-        link.href = pdfResponse.downloadUrl;
-        link.download = `Divyanshi_Solar_Proposal_${capacity}kW_${new Date().toISOString().split('T')[0]}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
+      const data = getProposalData();
+      // Load PM Surya Ghar image for PDF
+      const imageData = await loadImageAsBase64(pmSuryaGharImage);
+      data.pmSuryaGharImageData = imageData;
+      const doc = generateProposalPDF(data);
+      doc.save(`Divyanshi_Solar_Proposal_${capacity}kW_${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      toast({
-        title: "PDF Generation Failed",
-        description: "Could not generate the proposal PDF. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsGeneratingPDF(false);
+      // Fallback: generate PDF without image
+      const data = getProposalData();
+      const doc = generateProposalPDF(data);
+      doc.save(`Divyanshi_Solar_Proposal_${capacity}kW_${new Date().toISOString().split('T')[0]}.pdf`);
     }
   }
   
