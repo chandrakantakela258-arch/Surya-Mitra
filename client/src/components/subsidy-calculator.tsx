@@ -1325,6 +1325,7 @@ export function SubsidyCalculator({
   const [electricityUnitRate, setElectricityUnitRate] = useState<number>(7);
   const [electricityRateInput, setElectricityRateInput] = useState<string>("7");
   const [downPaymentPercent, setDownPaymentPercent] = useState<number>(15);
+  const [downPaymentInput, setDownPaymentInput] = useState<string>("15");
   const [customerName, setCustomerName] = useState<string>("");
   const [customerPhone, setCustomerPhone] = useState<string>("");
   const [customerEmail, setCustomerEmail] = useState<string>("");
@@ -1921,12 +1922,32 @@ Website: https://divyanshisolar.com`;
             <div className="flex items-center gap-2">
               <Input
                 id="down-payment"
-                type="number"
-                min="0"
-                max="100"
-                step="5"
-                value={downPaymentPercent}
-                onChange={(e) => setDownPaymentPercent(Math.min(100, Math.max(0, parseFloat(e.target.value) || 15)))}
+                type="text"
+                inputMode="numeric"
+                value={downPaymentInput}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "" || /^\d*$/.test(val)) {
+                    setDownPaymentInput(val);
+                    const numVal = parseInt(val);
+                    if (!isNaN(numVal) && numVal >= 0 && numVal <= 100) {
+                      setDownPaymentPercent(numVal);
+                    }
+                  }
+                }}
+                onBlur={() => {
+                  const numVal = parseInt(downPaymentInput);
+                  if (isNaN(numVal) || numVal < 0) {
+                    setDownPaymentPercent(15);
+                    setDownPaymentInput("15");
+                  } else if (numVal > 100) {
+                    setDownPaymentPercent(100);
+                    setDownPaymentInput("100");
+                  } else {
+                    setDownPaymentPercent(numVal);
+                    setDownPaymentInput(numVal.toString());
+                  }
+                }}
                 className="w-full"
                 data-testid="input-down-payment"
               />
