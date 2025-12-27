@@ -5,7 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sun, IndianRupee, Zap, TrendingDown, MapPin, BatteryCharging, Power, Check, Users, Home, Building2, Factory, FileText, Share2, Mail, MessageCircle, Download, Wallet, Loader2 } from "lucide-react";
+import { Sun, IndianRupee, Zap, TrendingDown, MapPin, BatteryCharging, Power, Check, Users, Home, Building2, Factory, FileText, Share2, Mail, MessageCircle, Download, Wallet, Loader2, Grid3X3 } from "lucide-react";
+import { SolarPanel3D } from "./solar-panel-3d";
 import { indianStates } from "@shared/schema";
 import { jsPDF } from "jspdf";
 import { useToast } from "@/hooks/use-toast";
@@ -1334,6 +1335,7 @@ export function SubsidyCalculator({
   const [installationAddress, setInstallationAddress] = useState<string>("");
   const [isSendingEmail, setIsSendingEmail] = useState<boolean>(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState<boolean>(false);
+  const [show3DVisualization, setShow3DVisualization] = useState<boolean>(false);
   
   const { toast } = useToast();
   
@@ -1749,6 +1751,36 @@ Website: https://divyanshisolar.com`;
             );
           })}
         </div>
+        
+        {/* 3D Visualization Toggle */}
+        <div className="flex items-center justify-between gap-4 p-4 bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg border border-primary/20">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+              <Grid3X3 className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <p className="font-medium">3D Panel Placement Tool</p>
+              <p className="text-xs text-muted-foreground">Visualize solar panels on your rooftop in 3D</p>
+            </div>
+          </div>
+          <Button
+            variant={show3DVisualization ? "default" : "outline"}
+            onClick={() => setShow3DVisualization(!show3DVisualization)}
+            data-testid="button-toggle-3d"
+          >
+            {show3DVisualization ? "Hide 3D View" : "Show 3D View"}
+          </Button>
+        </div>
+        
+        {/* 3D Solar Panel Visualization */}
+        {show3DVisualization && (
+          <SolarPanel3D 
+            initialCapacity={capacity}
+            onCapacityChange={(newCapacity, panelCount) => {
+              handleCapacityChange(newCapacity);
+            }}
+          />
+        )}
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="space-y-4">
