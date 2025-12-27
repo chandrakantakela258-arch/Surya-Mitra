@@ -7959,7 +7959,8 @@ export async function registerRoutes(
         centralSubsidy, stateSubsidy, totalSubsidy, netCost,
         downPayment, downPaymentPercent, loanAmount, selectedTenure, selectedEmi,
         monthlySavings, annualSavings, monthlyGeneration, paybackYears,
-        state, partnerName, partnerPhone, installationAddress
+        state, partnerName, partnerPhone, installationAddress,
+        interestRate, electricityRate, emi36Months, emi48Months, emi60Months, emi72Months, emi84Months, ratePerWatt
       } = req.body;
       
       console.log("[PDF] Received data - capacity:", capacity, "netCost:", netCost, "totalCost:", totalCost);
@@ -7991,7 +7992,15 @@ export async function registerRoutes(
         state: state || undefined,
         partnerName: partnerName || undefined,
         partnerPhone: partnerPhone || undefined,
-        installationAddress: installationAddress || undefined
+        installationAddress: installationAddress || undefined,
+        interestRate: interestRate ? Number(interestRate) : undefined,
+        electricityRate: electricityRate ? Number(electricityRate) : undefined,
+        emi36Months: emi36Months ? Number(emi36Months) : undefined,
+        emi48Months: emi48Months ? Number(emi48Months) : undefined,
+        emi60Months: emi60Months ? Number(emi60Months) : undefined,
+        emi72Months: emi72Months ? Number(emi72Months) : undefined,
+        emi84Months: emi84Months ? Number(emi84Months) : undefined,
+        ratePerWatt: ratePerWatt ? Number(ratePerWatt) : undefined
       };
 
       console.log("[PDF] Generating PDF...");
