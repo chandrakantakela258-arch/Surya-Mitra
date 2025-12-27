@@ -8055,6 +8055,48 @@ export async function registerRoutes(
     }
   });
 
+  // Upload client-generated PDF (for WhatsApp sharing with identical detailed PDFs)
+  app.post("/api/proposal/upload-pdf", upload.single('pdf'), (req, res) => {
+    console.log("[PDF Upload] Request received");
+    try {
+      if (!req.file) {
+        console.log("[PDF Upload] No file provided");
+        return res.status(400).json({ success: false, message: "No PDF file provided" });
+      }
+
+      // Generate unique filename
+      const timestamp = Date.now();
+      const randomId = Math.random().toString(36).substring(2, 8);
+      const fileName = `proposal_${timestamp}_${randomId}.pdf`;
+      
+      // Move file from temp upload location to proposals directory
+      const fs = require('fs');
+      const path = require('path');
+      const pdfDir = path.join(process.cwd(), 'uploads', 'proposals');
+      
+      if (!fs.existsSync(pdfDir)) {
+        fs.mkdirSync(pdfDir, { recursive: true });
+      }
+      
+      const destPath = path.join(pdfDir, fileName);
+      fs.renameSync(req.file.path, destPath);
+      
+      console.log("[PDF Upload] Saved to:", destPath);
+      
+      const downloadUrl = `/api/proposal/download/${fileName}`;
+      
+      res.json({
+        success: true,
+        downloadUrl,
+        fileName,
+        message: "PDF uploaded successfully"
+      });
+    } catch (error: any) {
+      console.error("[PDF Upload] Error:", error);
+      res.status(500).json({ success: false, message: error.message || "Failed to upload PDF" });
+    }
+  });
+
   // Send welcome email to new customer
   app.post("/api/email/send-welcome", requireAuth, async (req, res) => {
     try {

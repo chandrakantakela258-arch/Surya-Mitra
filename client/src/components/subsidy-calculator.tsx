@@ -1459,60 +1459,40 @@ export function SubsidyCalculator({
     const data = getProposalData();
     
     console.log("[WhatsApp] Starting PDF generation...");
-    console.log("[WhatsApp] Proposal data:", JSON.stringify(data));
     
     setIsGeneratingPDF(true);
     
     try {
-      // Generate PDF on server and get download link
-      console.log("[WhatsApp] Calling API...");
-      const response = await fetch("/api/proposal/generate-pdf", {
+      // Generate the SAME detailed PDF as download (client-side with jsPDF)
+      console.log("[WhatsApp] Generating detailed PDF client-side...");
+      const imageData = await loadImageAsBase64(pmSuryaGharImage);
+      data.pmSuryaGharImageData = imageData;
+      const doc = generateProposalPDF(data);
+      
+      // Convert PDF to blob for upload
+      const pdfBlob = doc.output('blob');
+      console.log("[WhatsApp] PDF blob size:", pdfBlob.size);
+      
+      // Upload to server to get shareable URL
+      const formData = new FormData();
+      formData.append('pdf', pdfBlob, 'proposal.pdf');
+      
+      console.log("[WhatsApp] Uploading PDF to server...");
+      const response = await fetch("/api/proposal/upload-pdf", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerName: data.customerName,
-          capacity: data.capacity,
-          panelType: data.panelType,
-          inverterType: data.inverterType,
-          totalCost: data.totalCost,
-          centralSubsidy: data.centralSubsidy,
-          stateSubsidy: data.stateSubsidy,
-          totalSubsidy: data.totalSubsidy,
-          netCost: data.netCost,
-          downPayment: data.downPayment,
-          downPaymentPercent: data.downPaymentPercent,
-          loanAmount: data.loanAmount,
-          selectedTenure: data.selectedTenure,
-          selectedEmi: data.selectedEmi,
-          monthlySavings: data.monthlySavings,
-          annualSavings: data.annualSavings,
-          monthlyGeneration: data.monthlyGeneration,
-          paybackYears: data.paybackYears,
-          state: data.state,
-          partnerName: data.partnerName,
-          partnerPhone: data.partnerPhone,
-          installationAddress: data.installationAddress,
-          interestRate: data.interestRate,
-          electricityRate: data.electricityRate,
-          emi36Months: data.emi36Months,
-          emi48Months: data.emi48Months,
-          emi60Months: data.emi60Months,
-          emi72Months: data.emi72Months,
-          emi84Months: data.emi84Months,
-          ratePerWatt: data.ratePerWatt
-        })
+        body: formData
       });
       
-      console.log("[WhatsApp] API response status:", response.status);
+      console.log("[WhatsApp] Upload response status:", response.status);
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("[WhatsApp] API error:", errorText);
-        throw new Error(`PDF generation failed: ${errorText}`);
+        console.error("[WhatsApp] Upload error:", errorText);
+        throw new Error(`PDF upload failed: ${errorText}`);
       }
       
       const pdfResponse = await response.json();
-      console.log("[WhatsApp] PDF response:", JSON.stringify(pdfResponse));
+      console.log("[WhatsApp] Upload response:", JSON.stringify(pdfResponse));
       
       // Build PDF download URL
       const baseUrl = window.location.origin;
