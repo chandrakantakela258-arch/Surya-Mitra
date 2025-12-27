@@ -92,6 +92,37 @@ const documentUpload = multer({
   },
 });
 
+// Configure multer for PDF proposal uploads (for WhatsApp sharing)
+const proposalPdfDir = path.join(process.cwd(), "uploads", "proposals");
+if (!fs.existsSync(proposalPdfDir)) {
+  fs.mkdirSync(proposalPdfDir, { recursive: true });
+}
+
+const pdfStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, proposalPdfDir);
+  },
+  filename: (req, file, cb) => {
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substring(2, 8);
+    cb(null, `proposal_${timestamp}_${randomId}.pdf`);
+  },
+});
+
+const pdfUpload = multer({
+  storage: pdfStorage,
+  limits: {
+    fileSize: 20 * 1024 * 1024, // 20MB max for PDFs
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === "application/pdf") {
+      cb(null, true);
+    } else {
+      cb(new Error("Invalid file type. Only PDF files are allowed."));
+    }
+  },
+});
+
 const SALT_ROUNDS = 10;
 
 const PgSession = connectPgSimple(session);
@@ -8056,7 +8087,7 @@ export async function registerRoutes(
   });
 
   // Upload client-generated PDF (for WhatsApp sharing with identical detailed PDFs)
-  app.post("/api/proposal/upload-pdf", upload.single('pdf'), (req, res) => {
+  app.post("/api/proposal/upload-pdf", pdfUpload.single('pdf'), (req, res) => {
     console.log("[PDF Upload] Request received");
     try {
       if (!req.file) {
@@ -8064,24 +8095,9 @@ export async function registerRoutes(
         return res.status(400).json({ success: false, message: "No PDF file provided" });
       }
 
-      // Generate unique filename
-      const timestamp = Date.now();
-      const randomId = Math.random().toString(36).substring(2, 8);
-      const fileName = `proposal_${timestamp}_${randomId}.pdf`;
-      
-      // Move file from temp upload location to proposals directory
-      const fs = require('fs');
-      const path = require('path');
-      const pdfDir = path.join(process.cwd(), 'uploads', 'proposals');
-      
-      if (!fs.existsSync(pdfDir)) {
-        fs.mkdirSync(pdfDir, { recursive: true });
-      }
-      
-      const destPath = path.join(pdfDir, fileName);
-      fs.renameSync(req.file.path, destPath);
-      
-      console.log("[PDF Upload] Saved to:", destPath);
+      // The file is already saved by multer with the correct filename
+      const fileName = req.file.filename;
+      console.log("[PDF Upload] Saved as:", fileName);
       
       const downloadUrl = `/api/proposal/download/${fileName}`;
       
