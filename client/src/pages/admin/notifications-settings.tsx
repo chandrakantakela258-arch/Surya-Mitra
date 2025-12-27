@@ -116,12 +116,17 @@ export default function NotificationSettingsPage() {
   const testNotificationMutation = useMutation({
     mutationFn: (data: { phone?: string; email?: string; message: string }) =>
       apiRequest("/api/admin/test-notification", "POST", data),
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       setShowTestDialog(false);
-      toast({ title: "Test notification sent!" });
+      const results = data.results || {};
+      toast({ 
+        title: "Test notification sent!", 
+        description: `SMS: ${results.sms || 'N/A'}, WhatsApp: ${results.whatsapp || 'N/A'}, Email: ${results.email || 'N/A'}`
+      });
     },
-    onError: () => {
-      toast({ title: "Failed to send test notification", variant: "destructive" });
+    onError: (error: any) => {
+      console.error("Test notification error:", error);
+      toast({ title: "Failed to send test notification", description: error?.message || "Unknown error", variant: "destructive" });
     },
   });
 
@@ -132,14 +137,15 @@ export default function NotificationSettingsPage() {
       setShowBroadcastDialog(false);
       setBroadcastSubject("");
       setBroadcastMessage("");
-      const results = data.results;
+      const results = data.results || { whatsapp: { sent: 0, failed: 0 }, email: { sent: 0, failed: 0 } };
       toast({ 
         title: "Broadcast sent successfully!", 
-        description: `WhatsApp: ${results.whatsapp.sent} sent, ${results.whatsapp.failed} failed. Email: ${results.email.sent} sent, ${results.email.failed} failed.`
+        description: `WhatsApp: ${results.whatsapp?.sent || 0} sent, ${results.whatsapp?.failed || 0} failed. Email: ${results.email?.sent || 0} sent, ${results.email?.failed || 0} failed.`
       });
     },
-    onError: () => {
-      toast({ title: "Failed to send broadcast", variant: "destructive" });
+    onError: (error: any) => {
+      console.error("Broadcast error:", error);
+      toast({ title: "Failed to send broadcast", description: error?.message || "Unknown error", variant: "destructive" });
     },
   });
 
@@ -199,9 +205,9 @@ export default function NotificationSettingsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-page-title">Notification Settings</h1>
+          <h1 className="text-2xl font-bold" data-testid="text-page-title">Broadcast Settings</h1>
           <p className="text-muted-foreground">
-            Configure SMS, Email, and WhatsApp notifications
+            Configure SMS, Email, and WhatsApp broadcasts
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -209,9 +215,9 @@ export default function NotificationSettingsPage() {
             <Megaphone className="w-4 h-4 mr-2" />
             Broadcast to Partners
           </Button>
-          <Button variant="outline" onClick={() => setShowTestDialog(true)} data-testid="button-test-notification">
+          <Button variant="outline" onClick={() => setShowTestDialog(true)} data-testid="button-test-broadcast">
             <Send className="w-4 h-4 mr-2" />
-            Test Notification
+            Test Broadcast
           </Button>
         </div>
       </div>
