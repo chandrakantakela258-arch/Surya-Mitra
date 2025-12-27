@@ -575,6 +575,127 @@ _Thank you for choosing Divyanshi Solar!_`;
       resend: !!this.resendApiKey,
     };
   }
+
+  // Send bulk WhatsApp messages to multiple recipients
+  async sendBulkWhatsApp(
+    recipients: Array<{ phone: string; name: string }>,
+    message: string,
+    campaignName?: string
+  ): Promise<{ sent: number; failed: number; results: Array<{ phone: string; name: string; success: boolean }> }> {
+    const results: Array<{ phone: string; name: string; success: boolean }> = [];
+    let sent = 0;
+    let failed = 0;
+
+    for (const recipient of recipients) {
+      try {
+        // Add small delay between messages to avoid rate limiting
+        if (results.length > 0) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+
+        const personalizedMessage = message.replace(/\{\{name\}\}/g, recipient.name);
+        const success = await this.sendWhatsAppMessage(
+          recipient.phone,
+          personalizedMessage,
+          campaignName || "partner_broadcast",
+          [recipient.name, personalizedMessage],
+          recipient.name
+        );
+
+        results.push({ phone: recipient.phone, name: recipient.name, success });
+        if (success) {
+          sent++;
+        } else {
+          failed++;
+        }
+      } catch (error) {
+        console.error(`Failed to send WhatsApp to ${recipient.phone}:`, error);
+        results.push({ phone: recipient.phone, name: recipient.name, success: false });
+        failed++;
+      }
+    }
+
+    console.log(`Bulk WhatsApp sent: ${sent} success, ${failed} failed out of ${recipients.length}`);
+    return { sent, failed, results };
+  }
+
+  // Send bulk emails to multiple recipients
+  async sendBulkEmail(
+    recipients: Array<{ email: string; name: string }>,
+    subject: string,
+    message: string
+  ): Promise<{ sent: number; failed: number; results: Array<{ email: string; name: string; success: boolean }> }> {
+    const results: Array<{ email: string; name: string; success: boolean }> = [];
+    let sent = 0;
+    let failed = 0;
+
+    for (const recipient of recipients) {
+      try {
+        // Add small delay between messages to avoid rate limiting
+        if (results.length > 0) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+
+        const personalizedMessage = message.replace(/\{\{name\}\}/g, recipient.name);
+        const htmlContent = this.generateBroadcastEmailHtml(subject, personalizedMessage, recipient.name);
+        const success = await this.sendEmail(recipient.email, subject, htmlContent);
+
+        results.push({ email: recipient.email, name: recipient.name, success });
+        if (success) {
+          sent++;
+        } else {
+          failed++;
+        }
+      } catch (error) {
+        console.error(`Failed to send email to ${recipient.email}:`, error);
+        results.push({ email: recipient.email, name: recipient.name, success: false });
+        failed++;
+      }
+    }
+
+    console.log(`Bulk email sent: ${sent} success, ${failed} failed out of ${recipients.length}`);
+    return { sent, failed, results };
+  }
+
+  private generateBroadcastEmailHtml(title: string, message: string, partnerName: string): string {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${title}</title>
+      </head>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f4f4f4;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px;">
+          <div style="text-align: center; padding: 20px 0; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); border-radius: 8px;">
+            <h1 style="color: white; margin: 0; font-size: 24px;">Divyanshi Solar</h1>
+            <p style="color: rgba(255,255,255,0.9); margin: 5px 0 0 0; font-size: 14px;">PM Surya Ghar Yojana Partner Network</p>
+          </div>
+          
+          <div style="padding: 30px 20px;">
+            <h2 style="color: #333; margin-bottom: 10px;">${title}</h2>
+            <p style="color: #666; margin-bottom: 20px;">Dear ${partnerName},</p>
+            <div style="color: #666; margin-bottom: 20px; white-space: pre-line;">${message}</div>
+            
+            <div style="background-color: #fff7ed; border-left: 4px solid #f97316; padding: 15px; margin: 20px 0;">
+              <p style="margin: 0; color: #9a3412; font-size: 14px;">
+                <strong>Important:</strong> This is an official communication from Divyanshi Solar admin team.
+              </p>
+            </div>
+          </div>
+          
+          <div style="text-align: center; padding: 20px; background-color: #f8f9fa; border-top: 1px solid #eee;">
+            <p style="color: #999; font-size: 12px; margin: 0;">
+              Divyanshi Digital Services Pvt. Ltd.<br>
+              PM Surya Ghar Yojana - Rooftop Solar Installation
+            </p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
 }
 
 export const notificationService = new NotificationService();
