@@ -4011,6 +4011,87 @@ export async function registerRoutes(
     }
   });
 
+  // Admin: Broadcast message to all partners (WhatsApp and/or Email)
+  app.post("/api/admin/broadcast-partners", requireAdmin, async (req, res) => {
+    try {
+      const { subject, message, sendWhatsApp, sendEmail, partnerType } = req.body;
+      
+      if (!message) {
+        return res.status(400).json({ message: "Message is required" });
+      }
+      
+      if (!sendWhatsApp && !sendEmail) {
+        return res.status(400).json({ message: "Select at least one channel (WhatsApp or Email)" });
+      }
+      
+      // Get all partners (BDPs and DDPs)
+      const allPartners = await storage.getAllPartners();
+      
+      // Filter by partner type if specified
+      let partners = allPartners;
+      if (partnerType && partnerType !== "all") {
+        partners = allPartners.filter(p => p.role === partnerType);
+      }
+      
+      // Filter only approved partners with valid contact info
+      const approvedPartners = partners.filter(p => p.status === "approved");
+      
+      const results = {
+        totalPartners: approvedPartners.length,
+        whatsapp: { sent: 0, failed: 0 } as { sent: number; failed: number },
+        email: { sent: 0, failed: 0 } as { sent: number; failed: number },
+      };
+      
+      // Send WhatsApp messages
+      if (sendWhatsApp) {
+        const whatsAppRecipients = approvedPartners
+          .filter(p => p.phone)
+          .map(p => ({ phone: p.phone, name: p.name }));
+        
+        if (whatsAppRecipients.length > 0) {
+          const whatsAppResult = await notificationService.sendBulkWhatsApp(
+            whatsAppRecipients,
+            `*Divyanshi Solar - Important Update*\n\n${subject ? `*${subject}*\n\n` : ''}Dear {{name}},\n\n${message}\n\n_Divyanshi Solar Admin Team_`,
+            "partner_broadcast"
+          );
+          results.whatsapp = { sent: whatsAppResult.sent, failed: whatsAppResult.failed };
+        }
+      }
+      
+      // Send Email messages
+      if (sendEmail) {
+        const emailRecipients = approvedPartners
+          .filter(p => p.email)
+          .map(p => ({ email: p.email!, name: p.name }));
+        
+        if (emailRecipients.length > 0) {
+          const emailResult = await notificationService.sendBulkEmail(
+            emailRecipients,
+            subject || "Important Update from Divyanshi Solar",
+            `Dear {{name}},\n\n${message}\n\nBest regards,\nDivyanshi Solar Admin Team`
+          );
+          results.email = { sent: emailResult.sent, failed: emailResult.failed };
+        }
+      }
+      
+      // Log the broadcast
+      console.log(`[Admin Broadcast] Sent to ${results.totalPartners} partners:`, {
+        whatsapp: results.whatsapp,
+        email: results.email,
+        by: req.session.userId
+      });
+      
+      res.json({ 
+        success: true, 
+        message: `Broadcast sent to ${results.totalPartners} partners`,
+        results 
+      });
+    } catch (error) {
+      console.error("Broadcast error:", error);
+      res.status(500).json({ message: "Failed to send broadcast" });
+    }
+  });
+
   // ===== VENDOR REGISTRATION ROUTES =====
   
   // Public: Register as a vendor
