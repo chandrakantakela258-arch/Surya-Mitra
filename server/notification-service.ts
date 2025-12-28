@@ -140,12 +140,13 @@ export class NotificationService {
         return false;
       }
       
-      if (!response.ok || responseData.status === "error" || responseData.success === false) {
+      // AiSensy returns success as string "true" not boolean
+      if (!response.ok || responseData.status === "error" || (responseData.success !== true && responseData.success !== "true")) {
         console.error("[AiSensy] WhatsApp error:", JSON.stringify(responseData));
         return false;
       }
 
-      console.log(`[AiSensy] WhatsApp message sent successfully to ${phoneNumber}`);
+      console.log(`[AiSensy] WhatsApp message sent successfully to ${phoneNumber}, message_id: ${responseData.submitted_message_id}`);
       return true;
     } catch (error) {
       console.error("[AiSensy] Error sending WhatsApp:", error);
