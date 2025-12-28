@@ -118,6 +118,7 @@ export class NotificationService {
       };
 
       console.log("[AiSensy] Sending WhatsApp to:", phoneNumber, "Campaign:", requestBody.campaignName);
+      console.log("[AiSensy] Request body:", JSON.stringify(requestBody, null, 2));
 
       const response = await fetch("https://backend.aisensy.com/campaign/t1/api/v2", {
         method: "POST",
@@ -127,9 +128,19 @@ export class NotificationService {
         body: JSON.stringify(requestBody),
       });
 
-      const responseData = await response.json();
+      const responseText = await response.text();
+      console.log("[AiSensy] Response status:", response.status);
+      console.log("[AiSensy] Response body:", responseText);
       
-      if (!response.ok || responseData.status === "error") {
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch {
+        console.error("[AiSensy] Failed to parse response as JSON");
+        return false;
+      }
+      
+      if (!response.ok || responseData.status === "error" || responseData.success === false) {
         console.error("[AiSensy] WhatsApp error:", JSON.stringify(responseData));
         return false;
       }
