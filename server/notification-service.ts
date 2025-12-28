@@ -105,9 +105,10 @@ export class NotificationService {
       }
 
       // Build the complete AiSensy API request body as per their v2 API spec
+      // Default template is "divyanshi_solar_google_meeting" - a fixed text template with no params
       const requestBody = {
         apiKey: this.aisensyApiKey,
-        campaignName: campaignName || "Divyanshi_Partner_Meeting",
+        campaignName: campaignName || "divyanshi_solar_google_meeting",
         destination: phoneNumber,
         userName: userName || "Divyanshi digital service pvt ltd",
         templateParams: templateParams || [],

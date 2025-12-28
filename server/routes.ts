@@ -3983,11 +3983,11 @@ export async function registerRoutes(
         }
         
         try {
-          // Use Divyanshi_Partner_Meeting campaign for test broadcasts
+          // Use divyanshi_solar_google_meeting campaign for test broadcasts
           const whatsappSuccess = await notificationService.sendWhatsAppMessage(
             phone, 
             message, 
-            "Divyanshi_Partner_Meeting", 
+            "divyanshi_solar_google_meeting", 
             [], // Empty templateParams as per AiSensy spec
             "Divyanshi digital service pvt ltd"
           );
@@ -4078,7 +4078,7 @@ export async function registerRoutes(
           const whatsAppResult = await notificationService.sendBulkWhatsApp(
             whatsAppRecipients,
             message,
-            "Divyanshi_Partner_Meeting"
+            "divyanshi_solar_google_meeting"
           );
           console.log("[Broadcast] WhatsApp result:", JSON.stringify(whatsAppResult));
           results.whatsapp = { sent: whatsAppResult.sent, failed: whatsAppResult.failed };
@@ -4326,7 +4326,7 @@ export async function registerRoutes(
           await notificationService.sendWhatsAppMessage(
             vendor.contactPhone,
             `New job assigned: ${customer.name}`,
-            "Divyanshi_Partner_Meeting",
+            "divyanshi_solar_google_meeting",
             [],
             "Divyanshi digital service pvt ltd"
           );
@@ -7711,7 +7711,7 @@ export async function registerRoutes(
           await notificationService.sendWhatsAppMessage(
             admin.phone,
             `New service request from ${customer.name}: ${issueTitle}`,
-            "Divyanshi_Partner_Meeting",
+            "divyanshi_solar_google_meeting",
             [],
             "Divyanshi digital service pvt ltd"
           );
@@ -7723,7 +7723,7 @@ export async function registerRoutes(
           await notificationService.sendWhatsAppMessage(
             customer.phone,
             `Your service request has been received: ${issueTitle}`,
-            "Divyanshi_Partner_Meeting",
+            "divyanshi_solar_google_meeting",
             [],
             "Divyanshi digital service pvt ltd"
           );
