@@ -79,7 +79,7 @@ export default function NotificationSettingsPage() {
   });
 
   const createTemplateMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("/api/admin/notification-templates", "POST", data),
+    mutationFn: (data: any) => apiRequest("POST", "/api/admin/notification-templates", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/notification-templates"] });
       setShowTemplateDialog(false);
@@ -93,7 +93,7 @@ export default function NotificationSettingsPage() {
 
   const updateTemplateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) =>
-      apiRequest(`/api/admin/notification-templates/${id}`, "PATCH", data),
+      apiRequest("PATCH", `/api/admin/notification-templates/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/notification-templates"] });
       setShowTemplateDialog(false);
@@ -106,7 +106,7 @@ export default function NotificationSettingsPage() {
   });
 
   const deleteTemplateMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/admin/notification-templates/${id}`, "DELETE"),
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/admin/notification-templates/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/notification-templates"] });
       toast({ title: "Template deleted" });
@@ -115,7 +115,7 @@ export default function NotificationSettingsPage() {
 
   const testNotificationMutation = useMutation({
     mutationFn: (data: { phone?: string; email?: string; message: string }) =>
-      apiRequest("/api/admin/test-notification", "POST", data),
+      apiRequest("POST", "/api/admin/test-notification", data),
     onSuccess: (data: any) => {
       setShowTestDialog(false);
       const results = data.results || {};
@@ -132,7 +132,7 @@ export default function NotificationSettingsPage() {
 
   const broadcastMutation = useMutation({
     mutationFn: (data: { subject: string; message: string; sendWhatsApp: boolean; sendEmail: boolean; partnerType: string }) =>
-      apiRequest("/api/admin/broadcast-partners", "POST", data),
+      apiRequest("POST", "/api/admin/broadcast-partners", data),
     onSuccess: (data: any) => {
       setShowBroadcastDialog(false);
       setBroadcastSubject("");
