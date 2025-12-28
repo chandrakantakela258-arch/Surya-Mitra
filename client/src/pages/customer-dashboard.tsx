@@ -39,9 +39,15 @@ import {
   MessageSquare,
   Plus,
   AlertCircle,
-  ThumbsUp
+  ThumbsUp,
+  Navigation,
+  Image,
+  X,
+  ExternalLink,
+  Upload,
+  Share2
 } from "lucide-react";
-import { SiFacebook, SiInstagram } from "react-icons/si";
+import { SiFacebook, SiInstagram, SiWhatsapp, SiX } from "react-icons/si";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CustomerJourneyTracker } from "@/components/customer-journey-tracker";
 
@@ -203,6 +209,13 @@ export default function CustomerDashboard() {
   const [feedbackText, setFeedbackText] = useState("");
   const videoInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const siteVideoInputRef = useRef<HTMLInputElement>(null);
+  const sitePicturesInputRef = useRef<HTMLInputElement>(null);
+  const [sitePictures, setSitePictures] = useState<string[]>([]);
+  const [siteVideo, setSiteVideo] = useState<string | null>(null);
+  const [customerLocation, setCustomerLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [isCapturingLocation, setIsCapturingLocation] = useState(false);
+  const [isUploadingSiteMedia, setIsUploadingSiteMedia] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("customerSessionToken");
@@ -237,6 +250,10 @@ export default function CustomerDashboard() {
       setStep("dashboard");
       fetchServiceRequests(token);
       fetchTestimonials(token);
+      fetchSiteMedia(token);
+      if (data.customer.latitude && data.customer.longitude) {
+        setCustomerLocation({ lat: data.customer.latitude, lng: data.customer.longitude });
+      }
     } catch {
       localStorage.removeItem("customerSessionToken");
       setSessionToken(null);
@@ -271,6 +288,176 @@ export default function CustomerDashboard() {
       }
     } catch {
       console.error("Failed to fetch testimonials");
+    }
+  };
+
+  const fetchSiteMedia = async (token: string) => {
+    try {
+      const response = await fetch("/api/customer-portal/site-media", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setSitePictures(data.sitePictures || []);
+        setSiteVideo(data.siteVideo || null);
+        if (data.latitude && data.longitude) {
+          setCustomerLocation({ lat: data.latitude, lng: data.longitude });
+        }
+      }
+    } catch {
+      console.error("Failed to fetch site media");
+    }
+  };
+
+  const handleCaptureLocation = async () => {
+    if (!sessionToken) return;
+    
+    if (!navigator.geolocation) {
+      toast({ title: "Error", description: "Geolocation is not supported by your browser", variant: "destructive" });
+      return;
+    }
+
+    setIsCapturingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        try {
+          const response = await fetch("/api/customer-portal/location", {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${sessionToken}`,
+            },
+            body: JSON.stringify({ lat: latitude, lng: longitude }),
+          });
+          
+          if (!response.ok) throw new Error("Failed to save location");
+          
+          setCustomerLocation({ lat: latitude, lng: longitude });
+          toast({ title: "Success", description: "Location captured successfully" });
+        } catch {
+          toast({ title: "Error", description: "Failed to save location", variant: "destructive" });
+        } finally {
+          setIsCapturingLocation(false);
+        }
+      },
+      (error) => {
+        setIsCapturingLocation(false);
+        toast({ title: "Error", description: error.message || "Failed to get location", variant: "destructive" });
+      },
+      { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 }
+    );
+  };
+
+  const handleUploadSitePictures = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!sessionToken || !e.target.files?.length) return;
+    
+    const files = Array.from(e.target.files);
+    if (sitePictures.length + files.length > 6) {
+      toast({ title: "Error", description: "Maximum 6 pictures allowed", variant: "destructive" });
+      return;
+    }
+
+    setIsUploadingSiteMedia(true);
+    try {
+      const formData = new FormData();
+      files.forEach(file => formData.append("pictures", file));
+      
+      const response = await fetch("/api/customer-portal/site-pictures", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${sessionToken}` },
+        body: formData,
+      });
+      
+      if (!response.ok) throw new Error("Failed to upload pictures");
+      
+      const data = await response.json();
+      setSitePictures(data.sitePictures || []);
+      toast({ title: "Success", description: "Pictures uploaded successfully" });
+    } catch {
+      toast({ title: "Error", description: "Failed to upload pictures", variant: "destructive" });
+    } finally {
+      setIsUploadingSiteMedia(false);
+      if (sitePicturesInputRef.current) sitePicturesInputRef.current.value = "";
+    }
+  };
+
+  const handleUploadSiteVideo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!sessionToken || !e.target.files?.[0]) return;
+    
+    const file = e.target.files[0];
+    if (file.size > 100 * 1024 * 1024) {
+      toast({ title: "Error", description: "Video must be less than 100MB", variant: "destructive" });
+      return;
+    }
+
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.src = URL.createObjectURL(file);
+    await new Promise((resolve) => (video.onloadedmetadata = resolve));
+    if (video.duration > 60) {
+      toast({ title: "Error", description: "Video must be 60 seconds or less", variant: "destructive" });
+      return;
+    }
+
+    setIsUploadingSiteMedia(true);
+    try {
+      const formData = new FormData();
+      formData.append("video", file);
+      
+      const response = await fetch("/api/customer-portal/site-video", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${sessionToken}` },
+        body: formData,
+      });
+      
+      if (!response.ok) throw new Error("Failed to upload video");
+      
+      const data = await response.json();
+      setSiteVideo(data.siteVideo || null);
+      toast({ title: "Success", description: "Video uploaded successfully" });
+    } catch {
+      toast({ title: "Error", description: "Failed to upload video", variant: "destructive" });
+    } finally {
+      setIsUploadingSiteMedia(false);
+      if (siteVideoInputRef.current) siteVideoInputRef.current.value = "";
+    }
+  };
+
+  const handleDeleteSitePicture = async (index: number) => {
+    if (!sessionToken) return;
+    
+    try {
+      const response = await fetch(`/api/customer-portal/site-pictures/${index}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      });
+      
+      if (!response.ok) throw new Error("Failed to delete picture");
+      
+      const data = await response.json();
+      setSitePictures(data.sitePictures || []);
+      toast({ title: "Success", description: "Picture deleted successfully" });
+    } catch {
+      toast({ title: "Error", description: "Failed to delete picture", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteSiteVideo = async () => {
+    if (!sessionToken) return;
+    
+    try {
+      const response = await fetch("/api/customer-portal/site-video", {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      });
+      
+      if (!response.ok) throw new Error("Failed to delete video");
+      
+      setSiteVideo(null);
+      toast({ title: "Success", description: "Video deleted successfully" });
+    } catch {
+      toast({ title: "Error", description: "Failed to delete video", variant: "destructive" });
     }
   };
 
@@ -982,18 +1169,22 @@ export default function CustomerDashboard() {
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="progress" className="flex items-center gap-2" data-testid="tab-progress">
                   <Zap className="h-4 w-4" />
-                  Progress
+                  <span className="hidden sm:inline">Progress</span>
+                </TabsTrigger>
+                <TabsTrigger value="site" className="flex items-center gap-2" data-testid="tab-site">
+                  <MapPin className="h-4 w-4" />
+                  <span className="hidden sm:inline">Site Info</span>
                 </TabsTrigger>
                 <TabsTrigger value="service" className="flex items-center gap-2" data-testid="tab-service">
                   <Wrench className="h-4 w-4" />
-                  Service
+                  <span className="hidden sm:inline">Service</span>
                 </TabsTrigger>
                 <TabsTrigger value="testimonials" className="flex items-center gap-2" data-testid="tab-testimonials">
                   <MessageSquare className="h-4 w-4" />
-                  Testimonials
+                  <span className="hidden sm:inline">Reviews</span>
                 </TabsTrigger>
               </TabsList>
 
@@ -1092,6 +1283,263 @@ export default function CustomerDashboard() {
                   customerName={progress.customer.name}
                   showActions={false}
                 />
+              </TabsContent>
+
+              <TabsContent value="site" className="space-y-6 mt-6">
+                <div className="grid md:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Navigation className="h-5 w-5" />
+                        My Location
+                      </CardTitle>
+                      <CardDescription>
+                        Capture your installation site GPS location
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {customerLocation ? (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2 text-sm">
+                            <MapPin className="h-4 w-4 text-green-500" />
+                            <span className="text-muted-foreground">
+                              {customerLocation.lat.toFixed(6)}, {customerLocation.lng.toFixed(6)}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.open(`https://www.google.com/maps?q=${customerLocation.lat},${customerLocation.lng}`, "_blank")}
+                              data-testid="button-view-map"
+                            >
+                              <ExternalLink className="h-4 w-4 mr-2" />
+                              View on Map
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={handleCaptureLocation}
+                              disabled={isCapturingLocation}
+                              data-testid="button-update-location"
+                            >
+                              {isCapturingLocation ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Navigation className="h-4 w-4 mr-2" />}
+                              Update Location
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <p className="text-sm text-muted-foreground">
+                            No location captured yet. Please capture your installation site location.
+                          </p>
+                          <Button
+                            onClick={handleCaptureLocation}
+                            disabled={isCapturingLocation}
+                            data-testid="button-capture-location"
+                          >
+                            {isCapturingLocation ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Navigation className="h-4 w-4 mr-2" />}
+                            Capture Location
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Camera className="h-5 w-5" />
+                        Site Pictures
+                      </CardTitle>
+                      <CardDescription>
+                        Upload up to 6 pictures of your installation site
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {sitePictures.length > 0 ? (
+                        <div className="grid grid-cols-3 gap-2">
+                          {sitePictures.map((pic, index) => (
+                            <div key={index} className="relative group aspect-square">
+                              <img 
+                                src={pic} 
+                                alt={`Site ${index + 1}`} 
+                                className="w-full h-full object-cover rounded-md"
+                              />
+                              <Button
+                                variant="destructive"
+                                size="icon"
+                                className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => handleDeleteSitePicture(index)}
+                                data-testid={`button-delete-picture-${index}`}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No pictures uploaded yet</p>
+                      )}
+                      {sitePictures.length < 6 && (
+                        <div>
+                          <input
+                            ref={sitePicturesInputRef}
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={handleUploadSitePictures}
+                          />
+                          <Button
+                            variant="outline"
+                            onClick={() => sitePicturesInputRef.current?.click()}
+                            disabled={isUploadingSiteMedia}
+                            data-testid="button-upload-pictures"
+                          >
+                            {isUploadingSiteMedia ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+                            Upload Pictures ({sitePictures.length}/6)
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Video className="h-5 w-5" />
+                      Site Video
+                    </CardTitle>
+                    <CardDescription>
+                      Upload a video of your installation site (max 60 seconds, 9:16 format recommended)
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {siteVideo ? (
+                      <div className="space-y-3">
+                        <video 
+                          src={siteVideo} 
+                          controls 
+                          className="max-w-sm rounded-md"
+                          style={{ maxHeight: "300px" }}
+                        />
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={handleDeleteSiteVideo}
+                          data-testid="button-delete-video"
+                        >
+                          <X className="h-4 w-4 mr-2" />
+                          Delete Video
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <p className="text-sm text-muted-foreground">No video uploaded yet</p>
+                        <input
+                          ref={siteVideoInputRef}
+                          type="file"
+                          accept="video/*"
+                          className="hidden"
+                          onChange={handleUploadSiteVideo}
+                        />
+                        <Button
+                          variant="outline"
+                          onClick={() => siteVideoInputRef.current?.click()}
+                          disabled={isUploadingSiteMedia}
+                          data-testid="button-upload-video"
+                        >
+                          {isUploadingSiteMedia ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Video className="h-4 w-4 mr-2" />}
+                          Upload Video
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Share2 className="h-5 w-5" />
+                      Share on Social Media
+                    </CardTitle>
+                    <CardDescription>
+                      Share your Divyanshi Solar installation with friends and family
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+                      <p className="font-semibold text-primary">Divyanshi Solar Installation Site</p>
+                      <p className="text-sm text-muted-foreground">
+                        {progress.customer.address}, {progress.customer.district}, {progress.customer.state} - {progress.customer.pincode}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {progress.customer.capacity} kW Solar System | {progress.customer.panelType?.toUpperCase()} Panels
+                      </p>
+                      <p className="text-xs text-primary mt-2">www.divyanshisolar.com</p>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      <Button
+                        variant="outline"
+                        className="flex-1 min-w-[120px]"
+                        onClick={() => {
+                          const text = `Divyanshi Solar Installation Site\n\n${progress.customer.address}, ${progress.customer.district}, ${progress.customer.state} - ${progress.customer.pincode}\n\n${progress.customer.capacity} kW Solar System | ${progress.customer.panelType?.toUpperCase()} Panels\n\nPowered by Divyanshi Solar\nwww.divyanshisolar.com`;
+                          const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+                          window.open(url, "_blank");
+                        }}
+                        data-testid="button-share-whatsapp"
+                      >
+                        <SiWhatsapp className="h-4 w-4 mr-2 text-green-500" />
+                        WhatsApp
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="flex-1 min-w-[120px]"
+                        onClick={() => {
+                          const text = `Divyanshi Solar Installation Site - ${progress.customer.address}, ${progress.customer.district}, ${progress.customer.state}. ${progress.customer.capacity} kW Solar System. www.divyanshisolar.com`;
+                          const url = `https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent(text)}&u=${encodeURIComponent("https://www.divyanshisolar.com")}`;
+                          window.open(url, "_blank");
+                        }}
+                        data-testid="button-share-facebook"
+                      >
+                        <SiFacebook className="h-4 w-4 mr-2 text-blue-600" />
+                        Facebook
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="flex-1 min-w-[120px]"
+                        onClick={() => {
+                          const text = `Divyanshi Solar Installation Site - ${progress.customer.address}, ${progress.customer.district}. ${progress.customer.capacity} kW Solar System. #DivyanshiSolar #SolarEnergy #PMSuryaGhar`;
+                          const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent("https://www.divyanshisolar.com")}`;
+                          window.open(url, "_blank");
+                        }}
+                        data-testid="button-share-twitter"
+                      >
+                        <SiX className="h-4 w-4 mr-2" />
+                        X (Twitter)
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="flex-1 min-w-[120px]"
+                        onClick={() => {
+                          window.open("https://www.instagram.com/", "_blank");
+                          toast({ 
+                            title: "Copy & Share", 
+                            description: "Open Instagram and paste your story with: Divyanshi Solar Installation - " + progress.customer.address 
+                          });
+                        }}
+                        data-testid="button-share-instagram"
+                      >
+                        <SiInstagram className="h-4 w-4 mr-2 text-pink-500" />
+                        Instagram
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground text-center">
+                      All shared content will include Divyanshi Solar branding and your installation address
+                    </p>
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               <TabsContent value="service" className="space-y-6 mt-6">

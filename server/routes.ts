@@ -994,6 +994,206 @@ export async function registerRoutes(
     }
   });
 
+  // Customer portal - update GPS location
+  app.patch("/api/customer-portal/location", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const sessionToken = authHeader.substring(7);
+      const session = await storage.getCustomerSessionByToken(sessionToken);
+      
+      if (!session || new Date(session.expiresAt) < new Date()) {
+        return res.status(401).json({ message: "Session expired" });
+      }
+      
+      const { lat, lng } = req.body;
+      if (!lat || !lng) {
+        return res.status(400).json({ message: "Latitude and longitude required" });
+      }
+      
+      await storage.updateCustomerLocation(session.customerId, lat, lng);
+      res.json({ message: "Location updated successfully", lat, lng });
+    } catch (error) {
+      console.error("Customer portal location update error:", error);
+      res.status(500).json({ message: "Failed to update location" });
+    }
+  });
+
+  // Customer portal - upload site pictures (max 6)
+  app.post("/api/customer-portal/site-pictures", upload.array("pictures", 6), async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const sessionToken = authHeader.substring(7);
+      const session = await storage.getCustomerSessionByToken(sessionToken);
+      
+      if (!session || new Date(session.expiresAt) < new Date()) {
+        return res.status(401).json({ message: "Session expired" });
+      }
+      
+      const customer = await storage.getCustomer(session.customerId);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      
+      const files = req.files as Express.Multer.File[];
+      if (!files || files.length === 0) {
+        return res.status(400).json({ message: "No files uploaded" });
+      }
+      
+      // Get existing pictures and combine with new ones
+      const existingPictures = customer.sitePictures || [];
+      const newPictures = files.map(f => `/uploads/images/${f.filename}`);
+      const allPictures = [...existingPictures, ...newPictures].slice(0, 6);
+      
+      const updated = await storage.updateCustomerSiteMedia(session.customerId, allPictures, undefined);
+      
+      res.json({ 
+        message: "Pictures uploaded successfully", 
+        sitePictures: updated?.sitePictures,
+        count: updated?.sitePictures?.length || 0
+      });
+    } catch (error) {
+      console.error("Customer portal upload pictures error:", error);
+      res.status(500).json({ message: "Failed to upload pictures" });
+    }
+  });
+
+  // Customer portal - upload site video (max 60 seconds, 9:16 format)
+  app.post("/api/customer-portal/site-video", upload.single("video"), async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const sessionToken = authHeader.substring(7);
+      const session = await storage.getCustomerSessionByToken(sessionToken);
+      
+      if (!session || new Date(session.expiresAt) < new Date()) {
+        return res.status(401).json({ message: "Session expired" });
+      }
+      
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ message: "No video uploaded" });
+      }
+      
+      const videoUrl = `/uploads/videos/${file.filename}`;
+      const updated = await storage.updateCustomerSiteMedia(session.customerId, undefined, videoUrl);
+      
+      res.json({ 
+        message: "Video uploaded successfully", 
+        siteVideo: updated?.siteVideo 
+      });
+    } catch (error) {
+      console.error("Customer portal upload video error:", error);
+      res.status(500).json({ message: "Failed to upload video" });
+    }
+  });
+
+  // Customer portal - get site media
+  app.get("/api/customer-portal/site-media", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const sessionToken = authHeader.substring(7);
+      const session = await storage.getCustomerSessionByToken(sessionToken);
+      
+      if (!session || new Date(session.expiresAt) < new Date()) {
+        return res.status(401).json({ message: "Session expired" });
+      }
+      
+      const customer = await storage.getCustomer(session.customerId);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      
+      res.json({
+        sitePictures: customer.sitePictures || [],
+        siteVideo: customer.siteVideo || null,
+        latitude: customer.latitude,
+        longitude: customer.longitude
+      });
+    } catch (error) {
+      console.error("Customer portal get site media error:", error);
+      res.status(500).json({ message: "Failed to get site media" });
+    }
+  });
+
+  // Customer portal - delete site picture
+  app.delete("/api/customer-portal/site-pictures/:index", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const sessionToken = authHeader.substring(7);
+      const session = await storage.getCustomerSessionByToken(sessionToken);
+      
+      if (!session || new Date(session.expiresAt) < new Date()) {
+        return res.status(401).json({ message: "Session expired" });
+      }
+      
+      const customer = await storage.getCustomer(session.customerId);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      
+      const { index } = req.params;
+      const pictureIndex = parseInt(index, 10);
+      const pictures = customer.sitePictures || [];
+      
+      if (pictureIndex < 0 || pictureIndex >= pictures.length) {
+        return res.status(400).json({ message: "Invalid picture index" });
+      }
+      
+      pictures.splice(pictureIndex, 1);
+      const updated = await storage.updateCustomerSiteMedia(session.customerId, pictures, undefined);
+      
+      res.json({ 
+        message: "Picture deleted successfully", 
+        sitePictures: updated?.sitePictures 
+      });
+    } catch (error) {
+      console.error("Customer portal delete picture error:", error);
+      res.status(500).json({ message: "Failed to delete picture" });
+    }
+  });
+
+  // Customer portal - delete site video
+  app.delete("/api/customer-portal/site-video", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const sessionToken = authHeader.substring(7);
+      const session = await storage.getCustomerSessionByToken(sessionToken);
+      
+      if (!session || new Date(session.expiresAt) < new Date()) {
+        return res.status(401).json({ message: "Session expired" });
+      }
+      
+      await storage.updateCustomerSiteMedia(session.customerId, undefined, "");
+      res.json({ message: "Video deleted successfully" });
+    } catch (error) {
+      console.error("Customer portal delete video error:", error);
+      res.status(500).json({ message: "Failed to delete video" });
+    }
+  });
+
   // ==================== BDP ROUTES ====================
   
   // Get BDP stats
