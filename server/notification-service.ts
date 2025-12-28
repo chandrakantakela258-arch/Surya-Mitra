@@ -85,8 +85,11 @@ export class NotificationService {
   }
 
   private async sendWhatsAppViaAiSensy(to: string, message: string, campaignName?: string, templateParams?: string[], userName?: string): Promise<boolean> {
+    console.log("[AiSensy] sendWhatsAppViaAiSensy called with:", { to, campaignName, userName });
+    console.log("[AiSensy] API key configured:", !!this.aisensyApiKey, "Key length:", this.aisensyApiKey?.length || 0);
+    
     if (!this.aisensyApiKey) {
-      console.log("WhatsApp notification skipped - AiSensy not configured. Set AISENSY_API_KEY environment variable.");
+      console.error("[AiSensy] WhatsApp notification skipped - AISENSY_API_KEY not configured");
       return false;
     }
 
