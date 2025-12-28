@@ -228,6 +228,65 @@ function SiteMediaUpload({ customer }: { customer: Customer }) {
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
               <h4 className="font-medium flex items-center gap-2">
+                <MapPin className="w-4 h-4" />
+                My Location
+              </h4>
+              <p className="text-sm text-muted-foreground">
+                {customer.latitude && customer.longitude 
+                  ? `GPS: ${parseFloat(customer.latitude).toFixed(5)}, ${parseFloat(customer.longitude).toFixed(5)}`
+                  : "Location not captured yet"
+                }
+              </p>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                size="sm"
+                variant={customer.latitude ? "outline" : "default"}
+                onClick={async () => {
+                  const coords = await captureGPSLocation();
+                  if (coords) {
+                    updateLocationMutation.mutate(coords);
+                  } else {
+                    toast({ title: "Could not get location", description: "Please enable location services and try again", variant: "destructive" });
+                  }
+                }}
+                disabled={capturingLocation || updateLocationMutation.isPending}
+                data-testid="button-capture-location"
+              >
+                {capturingLocation || updateLocationMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Capturing...
+                  </>
+                ) : (
+                  <>
+                    <MapPin className="w-4 h-4 mr-2" />
+                    {customer.latitude ? "Update Location" : "Capture Location"}
+                  </>
+                )}
+              </Button>
+              {customer.latitude && customer.longitude && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    window.open(`https://www.google.com/maps?q=${customer.latitude},${customer.longitude}`, "_blank");
+                  }}
+                  data-testid="button-view-map"
+                >
+                  View on Map
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        <Separator />
+        
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <h4 className="font-medium flex items-center gap-2">
                 <Image className="w-4 h-4" />
                 Site Pictures
               </h4>
