@@ -22,7 +22,8 @@ import {
   Truck,
   ClipboardCheck,
   MessagesSquare,
-  Share2
+  Share2,
+  Megaphone
 } from "lucide-react";
 import { SiFacebook, SiX, SiWhatsapp } from "react-icons/si";
 import { cn } from "@/lib/utils";
@@ -76,6 +77,7 @@ const adminMenuItems: NavItem[] = [
   { icon: Truck, label: "Vendor Payments", href: "/admin/vendor-payments" },
   { icon: ClipboardCheck, label: "Vendor Approval", href: "/admin/vendors" },
   { icon: MessagesSquare, label: "User Feedback", href: "/admin/feedback" },
+  { icon: Megaphone, label: "Broadcast", href: "/admin/notifications" },
 ];
 
 const customerPartnerNavItems: NavItem[] = [
