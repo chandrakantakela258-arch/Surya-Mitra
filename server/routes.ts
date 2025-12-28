@@ -4065,17 +4065,25 @@ export async function registerRoutes(
       
       // Send WhatsApp messages
       if (sendWhatsApp) {
+        console.log("[Broadcast] All partners count:", allPartners.length);
+        console.log("[Broadcast] Approved partners count:", approvedPartners.length);
+        
         const whatsAppRecipients = approvedPartners
           .filter(p => p.phone)
           .map(p => ({ phone: p.phone, name: p.name }));
         
+        console.log("[Broadcast] WhatsApp recipients:", whatsAppRecipients.length, JSON.stringify(whatsAppRecipients));
+        
         if (whatsAppRecipients.length > 0) {
           const whatsAppResult = await notificationService.sendBulkWhatsApp(
             whatsAppRecipients,
-            `*Divyanshi Solar - Important Update*\n\n${subject ? `*${subject}*\n\n` : ''}Dear {{name}},\n\n${message}\n\n_Divyanshi Solar Admin Team_`,
+            message,
             "Divyanshi_Partner_Meeting"
           );
+          console.log("[Broadcast] WhatsApp result:", JSON.stringify(whatsAppResult));
           results.whatsapp = { sent: whatsAppResult.sent, failed: whatsAppResult.failed };
+        } else {
+          console.log("[Broadcast] No WhatsApp recipients found with phone numbers");
         }
       }
       
