@@ -86,42 +86,58 @@ export class NotificationService {
 
   private async sendWhatsAppViaAiSensy(to: string, message: string, campaignName?: string, templateParams?: string[], userName?: string): Promise<boolean> {
     if (!this.aisensyApiKey) {
-      console.log("WhatsApp notification skipped - AiSensy not configured");
+      console.log("WhatsApp notification skipped - AiSensy not configured. Set AISENSY_API_KEY environment variable.");
       return false;
     }
 
     try {
+      // Format phone number - remove all non-digits, add 91 prefix if needed (no + sign for AiSensy)
       let phoneNumber = to.replace(/\D/g, "");
       if (phoneNumber.length === 10) {
         phoneNumber = "91" + phoneNumber;
       }
+      // Remove leading + if present (AiSensy expects just digits)
+      if (phoneNumber.startsWith("+")) {
+        phoneNumber = phoneNumber.substring(1);
+      }
+
+      // Build the complete AiSensy API request body as per their v2 API spec
+      const requestBody = {
+        apiKey: this.aisensyApiKey,
+        campaignName: campaignName || "Divyanshi_Partner_Meeting",
+        destination: phoneNumber,
+        userName: userName || "Divyanshi digital service pvt ltd",
+        templateParams: templateParams || [],
+        source: "divyanshi_solar_app",
+        media: {},
+        buttons: [],
+        carouselCards: [],
+        location: {},
+        attributes: {},
+        paramsFallbackValue: {}
+      };
+
+      console.log("[AiSensy] Sending WhatsApp to:", phoneNumber, "Campaign:", requestBody.campaignName);
 
       const response = await fetch("https://backend.aisensy.com/campaign/t1/api/v2", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          apiKey: this.aisensyApiKey,
-          campaignName: campaignName || "general_notification",
-          destination: phoneNumber,
-          userName: userName || "Customer",
-          source: "divyanshi_solar_app",
-          templateParams: templateParams || [message],
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const responseData = await response.json();
       
       if (!response.ok || responseData.status === "error") {
-        console.error("AiSensy WhatsApp error:", responseData);
+        console.error("[AiSensy] WhatsApp error:", JSON.stringify(responseData));
         return false;
       }
 
-      console.log(`WhatsApp message sent to ${phoneNumber} via AiSensy`);
+      console.log(`[AiSensy] WhatsApp message sent successfully to ${phoneNumber}`);
       return true;
     } catch (error) {
-      console.error("Error sending WhatsApp via AiSensy:", error);
+      console.error("[AiSensy] Error sending WhatsApp:", error);
       return false;
     }
   }
@@ -595,13 +611,13 @@ _Thank you for choosing Divyanshi Solar!_`;
           await new Promise(resolve => setTimeout(resolve, 500));
         }
 
-        const personalizedMessage = message.replace(/\{\{name\}\}/g, recipient.name);
+        // Use empty templateParams as required by AiSensy for "Divyanshi_Partner_Meeting" template
         const success = await this.sendWhatsAppMessage(
           recipient.phone,
-          personalizedMessage,
-          campaignName || "partner_broadcast",
-          [recipient.name, personalizedMessage],
-          recipient.name
+          message,
+          campaignName || "Divyanshi_Partner_Meeting",
+          [], // Empty templateParams as per AiSensy spec
+          "Divyanshi digital service pvt ltd"
         );
 
         results.push({ phone: recipient.phone, name: recipient.name, success });
@@ -617,7 +633,7 @@ _Thank you for choosing Divyanshi Solar!_`;
       }
     }
 
-    console.log(`Bulk WhatsApp sent: ${sent} success, ${failed} failed out of ${recipients.length}`);
+    console.log(`[AiSensy] Bulk WhatsApp sent: ${sent} success, ${failed} failed out of ${recipients.length}`);
     return { sent, failed, results };
   }
 

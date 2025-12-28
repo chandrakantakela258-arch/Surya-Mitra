@@ -3983,10 +3983,17 @@ export async function registerRoutes(
         }
         
         try {
-          const whatsappSuccess = await notificationService.sendWhatsAppMessage(phone, message, "divyanshi_solar", [message]);
+          // Use Divyanshi_Partner_Meeting campaign for test broadcasts
+          const whatsappSuccess = await notificationService.sendWhatsAppMessage(
+            phone, 
+            message, 
+            "Divyanshi_Partner_Meeting", 
+            [], // Empty templateParams as per AiSensy spec
+            "Divyanshi digital service pvt ltd"
+          );
           results.whatsapp = whatsappSuccess ? "sent" : "failed";
           if (!whatsappSuccess) {
-            console.error("Test WhatsApp failed - check AiSensy configuration");
+            console.error("Test WhatsApp failed - check AiSensy configuration and AISENSY_API_KEY");
           }
         } catch (err) {
           results.whatsapp = "failed";
@@ -4066,7 +4073,7 @@ export async function registerRoutes(
           const whatsAppResult = await notificationService.sendBulkWhatsApp(
             whatsAppRecipients,
             `*Divyanshi Solar - Important Update*\n\n${subject ? `*${subject}*\n\n` : ''}Dear {{name}},\n\n${message}\n\n_Divyanshi Solar Admin Team_`,
-            "divyanshi_solar"
+            "Divyanshi_Partner_Meeting"
           );
           results.whatsapp = { sent: whatsAppResult.sent, failed: whatsAppResult.failed };
         }
@@ -4301,6 +4308,27 @@ export async function registerRoutes(
         assignedAt: new Date(),
       };
       const assignment = await storage.createVendorAssignment(assignmentData);
+      
+      // Send WhatsApp notification to vendor about the job assignment
+      try {
+        const vendor = await storage.getVendor(assignment.vendorId);
+        const customer = await storage.getCustomer(assignment.customerId);
+        
+        if (vendor && vendor.contactPhone && customer) {
+          await notificationService.sendWhatsAppMessage(
+            vendor.contactPhone,
+            `New job assigned: ${customer.name}`,
+            "Divyanshi_Partner_Meeting",
+            [],
+            "Divyanshi digital service pvt ltd"
+          );
+          console.log(`[Vendor Assignment] WhatsApp sent to vendor ${vendor.businessName} for customer ${customer.name}`);
+        }
+      } catch (notifError) {
+        console.error("Vendor assignment WhatsApp notification error:", notifError);
+        // Don't fail the request if notification fails
+      }
+      
       res.status(201).json(assignment);
     } catch (error) {
       console.error("Create vendor assignment error:", error);
@@ -7664,6 +7692,39 @@ export async function registerRoutes(
         customerPhone: customer.phone,
         customerAddress,
       });
+
+      // Send WhatsApp notification to admin about the new service request
+      try {
+        // Get admin user to notify (first admin found)
+        const adminUsers = await storage.getAllUsers();
+        const admin = adminUsers.find(u => u.role === "admin");
+        
+        if (admin && admin.phone) {
+          await notificationService.sendWhatsAppMessage(
+            admin.phone,
+            `New service request from ${customer.name}: ${issueTitle}`,
+            "Divyanshi_Partner_Meeting",
+            [],
+            "Divyanshi digital service pvt ltd"
+          );
+          console.log(`[Service Request] WhatsApp sent to admin for new request from ${customer.name}`);
+        }
+        
+        // Also send confirmation to customer
+        if (customer.phone) {
+          await notificationService.sendWhatsAppMessage(
+            customer.phone,
+            `Your service request has been received: ${issueTitle}`,
+            "Divyanshi_Partner_Meeting",
+            [],
+            "Divyanshi digital service pvt ltd"
+          );
+          console.log(`[Service Request] WhatsApp confirmation sent to customer ${customer.name}`);
+        }
+      } catch (notifError) {
+        console.error("Service request WhatsApp notification error:", notifError);
+        // Don't fail the request if notification fails
+      }
 
       res.status(201).json(request);
     } catch (error: any) {
