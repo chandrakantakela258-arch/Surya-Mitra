@@ -1,8 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation } from "wouter";
-import { Loader2, ArrowLeft, Sun, IndianRupee, TrendingDown, Zap, BatteryCharging, CreditCard } from "lucide-react";
+import { Loader2, ArrowLeft, Sun, IndianRupee, TrendingDown, Zap, BatteryCharging, CreditCard, FileText, Upload, X, File } from "lucide-react";
 import { customerFormSchema, indianStates, roofTypes, panelTypes } from "@shared/schema";
 import { calculateSubsidy, formatINR } from "@/components/subsidy-calculator";
 import type { z } from "zod";
@@ -263,6 +263,24 @@ export default function CustomerForm() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [documentFiles, setDocumentFiles] = useState<File[]>([]);
+  const [isUploadingDocs, setIsUploadingDocs] = useState(false);
+  const documentInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDocumentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.length) return;
+    const newFiles = Array.from(e.target.files);
+    if (documentFiles.length + newFiles.length > 10) {
+      toast({ title: "Error", description: "Maximum 10 documents allowed", variant: "destructive" });
+      return;
+    }
+    setDocumentFiles(prev => [...prev, ...newFiles]);
+    if (documentInputRef.current) documentInputRef.current.value = "";
+  };
+
+  const removeDocument = (index: number) => {
+    setDocumentFiles(prev => prev.filter((_, i) => i !== index));
+  };
 
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(customerFormSchema),
@@ -296,7 +314,32 @@ export default function CustomerForm() {
   async function onSubmit(data: CustomerFormValues) {
     setIsLoading(true);
     try {
-      await apiRequest("POST", "/api/ddp/customers", data);
+      let uploadedDocuments: string[] = [];
+      
+      if (documentFiles.length > 0) {
+        setIsUploadingDocs(true);
+        const formData = new FormData();
+        documentFiles.forEach(file => formData.append("documents", file));
+        
+        const uploadResponse = await fetch("/api/uploads/documents", {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+        });
+        
+        if (!uploadResponse.ok) {
+          throw new Error("Failed to upload documents");
+        }
+        
+        const uploadResult = await uploadResponse.json();
+        uploadedDocuments = uploadResult.urls || [];
+        setIsUploadingDocs(false);
+      }
+      
+      await apiRequest("POST", "/api/ddp/customers", {
+        ...data,
+        documents: uploadedDocuments,
+      });
       toast({
         title: "Customer registered successfully",
         description: `${data.name} has been added for solar installation under PM Surya Ghar Yojana.`,
@@ -310,6 +353,7 @@ export default function CustomerForm() {
       });
     } finally {
       setIsLoading(false);
+      setIsUploadingDocs(false);
     }
   }
 
@@ -866,6 +910,73 @@ export default function CustomerForm() {
             </CardContent>
           </Card>
 
+          {/* Document Upload */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-primary" />
+                Documents Upload
+              </CardTitle>
+              <CardDescription>
+                Upload customer documents (Electricity Bill, Aadhaar, PAN Card, Property documents, etc.)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div 
+                className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-6 text-center cursor-pointer transition-colors hover:border-primary/50"
+                onClick={() => documentInputRef.current?.click()}
+                data-testid="upload-documents-area"
+              >
+                <input
+                  ref={documentInputRef}
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                  multiple
+                  className="hidden"
+                  onChange={handleDocumentUpload}
+                  data-testid="input-documents"
+                />
+                <Upload className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
+                <p className="text-sm font-medium">Click to upload documents</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  PDF, JPG, PNG, DOC (Max 10 files, 5MB each)
+                </p>
+              </div>
+
+              {documentFiles.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Selected Documents ({documentFiles.length}/10)</p>
+                  <div className="space-y-2">
+                    {documentFiles.map((file, index) => (
+                      <div 
+                        key={index}
+                        className="flex items-center justify-between p-2 bg-muted/50 rounded-lg"
+                        data-testid={`document-item-${index}`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <File className="w-4 h-4 shrink-0 text-primary" />
+                          <span className="text-sm truncate">{file.name}</span>
+                          <span className="text-xs text-muted-foreground shrink-0">
+                            ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                          </span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeDocument(index)}
+                          data-testid={`button-remove-document-${index}`}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Submit Buttons */}
           <div className="flex gap-4">
             <Button
@@ -878,13 +989,13 @@ export default function CustomerForm() {
             </Button>
             <Button 
               type="submit" 
-              disabled={isLoading}
+              disabled={isLoading || isUploadingDocs}
               data-testid="button-submit"
             >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Registering...
+                  {isUploadingDocs ? "Uploading Documents..." : "Registering..."}
                 </>
               ) : (
                 "Register Customer"

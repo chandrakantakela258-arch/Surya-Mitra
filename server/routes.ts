@@ -7642,6 +7642,22 @@ export async function registerRoutes(
     }
   });
 
+  // Upload multiple documents (for DDP Add Customer form)
+  app.post("/api/uploads/documents", requireDDP, documentUpload.array("documents", 10), async (req, res) => {
+    try {
+      const files = req.files as Express.Multer.File[];
+      if (!files || files.length === 0) {
+        return res.status(400).json({ message: "No files uploaded" });
+      }
+
+      const urls = files.map(file => `/uploads/documents/${file.filename}`);
+      res.json({ urls, count: files.length });
+    } catch (error) {
+      console.error("Multiple document upload error:", error);
+      res.status(500).json({ message: "Failed to upload documents" });
+    }
+  });
+
   // Get all documents (admin only)
   app.get("/api/documents", requireAdmin, async (req, res) => {
     try {

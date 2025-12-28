@@ -1168,6 +1168,58 @@ export default function CustomerDashboard() {
               </Badge>
             </div>
 
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:hidden">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center justify-center gap-2"
+                onClick={handleCaptureLocation}
+                disabled={isCapturingLocation}
+                data-testid="mobile-button-location"
+              >
+                {isCapturingLocation ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />}
+                <span className="text-xs">Location</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center justify-center gap-2"
+                onClick={() => {
+                  const text = `Divyanshi Solar Installation Site\n\n${progress.customer.address}, ${progress.customer.district}, ${progress.customer.state} - ${progress.customer.pincode}\n\n${progress.customer.capacity} kW Solar System\n\nwww.divyanshisolar.com`;
+                  const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+                  window.open(url, "_blank");
+                }}
+                data-testid="mobile-button-whatsapp"
+              >
+                <SiWhatsapp className="h-4 w-4 text-green-500" />
+                <span className="text-xs">WhatsApp</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center justify-center gap-2"
+                onClick={() => {
+                  const text = `Divyanshi Solar Installation Site - ${progress.customer.address}, ${progress.customer.district}. ${progress.customer.capacity} kW Solar System.`;
+                  const url = `https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent(text)}&u=${encodeURIComponent("https://www.divyanshisolar.com")}`;
+                  window.open(url, "_blank");
+                }}
+                data-testid="mobile-button-facebook"
+              >
+                <SiFacebook className="h-4 w-4 text-blue-600" />
+                <span className="text-xs">Facebook</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center justify-center gap-2"
+                onClick={() => setActiveTab("site")}
+                data-testid="mobile-button-more"
+              >
+                <Share2 className="h-4 w-4" />
+                <span className="text-xs">More</span>
+              </Button>
+            </div>
+
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="progress" className="flex items-center gap-2" data-testid="tab-progress">
