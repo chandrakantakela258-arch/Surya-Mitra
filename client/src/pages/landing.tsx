@@ -51,6 +51,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [socialMediaOpen, setSocialMediaOpen] = useState(false);
+  const [floatingSocialOpen, setFloatingSocialOpen] = useState(false);
 
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
@@ -1442,66 +1443,79 @@ export default function LandingPage() {
         </div>
       </footer>
 
-      {/* Floating Social Media Sidebar */}
-      <div className="fixed right-0 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-1">
-        <a 
-          href="https://wa.me/919801005212" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="w-10 h-10 bg-green-500 text-white rounded-l-md flex items-center justify-center hover:w-12 transition-all shadow-lg"
-          data-testid="floating-whatsapp"
-          title="WhatsApp"
+      {/* Floating Social Media Sidebar - Foldable */}
+      <div className="fixed right-0 top-1/2 -translate-y-1/2 z-50 flex flex-col items-end gap-1">
+        {/* Toggle Button */}
+        <button
+          onClick={() => setFloatingSocialOpen(!floatingSocialOpen)}
+          className="w-10 h-10 bg-primary text-primary-foreground rounded-l-md flex items-center justify-center shadow-lg transition-all"
+          data-testid="button-floating-social-toggle"
+          title={floatingSocialOpen ? "Close" : "Follow Us"}
         >
-          <SiWhatsapp className="w-5 h-5" />
-        </a>
-        <a 
-          href="tel:+919801005212" 
-          className="w-10 h-10 bg-primary text-primary-foreground rounded-l-md flex items-center justify-center hover:w-12 transition-all shadow-lg"
-          data-testid="floating-call"
-          title="Call Us"
-        >
-          <Phone className="w-5 h-5" />
-        </a>
-        <a 
-          href="https://www.facebook.com/nayabharatdivyanshi/" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="w-10 h-10 bg-blue-600 text-white rounded-l-md flex items-center justify-center hover:w-12 transition-all shadow-lg"
-          data-testid="floating-facebook"
-          title="Facebook"
-        >
-          <SiFacebook className="w-5 h-5" />
-        </a>
-        <a 
-          href="https://www.instagram.com/chandu532/" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="w-10 h-10 bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 text-white rounded-l-md flex items-center justify-center hover:w-12 transition-all shadow-lg"
-          data-testid="floating-instagram"
-          title="Instagram"
-        >
-          <SiInstagram className="w-5 h-5" />
-        </a>
-        <a 
-          href="https://www.linkedin.com/in/chandrakant-akela-a1479a18" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="w-10 h-10 bg-blue-700 text-white rounded-l-md flex items-center justify-center hover:w-12 transition-all shadow-lg"
-          data-testid="floating-linkedin"
-          title="LinkedIn"
-        >
-          <SiLinkedin className="w-5 h-5" />
-        </a>
-        <a 
-          href="https://www.youtube.com/@divyanshidigitalservicespv2324" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="w-10 h-10 bg-red-600 text-white rounded-l-md flex items-center justify-center hover:w-12 transition-all shadow-lg"
-          data-testid="floating-youtube"
-          title="YouTube"
-        >
-          <SiYoutube className="w-5 h-5" />
-        </a>
+          {floatingSocialOpen ? <X className="w-5 h-5" /> : <Globe className="w-5 h-5" />}
+        </button>
+        
+        {/* Social Links - Animated */}
+        <div className={`flex flex-col gap-1 transition-all duration-300 ${floatingSocialOpen ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"}`}>
+          <a 
+            href="https://wa.me/919801005212" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="w-10 h-10 bg-green-500 text-white rounded-l-md flex items-center justify-center hover:w-12 transition-all shadow-lg"
+            data-testid="floating-whatsapp"
+            title="WhatsApp"
+          >
+            <SiWhatsapp className="w-5 h-5" />
+          </a>
+          <a 
+            href="tel:+919801005212" 
+            className="w-10 h-10 bg-orange-500 text-white rounded-l-md flex items-center justify-center hover:w-12 transition-all shadow-lg"
+            data-testid="floating-call"
+            title="Call Us"
+          >
+            <Phone className="w-5 h-5" />
+          </a>
+          <a 
+            href="https://www.facebook.com/nayabharatdivyanshi/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="w-10 h-10 bg-blue-600 text-white rounded-l-md flex items-center justify-center hover:w-12 transition-all shadow-lg"
+            data-testid="floating-facebook"
+            title="Facebook"
+          >
+            <SiFacebook className="w-5 h-5" />
+          </a>
+          <a 
+            href="https://www.instagram.com/chandu532/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="w-10 h-10 bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 text-white rounded-l-md flex items-center justify-center hover:w-12 transition-all shadow-lg"
+            data-testid="floating-instagram"
+            title="Instagram"
+          >
+            <SiInstagram className="w-5 h-5" />
+          </a>
+          <a 
+            href="https://www.linkedin.com/in/chandrakant-akela-a1479a18" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="w-10 h-10 bg-blue-700 text-white rounded-l-md flex items-center justify-center hover:w-12 transition-all shadow-lg"
+            data-testid="floating-linkedin"
+            title="LinkedIn"
+          >
+            <SiLinkedin className="w-5 h-5" />
+          </a>
+          <a 
+            href="https://www.youtube.com/@divyanshidigitalservicespv2324" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="w-10 h-10 bg-red-600 text-white rounded-l-md flex items-center justify-center hover:w-12 transition-all shadow-lg"
+            data-testid="floating-youtube"
+            title="YouTube"
+          >
+            <SiYoutube className="w-5 h-5" />
+          </a>
+        </div>
       </div>
 
       {/* Floating Feedback Button */}
