@@ -435,7 +435,7 @@ export default function LandingPage() {
                   </div>
                 </div>
                 <div className="text-center">
-                  <div className="text-5xl font-bold text-primary mb-2">10 Lakh+</div>
+                  <div className="text-5xl font-bold text-primary mb-2">25 Lakh+</div>
                   <div className="text-lg text-muted-foreground mb-4">Indian Homes Already Solar Powered</div>
                   <WouterLink href="/subsidy-calculator">
                     <Button size="lg" className="gap-2" data-testid="button-check-savings">
