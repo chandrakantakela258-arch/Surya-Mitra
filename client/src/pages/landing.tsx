@@ -46,9 +46,11 @@ import {
   Eye
 } from "lucide-react";
 import { useState } from "react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [socialMediaOpen, setSocialMediaOpen] = useState(false);
 
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
@@ -221,6 +223,73 @@ export default function LandingPage() {
                   </Button>
                 </a>
               </div>
+              
+              {/* Foldable Social Media Section */}
+              <Collapsible open={socialMediaOpen} onOpenChange={setSocialMediaOpen} className="mt-3">
+                <CollapsibleTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="w-full justify-between gap-2"
+                    data-testid="button-mobile-social-toggle"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Globe className="w-4 h-4 text-primary" />
+                      Follow Us
+                    </span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${socialMediaOpen ? "rotate-180" : ""}`} />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-2">
+                  <div className="flex items-center justify-center gap-4 p-3 bg-muted/30 rounded-lg">
+                    <a 
+                      href="https://wa.me/919801005212" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="p-2 rounded-full bg-green-500/10 text-green-600 hover:bg-green-500/20 transition-colors"
+                      data-testid="mobile-social-whatsapp"
+                    >
+                      <SiWhatsapp className="w-5 h-5" />
+                    </a>
+                    <a 
+                      href="https://www.facebook.com/nayabharatdivyanshi" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="p-2 rounded-full bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 transition-colors"
+                      data-testid="mobile-social-facebook"
+                    >
+                      <SiFacebook className="w-5 h-5" />
+                    </a>
+                    <a 
+                      href="https://www.instagram.com/chandu532/" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="p-2 rounded-full bg-pink-500/10 text-pink-600 hover:bg-pink-500/20 transition-colors"
+                      data-testid="mobile-social-instagram"
+                    >
+                      <SiInstagram className="w-5 h-5" />
+                    </a>
+                    <a 
+                      href="https://twitter.com/divyanshisolar" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="p-2 rounded-full bg-slate-500/10 text-slate-600 dark:text-slate-400 hover:bg-slate-500/20 transition-colors"
+                      data-testid="mobile-social-twitter"
+                    >
+                      <SiX className="w-5 h-5" />
+                    </a>
+                    <a 
+                      href="https://www.youtube.com/@divyanshisolar" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="p-2 rounded-full bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-colors"
+                      data-testid="mobile-social-youtube"
+                    >
+                      <SiYoutube className="w-5 h-5" />
+                    </a>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </nav>
           )}
         </div>
