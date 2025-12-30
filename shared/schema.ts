@@ -817,6 +817,10 @@ export const customerFormSchema = insertCustomerSchema
     district: z.string().min(2, "District is required"),
     state: z.string().min(2, "State is required"),
     pincode: z.string().length(6, "Pincode must be 6 digits"),
+    aadharNumber: z.string().optional().nullable(),
+    panNumber: z.string().optional().nullable(),
+    latitude: z.string().optional().nullable(),
+    longitude: z.string().optional().nullable(),
   });
 
 // Types

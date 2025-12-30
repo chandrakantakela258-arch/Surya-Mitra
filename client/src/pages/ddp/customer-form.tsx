@@ -267,14 +267,6 @@ export default function CustomerForm() {
   const [isUploadingDocs, setIsUploadingDocs] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const documentInputRef = useRef<HTMLInputElement>(null);
-  
-  // Compulsory document refs and state
-  const electricityBillRef = useRef<HTMLInputElement>(null);
-  const bankChequeRef = useRef<HTMLInputElement>(null);
-  const bankPassbookRef = useRef<HTMLInputElement>(null);
-  const [electricityBillFile, setElectricityBillFile] = useState<File | null>(null);
-  const [bankChequeFile, setBankChequeFile] = useState<File | null>(null);
-  const [bankPassbookFile, setBankPassbookFile] = useState<File | null>(null);
 
   const handleDocumentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.length) return;
@@ -319,6 +311,8 @@ export default function CustomerForm() {
       name: "",
       email: "",
       phone: "",
+      aadharNumber: "",
+      panNumber: "",
       address: "",
       district: "",
       state: "",
@@ -472,6 +466,47 @@ export default function CustomerForm() {
                           data-testid="input-email"
                           {...field}
                           value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="aadharNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Aadhaar Number *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="12-digit Aadhaar number" 
+                          maxLength={12}
+                          data-testid="input-aadhar"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="panNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>PAN Number *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g., ABCDE1234F" 
+                          maxLength={10}
+                          data-testid="input-pan"
+                          {...field}
+                          value={field.value || ""}
+                          onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                         />
                       </FormControl>
                       <FormMessage />
