@@ -817,8 +817,8 @@ export const customerFormSchema = insertCustomerSchema
     district: z.string().min(2, "District is required"),
     state: z.string().min(2, "State is required"),
     pincode: z.string().length(6, "Pincode must be 6 digits"),
-    aadharNumber: z.string().optional().nullable(),
-    panNumber: z.string().optional().nullable(),
+    aadharNumber: z.string().length(12, "Aadhaar must be 12 digits").regex(/^\d{12}$/, "Aadhaar must contain only digits"),
+    panNumber: z.string().length(10, "PAN must be 10 characters").regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, "Invalid PAN format (e.g., ABCDE1234F)"),
     latitude: z.string().optional().nullable(),
     longitude: z.string().optional().nullable(),
   });
