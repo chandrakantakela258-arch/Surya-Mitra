@@ -2,7 +2,7 @@ import { useState, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation } from "wouter";
-import { Loader2, ArrowLeft, Sun, IndianRupee, TrendingDown, Zap, BatteryCharging, CreditCard, FileText, Upload, X, File } from "lucide-react";
+import { Loader2, ArrowLeft, Sun, IndianRupee, TrendingDown, Zap, BatteryCharging, CreditCard, FileText, Upload, X, File, MapPin, Navigation } from "lucide-react";
 import { customerFormSchema, indianStates, roofTypes, panelTypes } from "@shared/schema";
 import { calculateSubsidy, formatINR } from "@/components/subsidy-calculator";
 import type { z } from "zod";
@@ -265,7 +265,16 @@ export default function CustomerForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [documentFiles, setDocumentFiles] = useState<File[]>([]);
   const [isUploadingDocs, setIsUploadingDocs] = useState(false);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
   const documentInputRef = useRef<HTMLInputElement>(null);
+  
+  // Compulsory document refs and state
+  const electricityBillRef = useRef<HTMLInputElement>(null);
+  const bankChequeRef = useRef<HTMLInputElement>(null);
+  const bankPassbookRef = useRef<HTMLInputElement>(null);
+  const [electricityBillFile, setElectricityBillFile] = useState<File | null>(null);
+  const [bankChequeFile, setBankChequeFile] = useState<File | null>(null);
+  const [bankPassbookFile, setBankPassbookFile] = useState<File | null>(null);
 
   const handleDocumentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.length) return;
@@ -281,6 +290,28 @@ export default function CustomerForm() {
   const removeDocument = (index: number) => {
     setDocumentFiles(prev => prev.filter((_, i) => i !== index));
   };
+  
+  const getCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      toast({ title: "Error", description: "Geolocation is not supported by your browser", variant: "destructive" });
+      return;
+    }
+    
+    setIsGettingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        form.setValue("latitude", position.coords.latitude.toFixed(6));
+        form.setValue("longitude", position.coords.longitude.toFixed(6));
+        setIsGettingLocation(false);
+        toast({ title: "Location captured", description: "GPS coordinates have been added to the form" });
+      },
+      (error) => {
+        setIsGettingLocation(false);
+        toast({ title: "Error", description: "Failed to get location: " + error.message, variant: "destructive" });
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(customerFormSchema),
@@ -292,6 +323,8 @@ export default function CustomerForm() {
       district: "",
       state: "",
       pincode: "",
+      latitude: "",
+      longitude: "",
       electricityBoard: "",
       consumerNumber: "",
       sanctionedLoad: "",
@@ -529,6 +562,78 @@ export default function CustomerForm() {
                     </FormItem>
                   )}
                 />
+              </div>
+
+              <Separator />
+
+              {/* GPS Location */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium">GPS Location</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={getCurrentLocation}
+                    disabled={isGettingLocation}
+                    data-testid="button-get-location"
+                  >
+                    {isGettingLocation ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Getting Location...
+                      </>
+                    ) : (
+                      <>
+                        <Navigation className="mr-2 h-4 w-4" />
+                        Capture GPS
+                      </>
+                    )}
+                  </Button>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="latitude"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Latitude</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="e.g., 28.613939" 
+                            data-testid="input-latitude"
+                            {...field}
+                            value={field.value || ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="longitude"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Longitude</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="e.g., 77.209023" 
+                            data-testid="input-longitude"
+                            {...field}
+                            value={field.value || ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
