@@ -20,6 +20,13 @@ PostgreSQL is the primary database, with Drizzle ORM and drizzle-zod for schema 
 ### Authentication
 The system uses session-based authentication stored in PostgreSQL, with role-based middleware (`requireBDP`, `requireDDP`) for route protection. User context is managed via a React context (`useAuth` hook).
 
+**BDP Approval Workflow**: BDP accounts require admin approval before activation. When a BDP registers:
+1. Account is created with `status: "pending"`
+2. BDP cannot login until admin approves (status changed to "approved")
+3. Login returns specific error codes: `BDP_PENDING_APPROVAL`, `BDP_REJECTED`, or `ACCOUNT_INACTIVE`
+4. Admin can approve/reject BDPs via `/api/admin/partners/:id/status` endpoint
+5. DDPs created by approved BDPs are auto-approved
+
 ### Core Features
 - **Multi-Role Hierarchy**: Admin, BDP, DDP.
 - **Customer Management**: Tracking residential, commercial, and industrial customers with varying capacity options, electricity rates, and subsidy eligibility. Includes DCR/Non-DCR panel differentiation and associated pricing.

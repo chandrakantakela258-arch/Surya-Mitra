@@ -252,7 +252,25 @@ export async function registerRoutes(
       
       // Hash the password before storing
       const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
-      const user = await storage.createUser({ ...data, password: hashedPassword });
+      
+      // BDP accounts require admin approval, so set status to pending
+      // DDPs registered via this route also start as pending (they should use BDP's add partner endpoint)
+      const user = await storage.createUser({ 
+        ...data, 
+        password: hashedPassword,
+        status: data.role === "bdp" ? "pending" : "pending" // All self-registrations need approval
+      });
+      
+      // For BDP registrations, don't auto-login - they need approval first
+      if (data.role === "bdp") {
+        return res.json({ 
+          user: { ...user, password: undefined },
+          pendingApproval: true,
+          message: "Your BDP account has been created successfully. Please wait for admin approval before you can access partner features."
+        });
+      }
+      
+      // For other roles, proceed with auto-login
       req.session.userId = user.id;
       
       res.json({ user: { ...user, password: undefined } });
@@ -296,6 +314,27 @@ export async function registerRoutes(
       if (!isValidPassword) {
         console.log("Login failed - invalid password");
         return res.status(401).json({ message: "Invalid username or password" });
+      }
+      
+      // Check if BDP account is approved before allowing login
+      if (user.role === "bdp" && user.status !== "approved") {
+        console.log("Login failed - BDP account not approved, status:", user.status);
+        if (user.status === "pending") {
+          return res.status(403).json({ 
+            message: "Your BDP account is pending approval. Please wait for admin approval before accessing partner features.",
+            code: "BDP_PENDING_APPROVAL"
+          });
+        } else if (user.status === "rejected") {
+          return res.status(403).json({ 
+            message: "Your BDP account application has been rejected. Please contact support for more information.",
+            code: "BDP_REJECTED"
+          });
+        } else {
+          return res.status(403).json({ 
+            message: "Your account is not active. Please contact support.",
+            code: "ACCOUNT_INACTIVE"
+          });
+        }
       }
       
       req.session.userId = user.id;

@@ -53,9 +53,20 @@ export default function LoginPage() {
         setLocation("/");
       }
     } catch (error: any) {
+      // Handle BDP pending approval with specific message
+      const errorCode = error.code;
+      let title = "Login failed";
+      let description = error.message || "Invalid username or password";
+      
+      if (errorCode === "BDP_PENDING_APPROVAL") {
+        title = "Account Pending Approval";
+      } else if (errorCode === "BDP_REJECTED") {
+        title = "Account Rejected";
+      }
+      
       toast({
-        title: "Login failed",
-        description: error.message || "Invalid username or password",
+        title,
+        description,
         variant: "destructive",
       });
     } finally {

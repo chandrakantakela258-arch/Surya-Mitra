@@ -118,6 +118,16 @@ export default function RegisterPage() {
         role: selectedPartnerType,
       });
       
+      // BDP accounts need admin approval - don't auto-login
+      if (result.pendingApproval) {
+        toast({
+          title: "Registration Submitted",
+          description: result.message || "Your BDP account is pending admin approval. You will be notified once approved.",
+        });
+        setLocation("/login");
+        return;
+      }
+      
       login(result.user);
       toast({
         title: "Registration Successful",
