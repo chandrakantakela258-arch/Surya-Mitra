@@ -67,8 +67,8 @@ const customerTypeConfig: Record<CustomerType, {
   },
   industrial: { 
     label: "Industrial", 
-    maxCapacity: 100, 
-    description: "Factories, warehouses (1-100 kW)",
+    maxCapacity: 1000, 
+    description: "Factories, warehouses (50-1000 kW)",
     icon: Factory,
     subsidyEligible: false
   },
@@ -1360,8 +1360,11 @@ export function SubsidyCalculator({
   const capacityOptions = useMemo(() => {
     if (customerType === "residential") {
       return [1, 2, 3, 5, 7, 10];
+    } else if (customerType === "commercial") {
+      return [10, 15, 20, 25, 30, 40, 50, 60, 75, 100];
     } else {
-      return [10, 15, 20, 25, 50, 75, 100];
+      // Industrial: 50 kW to 1000 kW
+      return [50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
     }
   }, [customerType]);
   
