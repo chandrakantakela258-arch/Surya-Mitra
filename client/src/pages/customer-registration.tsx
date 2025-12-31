@@ -49,6 +49,22 @@ const publicCustomerFormSchema = z.object({
   proposedCapacity: z.string().min(1, "Capacity is required"),
   monthlyBill: z.string().optional(),
   referralCode: z.string().optional(),
+}).refine((data) => {
+  if (data.customerType === "commercial" && (!data.commercialUnitDescription || data.commercialUnitDescription.trim() === "")) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Commercial Unit Description is required for commercial installations",
+  path: ["commercialUnitDescription"],
+}).refine((data) => {
+  if (data.customerType === "industrial" && (!data.industrialUnitDescription || data.industrialUnitDescription.trim() === "")) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Industrial Unit Description is required for industrial installations",
+  path: ["industrialUnitDescription"],
 });
 
 type PublicCustomerFormValues = z.infer<typeof publicCustomerFormSchema>;

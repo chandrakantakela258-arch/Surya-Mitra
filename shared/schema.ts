@@ -826,6 +826,22 @@ export const customerFormSchema = insertCustomerSchema
     customerType: z.enum(["residential", "commercial", "industrial"]).default("residential"),
     commercialUnitDescription: z.string().optional().nullable(),
     industrialUnitDescription: z.string().optional().nullable(),
+  }).refine((data) => {
+    if (data.customerType === "commercial" && (!data.commercialUnitDescription || data.commercialUnitDescription.trim() === "")) {
+      return false;
+    }
+    return true;
+  }, {
+    message: "Commercial Unit Description is required for commercial installations",
+    path: ["commercialUnitDescription"],
+  }).refine((data) => {
+    if (data.customerType === "industrial" && (!data.industrialUnitDescription || data.industrialUnitDescription.trim() === "")) {
+      return false;
+    }
+    return true;
+  }, {
+    message: "Industrial Unit Description is required for industrial installations",
+    path: ["industrialUnitDescription"],
   });
 
 // Types
