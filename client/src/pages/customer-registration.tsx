@@ -68,16 +68,40 @@ const publicCustomerFormSchema = z.object({
   pincode: z.string().min(6, "Pincode must be 6 digits").max(6, "Pincode must be 6 digits"),
   aadharNumber: z.string().length(12, "Aadhaar must be 12 digits").regex(/^\d{12}$/, "Aadhaar must contain only digits"),
   panNumber: z.string().length(10, "PAN must be 10 characters").regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, "Invalid PAN format (e.g., ABCDE1234F)"),
-  latitude: z.string().optional().or(z.literal("")),
-  longitude: z.string().optional().or(z.literal("")),
+  // Electricity Details - Required
+  electricityBoard: z.string().min(2, "Electricity board is required"),
+  consumerNumber: z.string().min(3, "Consumer number is required"),
+  sanctionedLoad: z.string().min(1, "Sanctioned load is required"),
+  avgMonthlyBill: z.preprocess(
+    (val) => (val === "" || val === null || val === undefined) ? undefined : Number(val),
+    z.number({ required_error: "Monthly bill is required" }).min(1, "Monthly bill must be greater than 0")
+  ),
+  // Location - Required
+  latitude: z.string().min(1, "Latitude is required - please capture your GPS location"),
+  longitude: z.string().min(1, "Longitude is required - please capture your GPS location"),
+  // Customer Type
   customerType: z.enum(customerTypes).default("residential"),
   unitType: z.string().optional().or(z.literal("")),
   commercialUnitDescription: z.string().optional().or(z.literal("")),
   industrialUnitDescription: z.string().optional().or(z.literal("")),
+  // Roof Details - Required
   roofType: z.enum(roofTypes),
+  roofArea: z.preprocess(
+    (val) => (val === "" || val === null || val === undefined) ? undefined : Number(val),
+    z.number({ required_error: "Roof area is required" }).min(1, "Roof area must be greater than 0")
+  ),
+  // Panel and Capacity - Required
   panelType: z.enum(panelTypes),
   proposedCapacity: z.string().min(1, "Capacity is required"),
-  monthlyBill: z.string().optional(),
+  // Payment Details - Required
+  accountHolderName: z.string().min(2, "Account holder name is required"),
+  accountNumber: z.string().min(8, "Account number must be at least 8 digits"),
+  ifscCode: z.string().length(11, "IFSC code must be 11 characters").regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, "Invalid IFSC format"),
+  bankName: z.string().min(2, "Bank name is required"),
+  upiId: z.string().optional().or(z.literal("")),
+  // Documents - Required
+  documents: z.array(z.string()).min(1, "At least one document is required"),
+  // Optional
   referralCode: z.string().optional(),
 }).refine((data) => {
   if (data.customerType === "commercial" && (!data.commercialUnitDescription || data.commercialUnitDescription.trim() === "")) {
@@ -95,6 +119,22 @@ const publicCustomerFormSchema = z.object({
 }, {
   message: "Industrial Unit Description is required for industrial installations",
   path: ["industrialUnitDescription"],
+}).refine((data) => {
+  if (data.customerType === "commercial" && (!data.unitType || data.unitType.trim() === "")) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Unit type is required for commercial installations",
+  path: ["unitType"],
+}).refine((data) => {
+  if (data.customerType === "industrial" && (!data.unitType || data.unitType.trim() === "")) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Unit type is required for industrial installations",
+  path: ["unitType"],
 });
 
 type PublicCustomerFormValues = z.infer<typeof publicCustomerFormSchema>;
@@ -203,15 +243,34 @@ export default function CustomerRegistration() {
       pincode: "",
       aadharNumber: "",
       panNumber: "",
+      // Electricity Details
+      electricityBoard: "",
+      consumerNumber: "",
+      sanctionedLoad: "",
+      avgMonthlyBill: undefined,
+      // Location
       latitude: "",
       longitude: "",
+      // Customer Type
       customerType: "residential",
+      unitType: "",
       commercialUnitDescription: "",
       industrialUnitDescription: "",
+      // Roof Details
       roofType: "rcc",
+      roofArea: undefined,
+      // Panel and Capacity
       panelType: "dcr_hybrid",
       proposedCapacity: "3",
-      monthlyBill: "",
+      // Payment Details
+      accountHolderName: "",
+      accountNumber: "",
+      ifscCode: "",
+      bankName: "",
+      upiId: "",
+      // Documents
+      documents: [],
+      // Optional
       referralCode: "",
     },
   });
@@ -582,10 +641,88 @@ export default function CustomerRegistration() {
               </CardContent>
             </Card>
 
+            {/* Electricity Details Section */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Zap className="w-5 h-5" />
+                  Electricity Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="electricityBoard"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Electricity Board *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., UPPCL, MSEDCL" {...field} data-testid="input-electricity-board" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="consumerNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Consumer Number *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Electricity consumer number" {...field} data-testid="input-consumer-number" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="sanctionedLoad"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Sanctioned Load (kW) *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., 3" {...field} data-testid="input-sanctioned-load" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="avgMonthlyBill"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Average Monthly Bill (Rs) *</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            placeholder="e.g., 2000" 
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))}
+                            data-testid="input-monthly-bill" 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Home className="w-5 h-5" />
                   Solar System Details
                 </CardTitle>
               </CardHeader>
@@ -618,13 +755,21 @@ export default function CustomerRegistration() {
                   
                   <FormField
                     control={form.control}
-                    name="monthlyBill"
+                    name="roofArea"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Monthly Electricity Bill (Rs)</FormLabel>
+                        <FormLabel>Available Roof Area (sq ft) *</FormLabel>
                         <FormControl>
-                          <Input type="number" placeholder="e.g., 2000" {...field} data-testid="input-monthly-bill" />
+                          <Input 
+                            type="number" 
+                            placeholder="e.g., 500" 
+                            {...field} 
+                            value={field.value ?? ""}
+                            onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))}
+                            data-testid="input-roof-area" 
+                          />
                         </FormControl>
+                        <FormDescription>Approximate roof space available for solar panels</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -834,6 +979,170 @@ export default function CustomerRegistration() {
                 {watchCapacity && watchPanelType && (
                   <SubsidyPreview capacity={watchCapacity} panelType={watchPanelType} />
                 )}
+              </CardContent>
+            </Card>
+
+            {/* Payment Details Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="w-5 h-5" />
+                  Payment Details
+                </CardTitle>
+                <CardDescription>
+                  Bank account details for subsidy disbursement
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="accountHolderName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Account Holder Name *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Name as per bank records" {...field} data-testid="input-account-holder" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="bankName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Bank Name *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., State Bank of India" {...field} data-testid="input-bank-name" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="accountNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Account Number *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Bank account number" {...field} data-testid="input-account-number" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="ifscCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>IFSC Code *</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="e.g., SBIN0001234" 
+                            maxLength={11}
+                            {...field} 
+                            onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                            data-testid="input-ifsc-code" 
+                          />
+                        </FormControl>
+                        <FormDescription>11-character bank branch code</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <FormField
+                  control={form.control}
+                  name="upiId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>UPI ID (Optional)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g., name@upi" 
+                          {...field} 
+                          value={field.value || ""}
+                          data-testid="input-upi-id" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Documents Upload Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  Documents Upload
+                </CardTitle>
+                <CardDescription>
+                  Upload required documents (Aadhaar, PAN, Electricity Bill, Photo)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="documents"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Upload Documents *</FormLabel>
+                      <FormControl>
+                        <div className="space-y-2">
+                          <Input
+                            type="file"
+                            multiple
+                            accept="image/*,.pdf"
+                            onChange={async (e) => {
+                              const files = e.target.files;
+                              if (files && files.length > 0) {
+                                const formData = new FormData();
+                                Array.from(files).forEach(file => formData.append("documents", file));
+                                
+                                try {
+                                  const response = await fetch("/api/uploads/documents", {
+                                    method: "POST",
+                                    body: formData,
+                                  });
+                                  
+                                  if (response.ok) {
+                                    const result = await response.json();
+                                    field.onChange([...field.value, ...(result.urls || [])]);
+                                  }
+                                } catch (error) {
+                                  console.error("Upload failed:", error);
+                                }
+                              }
+                            }}
+                            data-testid="input-documents"
+                          />
+                          {field.value && field.value.length > 0 && (
+                            <div className="text-sm text-muted-foreground">
+                              {field.value.length} document(s) uploaded
+                            </div>
+                          )}
+                        </div>
+                      </FormControl>
+                      <FormDescription>
+                        Upload Aadhaar Card, PAN Card, Recent Electricity Bill, and a Photo
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </CardContent>
             </Card>
 
