@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 
 type CustomerFormValues = z.infer<typeof customerFormSchema>;
 
@@ -831,7 +832,7 @@ export default function CustomerForm() {
                   name="customerType"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Customer Type</FormLabel>
+                      <FormLabel>Customer Installation Type *</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value || "residential"}>
                         <FormControl>
                           <SelectTrigger data-testid="select-customer-type">
@@ -839,9 +840,9 @@ export default function CustomerForm() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="residential">Residential (up to 10 kW)</SelectItem>
-                          <SelectItem value="commercial">Commercial (up to 100 kW)</SelectItem>
-                          <SelectItem value="industrial">Industrial (up to 100 kW)</SelectItem>
+                          <SelectItem value="residential">Residential (1 kW to 10 kW)</SelectItem>
+                          <SelectItem value="commercial">Commercial (10 kW to 100 kW)</SelectItem>
+                          <SelectItem value="industrial">Industrial (50 kW to 1000 kW)</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormDescription>
@@ -851,6 +852,54 @@ export default function CustomerForm() {
                     </FormItem>
                   )}
                 />
+
+                {form.watch("customerType") === "commercial" && (
+                  <FormField
+                    control={form.control}
+                    name="commercialUnitDescription"
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-2">
+                        <FormLabel>Commercial Unit Description *</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Describe the commercial establishment (e.g., Shop, Office, Mall, Hotel, Hospital, School, etc.)" 
+                            data-testid="input-commercial-description"
+                            {...field}
+                            value={field.value || ""}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Provide details about the commercial property for installation
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                {form.watch("customerType") === "industrial" && (
+                  <FormField
+                    control={form.control}
+                    name="industrialUnitDescription"
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-2">
+                        <FormLabel>Industrial Unit Description *</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Describe the industrial facility (e.g., Manufacturing Plant, Warehouse, Factory, Processing Unit, etc.)" 
+                            data-testid="input-industrial-description"
+                            {...field}
+                            value={field.value || ""}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Provide details about the industrial facility for installation
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 <FormField
                   control={form.control}
@@ -891,9 +940,14 @@ export default function CustomerForm() {
                     const isDcr = panelType === "dcr";
                     const isResidential = customerType === "residential";
                     
+                    const isCommercial = customerType === "commercial";
+                    const isIndustrial = customerType === "industrial";
+                    
                     const capacityOptions = isResidential 
                       ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-                      : [10, 15, 20, 25, 30, 40, 50, 60, 75, 100];
+                      : isCommercial 
+                        ? [10, 15, 20, 25, 30, 40, 50, 60, 75, 100]
+                        : [50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
                     
                     return (
                       <FormItem>
@@ -917,7 +971,9 @@ export default function CustomerForm() {
                             ? (isDcr 
                               ? "Residential: 1-10 kW (subsidy up to 3 kW)" 
                               : "Residential: 1-10 kW at Rs 55,000/kW")
-                            : `${customerType === "commercial" ? "Commercial" : "Industrial"}: 10-100 kW (no subsidy)`}
+                            : isCommercial
+                              ? "Commercial: 10-100 kW (no subsidy)"
+                              : "Industrial: 50-1000 kW (no subsidy)"}
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

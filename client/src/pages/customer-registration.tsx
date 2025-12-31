@@ -2,12 +2,13 @@ import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link as WouterLink, useLocation } from "wouter";
-import { Loader2, ArrowLeft, Sun, IndianRupee, TrendingDown, CheckCircle2, Home, User, Phone, Mail, MapPin, Zap } from "lucide-react";
+import { Loader2, ArrowLeft, Sun, IndianRupee, TrendingDown, CheckCircle2, Home, User, Phone, Mail, MapPin, Zap, Navigation, CreditCard, FileText } from "lucide-react";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -26,7 +27,7 @@ const indianStates = [
 
 const roofTypes = ["rcc", "sheet", "tiles", "asbestos", "other"] as const;
 const panelTypes = ["dcr_hybrid", "dcr_ongrid", "non_dcr"] as const;
-const capacityOptions = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+const customerTypes = ["residential", "commercial", "industrial"] as const;
 
 const publicCustomerFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -36,6 +37,13 @@ const publicCustomerFormSchema = z.object({
   district: z.string().min(2, "District is required"),
   state: z.string().min(2, "State is required"),
   pincode: z.string().min(6, "Pincode must be 6 digits").max(6, "Pincode must be 6 digits"),
+  aadharNumber: z.string().length(12, "Aadhaar must be 12 digits").regex(/^\d{12}$/, "Aadhaar must contain only digits"),
+  panNumber: z.string().length(10, "PAN must be 10 characters").regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, "Invalid PAN format (e.g., ABCDE1234F)"),
+  latitude: z.string().optional().or(z.literal("")),
+  longitude: z.string().optional().or(z.literal("")),
+  customerType: z.enum(customerTypes).default("residential"),
+  commercialUnitDescription: z.string().optional().or(z.literal("")),
+  industrialUnitDescription: z.string().optional().or(z.literal("")),
   roofType: z.enum(roofTypes),
   panelType: z.enum(panelTypes),
   proposedCapacity: z.string().min(1, "Capacity is required"),
@@ -135,6 +143,8 @@ export default function CustomerRegistration() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+
   const form = useForm<PublicCustomerFormValues>({
     resolver: zodResolver(publicCustomerFormSchema),
     defaultValues: {
@@ -145,6 +155,13 @@ export default function CustomerRegistration() {
       district: "",
       state: "",
       pincode: "",
+      aadharNumber: "",
+      panNumber: "",
+      latitude: "",
+      longitude: "",
+      customerType: "residential",
+      commercialUnitDescription: "",
+      industrialUnitDescription: "",
       roofType: "rcc",
       panelType: "dcr_hybrid",
       proposedCapacity: "3",
@@ -153,8 +170,42 @@ export default function CustomerRegistration() {
     },
   });
 
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      toast({
+        title: "Geolocation not supported",
+        description: "Your browser doesn't support geolocation",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsGettingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        form.setValue("latitude", position.coords.latitude.toFixed(6));
+        form.setValue("longitude", position.coords.longitude.toFixed(6));
+        setIsGettingLocation(false);
+        toast({
+          title: "Location captured",
+          description: "GPS coordinates have been filled in",
+        });
+      },
+      (error) => {
+        setIsGettingLocation(false);
+        toast({
+          title: "Location error",
+          description: error.message || "Failed to get location",
+          variant: "destructive",
+        });
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
+
   const watchCapacity = form.watch("proposedCapacity");
   const watchPanelType = form.watch("panelType");
+  const watchCustomerType = form.watch("customerType");
 
   async function onSubmit(data: PublicCustomerFormValues) {
     setIsSubmitting(true);
@@ -383,6 +434,105 @@ export default function CustomerRegistration() {
                     )}
                   />
                 </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="aadharNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Aadhaar Number *</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="12-digit Aadhaar number" 
+                            maxLength={12}
+                            {...field} 
+                            data-testid="input-aadhar"
+                          />
+                        </FormControl>
+                        <FormDescription>Required for subsidy application</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="panNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>PAN Number *</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="ABCDE1234F" 
+                            maxLength={10}
+                            {...field} 
+                            onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                            data-testid="input-pan"
+                          />
+                        </FormControl>
+                        <FormDescription>Required for subsidy and tax purposes</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                  <FormField
+                    control={form.control}
+                    name="latitude"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Latitude</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="e.g., 28.6139" 
+                            {...field} 
+                            value={field.value || ""}
+                            data-testid="input-latitude"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="longitude"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Longitude</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="e.g., 77.2090" 
+                            {...field} 
+                            value={field.value || ""}
+                            data-testid="input-longitude"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    onClick={handleGetLocation}
+                    disabled={isGettingLocation}
+                    className="gap-2"
+                    data-testid="button-capture-gps"
+                  >
+                    {isGettingLocation ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Navigation className="w-4 h-4" />
+                    )}
+                    {isGettingLocation ? "Getting Location..." : "Capture GPS Location"}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
@@ -437,6 +587,80 @@ export default function CustomerRegistration() {
                 
                 <FormField
                   control={form.control}
+                  name="customerType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Customer Installation Type *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || "residential"}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-customer-type">
+                            <SelectValue placeholder="Select customer type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="residential">Residential (1 kW to 10 kW)</SelectItem>
+                          <SelectItem value="commercial">Commercial (10 kW to 100 kW)</SelectItem>
+                          <SelectItem value="industrial">Industrial (50 kW to 1000 kW)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Only residential DCR installations qualify for government subsidy
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {form.watch("customerType") === "commercial" && (
+                  <FormField
+                    control={form.control}
+                    name="commercialUnitDescription"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Commercial Unit Description *</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Describe the commercial establishment (e.g., Shop, Office, Mall, Hotel, Hospital, School, etc.)" 
+                            data-testid="input-commercial-description"
+                            {...field}
+                            value={field.value || ""}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Provide details about the commercial property for installation
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                {form.watch("customerType") === "industrial" && (
+                  <FormField
+                    control={form.control}
+                    name="industrialUnitDescription"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Industrial Unit Description *</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Describe the industrial facility (e.g., Manufacturing Plant, Warehouse, Factory, Processing Unit, etc.)" 
+                            data-testid="input-industrial-description"
+                            {...field}
+                            value={field.value || ""}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Provide details about the industrial facility for installation
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+                
+                <FormField
+                  control={form.control}
                   name="panelType"
                   render={({ field }) => (
                     <FormItem>
@@ -464,27 +688,43 @@ export default function CustomerRegistration() {
                 <FormField
                   control={form.control}
                   name="proposedCapacity"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Proposed Capacity (kW) *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-capacity">
-                            <SelectValue placeholder="Select capacity" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {capacityOptions.map((cap) => (
-                            <SelectItem key={cap} value={cap}>{cap} kW</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        Subsidy available up to 3 kW for residential installations
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  render={({ field }) => {
+                    const customerType = watchCustomerType || "residential";
+                    const isResidential = customerType === "residential";
+                    const isCommercial = customerType === "commercial";
+                    
+                    const capacityOptions = isResidential 
+                      ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+                      : isCommercial 
+                        ? [10, 15, 20, 25, 30, 40, 50, 60, 75, 100]
+                        : [50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
+
+                    return (
+                      <FormItem>
+                        <FormLabel>Proposed Capacity (kW) *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-capacity">
+                              <SelectValue placeholder="Select capacity" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {capacityOptions.map((cap) => (
+                              <SelectItem key={cap} value={cap.toString()}>{cap} kW</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          {isResidential 
+                            ? "Subsidy available up to 3 kW for residential installations"
+                            : isCommercial
+                              ? "Commercial: 10-100 kW (no subsidy)"
+                              : "Industrial: 50-1000 kW (no subsidy)"}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
                 
                 {watchCapacity && watchPanelType && (

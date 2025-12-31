@@ -59,6 +59,8 @@ export const customers = pgTable("customers", {
   panelType: text("panel_type").default("dcr"), // dcr or non_dcr
   proposedCapacity: text("proposed_capacity"), // in kW
   customerType: text("customer_type").default("residential"), // residential, commercial, industrial
+  commercialUnitDescription: text("commercial_unit_description"), // Description for commercial units
+  industrialUnitDescription: text("industrial_unit_description"), // Description for industrial units
   
   // Application status
   status: text("status").notNull().default("pending"), // pending, verified, approved, installation_scheduled, completed
@@ -821,6 +823,9 @@ export const customerFormSchema = insertCustomerSchema
     panNumber: z.string().length(10, "PAN must be 10 characters").regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, "Invalid PAN format (e.g., ABCDE1234F)"),
     latitude: z.string().optional().nullable(),
     longitude: z.string().optional().nullable(),
+    customerType: z.enum(["residential", "commercial", "industrial"]).default("residential"),
+    commercialUnitDescription: z.string().optional().nullable(),
+    industrialUnitDescription: z.string().optional().nullable(),
   });
 
 // Types
