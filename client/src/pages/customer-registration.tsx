@@ -589,7 +589,7 @@ export default function CustomerRegistration() {
                     name="latitude"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Latitude</FormLabel>
+                        <FormLabel>Latitude *</FormLabel>
                         <FormControl>
                           <Input 
                             placeholder="e.g., 28.6139" 
@@ -608,7 +608,7 @@ export default function CustomerRegistration() {
                     name="longitude"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Longitude</FormLabel>
+                        <FormLabel>Longitude *</FormLabel>
                         <FormControl>
                           <Input 
                             placeholder="e.g., 77.2090" 

@@ -666,7 +666,7 @@ export default function CustomerForm() {
                     name="latitude"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Latitude</FormLabel>
+                        <FormLabel>Latitude *</FormLabel>
                         <FormControl>
                           <Input 
                             placeholder="e.g., 28.613939" 
@@ -685,7 +685,7 @@ export default function CustomerForm() {
                     name="longitude"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Longitude</FormLabel>
+                        <FormLabel>Longitude *</FormLabel>
                         <FormControl>
                           <Input 
                             placeholder="e.g., 77.209023" 
@@ -718,7 +718,7 @@ export default function CustomerForm() {
                   name="electricityBoard"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Electricity Board/DISCOM</FormLabel>
+                      <FormLabel>Electricity Board/DISCOM *</FormLabel>
                       <FormControl>
                         <Input 
                           placeholder="e.g., BSES, MSEDCL, KSEB" 
@@ -737,7 +737,7 @@ export default function CustomerForm() {
                   name="consumerNumber"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Consumer/K Number</FormLabel>
+                      <FormLabel>Consumer/K Number *</FormLabel>
                       <FormControl>
                         <Input 
                           placeholder="Electricity consumer number" 
@@ -756,7 +756,7 @@ export default function CustomerForm() {
                   name="sanctionedLoad"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Sanctioned Load (kW)</FormLabel>
+                      <FormLabel>Sanctioned Load (kW) *</FormLabel>
                       <FormControl>
                         <Input 
                           placeholder="e.g., 3, 5, 10" 
@@ -775,7 +775,7 @@ export default function CustomerForm() {
                   name="avgMonthlyBill"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Average Monthly Bill (₹)</FormLabel>
+                      <FormLabel>Average Monthly Bill (₹) *</FormLabel>
                       <FormControl>
                         <Input 
                           type="number"
@@ -812,7 +812,7 @@ export default function CustomerForm() {
                   name="roofType"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Roof Type</FormLabel>
+                      <FormLabel>Roof Type *</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
                         <FormControl>
                           <SelectTrigger data-testid="select-roof-type">
@@ -837,7 +837,7 @@ export default function CustomerForm() {
                   name="roofArea"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Available Roof Area (sq ft)</FormLabel>
+                      <FormLabel>Available Roof Area (sq ft) *</FormLabel>
                       <FormControl>
                         <Input 
                           type="number"
@@ -1096,7 +1096,7 @@ export default function CustomerForm() {
                   name="accountHolderName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Account Holder Name</FormLabel>
+                      <FormLabel>Account Holder Name *</FormLabel>
                       <FormControl>
                         <Input 
                           placeholder="Name as per bank account" 
@@ -1115,7 +1115,7 @@ export default function CustomerForm() {
                   name="bankName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Bank Name</FormLabel>
+                      <FormLabel>Bank Name *</FormLabel>
                       <FormControl>
                         <Input 
                           placeholder="e.g., State Bank of India" 
@@ -1134,7 +1134,7 @@ export default function CustomerForm() {
                   name="accountNumber"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Account Number</FormLabel>
+                      <FormLabel>Account Number *</FormLabel>
                       <FormControl>
                         <Input 
                           placeholder="Bank account number" 
@@ -1153,7 +1153,7 @@ export default function CustomerForm() {
                   name="ifscCode"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>IFSC Code</FormLabel>
+                      <FormLabel>IFSC Code *</FormLabel>
                       <FormControl>
                         <Input 
                           placeholder="e.g., SBIN0001234" 
@@ -1198,10 +1198,10 @@ export default function CustomerForm() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="w-5 h-5 text-primary" />
-                Documents Upload
+                Documents Upload *
               </CardTitle>
               <CardDescription>
-                Upload customer documents (Electricity Bill, Aadhaar, PAN Card, Property documents, etc.)
+                Upload at least one document (Electricity Bill, Aadhaar, PAN Card, Property documents, etc.)
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
