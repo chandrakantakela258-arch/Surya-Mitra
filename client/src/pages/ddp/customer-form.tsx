@@ -4,6 +4,35 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation } from "wouter";
 import { Loader2, ArrowLeft, Sun, IndianRupee, TrendingDown, Zap, BatteryCharging, CreditCard, FileText, Upload, X, File, MapPin, Navigation } from "lucide-react";
 import { customerFormSchema, indianStates, roofTypes, panelTypes } from "@shared/schema";
+
+// Unit types for commercial and industrial installations
+const commercialUnitTypes = [
+  { value: "hospital", label: "Hospital / Clinic" },
+  { value: "school", label: "School / College / University" },
+  { value: "hotel", label: "Hotel / Resort" },
+  { value: "mall", label: "Shopping Mall / Complex" },
+  { value: "office", label: "Office Building" },
+  { value: "shop", label: "Shop / Retail Store" },
+  { value: "restaurant", label: "Restaurant / Cafe" },
+  { value: "bank", label: "Bank / Financial Institution" },
+  { value: "petrol_pump", label: "Petrol Pump" },
+  { value: "other_commercial", label: "Other Commercial" },
+] as const;
+
+const industrialUnitTypes = [
+  { value: "flour_mill", label: "Flour / Atta Mill" },
+  { value: "rice_mill", label: "Rice Mill" },
+  { value: "oil_mill", label: "Oil Mill" },
+  { value: "dal_mill", label: "Dal / Pulse Mill" },
+  { value: "cold_storage", label: "Cold Storage" },
+  { value: "warehouse", label: "Warehouse / Godown" },
+  { value: "factory", label: "Factory / Manufacturing Plant" },
+  { value: "processing_unit", label: "Food Processing Unit" },
+  { value: "textile", label: "Textile / Garment Factory" },
+  { value: "steel_plant", label: "Steel / Iron Works" },
+  { value: "packaging", label: "Packaging Unit" },
+  { value: "other_industrial", label: "Other Industrial" },
+] as const;
 import { calculateSubsidy, formatINR } from "@/components/subsidy-calculator";
 import type { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
@@ -854,51 +883,109 @@ export default function CustomerForm() {
                 />
 
                 {form.watch("customerType") === "commercial" && (
-                  <FormField
-                    control={form.control}
-                    name="commercialUnitDescription"
-                    render={({ field }) => (
-                      <FormItem className="md:col-span-2">
-                        <FormLabel>Commercial Unit Description *</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            placeholder="Describe the commercial establishment (e.g., Shop, Office, Mall, Hotel, Hospital, School, etc.)" 
-                            data-testid="input-commercial-description"
-                            {...field}
-                            value={field.value || ""}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Provide details about the commercial property for installation
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <>
+                    <FormField
+                      control={form.control}
+                      name="unitType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Type of Commercial Unit *</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value || ""}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-commercial-unit-type">
+                                <SelectValue placeholder="Select unit type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {commercialUnitTypes.map((type) => (
+                                <SelectItem key={type.value} value={type.value}>
+                                  {type.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            Select the type of commercial establishment
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="commercialUnitDescription"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Commercial Unit Description *</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Provide additional details about the commercial establishment" 
+                              data-testid="input-commercial-description"
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Additional details about the commercial property for installation
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </>
                 )}
 
                 {form.watch("customerType") === "industrial" && (
-                  <FormField
-                    control={form.control}
-                    name="industrialUnitDescription"
-                    render={({ field }) => (
-                      <FormItem className="md:col-span-2">
-                        <FormLabel>Industrial Unit Description *</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            placeholder="Describe the industrial facility (e.g., Manufacturing Plant, Warehouse, Factory, Processing Unit, etc.)" 
-                            data-testid="input-industrial-description"
-                            {...field}
-                            value={field.value || ""}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Provide details about the industrial facility for installation
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <>
+                    <FormField
+                      control={form.control}
+                      name="unitType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Type of Industrial Unit *</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value || ""}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-industrial-unit-type">
+                                <SelectValue placeholder="Select unit type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {industrialUnitTypes.map((type) => (
+                                <SelectItem key={type.value} value={type.value}>
+                                  {type.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            Select the type of industrial facility
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="industrialUnitDescription"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Industrial Unit Description *</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Provide additional details about the industrial facility" 
+                              data-testid="input-industrial-description"
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Additional details about the industrial facility for installation
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </>
                 )}
 
                 <FormField

@@ -59,6 +59,7 @@ export const customers = pgTable("customers", {
   panelType: text("panel_type").default("dcr"), // dcr or non_dcr
   proposedCapacity: text("proposed_capacity"), // in kW
   customerType: text("customer_type").default("residential"), // residential, commercial, industrial
+  unitType: text("unit_type"), // Type of commercial/industrial unit (hospital, school, hotel, etc.)
   commercialUnitDescription: text("commercial_unit_description"), // Description for commercial units
   industrialUnitDescription: text("industrial_unit_description"), // Description for industrial units
   
@@ -824,6 +825,7 @@ export const customerFormSchema = insertCustomerSchema
     latitude: z.string().optional().nullable(),
     longitude: z.string().optional().nullable(),
     customerType: z.enum(["residential", "commercial", "industrial"]).default("residential"),
+    unitType: z.string().optional().nullable(),
     commercialUnitDescription: z.string().optional().nullable(),
     industrialUnitDescription: z.string().optional().nullable(),
   }).refine((data) => {
