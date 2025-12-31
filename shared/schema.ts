@@ -822,12 +822,39 @@ export const customerFormSchema = insertCustomerSchema
     pincode: z.string().length(6, "Pincode must be 6 digits"),
     aadharNumber: z.string().length(12, "Aadhaar must be 12 digits").regex(/^\d{12}$/, "Aadhaar must contain only digits"),
     panNumber: z.string().length(10, "PAN must be 10 characters").regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, "Invalid PAN format (e.g., ABCDE1234F)"),
-    latitude: z.string().optional().nullable(),
-    longitude: z.string().optional().nullable(),
+    // Electricity Details - Required
+    electricityBoard: z.string().min(2, "Electricity board is required"),
+    consumerNumber: z.string().min(3, "Consumer number is required"),
+    sanctionedLoad: z.string().min(1, "Sanctioned load is required"),
+    avgMonthlyBill: z.preprocess(
+      (val) => (val === "" || val === null || val === undefined) ? undefined : Number(val),
+      z.number({ required_error: "Monthly bill is required" }).min(1, "Monthly bill must be greater than 0")
+    ),
+    // Location - Required
+    latitude: z.string().min(1, "Latitude is required"),
+    longitude: z.string().min(1, "Longitude is required"),
+    // Roof Details - Required
+    roofType: z.string().min(1, "Roof type is required"),
+    roofArea: z.preprocess(
+      (val) => (val === "" || val === null || val === undefined) ? undefined : Number(val),
+      z.number({ required_error: "Roof area is required" }).min(1, "Roof area must be greater than 0")
+    ),
+    // Panel and Capacity - Required
+    panelType: z.enum(["dcr", "non_dcr"], { required_error: "Panel type is required" }),
+    proposedCapacity: z.string().min(1, "Proposed capacity is required"),
+    // Customer Type
     customerType: z.enum(["residential", "commercial", "industrial"]).default("residential"),
     unitType: z.string().optional().nullable(),
     commercialUnitDescription: z.string().optional().nullable(),
     industrialUnitDescription: z.string().optional().nullable(),
+    // Payment Details - Required
+    accountHolderName: z.string().min(2, "Account holder name is required"),
+    accountNumber: z.string().min(8, "Account number must be at least 8 digits"),
+    ifscCode: z.string().length(11, "IFSC code must be 11 characters").regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, "Invalid IFSC format"),
+    bankName: z.string().min(2, "Bank name is required"),
+    upiId: z.string().optional().nullable(),
+    // Documents - Required
+    documents: z.array(z.string()).min(1, "At least one document is required"),
   }).refine((data) => {
     if (data.customerType === "commercial" && (!data.commercialUnitDescription || data.commercialUnitDescription.trim() === "")) {
       return false;
@@ -844,6 +871,22 @@ export const customerFormSchema = insertCustomerSchema
   }, {
     message: "Industrial Unit Description is required for industrial installations",
     path: ["industrialUnitDescription"],
+  }).refine((data) => {
+    if (data.customerType === "commercial" && (!data.unitType || data.unitType.trim() === "")) {
+      return false;
+    }
+    return true;
+  }, {
+    message: "Unit type is required for commercial installations",
+    path: ["unitType"],
+  }).refine((data) => {
+    if (data.customerType === "industrial" && (!data.unitType || data.unitType.trim() === "")) {
+      return false;
+    }
+    return true;
+  }, {
+    message: "Unit type is required for industrial installations",
+    path: ["unitType"],
   });
 
 // Types
