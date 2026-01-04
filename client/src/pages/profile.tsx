@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { User, Building2, Phone, Mail, MapPin, CreditCard, Landmark } from "lucide-react";
+import { User, Building2, Phone, Mail, MapPin, CreditCard, Landmark, IdCard } from "lucide-react";
 import { LocationCapture } from "@/components/location-capture";
 import type { BankAccount } from "@shared/schema";
 
@@ -140,7 +140,16 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <div className="pt-4 border-t">
+            <div className="pt-4 border-t space-y-3">
+              {user.partnerCode && (
+                <div className="flex items-center gap-2">
+                  <IdCard className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Partner Code:</span>
+                  <Badge variant="outline" className="font-mono text-primary">
+                    {user.partnerCode}
+                  </Badge>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">Account Status:</span>
                 <Badge variant={user.status === "approved" ? "default" : "secondary"}>

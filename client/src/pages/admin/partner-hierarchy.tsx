@@ -17,7 +17,8 @@ import {
   User, 
   Phone, 
   Search,
-  MapPin
+  MapPin,
+  IdCard
 } from "lucide-react";
 import type { User as UserType, Customer } from "@shared/schema";
 import { cn } from "@/lib/utils";
@@ -195,9 +196,15 @@ export default function AdminPartnerHierarchy() {
                           </div>
                           <div className="text-left">
                             <p className="font-semibold">{bdp.name}</p>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                               <Phone className="w-3 h-3" />
                               <span>{bdp.phone}</span>
+                              {bdp.partnerCode && (
+                                <>
+                                  <IdCard className="w-3 h-3 ml-2" />
+                                  <span className="font-mono text-primary">{bdp.partnerCode}</span>
+                                </>
+                              )}
                               {bdp.state && (
                                 <>
                                   <MapPin className="w-3 h-3 ml-2" />
@@ -237,9 +244,15 @@ export default function AdminPartnerHierarchy() {
                                         </div>
                                         <div className="text-left">
                                           <p className="font-medium">{ddp.name}</p>
-                                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                          <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                                             <Phone className="w-3 h-3" />
                                             <span>{ddp.phone}</span>
+                                            {ddp.partnerCode && (
+                                              <>
+                                                <IdCard className="w-3 h-3 ml-1" />
+                                                <span className="font-mono text-blue-600 dark:text-blue-400">{ddp.partnerCode}</span>
+                                              </>
+                                            )}
                                             {ddp.district && (
                                               <>
                                                 <MapPin className="w-3 h-3 ml-1" />
@@ -272,9 +285,15 @@ export default function AdminPartnerHierarchy() {
                                                 </div>
                                                 <div>
                                                   <p className="text-sm font-medium">{customer.name}</p>
-                                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                                  <div className="flex items-center gap-1 text-xs text-muted-foreground flex-wrap">
                                                     <Phone className="w-3 h-3" />
                                                     <span>{customer.phone}</span>
+                                                    {customer.customerCode && (
+                                                      <>
+                                                        <IdCard className="w-3 h-3 ml-1" />
+                                                        <span className="font-mono text-green-600 dark:text-green-400">{customer.customerCode}</span>
+                                                      </>
+                                                    )}
                                                   </div>
                                                 </div>
                                               </div>
@@ -358,9 +377,15 @@ export default function AdminPartnerHierarchy() {
                           </div>
                           <div>
                             <p className="font-semibold">{customer.name}</p>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                               <Phone className="w-3 h-3" />
                               <span>{customer.phone}</span>
+                              {customer.customerCode && (
+                                <>
+                                  <IdCard className="w-3 h-3 ml-1" />
+                                  <span className="font-mono text-green-600 dark:text-green-400">{customer.customerCode}</span>
+                                </>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -370,10 +395,18 @@ export default function AdminPartnerHierarchy() {
                             <p className="text-xs text-muted-foreground">DDP (Onboarded by)</p>
                             <p className="font-medium text-sm">{ddp?.name || "Unknown"}</p>
                             {ddp && (
-                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <Phone className="w-3 h-3" />
-                                <span>{ddp.phone}</span>
-                              </div>
+                              <>
+                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                  <Phone className="w-3 h-3" />
+                                  <span>{ddp.phone}</span>
+                                </div>
+                                {ddp.partnerCode && (
+                                  <div className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 mt-1">
+                                    <IdCard className="w-3 h-3" />
+                                    <span className="font-mono">{ddp.partnerCode}</span>
+                                  </div>
+                                )}
+                              </>
                             )}
                           </div>
                           
@@ -381,10 +414,18 @@ export default function AdminPartnerHierarchy() {
                             <p className="text-xs text-muted-foreground">BDP</p>
                             <p className="font-medium text-sm">{bdp?.name || "Unknown"}</p>
                             {bdp && (
-                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <Phone className="w-3 h-3" />
-                                <span>{bdp.phone}</span>
-                              </div>
+                              <>
+                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                  <Phone className="w-3 h-3" />
+                                  <span>{bdp.phone}</span>
+                                </div>
+                                {bdp.partnerCode && (
+                                  <div className="flex items-center gap-1 text-xs text-primary mt-1">
+                                    <IdCard className="w-3 h-3" />
+                                    <span className="font-mono">{bdp.partnerCode}</span>
+                                  </div>
+                                )}
+                              </>
                             )}
                           </div>
                           
