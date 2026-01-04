@@ -1,15 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Users, FileText, TrendingUp, CheckCircle, Plus, ArrowRight, Clock } from "lucide-react";
+import { Users, FileText, TrendingUp, CheckCircle, Plus, ArrowRight, Clock, Phone, Mail, MapPin, Building2, IdCard } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatCard } from "@/components/stat-card";
 import { StatusBadge } from "@/components/status-badge";
-import { DashboardSkeleton, TableSkeleton } from "@/components/loading-skeleton";
+import { DashboardSkeleton, TableSkeleton, StatCardSkeleton } from "@/components/loading-skeleton";
 import { EmptyState } from "@/components/empty-state";
 import { PartnerOfMonthCard } from "@/components/partner-of-month";
 import { DashboardCustomizer, useDashboardWidgets } from "@/components/dashboard-widgets";
+import { Badge } from "@/components/ui/badge";
 import type { Customer } from "@shared/schema";
 
 interface DDPStats {
@@ -17,6 +18,19 @@ interface DDPStats {
   pendingApplications: number;
   approvedApplications: number;
   completedInstallations: number;
+}
+
+interface BDPInfo {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  district: string | null;
+  state: string | null;
+  address: string | null;
+  latitude: string | null;
+  longitude: string | null;
+  partnerCode: string | null;
 }
 
 export default function DDPDashboard() {
@@ -28,6 +42,10 @@ export default function DDPDashboard() {
 
   const { data: recentCustomers, isLoading: customersLoading } = useQuery<Customer[]>({
     queryKey: ["/api/ddp/customers", "recent"],
+  });
+
+  const { data: bdpInfo, isLoading: bdpLoading } = useQuery<BDPInfo>({
+    queryKey: ["/api/ddp/bdp-info"],
   });
 
   if (statsLoading) {
@@ -55,6 +73,73 @@ export default function DDPDashboard() {
 
       {/* Partner of the Month */}
       {isWidgetVisible("partner-of-month") && <PartnerOfMonthCard />}
+
+      {/* BDP Partner Information */}
+      {bdpLoading ? (
+        <StatCardSkeleton />
+      ) : bdpInfo ? (
+        <Card data-testid="card-bdp-info">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-primary" />
+              Your BDP Partner
+            </CardTitle>
+            <CardDescription>Business Development Partner assigned to your region</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="font-mono" data-testid="badge-bdp-code">
+                    <IdCard className="w-3 h-3 mr-1" />
+                    {bdpInfo.partnerCode || "N/A"}
+                  </Badge>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold" data-testid="text-bdp-name">{bdpInfo.name}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {bdpInfo.district && bdpInfo.state ? `${bdpInfo.district}, ${bdpInfo.state}` : "Location not set"}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Phone className="w-4 h-4 text-muted-foreground" />
+                    <a href={`tel:${bdpInfo.phone}`} className="hover:underline" data-testid="link-bdp-phone">
+                      {bdpInfo.phone}
+                    </a>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Mail className="w-4 h-4 text-muted-foreground" />
+                    <a href={`mailto:${bdpInfo.email}`} className="hover:underline" data-testid="link-bdp-email">
+                      {bdpInfo.email}
+                    </a>
+                  </div>
+                  {bdpInfo.address && (
+                    <div className="flex items-start gap-2 text-sm">
+                      <MapPin className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                      <span data-testid="text-bdp-address">{bdpInfo.address}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              {bdpInfo.latitude && bdpInfo.longitude && (
+                <div className="rounded-md overflow-hidden border h-[200px]" data-testid="map-bdp-location">
+                  <iframe
+                    width="100%"
+                    height="100%"
+                    style={{ border: 0 }}
+                    loading="lazy"
+                    allowFullScreen
+                    referrerPolicy="no-referrer-when-downgrade"
+                    src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${bdpInfo.latitude},${bdpInfo.longitude}&zoom=15`}
+                    title="BDP Location"
+                  />
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

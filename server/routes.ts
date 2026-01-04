@@ -7,7 +7,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { pool } from "./db";
-import { storage } from "./storage";
+import { storage, generatePartnerCode, generateCustomerCode } from "./storage";
 import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSchema, updateFeedbackStatusSchema, inverterCommission, insertVendorSchema, vendorStates, insertSiteSurveySchema, insertMeterInstallationReportSchema, insertPortalSubmissionReportSchema, insertRemainingPaymentReportSchema, insertSubsidyApplicationReportSchema, insertSubsidyDisbursementReportSchema } from "@shared/schema";
 import { z } from "zod";
 import { notificationService } from "./notification-service";
@@ -253,12 +253,19 @@ export async function registerRoutes(
       // Hash the password before storing
       const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
       
+      // Generate unique partner code for BDP
+      let partnerCode: string | undefined;
+      if (data.role === "bdp") {
+        partnerCode = await generatePartnerCode("bdp");
+      }
+      
       // BDP accounts require admin approval, so set status to pending
       // DDPs registered via this route also start as pending (they should use BDP's add partner endpoint)
       const user = await storage.createUser({ 
         ...data, 
         password: hashedPassword,
-        status: data.role === "bdp" ? "pending" : "pending" // All self-registrations need approval
+        status: data.role === "bdp" ? "pending" : "pending", // All self-registrations need approval
+        partnerCode,
       });
       
       // For BDP registrations, don't auto-login - they need approval first
@@ -1337,11 +1344,15 @@ export async function registerRoutes(
         }
       }
       
+      // Generate unique partner code for DDP (DS + first letter of BDP name)
+      const partnerCode = await generatePartnerCode("ddp", user.name);
+      
       const partner = await storage.createUser({
         ...data,
         role: "ddp",
         parentId: user.id,
         status: "approved", // Auto-approve partners added by BDP
+        partnerCode,
       });
       
       res.json({ ...partner, password: undefined });
@@ -1431,10 +1442,20 @@ export async function registerRoutes(
       const user = (req as any).user;
       const data = customerFormSchema.parse(req.body);
       
+      // Generate unique customer code (DS + first 2 letters of BDP + first 3 letters of DDP)
+      let customerCode: string | undefined;
+      if (user.parentId) {
+        const bdp = await storage.getUser(user.parentId);
+        if (bdp) {
+          customerCode = await generateCustomerCode(bdp.name, user.name);
+        }
+      }
+      
       const customer = await storage.createCustomer({
         ...data,
         ddpId: user.id,
         status: "pending",
+        customerCode,
       });
       
       res.json(customer);
