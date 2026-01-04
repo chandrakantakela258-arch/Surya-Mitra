@@ -45,7 +45,8 @@ import {
   X,
   ExternalLink,
   Upload,
-  Share2
+  Share2,
+  IdCard
 } from "lucide-react";
 import { SiFacebook, SiInstagram, SiWhatsapp, SiX } from "react-icons/si";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -69,6 +70,7 @@ interface CustomerData {
   subsidyAmount: number;
   createdAt: string;
   portalStatus: string;
+  customerCode: string | null;
 }
 
 interface Milestone {
@@ -1155,10 +1157,18 @@ export default function CustomerDashboard() {
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold flex items-center gap-2">
-                  <User className="h-6 w-6" />
-                  Welcome, {progress.customer.name}
-                </h1>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h1 className="text-2xl font-bold flex items-center gap-2">
+                    <User className="h-6 w-6" />
+                    Welcome, {progress.customer.name}
+                  </h1>
+                  {progress.customer.customerCode && (
+                    <Badge variant="outline" className="font-mono text-base" data-testid="badge-customer-code">
+                      <IdCard className="w-4 h-4 mr-1" />
+                      {progress.customer.customerCode}
+                    </Badge>
+                  )}
+                </div>
                 <p className="text-muted-foreground">
                   Manage your solar installation
                 </p>

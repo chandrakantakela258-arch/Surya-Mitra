@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Users, Building2, TrendingUp, CheckCircle, Plus, ArrowRight, IdCard } from "lucide-react";
@@ -23,8 +24,13 @@ interface DashboardStats {
 }
 
 export default function BDPDashboard() {
-  const { user } = useAuth();
+  const { user, refetchUser } = useAuth();
   const { widgets, setWidgets, isWidgetVisible } = useDashboardWidgets("bdp");
+
+  // Refetch user data on mount to ensure we have the latest partnerCode
+  useEffect(() => {
+    refetchUser();
+  }, []);
 
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
     queryKey: ["/api/bdp/stats"],

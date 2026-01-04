@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Users, FileText, TrendingUp, CheckCircle, Plus, ArrowRight, Clock, Phone, Mail, MapPin, Building2, IdCard } from "lucide-react";
@@ -35,8 +36,13 @@ interface BDPInfo {
 }
 
 export default function DDPDashboard() {
-  const { user } = useAuth();
+  const { user, refetchUser } = useAuth();
   const { widgets, setWidgets, isWidgetVisible } = useDashboardWidgets("ddp");
+
+  // Refetch user data on mount to ensure we have the latest partnerCode
+  useEffect(() => {
+    refetchUser();
+  }, []);
 
   const { data: stats, isLoading: statsLoading } = useQuery<DDPStats>({
     queryKey: ["/api/ddp/stats"],
