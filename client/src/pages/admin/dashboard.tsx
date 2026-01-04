@@ -1,7 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, Building2, FileText, IndianRupee, CheckCircle, Clock, Sun } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Users, Building2, FileText, IndianRupee, CheckCircle, Clock, Sun, RefreshCw, Settings } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import type { User, Customer } from "@shared/schema";
 
 function formatINR(amount: number): string {
@@ -13,6 +16,8 @@ function formatINR(amount: number): string {
 }
 
 export default function AdminDashboard() {
+  const { toast } = useToast();
+  
   const { data: stats, isLoading } = useQuery<{
     totalBDPs: number;
     totalDDPs: number;
@@ -31,6 +36,26 @@ export default function AdminDashboard() {
 
   const { data: recentCustomers } = useQuery<Customer[]>({
     queryKey: ["/api/admin/customers/recent"],
+  });
+
+  const regenerateCodesMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/admin/regenerate-all-codes");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Codes Regenerated",
+        description: `BDPs: ${data.bdpCodesRegenerated}, DDPs: ${data.ddpCodesRegenerated}, Customers: ${data.customerCodesRegenerated}`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to regenerate codes",
+        variant: "destructive",
+      });
+    },
   });
 
   if (isLoading) {
@@ -104,7 +129,7 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Commissions</CardTitle>
@@ -128,6 +153,30 @@ export default function AdminDashboard() {
               {stats?.pendingPartners || 0}
             </p>
             <p className="text-xs text-muted-foreground mt-1">Partners awaiting approval</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">System Tools</CardTitle>
+            <Settings className="w-4 h-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <Button 
+              onClick={() => regenerateCodesMutation.mutate()}
+              disabled={regenerateCodesMutation.isPending}
+              variant="outline"
+              className="w-full"
+              data-testid="button-regenerate-codes"
+            >
+              {regenerateCodesMutation.isPending ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4 mr-2" />
+              )}
+              Regenerate All Codes
+            </Button>
+            <p className="text-xs text-muted-foreground mt-2">Update partner and customer codes to new format</p>
           </CardContent>
         </Card>
       </div>
