@@ -40,8 +40,7 @@ export default function AdminDashboard() {
 
   const regenerateCodesMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/admin/regenerate-all-codes");
-      return response.json();
+      return await apiRequest("POST", "/api/admin/regenerate-all-codes");
     },
     onSuccess: (data) => {
       toast({
