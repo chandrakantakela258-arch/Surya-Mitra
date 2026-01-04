@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Users, Building2, TrendingUp, CheckCircle, Plus, ArrowRight } from "lucide-react";
+import { Users, Building2, TrendingUp, CheckCircle, Plus, ArrowRight, IdCard } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatCard } from "@/components/stat-card";
 import { StatusBadge, RoleBadge } from "@/components/status-badge";
@@ -10,6 +11,7 @@ import { DashboardSkeleton, TableSkeleton } from "@/components/loading-skeleton"
 import { EmptyState } from "@/components/empty-state";
 import { PartnerOfMonthCard } from "@/components/partner-of-month";
 import { DashboardCustomizer, useDashboardWidgets } from "@/components/dashboard-widgets";
+import { useAuth } from "@/lib/auth";
 import type { User, Customer } from "@shared/schema";
 import { ExpandableSiteProgress } from "@/components/customer-journey-tracker";
 
@@ -21,6 +23,7 @@ interface DashboardStats {
 }
 
 export default function BDPDashboard() {
+  const { user } = useAuth();
   const { widgets, setWidgets, isWidgetVisible } = useDashboardWidgets("bdp");
 
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
@@ -44,7 +47,15 @@ export default function BDPDashboard() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold" data-testid="text-page-title">Dashboard</h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-3xl font-semibold" data-testid="text-page-title">Dashboard</h1>
+            {user?.partnerCode && (
+              <Badge variant="outline" className="font-mono text-base" data-testid="badge-partner-code">
+                <IdCard className="w-4 h-4 mr-1" />
+                {user.partnerCode}
+              </Badge>
+            )}
+          </div>
           <p className="text-muted-foreground">Overview of your partner network and customers</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">

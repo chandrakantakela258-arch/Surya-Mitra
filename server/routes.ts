@@ -257,6 +257,7 @@ export async function registerRoutes(
       let partnerCode: string | undefined;
       if (data.role === "bdp") {
         partnerCode = await generatePartnerCode("bdp");
+        console.log("Generated BDP partner code:", partnerCode);
       }
       
       // BDP accounts require admin approval, so set status to pending
@@ -1346,6 +1347,7 @@ export async function registerRoutes(
       
       // Generate unique partner code for DDP (DS + first letter of BDP name)
       const partnerCode = await generatePartnerCode("ddp", user.name);
+      console.log("Generated DDP partner code:", partnerCode, "for BDP:", user.name);
       
       const partner = await storage.createUser({
         ...data,
@@ -1448,6 +1450,7 @@ export async function registerRoutes(
         const bdp = await storage.getUser(user.parentId);
         if (bdp) {
           customerCode = await generateCustomerCode(bdp.name, user.name);
+          console.log("Generated customer code:", customerCode, "for BDP:", bdp.name, "DDP:", user.name);
         }
       }
       
@@ -2375,10 +2378,25 @@ export async function registerRoutes(
       // Hash password
       const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
       
+      // Generate partner code
+      let partnerCode: string | undefined;
+      if (data.role === "bdp") {
+        partnerCode = await generatePartnerCode("bdp");
+        console.log("Admin generated BDP partner code:", partnerCode);
+      } else if (data.role === "ddp" && data.parentId) {
+        // Get parent BDP for DDP code generation
+        const parentBdp = await storage.getUser(data.parentId);
+        if (parentBdp) {
+          partnerCode = await generatePartnerCode("ddp", parentBdp.name);
+          console.log("Admin generated DDP partner code:", partnerCode, "for BDP:", parentBdp.name);
+        }
+      }
+      
       const partner = await storage.createUser({
         ...data,
         password: hashedPassword,
         status: "approved", // Admin-created partners are auto-approved
+        partnerCode,
       });
       
       res.status(201).json({ ...partner, password: undefined });
@@ -2388,6 +2406,83 @@ export async function registerRoutes(
       }
       console.error("Create partner error:", error);
       res.status(500).json({ message: "Failed to create partner" });
+    }
+  });
+
+  // Admin: Generate unique codes for all existing partners and customers who don't have them
+  app.post("/api/admin/generate-codes", requireAdmin, async (req, res) => {
+    try {
+      const results = {
+        bdpCodesGenerated: 0,
+        ddpCodesGenerated: 0,
+        customerCodesGenerated: 0,
+        errors: [] as string[]
+      };
+      
+      // Get all BDPs without partner codes
+      const allPartners = await storage.getAllPartners();
+      const bdpsWithoutCode = allPartners.filter(p => p.role === "bdp" && !p.partnerCode);
+      
+      for (const bdp of bdpsWithoutCode) {
+        try {
+          const code = await generatePartnerCode("bdp");
+          await storage.updateUserPartnerCode(bdp.id, code);
+          console.log(`Generated BDP code ${code} for ${bdp.name}`);
+          results.bdpCodesGenerated++;
+        } catch (err) {
+          results.errors.push(`Failed to generate code for BDP ${bdp.name}: ${err}`);
+        }
+      }
+      
+      // Get all DDPs without partner codes
+      const ddpsWithoutCode = allPartners.filter(p => p.role === "ddp" && !p.partnerCode);
+      
+      for (const ddp of ddpsWithoutCode) {
+        try {
+          if (ddp.parentId) {
+            const parentBdp = await storage.getUser(ddp.parentId);
+            if (parentBdp) {
+              const code = await generatePartnerCode("ddp", parentBdp.name);
+              await storage.updateUserPartnerCode(ddp.id, code);
+              console.log(`Generated DDP code ${code} for ${ddp.name}`);
+              results.ddpCodesGenerated++;
+            }
+          }
+        } catch (err) {
+          results.errors.push(`Failed to generate code for DDP ${ddp.name}: ${err}`);
+        }
+      }
+      
+      // Get all customers without customer codes
+      const allCustomers = await storage.getAllCustomers();
+      const customersWithoutCode = allCustomers.filter(c => !c.customerCode);
+      
+      for (const customer of customersWithoutCode) {
+        try {
+          if (customer.ddpId) {
+            const ddp = await storage.getUser(customer.ddpId);
+            if (ddp && ddp.parentId) {
+              const bdp = await storage.getUser(ddp.parentId);
+              if (bdp) {
+                const code = await generateCustomerCode(bdp.name, ddp.name);
+                await storage.updateCustomerCode(customer.id, code);
+                console.log(`Generated customer code ${code} for ${customer.name}`);
+                results.customerCodesGenerated++;
+              }
+            }
+          }
+        } catch (err) {
+          results.errors.push(`Failed to generate code for customer ${customer.name}: ${err}`);
+        }
+      }
+      
+      res.json({
+        message: "Code generation complete",
+        ...results
+      });
+    } catch (error) {
+      console.error("Generate codes error:", error);
+      res.status(500).json({ message: "Failed to generate codes" });
     }
   });
 

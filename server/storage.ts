@@ -151,6 +151,7 @@ export interface IStorage {
   deleteUser(id: string): Promise<boolean>;
   updateUserStatus(id: string, status: string): Promise<User | undefined>;
   updateUserPassword(id: string, password: string): Promise<User | undefined>;
+  updateUserPartnerCode(id: string, partnerCode: string): Promise<User | undefined>;
   
   // BDP operations - get their DDPs
   getPartnersByParentId(parentId: string): Promise<User[]>;
@@ -162,6 +163,7 @@ export interface IStorage {
   getAllCustomersByBdpId(bdpId: string): Promise<Customer[]>;
   createCustomer(customer: InsertCustomer): Promise<Customer>;
   updateCustomer(id: string, data: Partial<Customer>): Promise<Customer | undefined>;
+  updateCustomerCode(id: string, customerCode: string): Promise<Customer | undefined>;
   updateCustomerStatus(id: string, status: string): Promise<Customer | undefined>;
   
   // Customer Portal Session operations
@@ -589,6 +591,15 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
+  async updateUserPartnerCode(id: string, partnerCode: string): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ partnerCode })
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
+  }
+
   async getPartnersByParentId(parentId: string): Promise<User[]> {
     return db
       .select()
@@ -611,6 +622,15 @@ export class DatabaseStorage implements IStorage {
     const [customer] = await db
       .update(customers)
       .set({ ...data, updatedAt: new Date() })
+      .where(eq(customers.id, id))
+      .returning();
+    return customer || undefined;
+  }
+
+  async updateCustomerCode(id: string, customerCode: string): Promise<Customer | undefined> {
+    const [customer] = await db
+      .update(customers)
+      .set({ customerCode, updatedAt: new Date() })
       .where(eq(customers.id, id))
       .returning();
     return customer || undefined;

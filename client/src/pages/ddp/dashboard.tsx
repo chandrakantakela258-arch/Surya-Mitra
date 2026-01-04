@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/empty-state";
 import { PartnerOfMonthCard } from "@/components/partner-of-month";
 import { DashboardCustomizer, useDashboardWidgets } from "@/components/dashboard-widgets";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/lib/auth";
 import type { Customer } from "@shared/schema";
 
 interface DDPStats {
@@ -34,6 +35,7 @@ interface BDPInfo {
 }
 
 export default function DDPDashboard() {
+  const { user } = useAuth();
   const { widgets, setWidgets, isWidgetVisible } = useDashboardWidgets("ddp");
 
   const { data: stats, isLoading: statsLoading } = useQuery<DDPStats>({
@@ -57,7 +59,15 @@ export default function DDPDashboard() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold" data-testid="text-page-title">Dashboard</h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-3xl font-semibold" data-testid="text-page-title">Dashboard</h1>
+            {user?.partnerCode && (
+              <Badge variant="outline" className="font-mono text-base" data-testid="badge-partner-code">
+                <IdCard className="w-4 h-4 mr-1" />
+                {user.partnerCode}
+              </Badge>
+            )}
+          </div>
           <p className="text-muted-foreground">Manage your customer registrations for PM Surya Ghar Yojana</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
