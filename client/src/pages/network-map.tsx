@@ -366,7 +366,7 @@ export default function NetworkMap() {
                   <Popup>
                     <div className="min-w-[200px] space-y-2">
                       <div className="font-bold text-orange-600">
-                        Completed Installation
+                        Divyanshi Solar (Customer Site, {installation.proposedCapacity} kW Solar Plant)
                       </div>
                       <Badge className="bg-green-500">Completed</Badge>
                       <div className="flex items-center gap-1 text-sm">
@@ -403,7 +403,7 @@ export default function NetworkMap() {
                   <Popup>
                     <div className="min-w-[200px] space-y-2">
                       <div className="font-bold text-yellow-600">
-                        Ongoing Installation
+                        Divyanshi Solar (Customer Site, {installation.proposedCapacity} kW Solar Plant)
                       </div>
                       <Badge className="bg-yellow-500">{installation.status}</Badge>
                       <div className="flex items-center gap-1 text-sm">
@@ -432,7 +432,7 @@ export default function NetworkMap() {
                     <Popup>
                       <div className="min-w-[180px] space-y-2">
                         <div className="font-bold text-blue-600">
-                          Business Development Partner
+                          Divyanshi Solar (Business Development Partner)
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge className="bg-blue-500">BDP</Badge>
@@ -483,7 +483,7 @@ export default function NetworkMap() {
                     <Popup>
                       <div className="min-w-[180px] space-y-2">
                         <div className="font-bold text-green-600">
-                          District Development Partner
+                          Divyanshi Solar (District Development Partner)
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge className="bg-green-500">DDP</Badge>

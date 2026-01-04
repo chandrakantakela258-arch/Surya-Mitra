@@ -140,7 +140,7 @@ export default function InstallationMap() {
                   <Popup>
                     <div className="min-w-[200px] space-y-2">
                       <div className="font-bold text-orange-600">
-                        Divyanshi Solar Installation
+                        Divyanshi Solar (Customer Site, {installation.proposedCapacity} kW Solar Plant)
                       </div>
                       <div className="text-xs font-medium text-green-700">
                         Under PM Surya Ghar Yojana
@@ -199,7 +199,7 @@ export default function InstallationMap() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-orange-600">
               <Sun className="w-5 h-5" />
-              Divyanshi Solar Installation
+              Divyanshi Solar (Customer Site, {selectedInstallation?.proposedCapacity} kW Solar Plant)
             </DialogTitle>
             <DialogDescription>
               PM Surya Ghar Yojana - Rooftop Solar Installation
