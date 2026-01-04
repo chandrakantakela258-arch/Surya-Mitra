@@ -479,35 +479,36 @@ export interface IStorage {
 }
 
 // Helper function to generate next partner code
-// BDP format: DS001, DS002, etc.
-// DDP format: DSA001 where A is first letter of BDP name
-async function generatePartnerCode(role: string, bdpName?: string): Promise<string> {
+// BDP format: DSBDP001, DSBDP002, etc.
+// DDP format: DSDDP001001 where 001 is BDP's 3-digit number and 001 is DDP sequence under that BDP
+async function generatePartnerCode(role: string, bdpPartnerCode?: string): Promise<string> {
   if (role === "bdp") {
-    // BDP code: DS + 3 digit sequence
+    // BDP code: DSBDP + 3 digit sequence
     const [result] = await db.select({ maxCode: sql<string>`MAX(partner_code)` })
       .from(users)
-      .where(sql`partner_code LIKE 'DS___' AND LENGTH(partner_code) = 5`);
+      .where(sql`partner_code LIKE 'DSBDP___'`);
     
     const maxCode = result?.maxCode;
     let nextNum = 1;
     if (maxCode) {
-      const numPart = maxCode.slice(2);
+      const numPart = maxCode.slice(5); // After "DSBDP"
       nextNum = parseInt(numPart, 10) + 1;
     }
-    return `DS${nextNum.toString().padStart(3, '0')}`;
-  } else if (role === "ddp" && bdpName) {
-    // DDP code: DS + first letter of BDP name + 3 digit sequence
-    const bdpLetter = bdpName.charAt(0).toUpperCase();
-    const prefix = `DS${bdpLetter}`;
+    return `DSBDP${nextNum.toString().padStart(3, '0')}`;
+  } else if (role === "ddp" && bdpPartnerCode) {
+    // Extract the 3-digit number from BDP code (e.g., "001" from "DSBDP001")
+    const bdpNum = bdpPartnerCode.slice(5); // Get "001" from "DSBDP001"
+    const prefix = `DSDDP${bdpNum}`;
     
+    // Find max DDP code under this BDP
     const [result] = await db.select({ maxCode: sql<string>`MAX(partner_code)` })
       .from(users)
-      .where(sql`partner_code LIKE ${prefix + '___'} AND LENGTH(partner_code) = 6`);
+      .where(sql`partner_code LIKE ${prefix + '___'}`);
     
     const maxCode = result?.maxCode;
     let nextNum = 1;
     if (maxCode) {
-      const numPart = maxCode.slice(3);
+      const numPart = maxCode.slice(prefix.length); // Get last 3 digits
       nextNum = parseInt(numPart, 10) + 1;
     }
     return `${prefix}${nextNum.toString().padStart(3, '0')}`;
@@ -519,11 +520,12 @@ async function generatePartnerCode(role: string, bdpName?: string): Promise<stri
 export { generatePartnerCode };
 
 // Helper function to generate customer code
-// Format: DS + first 2 letters of BDP + first 3 letters of DDP + 3 digit sequence
-export async function generateCustomerCode(bdpName: string, ddpName: string): Promise<string> {
-  const bdpPrefix = bdpName.substring(0, 2).toUpperCase();
-  const ddpPrefix = ddpName.substring(0, 3).toUpperCase();
-  const prefix = `DS${bdpPrefix}${ddpPrefix}`;
+// Format: DSCLIENT + DDP's 6 digits + 3 digit sequence
+// e.g., DSCLIENT001001001 where 001001 is from DSDDP001001 and 001 is customer sequence
+export async function generateCustomerCode(ddpPartnerCode: string): Promise<string> {
+  // Extract the 6-digit number from DDP code (e.g., "001001" from "DSDDP001001")
+  const ddpNum = ddpPartnerCode.slice(5); // Get "001001" from "DSDDP001001"
+  const prefix = `DSCLIENT${ddpNum}`;
   
   const [result] = await db.select({ maxCode: sql<string>`MAX(customer_code)` })
     .from(customers)

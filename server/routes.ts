@@ -1345,9 +1345,9 @@ export async function registerRoutes(
         }
       }
       
-      // Generate unique partner code for DDP (DS + first letter of BDP name)
-      const partnerCode = await generatePartnerCode("ddp", user.name);
-      console.log("Generated DDP partner code:", partnerCode, "for BDP:", user.name);
+      // Generate unique partner code for DDP (DSDDP + BDP's 3 digits + sequence)
+      const partnerCode = await generatePartnerCode("ddp", user.partnerCode);
+      console.log("Generated DDP partner code:", partnerCode, "for BDP:", user.partnerCode);
       
       const partner = await storage.createUser({
         ...data,
@@ -1444,14 +1444,11 @@ export async function registerRoutes(
       const user = (req as any).user;
       const data = customerFormSchema.parse(req.body);
       
-      // Generate unique customer code (DS + first 2 letters of BDP + first 3 letters of DDP)
+      // Generate unique customer code (DSCLIENT + DDP's 6 digits + sequence)
       let customerCode: string | undefined;
-      if (user.parentId) {
-        const bdp = await storage.getUser(user.parentId);
-        if (bdp) {
-          customerCode = await generateCustomerCode(bdp.name, user.name);
-          console.log("Generated customer code:", customerCode, "for BDP:", bdp.name, "DDP:", user.name);
-        }
+      if (user.partnerCode) {
+        customerCode = await generateCustomerCode(user.partnerCode);
+        console.log("Generated customer code:", customerCode, "for DDP:", user.partnerCode);
       }
       
       const customer = await storage.createCustomer({
@@ -2386,9 +2383,9 @@ export async function registerRoutes(
       } else if (data.role === "ddp" && data.parentId) {
         // Get parent BDP for DDP code generation
         const parentBdp = await storage.getUser(data.parentId);
-        if (parentBdp) {
-          partnerCode = await generatePartnerCode("ddp", parentBdp.name);
-          console.log("Admin generated DDP partner code:", partnerCode, "for BDP:", parentBdp.name);
+        if (parentBdp && parentBdp.partnerCode) {
+          partnerCode = await generatePartnerCode("ddp", parentBdp.partnerCode);
+          console.log("Admin generated DDP partner code:", partnerCode, "for BDP:", parentBdp.partnerCode);
         }
       }
       
@@ -2441,8 +2438,8 @@ export async function registerRoutes(
         try {
           if (ddp.parentId) {
             const parentBdp = await storage.getUser(ddp.parentId);
-            if (parentBdp) {
-              const code = await generatePartnerCode("ddp", parentBdp.name);
+            if (parentBdp && parentBdp.partnerCode) {
+              const code = await generatePartnerCode("ddp", parentBdp.partnerCode);
               await storage.updateUserPartnerCode(ddp.id, code);
               console.log(`Generated DDP code ${code} for ${ddp.name}`);
               results.ddpCodesGenerated++;
@@ -2461,14 +2458,11 @@ export async function registerRoutes(
         try {
           if (customer.ddpId) {
             const ddp = await storage.getUser(customer.ddpId);
-            if (ddp && ddp.parentId) {
-              const bdp = await storage.getUser(ddp.parentId);
-              if (bdp) {
-                const code = await generateCustomerCode(bdp.name, ddp.name);
-                await storage.updateCustomerCode(customer.id, code);
-                console.log(`Generated customer code ${code} for ${customer.name}`);
-                results.customerCodesGenerated++;
-              }
+            if (ddp && ddp.partnerCode) {
+              const code = await generateCustomerCode(ddp.partnerCode);
+              await storage.updateCustomerCode(customer.id, code);
+              console.log(`Generated customer code ${code} for ${customer.name}`);
+              results.customerCodesGenerated++;
             }
           }
         } catch (err) {
@@ -2483,6 +2477,112 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Generate codes error:", error);
       res.status(500).json({ message: "Failed to generate codes" });
+    }
+  });
+
+  // Admin: Regenerate ALL codes with new format (DSBDP, DSDDP, DSCLIENT)
+  app.post("/api/admin/regenerate-all-codes", requireAdmin, async (req, res) => {
+    try {
+      const results = {
+        bdpCodesRegenerated: 0,
+        ddpCodesRegenerated: 0,
+        customerCodesRegenerated: 0,
+        errors: [] as string[]
+      };
+      
+      // Step 1: Regenerate all BDP codes first (they need to be generated before DDPs)
+      const allPartners = await storage.getAllPartners();
+      const allBdps = allPartners.filter(p => p.role === "bdp").sort((a, b) => 
+        new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
+      );
+      
+      // Clear all existing codes first to avoid conflicts
+      for (const bdp of allBdps) {
+        await storage.updateUserPartnerCode(bdp.id, "");
+      }
+      
+      // Generate new BDP codes in order
+      for (const bdp of allBdps) {
+        try {
+          const code = await generatePartnerCode("bdp");
+          await storage.updateUserPartnerCode(bdp.id, code);
+          console.log(`Regenerated BDP code ${code} for ${bdp.name}`);
+          results.bdpCodesRegenerated++;
+        } catch (err) {
+          results.errors.push(`Failed to regenerate code for BDP ${bdp.name}: ${err}`);
+        }
+      }
+      
+      // Step 2: Regenerate all DDP codes (now that BDPs have new codes)
+      const allDdps = allPartners.filter(p => p.role === "ddp").sort((a, b) => 
+        new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
+      );
+      
+      // Clear existing DDP codes
+      for (const ddp of allDdps) {
+        await storage.updateUserPartnerCode(ddp.id, "");
+      }
+      
+      // Generate new DDP codes
+      for (const ddp of allDdps) {
+        try {
+          if (ddp.parentId) {
+            const parentBdp = await storage.getUser(ddp.parentId);
+            if (parentBdp && parentBdp.partnerCode) {
+              const code = await generatePartnerCode("ddp", parentBdp.partnerCode);
+              await storage.updateUserPartnerCode(ddp.id, code);
+              console.log(`Regenerated DDP code ${code} for ${ddp.name}`);
+              results.ddpCodesRegenerated++;
+            } else {
+              results.errors.push(`BDP not found or has no code for DDP ${ddp.name}`);
+            }
+          } else {
+            results.errors.push(`DDP ${ddp.name} has no parent BDP`);
+          }
+        } catch (err) {
+          results.errors.push(`Failed to regenerate code for DDP ${ddp.name}: ${err}`);
+        }
+      }
+      
+      // Step 3: Regenerate all customer codes (now that DDPs have new codes)
+      const allCustomers = await storage.getAllCustomers();
+      const sortedCustomers = allCustomers.sort((a, b) => 
+        new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
+      );
+      
+      // Clear existing customer codes
+      for (const customer of sortedCustomers) {
+        await storage.updateCustomerCode(customer.id, "");
+      }
+      
+      // Generate new customer codes
+      for (const customer of sortedCustomers) {
+        try {
+          if (customer.ddpId) {
+            const ddp = await storage.getUser(customer.ddpId);
+            if (ddp && ddp.partnerCode) {
+              const code = await generateCustomerCode(ddp.partnerCode);
+              await storage.updateCustomerCode(customer.id, code);
+              console.log(`Regenerated customer code ${code} for ${customer.name}`);
+              results.customerCodesRegenerated++;
+            } else {
+              results.errors.push(`DDP not found or has no code for customer ${customer.name}`);
+            }
+          } else {
+            results.errors.push(`Customer ${customer.name} has no DDP assigned`);
+          }
+        } catch (err) {
+          results.errors.push(`Failed to regenerate code for customer ${customer.name}: ${err}`);
+        }
+      }
+      
+      res.json({
+        message: "All codes regenerated with new format",
+        ...results
+      });
+    } catch (error) {
+      console.error("Regenerate all codes error:", error);
+      res.status(500).json({ message: "Failed to regenerate codes" });
     }
   });
 
