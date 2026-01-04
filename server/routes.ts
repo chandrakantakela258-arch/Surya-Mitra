@@ -1368,6 +1368,39 @@ export async function registerRoutes(
 
   // ==================== DDP ROUTES ====================
   
+  // Get DDP's parent BDP information
+  app.get("/api/ddp/bdp-info", requireDDP, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      
+      if (!user.parentId) {
+        return res.status(404).json({ message: "No BDP assigned to this partner" });
+      }
+      
+      const bdp = await storage.getUser(user.parentId);
+      if (!bdp) {
+        return res.status(404).json({ message: "BDP not found" });
+      }
+      
+      // Return BDP info without password
+      res.json({
+        id: bdp.id,
+        name: bdp.name,
+        email: bdp.email,
+        phone: bdp.phone,
+        district: bdp.district,
+        state: bdp.state,
+        address: bdp.address,
+        latitude: bdp.latitude,
+        longitude: bdp.longitude,
+        partnerCode: bdp.partnerCode,
+      });
+    } catch (error) {
+      console.error("Get BDP info error:", error);
+      res.status(500).json({ message: "Failed to get BDP information" });
+    }
+  });
+  
   // Get DDP stats
   app.get("/api/ddp/stats", requireDDP, async (req, res) => {
     try {

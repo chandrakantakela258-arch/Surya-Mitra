@@ -476,6 +476,66 @@ export interface IStorage {
   markTestimonialShared(id: string, platform: 'facebook' | 'instagram'): Promise<CustomerTestimonial | undefined>;
 }
 
+// Helper function to generate next partner code
+// BDP format: DS001, DS002, etc.
+// DDP format: DSA001 where A is first letter of BDP name
+async function generatePartnerCode(role: string, bdpName?: string): Promise<string> {
+  if (role === "bdp") {
+    // BDP code: DS + 3 digit sequence
+    const [result] = await db.select({ maxCode: sql<string>`MAX(partner_code)` })
+      .from(users)
+      .where(sql`partner_code LIKE 'DS___' AND LENGTH(partner_code) = 5`);
+    
+    const maxCode = result?.maxCode;
+    let nextNum = 1;
+    if (maxCode) {
+      const numPart = maxCode.slice(2);
+      nextNum = parseInt(numPart, 10) + 1;
+    }
+    return `DS${nextNum.toString().padStart(3, '0')}`;
+  } else if (role === "ddp" && bdpName) {
+    // DDP code: DS + first letter of BDP name + 3 digit sequence
+    const bdpLetter = bdpName.charAt(0).toUpperCase();
+    const prefix = `DS${bdpLetter}`;
+    
+    const [result] = await db.select({ maxCode: sql<string>`MAX(partner_code)` })
+      .from(users)
+      .where(sql`partner_code LIKE ${prefix + '___'} AND LENGTH(partner_code) = 6`);
+    
+    const maxCode = result?.maxCode;
+    let nextNum = 1;
+    if (maxCode) {
+      const numPart = maxCode.slice(3);
+      nextNum = parseInt(numPart, 10) + 1;
+    }
+    return `${prefix}${nextNum.toString().padStart(3, '0')}`;
+  }
+  return "";
+}
+
+// Export generate partner code function
+export { generatePartnerCode };
+
+// Helper function to generate customer code
+// Format: DS + first 2 letters of BDP + first 3 letters of DDP + 3 digit sequence
+export async function generateCustomerCode(bdpName: string, ddpName: string): Promise<string> {
+  const bdpPrefix = bdpName.substring(0, 2).toUpperCase();
+  const ddpPrefix = ddpName.substring(0, 3).toUpperCase();
+  const prefix = `DS${bdpPrefix}${ddpPrefix}`;
+  
+  const [result] = await db.select({ maxCode: sql<string>`MAX(customer_code)` })
+    .from(customers)
+    .where(sql`customer_code LIKE ${prefix + '___'}`);
+  
+  const maxCode = result?.maxCode;
+  let nextNum = 1;
+  if (maxCode) {
+    const numPart = maxCode.slice(prefix.length);
+    nextNum = parseInt(numPart, 10) + 1;
+  }
+  return `${prefix}${nextNum.toString().padStart(3, '0')}`;
+}
+
 export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
