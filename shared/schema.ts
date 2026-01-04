@@ -23,6 +23,8 @@ export const users = pgTable("users", {
   latitude: text("latitude"),
   longitude: text("longitude"),
   locationUpdatedAt: timestamp("location_updated_at"),
+  // Unique Partner ID (BDP: DS001, DDP: DSA001 where A is first letter of BDP name)
+  partnerCode: text("partner_code").unique(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -68,6 +70,9 @@ export const customers = pgTable("customers", {
   
   // Partner who registered this customer
   ddpId: varchar("ddp_id").notNull(),
+  
+  // Unique Customer Code (DS + first 2 letters of BDP + first 3 letters of DDP + sequence)
+  customerCode: text("customer_code").unique(),
   
   // Documents
   documents: text("documents").array(),
