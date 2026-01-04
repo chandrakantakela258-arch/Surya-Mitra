@@ -2490,21 +2490,25 @@ export async function registerRoutes(
         errors: [] as string[]
       };
       
-      // Step 1: Regenerate all BDP codes first (they need to be generated before DDPs)
+      // Step 1: Generate all BDP codes in memory first (to calculate sequential numbers)
       const allPartners = await storage.getAllPartners();
       const allBdps = allPartners.filter(p => p.role === "bdp").sort((a, b) => 
         new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
       );
       
-      // Clear all existing codes first to avoid conflicts
+      // Create BDP code mapping: bdpId -> new code
+      const bdpCodeMap = new Map<string, string>();
+      let bdpNum = 1;
       for (const bdp of allBdps) {
-        await storage.updateUserPartnerCode(bdp.id, "");
+        const code = `DSBDP${bdpNum.toString().padStart(3, '0')}`;
+        bdpCodeMap.set(bdp.id, code);
+        bdpNum++;
       }
       
-      // Generate new BDP codes in order
+      // Update all BDP codes
       for (const bdp of allBdps) {
         try {
-          const code = await generatePartnerCode("bdp");
+          const code = bdpCodeMap.get(bdp.id)!;
           await storage.updateUserPartnerCode(bdp.id, code);
           console.log(`Regenerated BDP code ${code} for ${bdp.name}`);
           results.bdpCodesRegenerated++;
@@ -2513,60 +2517,67 @@ export async function registerRoutes(
         }
       }
       
-      // Step 2: Regenerate all DDP codes (now that BDPs have new codes)
+      // Step 2: Generate all DDP codes based on their BDP's new code
       const allDdps = allPartners.filter(p => p.role === "ddp").sort((a, b) => 
         new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
       );
       
-      // Clear existing DDP codes
+      // Group DDPs by parent BDP and assign sequential numbers
+      const ddpCodeMap = new Map<string, string>();
+      const ddpCountByBdp = new Map<string, number>();
+      
       for (const ddp of allDdps) {
-        await storage.updateUserPartnerCode(ddp.id, "");
+        if (ddp.parentId) {
+          const bdpCode = bdpCodeMap.get(ddp.parentId);
+          if (bdpCode) {
+            const bdpNum = bdpCode.slice(5); // Get "001" from "DSBDP001"
+            const ddpSeq = (ddpCountByBdp.get(ddp.parentId) || 0) + 1;
+            ddpCountByBdp.set(ddp.parentId, ddpSeq);
+            const code = `DSDDP${bdpNum}${ddpSeq.toString().padStart(3, '0')}`;
+            ddpCodeMap.set(ddp.id, code);
+          }
+        }
       }
       
-      // Generate new DDP codes
+      // Update all DDP codes
       for (const ddp of allDdps) {
         try {
-          if (ddp.parentId) {
-            const parentBdp = await storage.getUser(ddp.parentId);
-            if (parentBdp && parentBdp.partnerCode) {
-              const code = await generatePartnerCode("ddp", parentBdp.partnerCode);
-              await storage.updateUserPartnerCode(ddp.id, code);
-              console.log(`Regenerated DDP code ${code} for ${ddp.name}`);
-              results.ddpCodesRegenerated++;
-            } else {
-              results.errors.push(`BDP not found or has no code for DDP ${ddp.name}`);
-            }
+          const code = ddpCodeMap.get(ddp.id);
+          if (code) {
+            await storage.updateUserPartnerCode(ddp.id, code);
+            console.log(`Regenerated DDP code ${code} for ${ddp.name}`);
+            results.ddpCodesRegenerated++;
           } else {
-            results.errors.push(`DDP ${ddp.name} has no parent BDP`);
+            results.errors.push(`No BDP found for DDP ${ddp.name}`);
           }
         } catch (err) {
           results.errors.push(`Failed to regenerate code for DDP ${ddp.name}: ${err}`);
         }
       }
       
-      // Step 3: Regenerate all customer codes (now that DDPs have new codes)
+      // Step 3: Generate all customer codes based on their DDP's new code
       const allCustomers = await storage.getAllCustomers();
       const sortedCustomers = allCustomers.sort((a, b) => 
         new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
       );
       
-      // Clear existing customer codes
-      for (const customer of sortedCustomers) {
-        await storage.updateCustomerCode(customer.id, "");
-      }
+      // Group customers by DDP and assign sequential numbers
+      const customerCountByDdp = new Map<string, number>();
       
-      // Generate new customer codes
       for (const customer of sortedCustomers) {
         try {
           if (customer.ddpId) {
-            const ddp = await storage.getUser(customer.ddpId);
-            if (ddp && ddp.partnerCode) {
-              const code = await generateCustomerCode(ddp.partnerCode);
+            const ddpCode = ddpCodeMap.get(customer.ddpId);
+            if (ddpCode) {
+              const ddpNum = ddpCode.slice(5); // Get "001001" from "DSDDP001001"
+              const custSeq = (customerCountByDdp.get(customer.ddpId) || 0) + 1;
+              customerCountByDdp.set(customer.ddpId, custSeq);
+              const code = `DSCLIENT${ddpNum}${custSeq.toString().padStart(3, '0')}`;
               await storage.updateCustomerCode(customer.id, code);
               console.log(`Regenerated customer code ${code} for ${customer.name}`);
               results.customerCodesRegenerated++;
             } else {
-              results.errors.push(`DDP not found or has no code for customer ${customer.name}`);
+              results.errors.push(`DDP has no code for customer ${customer.name}`);
             }
           } else {
             results.errors.push(`Customer ${customer.name} has no DDP assigned`);
