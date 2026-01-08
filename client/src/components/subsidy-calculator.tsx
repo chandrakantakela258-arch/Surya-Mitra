@@ -1336,6 +1336,8 @@ export function SubsidyCalculator({
   const [isSendingEmail, setIsSendingEmail] = useState<boolean>(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState<boolean>(false);
   const [show3DVisualization, setShow3DVisualization] = useState<boolean>(false);
+  const [batteryBackupHours, setBatteryBackupHours] = useState<number>(4);
+  const [batteryBackupInput, setBatteryBackupInput] = useState<string>("4");
   
   const { toast } = useToast();
   
@@ -2211,8 +2213,100 @@ Website: https://divyanshisolar.com`;
               </div>
             </div>
             <p className="text-xs text-muted-foreground text-center mt-3">
-              Based on 4 units/kW/day generation and Rs 7 per unit electricity cost
+              Based on 4 units/kW/day generation and Rs {electricityUnitRate} per unit electricity cost
             </p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-950/30 dark:to-amber-950/30 border-yellow-200 dark:border-yellow-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg text-yellow-700 dark:text-yellow-300">
+              <BatteryCharging className="w-5 h-5" />
+              Battery Capacity Calculator (AH)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Power className="h-4 w-4 text-muted-foreground" />
+                  <Label htmlFor="backup-hours">Backup Hours Required</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="backup-hours"
+                    type="text"
+                    inputMode="decimal"
+                    value={batteryBackupInput}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                        setBatteryBackupInput(val);
+                        const numVal = parseFloat(val);
+                        if (!isNaN(numVal) && numVal >= 1 && numVal <= 24) {
+                          setBatteryBackupHours(numVal);
+                        }
+                      }
+                    }}
+                    onBlur={() => {
+                      const numVal = parseFloat(batteryBackupInput);
+                      if (isNaN(numVal) || numVal < 1) {
+                        setBatteryBackupHours(4);
+                        setBatteryBackupInput("4");
+                      } else if (numVal > 24) {
+                        setBatteryBackupHours(24);
+                        setBatteryBackupInput("24");
+                      } else {
+                        setBatteryBackupHours(numVal);
+                        setBatteryBackupInput(numVal.toString());
+                      }
+                    }}
+                    className="w-full"
+                    data-testid="input-backup-hours"
+                  />
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">Hours</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  How many hours of power backup do you need?
+                </p>
+              </div>
+              
+              <div className="p-4 bg-gradient-to-r from-yellow-100 to-amber-100 dark:from-yellow-900/50 dark:to-amber-900/50 rounded-lg">
+                <p className="text-sm text-muted-foreground mb-1">Recommended Battery Capacity</p>
+                <p className="text-3xl font-bold text-yellow-700 dark:text-yellow-300">
+                  {Math.round((capacity * 1000 * batteryBackupHours) / (48 * 0.5))} AH
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">@ 48V Battery Bank</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+              <div className="p-3 bg-background rounded-lg">
+                <p className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{capacity} kW</p>
+                <p className="text-xs text-muted-foreground">Plant Capacity</p>
+              </div>
+              <div className="p-3 bg-background rounded-lg">
+                <p className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{batteryBackupHours} Hrs</p>
+                <p className="text-xs text-muted-foreground">Backup Duration</p>
+              </div>
+              <div className="p-3 bg-background rounded-lg">
+                <p className="text-lg font-bold text-yellow-600 dark:text-yellow-400">48V</p>
+                <p className="text-xs text-muted-foreground">Battery Voltage</p>
+              </div>
+              <div className="p-3 bg-background rounded-lg">
+                <p className="text-lg font-bold text-yellow-600 dark:text-yellow-400">50%</p>
+                <p className="text-xs text-muted-foreground">Depth of Discharge</p>
+              </div>
+            </div>
+            
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <p className="text-xs text-muted-foreground text-center">
+                <strong>Formula:</strong> Battery AH = (Plant Capacity in Watts x Backup Hours) / (Battery Voltage x DOD)
+              </p>
+              <p className="text-xs text-muted-foreground text-center mt-1">
+                = ({capacity} x 1000 x {batteryBackupHours}) / (48 x 0.5) = <strong>{Math.round((capacity * 1000 * batteryBackupHours) / (48 * 0.5))} AH</strong>
+              </p>
+            </div>
           </CardContent>
         </Card>
 
