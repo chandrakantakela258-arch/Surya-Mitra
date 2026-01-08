@@ -1338,6 +1338,7 @@ export function SubsidyCalculator({
   const [show3DVisualization, setShow3DVisualization] = useState<boolean>(false);
   const [batteryBackupHours, setBatteryBackupHours] = useState<number>(4);
   const [batteryBackupInput, setBatteryBackupInput] = useState<string>("4");
+  const [batteryVoltage, setBatteryVoltage] = useState<number>(48);
   
   const { toast } = useToast();
   
@@ -2226,7 +2227,7 @@ Website: https://divyanshisolar.com`;
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Power className="h-4 w-4 text-muted-foreground" />
@@ -2271,12 +2272,36 @@ Website: https://divyanshisolar.com`;
                 </p>
               </div>
               
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <BatteryCharging className="h-4 w-4 text-muted-foreground" />
+                  <Label>Battery Voltage</Label>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {[12, 24, 48].map((volt) => (
+                    <Button
+                      key={volt}
+                      type="button"
+                      variant={batteryVoltage === volt ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setBatteryVoltage(volt)}
+                      data-testid={`button-battery-${volt}v`}
+                    >
+                      {volt}V
+                    </Button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Select your battery bank voltage
+                </p>
+              </div>
+              
               <div className="p-4 bg-gradient-to-r from-yellow-100 to-amber-100 dark:from-yellow-900/50 dark:to-amber-900/50 rounded-lg">
                 <p className="text-sm text-muted-foreground mb-1">Recommended Battery Capacity</p>
                 <p className="text-3xl font-bold text-yellow-700 dark:text-yellow-300">
-                  {Math.round((capacity * 1000 * batteryBackupHours) / (48 * 0.5))} AH
+                  {Math.round((capacity * 1000 * batteryBackupHours) / (batteryVoltage * 0.5))} AH
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">@ 48V Battery Bank</p>
+                <p className="text-xs text-muted-foreground mt-1">@ {batteryVoltage}V Battery Bank</p>
               </div>
             </div>
             
@@ -2290,7 +2315,7 @@ Website: https://divyanshisolar.com`;
                 <p className="text-xs text-muted-foreground">Backup Duration</p>
               </div>
               <div className="p-3 bg-background rounded-lg">
-                <p className="text-lg font-bold text-yellow-600 dark:text-yellow-400">48V</p>
+                <p className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{batteryVoltage}V</p>
                 <p className="text-xs text-muted-foreground">Battery Voltage</p>
               </div>
               <div className="p-3 bg-background rounded-lg">
@@ -2304,7 +2329,7 @@ Website: https://divyanshisolar.com`;
                 <strong>Formula:</strong> Battery AH = (Plant Capacity in Watts x Backup Hours) / (Battery Voltage x DOD)
               </p>
               <p className="text-xs text-muted-foreground text-center mt-1">
-                = ({capacity} x 1000 x {batteryBackupHours}) / (48 x 0.5) = <strong>{Math.round((capacity * 1000 * batteryBackupHours) / (48 * 0.5))} AH</strong>
+                = ({capacity} x 1000 x {batteryBackupHours}) / ({batteryVoltage} x 0.5) = <strong>{Math.round((capacity * 1000 * batteryBackupHours) / (batteryVoltage * 0.5))} AH</strong>
               </p>
             </div>
           </CardContent>
