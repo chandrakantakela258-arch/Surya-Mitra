@@ -582,7 +582,7 @@ export function SolarPanel3D({ onCapacityChange, initialCapacity = 3 }: SolarPan
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
                 <Home className="h-4 w-4" />
-                Roof Dimensions (meters)
+                Roof Dimensions
               </Label>
               <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -596,6 +596,9 @@ export function SolarPanel3D({ onCapacityChange, initialCapacity = 3 }: SolarPan
                     onKeyDown={(e) => e.key === "Enter" && handleWidthBlur()}
                     data-testid="input-roof-width"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {roofWidth}m = {(roofWidth * 3.28084).toFixed(1)} ft
+                  </p>
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Length (3-1000m)</Label>
@@ -608,8 +611,14 @@ export function SolarPanel3D({ onCapacityChange, initialCapacity = 3 }: SolarPan
                     onKeyDown={(e) => e.key === "Enter" && handleLengthBlur()}
                     data-testid="input-roof-length"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {roofLength}m = {(roofLength * 3.28084).toFixed(1)} ft
+                  </p>
                 </div>
               </div>
+              <p className="text-xs text-muted-foreground text-center">
+                Total Area: {(roofWidth * roofLength).toFixed(1)} sq.m ({((roofWidth * roofLength) * 10.7639).toFixed(1)} sq.ft)
+              </p>
             </div>
             
             <div className="space-y-2">
