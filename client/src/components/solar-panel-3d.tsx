@@ -472,7 +472,7 @@ export function SolarPanel3D({ onCapacityChange, initialCapacity = 3 }: SolarPan
 
   const handleWidthBlur = () => {
     const num = parseFloat(widthInput);
-    if (!isNaN(num) && num >= 3 && num <= 50) {
+    if (!isNaN(num) && num >= 3 && num <= 1000) {
       setRoofWidth(num);
     } else {
       setWidthInput(String(roofWidth));
@@ -485,7 +485,7 @@ export function SolarPanel3D({ onCapacityChange, initialCapacity = 3 }: SolarPan
 
   const handleLengthBlur = () => {
     const num = parseFloat(lengthInput);
-    if (!isNaN(num) && num >= 3 && num <= 50) {
+    if (!isNaN(num) && num >= 3 && num <= 1000) {
       setRoofLength(num);
     } else {
       setLengthInput(String(roofLength));
@@ -586,7 +586,7 @@ export function SolarPanel3D({ onCapacityChange, initialCapacity = 3 }: SolarPan
               </Label>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <Label className="text-xs text-muted-foreground">Width (3-50m)</Label>
+                  <Label className="text-xs text-muted-foreground">Width (3-1000m)</Label>
                   <Input
                     type="text"
                     inputMode="decimal"
@@ -598,7 +598,7 @@ export function SolarPanel3D({ onCapacityChange, initialCapacity = 3 }: SolarPan
                   />
                 </div>
                 <div>
-                  <Label className="text-xs text-muted-foreground">Length (3-50m)</Label>
+                  <Label className="text-xs text-muted-foreground">Length (3-1000m)</Label>
                   <Input
                     type="text"
                     inputMode="decimal"
