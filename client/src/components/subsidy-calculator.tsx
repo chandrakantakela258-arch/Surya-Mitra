@@ -1339,6 +1339,7 @@ export function SubsidyCalculator({
   const [batteryBackupHours, setBatteryBackupHours] = useState<number>(4);
   const [batteryBackupInput, setBatteryBackupInput] = useState<string>("4");
   const [batteryVoltage, setBatteryVoltage] = useState<number>(48);
+  const [batteryType, setBatteryType] = useState<"tubular_gel" | "lithium_ion">("tubular_gel");
   
   const { toast } = useToast();
   
@@ -2296,12 +2297,54 @@ Website: https://divyanshisolar.com`;
                 </p>
               </div>
               
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-muted-foreground" />
+                  <Label>Battery Type</Label>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    type="button"
+                    variant={batteryType === "tubular_gel" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setBatteryType("tubular_gel")}
+                    data-testid="button-battery-tubular"
+                  >
+                    Tubular Gel
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={batteryType === "lithium_ion" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setBatteryType("lithium_ion")}
+                    data-testid="button-battery-lithium"
+                  >
+                    Lithium Ion
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {batteryType === "tubular_gel" ? "Rs 50,000 per 100 AH @ 48V" : "Rs 65,000 per 100 AH @ 48V"}
+                </p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="p-4 bg-gradient-to-r from-yellow-100 to-amber-100 dark:from-yellow-900/50 dark:to-amber-900/50 rounded-lg">
                 <p className="text-sm text-muted-foreground mb-1">Recommended Battery Capacity</p>
                 <p className="text-3xl font-bold text-yellow-700 dark:text-yellow-300">
                   {Math.round((capacity * 1000 * batteryBackupHours) / (batteryVoltage * 0.5))} AH
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">@ {batteryVoltage}V Battery Bank</p>
+              </div>
+              
+              <div className="p-4 bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/50 dark:to-emerald-900/50 rounded-lg">
+                <p className="text-sm text-muted-foreground mb-1">Estimated Battery Cost</p>
+                <p className="text-3xl font-bold text-green-700 dark:text-green-300">
+                  {formatINR(Math.round(((capacity * 1000 * batteryBackupHours) / (batteryVoltage * 0.5)) * (batteryType === "tubular_gel" ? 500 : 650) * (48 / batteryVoltage)))}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {batteryType === "tubular_gel" ? "Tubular Gel Battery" : "Lithium Ion Battery"}
+                </p>
               </div>
             </div>
             
