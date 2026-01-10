@@ -94,6 +94,15 @@ export default function LandingPage() {
                 <Battery className="w-4 h-4 text-purple-500" />
                 SunPunch
               </button>
+              <WouterLink href="/ib-solar-panels">
+                <button 
+                  className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-200"
+                  data-testid="nav-ib-solar-panels"
+                >
+                  <Sun className="w-4 h-4 text-amber-500" />
+                  IB Solar Panels
+                </button>
+              </WouterLink>
               <WouterLink href="/network-map">
                 <button 
                   className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-200"
@@ -179,6 +188,15 @@ export default function LandingPage() {
                   <Battery className="w-4 h-4 text-purple-500" />
                   SunPunch
                 </button>
+                <WouterLink href="/ib-solar-panels" onClick={() => setMobileMenuOpen(false)}>
+                  <div 
+                    className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left"
+                    data-testid="mobile-nav-ib-solar-panels"
+                  >
+                    <Sun className="w-4 h-4 text-amber-500" />
+                    IB Solar Panels
+                  </div>
+                </WouterLink>
                 <WouterLink href="/network-map" onClick={() => setMobileMenuOpen(false)}>
                   <div 
                     className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left"
