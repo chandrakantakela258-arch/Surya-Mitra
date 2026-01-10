@@ -71,6 +71,7 @@ import TermsAndConditionsPage from "@/pages/terms-and-conditions";
 import NotificationsPage from "@/pages/notifications";
 import NewsPage from "@/pages/news";
 import PanelComparisonPage from "@/pages/panel-comparison";
+import IBSolarPanelsPage from "@/pages/ib-solar-panels";
 import LeaderboardPage from "@/pages/leaderboard";
 import ReferralsPage from "@/pages/referrals";
 import InstallationMap from "@/pages/installation-map";
@@ -603,6 +604,9 @@ function PublicRouter() {
       </Route>
       <Route path="/panels">
         <PanelComparisonPage />
+      </Route>
+      <Route path="/ib-solar-panels">
+        <IBSolarPanelsPage />
       </Route>
       <Route path="/leaderboard">
         <LeaderboardPage />
