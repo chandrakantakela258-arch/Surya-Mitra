@@ -136,6 +136,7 @@ export default function BDPDashboard() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
+                  <TableHead>Partner Code</TableHead>
                   <TableHead>District</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Status</TableHead>
@@ -150,6 +151,16 @@ export default function BDPDashboard() {
                         {partner.name}
                         <RoleBadge role="ddp" />
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {partner.partnerCode ? (
+                        <Badge variant="outline" className="font-mono text-xs">
+                          <IdCard className="w-3 h-3 mr-1" />
+                          {partner.partnerCode}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                     <TableCell>{partner.district || "-"}</TableCell>
                     <TableCell className="font-mono text-sm">{partner.phone}</TableCell>
@@ -193,6 +204,7 @@ export default function BDPDashboard() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Customer Name</TableHead>
+                  <TableHead>Client Code</TableHead>
                   <TableHead>District</TableHead>
                   <TableHead>Proposed Capacity</TableHead>
                   <TableHead>Site Progress</TableHead>
@@ -203,6 +215,16 @@ export default function BDPDashboard() {
                 {recentCustomers.slice(0, 5).map((customer) => (
                   <TableRow key={customer.id} data-testid={`row-customer-${customer.id}`}>
                     <TableCell className="font-medium">{customer.name}</TableCell>
+                    <TableCell>
+                      {customer.customerCode ? (
+                        <Badge variant="outline" className="font-mono text-xs">
+                          <IdCard className="w-3 h-3 mr-1" />
+                          {customer.customerCode}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
                     <TableCell>{customer.district}</TableCell>
                     <TableCell className="font-mono">{customer.proposedCapacity || "-"} kW</TableCell>
                     <TableCell className="min-w-[180px]">
