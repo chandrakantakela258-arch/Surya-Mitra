@@ -103,10 +103,10 @@ export default function LoginPage() {
                   name="username"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Username</FormLabel>
+                      <FormLabel>User ID / Partner Code</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="Enter your username" 
+                          placeholder="Enter your User ID or Partner Code (e.g., DSBDP001)" 
                           data-testid="input-username"
                           {...field} 
                         />

@@ -297,10 +297,15 @@ export async function registerRoutes(
       const data = loginSchema.parse(req.body);
       console.log("Login attempt for:", data.username);
       
-      const user = await storage.getUserByUsername(data.username);
+      // Try to find user by username first, then by partner code
+      let user = await storage.getUserByUsername(data.username);
+      if (!user) {
+        // Try finding by partner code (case-insensitive)
+        user = await storage.getUserByPartnerCode(data.username.toUpperCase());
+      }
       if (!user) {
         console.log("Login failed - user not found");
-        return res.status(401).json({ message: "Invalid username or password" });
+        return res.status(401).json({ message: "Invalid User ID or password" });
       }
       
       // Compare password using bcrypt (supports both hashed and plain text for migration)
@@ -321,7 +326,7 @@ export async function registerRoutes(
       
       if (!isValidPassword) {
         console.log("Login failed - invalid password");
-        return res.status(401).json({ message: "Invalid username or password" });
+        return res.status(401).json({ message: "Invalid User ID or password" });
       }
       
       // Check if BDP account is approved before allowing login
