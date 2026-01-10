@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Plus, Search, Download, MoreVertical, Check, X } from "lucide-react";
+import { Plus, Search, Download, MoreVertical, Check, X, IdCard } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -146,6 +146,7 @@ export default function BDPPartners() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
+                    <TableHead>Partner Code</TableHead>
                     <TableHead>Contact</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead>Status</TableHead>
@@ -160,6 +161,16 @@ export default function BDPPartners() {
                           <p className="font-medium">{partner.name}</p>
                           <p className="text-sm text-muted-foreground">{partner.username}</p>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {partner.partnerCode ? (
+                          <div className="flex items-center gap-1.5">
+                            <IdCard className="w-4 h-4 text-blue-500" />
+                            <span className="font-mono text-sm text-blue-600 dark:text-blue-400">{partner.partnerCode}</span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div>

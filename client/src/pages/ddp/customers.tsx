@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
-import { Plus, Search, Download, MoreVertical, Users, Eye, User, Camera, Sparkles, TrendingUp, AlertCircle, ThermometerSun, Share2 } from "lucide-react";
+import { Plus, Search, Download, MoreVertical, Users, Eye, User, Camera, Sparkles, TrendingUp, AlertCircle, ThermometerSun, Share2, IdCard } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -215,6 +215,7 @@ export default function DDPCustomers() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Customer</TableHead>
+                    <TableHead>Customer Code</TableHead>
                     <TableHead>Contact</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead>Capacity</TableHead>
@@ -239,6 +240,16 @@ export default function DDPCustomers() {
                           </div>
                           <p className="font-medium">{customer.name}</p>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {customer.customerCode ? (
+                          <div className="flex items-center gap-1.5">
+                            <IdCard className="w-4 h-4 text-green-500" />
+                            <span className="font-mono text-sm text-green-600 dark:text-green-400">{customer.customerCode}</span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div>

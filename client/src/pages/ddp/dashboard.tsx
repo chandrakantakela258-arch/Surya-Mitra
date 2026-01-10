@@ -253,6 +253,7 @@ export default function DDPDashboard() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Customer Name</TableHead>
+                  <TableHead>Customer Code</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>District</TableHead>
                   <TableHead>Proposed Capacity</TableHead>
@@ -264,6 +265,16 @@ export default function DDPDashboard() {
                 {recentCustomers.slice(0, 5).map((customer) => (
                   <TableRow key={customer.id} data-testid={`row-customer-${customer.id}`}>
                     <TableCell className="font-medium">{customer.name}</TableCell>
+                    <TableCell>
+                      {customer.customerCode ? (
+                        <div className="flex items-center gap-1.5">
+                          <IdCard className="w-4 h-4 text-green-500" />
+                          <span className="font-mono text-sm text-green-600 dark:text-green-400">{customer.customerCode}</span>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
                     <TableCell className="font-mono text-sm">{customer.phone}</TableCell>
                     <TableCell>{customer.district}</TableCell>
                     <TableCell className="font-mono">{customer.proposedCapacity || "-"} kW</TableCell>

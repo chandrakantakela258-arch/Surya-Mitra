@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Search, Download, Users } from "lucide-react";
+import { Search, Download, Users, IdCard } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -141,6 +141,7 @@ export default function BDPCustomers() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Customer</TableHead>
+                    <TableHead>Customer Code</TableHead>
                     <TableHead>DDP Partner</TableHead>
                     <TableHead>Contact</TableHead>
                     <TableHead>Location</TableHead>
@@ -154,6 +155,16 @@ export default function BDPCustomers() {
                     <TableRow key={customer.id} data-testid={`row-customer-${customer.id}`}>
                       <TableCell>
                         <p className="font-medium">{customer.name}</p>
+                      </TableCell>
+                      <TableCell>
+                        {customer.customerCode ? (
+                          <div className="flex items-center gap-1.5">
+                            <IdCard className="w-4 h-4 text-green-500" />
+                            <span className="font-mono text-sm text-green-600 dark:text-green-400">{customer.customerCode}</span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div>
