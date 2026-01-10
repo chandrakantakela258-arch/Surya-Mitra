@@ -5,11 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import logoImage from "@assets/88720521_logo_1766219255006.png";
-import omegaSeriesImage from "@assets/Omega-Series-IB-Solar-01-11-2026_12_54_AM_1768073438224.png";
-import optimaSeriesImage from "@assets/Optima-G12R-Bifacial-Solar-Panels-–-595-Wp-IB-Solar-01-11-2026_1768073438224.png";
-import orion132Image from "@assets/Orion-Series-132-Cells-IB-Solar-01-11-2026_12_56_AM_1768073438225.png";
-import orion144Image from "@assets/Orion-Series-144-Cells-IB-Solar-01-11-2026_12_56_AM_1768073438226.png";
-import performerSeriesImage from "@assets/Performer-Series-Bifacial-DCR-Solar-Panels-IB-Solar-01-11-2026_1768073438227.png";
+import omegaSeriesImage from "@assets/Omega-Series-IB-Solar-01-11-2026_12_54_AM_1768075180244.png";
+import optimaSeriesImage from "@assets/Optima-G12R-Bifacial-Solar-Panels-–-595-Wp-IB-Solar-01-11-2026_1768075180244.png";
+import orion132Image from "@assets/Orion-Series-132-Cells-IB-Solar-01-11-2026_12_56_AM_1768075180245.png";
+import orion144Image from "@assets/Orion-Series-144-Cells-IB-Solar-01-11-2026_12_36_AM_1768075180245.png";
+import performerSeriesImage from "@assets/Performer-Series-Bifacial-DCR-Solar-Panels-IB-Solar-01-11-2026_1768075180246.png";
 
 const panelSeries = [
   {
