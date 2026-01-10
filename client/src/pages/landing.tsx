@@ -148,12 +148,6 @@ export default function LandingPage() {
                   Login
                 </Button>
               </WouterLink>
-              <WouterLink href="/register">
-                <Button size="sm" className="gap-1.5 bg-gradient-to-r from-primary to-amber-500 hover:from-primary/90 hover:to-amber-500/90 shadow-md" data-testid="button-join-network">
-                  <Award className="w-4 h-4" />
-                  <span className="hidden sm:inline">Join Network</span>
-                </Button>
-              </WouterLink>
               
               {/* Mobile Menu Button */}
               <Button 
@@ -340,7 +334,7 @@ export default function LandingPage() {
               </WouterLink>
               <WouterLink href="/register">
                 <Button size="lg" variant="outline" className="gap-2 w-full sm:w-auto" data-testid="hero-partner-button">
-                  Become a Partner
+                  Join Divyanshi Solar Partner Network
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </WouterLink>
@@ -1238,7 +1232,7 @@ export default function LandingPage() {
             <WouterLink href="/register">
               <Button className="gap-2" data-testid="button-state-become-partner">
                 <Users className="w-4 h-4" />
-                Become a Partner in Your State
+                Join Divyanshi Solar Partner Network
               </Button>
             </WouterLink>
           </div>
@@ -1251,7 +1245,7 @@ export default function LandingPage() {
           <h2 className="text-3xl font-bold mb-4">Ready to Go Solar?</h2>
           <p className="text-lg opacity-90 mb-8">
             Join thousands of households already benefiting from free solar electricity. 
-            Calculate your subsidy or become a partner today.
+            Calculate your subsidy or join our partner network today.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <WouterLink href="/subsidy-calculator">
@@ -1263,7 +1257,7 @@ export default function LandingPage() {
             <WouterLink href="/register">
               <Button size="lg" variant="outline" className="gap-2 w-full sm:w-auto bg-transparent border-primary-foreground text-primary-foreground hover:bg-primary-foreground/10" data-testid="cta-partner-button">
                 <Users className="w-5 h-5" />
-                Join Partner Network
+                Join Divyanshi Solar Partner Network
               </Button>
             </WouterLink>
           </div>
@@ -1387,7 +1381,7 @@ export default function LandingPage() {
                   Partner Login
                 </WouterLink>
                 <WouterLink href="/register" className="text-sm text-muted-foreground hover:text-foreground">
-                  Join Network
+                  Join Partner Network
                 </WouterLink>
               </div>
             </div>
