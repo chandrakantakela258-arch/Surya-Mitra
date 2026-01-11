@@ -52,7 +52,7 @@ const ddpNavItems: NavItem[] = [
 
 const bdpNavItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Home", href: "/bdp/dashboard" },
-  { icon: Users, label: "Customers", href: "/bdp/customers" },
+  { icon: Users, label: "District Partners", href: "/bdp/partners" },
   { icon: Wallet, label: "Wallet", href: "/bdp/wallet" },
   { icon: ShoppingCart, label: "Store", href: "/bdp/store" },
   { icon: Calculator, label: "Calculator", href: "/calculator" },
