@@ -50,13 +50,23 @@ const ddpNavItems: NavItem[] = [
   { icon: User, label: "Profile", href: "/profile" },
 ];
 
-const bdpNavItems: NavItem[] = [
+// Bottom bar items for BDP (first 4 shown in bottom nav)
+const bdpBottomNavItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Home", href: "/bdp/dashboard" },
-  { icon: Users, label: "District Partners", href: "/bdp/partners" },
+  { icon: Users, label: "All Customers", href: "/bdp/customers" },
+  { icon: Wallet, label: "Wallet", href: "/bdp/wallet" },
+  { icon: ShoppingCart, label: "Store", href: "/bdp/store" },
+];
+
+// Additional menu items for BDP (shown in More menu)
+const bdpMenuItems: NavItem[] = [
+  { icon: LayoutDashboard, label: "Home", href: "/bdp/dashboard" },
+  { icon: Users, label: "Customers", href: "/bdp/customers" },
   { icon: Wallet, label: "Wallet", href: "/bdp/wallet" },
   { icon: ShoppingCart, label: "Store", href: "/bdp/store" },
   { icon: Calculator, label: "Calculator", href: "/calculator" },
   { icon: User, label: "Profile", href: "/profile" },
+  { icon: Users, label: "District Partners", href: "/bdp/partners" },
 ];
 
 // Bottom bar items for admin (first 4 shown in bottom nav)
@@ -119,7 +129,7 @@ export function MobileNav() {
   const navItems = user.role === "admin" 
     ? adminBottomNavItems 
     : user.role === "bdp" 
-      ? bdpNavItems 
+      ? bdpBottomNavItems 
       : user.role === "customer_partner"
         ? customerPartnerNavItems
         : ddpNavItems;
@@ -128,7 +138,7 @@ export function MobileNav() {
   const menuItems = user.role === "admin" 
     ? adminMenuItems 
     : user.role === "bdp" 
-      ? bdpNavItems 
+      ? bdpMenuItems 
       : user.role === "customer_partner"
         ? customerPartnerNavItems
         : ddpNavItems;
