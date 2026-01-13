@@ -858,8 +858,8 @@ export const customerFormSchema = insertCustomerSchema
     ifscCode: z.string().length(11, "IFSC code must be 11 characters").regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, "Invalid IFSC format"),
     bankName: z.string().min(2, "Bank name is required"),
     upiId: z.string().optional().nullable(),
-    // Documents - Required
-    documents: z.array(z.string()).min(1, "At least one document is required"),
+    // Documents - Optional (can be uploaded later)
+    documents: z.array(z.string()).optional().default([]),
   }).refine((data) => {
     if (data.customerType === "commercial" && (!data.commercialUnitDescription || data.commercialUnitDescription.trim() === "")) {
       return false;
