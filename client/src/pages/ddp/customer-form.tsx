@@ -1260,6 +1260,24 @@ export default function CustomerForm() {
             </CardContent>
           </Card>
 
+          {/* Form Errors Display */}
+          {Object.keys(form.formState.errors).length > 0 && (
+            <Card className="border-destructive bg-destructive/10">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-destructive text-base">Please fix the following errors:</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="list-disc list-inside space-y-1 text-sm text-destructive">
+                  {Object.entries(form.formState.errors).map(([field, error]) => (
+                    <li key={field}>
+                      <span className="font-medium capitalize">{field.replace(/([A-Z])/g, ' $1').trim()}</span>: {(error as any)?.message || 'Invalid value'}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Submit Buttons */}
           <div className="flex gap-4">
             <Button
@@ -1274,6 +1292,15 @@ export default function CustomerForm() {
               type="submit" 
               disabled={isLoading || isUploadingDocs}
               data-testid="button-submit"
+              onClick={() => {
+                if (Object.keys(form.formState.errors).length > 0) {
+                  toast({
+                    title: "Form has errors",
+                    description: "Please scroll up and fix the highlighted fields",
+                    variant: "destructive",
+                  });
+                }
+              }}
             >
               {isLoading ? (
                 <>
