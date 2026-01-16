@@ -29,6 +29,7 @@ import {
   passwordResetOtps,
   customerSessions,
   documents,
+  adminExpenses,
   type User, 
   type InsertUser, 
   type Customer,
@@ -137,6 +138,8 @@ import {
   customerTestimonials,
   type CustomerTestimonial,
   type InsertCustomerTestimonial,
+  type AdminExpense,
+  type InsertAdminExpense,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, inArray, isNull, not, or, lt, asc } from "drizzle-orm";
@@ -3476,6 +3479,111 @@ export class DatabaseStorage implements IStorage {
       .where(eq(customerTestimonials.id, id))
       .returning();
     return testimonial;
+  }
+
+  // Admin Expenses operations
+  async createAdminExpense(expense: InsertAdminExpense): Promise<AdminExpense> {
+    // Calculate total expense
+    const quantity = parseFloat(String(expense.quantityInTons || 0));
+    const perTonCosts = [
+      parseFloat(String(expense.blastingRatePerTon || 0)),
+      parseFloat(String(expense.quarryOwnerRatePerTon || 0)),
+      parseFloat(String(expense.transportationRatePerTonPerKm || 0)),
+      parseFloat(String(expense.crushingCostPerTon || 0)),
+      parseFloat(String(expense.materialShiftingCostPerTon || 0)),
+      parseFloat(String(expense.loadingCostPerTon || 0)),
+      parseFloat(String(expense.miningChallanCostPerTon || 0)),
+    ];
+    const totalPerTonCost = perTonCosts.reduce((a, b) => a + b, 0) * quantity;
+    
+    const fixedCosts = [
+      parseFloat(String(expense.travellingCost || 0)),
+      parseFloat(String(expense.staffSalary || 0)),
+      parseFloat(String(expense.roomRent || 0)),
+      parseFloat(String(expense.departmentCost || 0)),
+      parseFloat(String(expense.miscellaneousCost || 0)),
+    ];
+    const totalFixedCost = fixedCosts.reduce((a, b) => a + b, 0);
+    
+    const totalExpense = (totalPerTonCost + totalFixedCost).toFixed(2);
+    
+    const [result] = await db.insert(adminExpenses).values({
+      ...expense,
+      totalExpense,
+      expenseDate: expense.expenseDate ? new Date(expense.expenseDate) : new Date(),
+    }).returning();
+    return result;
+  }
+
+  async getAdminExpenses(): Promise<AdminExpense[]> {
+    return await db.select().from(adminExpenses).orderBy(desc(adminExpenses.expenseDate));
+  }
+
+  async getAdminExpensesByMonth(month: string): Promise<AdminExpense[]> {
+    return await db.select().from(adminExpenses)
+      .where(eq(adminExpenses.month, month))
+      .orderBy(desc(adminExpenses.expenseDate));
+  }
+
+  async getAdminExpense(id: string): Promise<AdminExpense | undefined> {
+    const [expense] = await db.select().from(adminExpenses).where(eq(adminExpenses.id, id));
+    return expense;
+  }
+
+  async updateAdminExpense(id: string, data: Partial<InsertAdminExpense>): Promise<AdminExpense | undefined> {
+    // Recalculate total if relevant fields changed
+    const existing = await this.getAdminExpense(id);
+    if (!existing) return undefined;
+    
+    const mergedData = { ...existing, ...data };
+    const quantity = parseFloat(String(mergedData.quantityInTons || 0));
+    const perTonCosts = [
+      parseFloat(String(mergedData.blastingRatePerTon || 0)),
+      parseFloat(String(mergedData.quarryOwnerRatePerTon || 0)),
+      parseFloat(String(mergedData.transportationRatePerTonPerKm || 0)),
+      parseFloat(String(mergedData.crushingCostPerTon || 0)),
+      parseFloat(String(mergedData.materialShiftingCostPerTon || 0)),
+      parseFloat(String(mergedData.loadingCostPerTon || 0)),
+      parseFloat(String(mergedData.miningChallanCostPerTon || 0)),
+    ];
+    const totalPerTonCost = perTonCosts.reduce((a, b) => a + b, 0) * quantity;
+    
+    const fixedCosts = [
+      parseFloat(String(mergedData.travellingCost || 0)),
+      parseFloat(String(mergedData.staffSalary || 0)),
+      parseFloat(String(mergedData.roomRent || 0)),
+      parseFloat(String(mergedData.departmentCost || 0)),
+      parseFloat(String(mergedData.miscellaneousCost || 0)),
+    ];
+    const totalFixedCost = fixedCosts.reduce((a, b) => a + b, 0);
+    
+    const totalExpense = (totalPerTonCost + totalFixedCost).toFixed(2);
+    
+    const [expense] = await db.update(adminExpenses)
+      .set({ ...data, totalExpense, updatedAt: new Date() })
+      .where(eq(adminExpenses.id, id))
+      .returning();
+    return expense;
+  }
+
+  async deleteAdminExpense(id: string): Promise<boolean> {
+    const result = await db.delete(adminExpenses).where(eq(adminExpenses.id, id));
+    return true;
+  }
+
+  async getExpenseSummary(): Promise<{ totalExpenses: number; monthlyBreakdown: { month: string; total: number }[] }> {
+    const expenses = await this.getAdminExpenses();
+    const totalExpenses = expenses.reduce((sum, exp) => sum + parseFloat(String(exp.totalExpense || 0)), 0);
+    
+    const monthlyMap = new Map<string, number>();
+    expenses.forEach(exp => {
+      const current = monthlyMap.get(exp.month) || 0;
+      monthlyMap.set(exp.month, current + parseFloat(String(exp.totalExpense || 0)));
+    });
+    
+    const monthlyBreakdown = Array.from(monthlyMap.entries()).map(([month, total]) => ({ month, total }));
+    
+    return { totalExpenses, monthlyBreakdown };
   }
 }
 
