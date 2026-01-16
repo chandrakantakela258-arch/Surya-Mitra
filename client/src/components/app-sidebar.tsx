@@ -36,7 +36,6 @@ import {
   Banknote,
   Files,
   Phone,
-  Receipt,
 } from "lucide-react";
 import { FeedbackDialog } from "@/components/feedback-dialog";
 import { ChatbotAssistant } from "@/components/chatbot-assistant";
@@ -125,7 +124,6 @@ const adminMenuSections: MenuSection[] = [
       { title: "User Feedback", url: "/admin/feedback", icon: MessageSquare },
       { title: "Service Requests", url: "/admin/service-requests", icon: Wrench },
       { title: "Testimonials", url: "/admin/testimonials", icon: MessageSquare },
-      { title: "Expense Tracking", url: "/admin/expenses", icon: Receipt },
       { title: "Vendor Approvals", url: "/admin/vendors", icon: Wrench },
       { title: "Vendor Payments", url: "/admin/vendor-payments", icon: Wallet },
       { title: "Broadcast", url: "/admin/notifications", icon: Bell },

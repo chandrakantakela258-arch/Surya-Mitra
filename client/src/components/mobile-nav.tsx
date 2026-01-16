@@ -84,7 +84,6 @@ const adminMenuItems: NavItem[] = [
   { icon: CreditCard, label: "Commission Payout", href: "/admin/payouts" },
   { icon: Wrench, label: "Service Requests", href: "/admin/service-requests" },
   { icon: MessageSquare, label: "Testimonials", href: "/admin/testimonials" },
-  { icon: Receipt, label: "Expense Tracking", href: "/admin/expenses" },
   { icon: Truck, label: "Vendor Payments", href: "/admin/vendor-payments" },
   { icon: ClipboardCheck, label: "Vendor Approval", href: "/admin/vendors" },
   { icon: MessagesSquare, label: "User Feedback", href: "/admin/feedback" },

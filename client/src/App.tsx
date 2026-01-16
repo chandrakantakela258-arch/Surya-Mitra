@@ -63,7 +63,6 @@ import AdminCustomerJourney from "@/pages/admin/customer-journey";
 import AdminServiceRequests from "@/pages/admin/service-requests";
 import AdminTestimonials from "@/pages/admin/testimonials";
 import AdminVendorPayments from "@/pages/admin/vendor-payments";
-import AdminExpenses from "@/pages/admin/expenses";
 import PartnerServiceRequests from "@/pages/partner-service-requests";
 import ProfilePage from "@/pages/profile";
 import PrivacyPolicyPage from "@/pages/privacy-policy";
@@ -256,13 +255,6 @@ function AuthenticatedRoutes() {
         <ProtectedRoute allowedRoles={["admin"]}>
           <DashboardLayout>
             <AdminTestimonials />
-          </DashboardLayout>
-        </ProtectedRoute>
-      </Route>
-      <Route path="/admin/expenses">
-        <ProtectedRoute allowedRoles={["admin"]}>
-          <DashboardLayout>
-            <AdminExpenses />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
