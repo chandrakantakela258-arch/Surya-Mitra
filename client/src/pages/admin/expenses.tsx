@@ -77,6 +77,7 @@ export default function AdminExpenses() {
   const [formData, setFormData] = useState<Record<string, string>>({
     month: "",
     quantityInTons: "",
+    transportDistanceKm: "",
     blastingRatePerTon: "",
     quarryOwnerRatePerTon: "",
     transportationRatePerTonPerKm: "",
@@ -152,6 +153,7 @@ export default function AdminExpenses() {
     setFormData({
       month: "",
       quantityInTons: "",
+      transportDistanceKm: "",
       blastingRatePerTon: "",
       quarryOwnerRatePerTon: "",
       transportationRatePerTonPerKm: "",
@@ -183,6 +185,7 @@ export default function AdminExpenses() {
     setFormData({
       month: expense.month || "",
       quantityInTons: expense.quantityInTons || "",
+      transportDistanceKm: expense.transportDistanceKm || "",
       blastingRatePerTon: expense.blastingRatePerTon || "",
       quarryOwnerRatePerTon: expense.quarryOwnerRatePerTon || "",
       transportationRatePerTonPerKm: expense.transportationRatePerTonPerKm || "",
@@ -217,16 +220,21 @@ export default function AdminExpenses() {
 
   const calculateFormTotals = () => {
     const quantity = Number(formData.quantityInTons || 0);
-    const perTonCosts = [
+    const distance = Number(formData.transportDistanceKm || 0);
+    
+    // Per-ton costs (multiplied by quantity)
+    const perTonRates = [
       Number(formData.blastingRatePerTon || 0),
       Number(formData.quarryOwnerRatePerTon || 0),
-      Number(formData.transportationRatePerTonPerKm || 0),
       Number(formData.crushingCostPerTon || 0),
       Number(formData.materialShiftingCostPerTon || 0),
       Number(formData.loadingCostPerTon || 0),
       Number(formData.miningChallanCostPerTon || 0),
     ];
-    const totalPerTonCost = perTonCosts.reduce((a, b) => a + b, 0) * quantity;
+    const totalPerTonCost = perTonRates.reduce((a, b) => a + b, 0) * quantity;
+    
+    // Transportation cost (rate * quantity * distance)
+    const transportCost = Number(formData.transportationRatePerTonPerKm || 0) * quantity * distance;
     
     const fixedCosts = [
       Number(formData.travellingCost || 0),
@@ -237,7 +245,7 @@ export default function AdminExpenses() {
     ];
     const totalFixedCost = fixedCosts.reduce((a, b) => a + b, 0);
     
-    return { totalPerTonCost, totalFixedCost, grandTotal: totalPerTonCost + totalFixedCost };
+    return { totalPerTonCost: totalPerTonCost + transportCost, totalFixedCost, grandTotal: totalPerTonCost + transportCost + totalFixedCost };
   };
 
   const filteredExpenses = expenses.filter((expense) =>
@@ -421,7 +429,7 @@ export default function AdminExpenses() {
             <DialogTitle>{isEditOpen ? "Edit Expense" : "Add New Expense"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Month</Label>
                 <Select value={formData.month} onValueChange={(v) => setFormData({ ...formData, month: v })}>
@@ -443,6 +451,16 @@ export default function AdminExpenses() {
                   onChange={(e) => setFormData({ ...formData, quantityInTons: e.target.value })}
                   placeholder="Enter quantity in tons"
                   data-testid="input-quantity"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Transport Distance (KM)</Label>
+                <Input
+                  type="number"
+                  value={formData.transportDistanceKm}
+                  onChange={(e) => setFormData({ ...formData, transportDistanceKm: e.target.value })}
+                  placeholder="Enter distance in km"
+                  data-testid="input-transport-distance"
                 />
               </div>
             </div>

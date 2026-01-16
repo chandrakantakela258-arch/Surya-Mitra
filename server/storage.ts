@@ -3485,16 +3485,21 @@ export class DatabaseStorage implements IStorage {
   async createAdminExpense(expense: InsertAdminExpense): Promise<AdminExpense> {
     // Calculate total expense
     const quantity = parseFloat(String(expense.quantityInTons || 0));
-    const perTonCosts = [
+    const distance = parseFloat(String(expense.transportDistanceKm || 0));
+    
+    // Per-ton costs (multiplied by quantity)
+    const perTonRates = [
       parseFloat(String(expense.blastingRatePerTon || 0)),
       parseFloat(String(expense.quarryOwnerRatePerTon || 0)),
-      parseFloat(String(expense.transportationRatePerTonPerKm || 0)),
       parseFloat(String(expense.crushingCostPerTon || 0)),
       parseFloat(String(expense.materialShiftingCostPerTon || 0)),
       parseFloat(String(expense.loadingCostPerTon || 0)),
       parseFloat(String(expense.miningChallanCostPerTon || 0)),
     ];
-    const totalPerTonCost = perTonCosts.reduce((a, b) => a + b, 0) * quantity;
+    const totalPerTonCost = perTonRates.reduce((a, b) => a + b, 0) * quantity;
+    
+    // Transportation cost (rate per ton per km * quantity * distance)
+    const transportCost = parseFloat(String(expense.transportationRatePerTonPerKm || 0)) * quantity * distance;
     
     const fixedCosts = [
       parseFloat(String(expense.travellingCost || 0)),
@@ -3505,7 +3510,7 @@ export class DatabaseStorage implements IStorage {
     ];
     const totalFixedCost = fixedCosts.reduce((a, b) => a + b, 0);
     
-    const totalExpense = (totalPerTonCost + totalFixedCost).toFixed(2);
+    const totalExpense = (totalPerTonCost + transportCost + totalFixedCost).toFixed(2);
     
     const [result] = await db.insert(adminExpenses).values({
       ...expense,
@@ -3537,16 +3542,21 @@ export class DatabaseStorage implements IStorage {
     
     const mergedData = { ...existing, ...data };
     const quantity = parseFloat(String(mergedData.quantityInTons || 0));
-    const perTonCosts = [
+    const distance = parseFloat(String(mergedData.transportDistanceKm || 0));
+    
+    // Per-ton costs (multiplied by quantity)
+    const perTonRates = [
       parseFloat(String(mergedData.blastingRatePerTon || 0)),
       parseFloat(String(mergedData.quarryOwnerRatePerTon || 0)),
-      parseFloat(String(mergedData.transportationRatePerTonPerKm || 0)),
       parseFloat(String(mergedData.crushingCostPerTon || 0)),
       parseFloat(String(mergedData.materialShiftingCostPerTon || 0)),
       parseFloat(String(mergedData.loadingCostPerTon || 0)),
       parseFloat(String(mergedData.miningChallanCostPerTon || 0)),
     ];
-    const totalPerTonCost = perTonCosts.reduce((a, b) => a + b, 0) * quantity;
+    const totalPerTonCost = perTonRates.reduce((a, b) => a + b, 0) * quantity;
+    
+    // Transportation cost (rate per ton per km * quantity * distance)
+    const transportCost = parseFloat(String(mergedData.transportationRatePerTonPerKm || 0)) * quantity * distance;
     
     const fixedCosts = [
       parseFloat(String(mergedData.travellingCost || 0)),
@@ -3557,7 +3567,7 @@ export class DatabaseStorage implements IStorage {
     ];
     const totalFixedCost = fixedCosts.reduce((a, b) => a + b, 0);
     
-    const totalExpense = (totalPerTonCost + totalFixedCost).toFixed(2);
+    const totalExpense = (totalPerTonCost + transportCost + totalFixedCost).toFixed(2);
     
     const [expense] = await db.update(adminExpenses)
       .set({ ...data, totalExpense, updatedAt: new Date() })
