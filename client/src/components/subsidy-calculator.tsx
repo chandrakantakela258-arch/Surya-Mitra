@@ -1367,8 +1367,8 @@ export function SubsidyCalculator({
     } else if (customerType === "commercial") {
       return [10, 15, 20, 25, 30, 40, 50, 60, 75, 100];
     } else {
-      // Industrial: 50 kW to 1000 kW
-      return [50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
+      // Industrial: 5 kW to 1000 kW
+      return [5, 10, 15, 20, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
     }
   }, [customerType]);
   

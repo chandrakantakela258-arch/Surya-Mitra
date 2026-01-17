@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { ThemeToggle } from "@/components/theme-toggle";
 import logoImage from "@assets/88720521_logo_1766219255006.png";
 
@@ -791,7 +792,7 @@ export default function CustomerRegistration() {
                         <SelectContent>
                           <SelectItem value="residential">Residential (1 kW to 10 kW)</SelectItem>
                           <SelectItem value="commercial">Commercial (10 kW to 100 kW)</SelectItem>
-                          <SelectItem value="industrial">Industrial (50 kW to 1000 kW)</SelectItem>
+                          <SelectItem value="industrial">Industrial (5 kW to 1000 kW)</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormDescription>
@@ -941,34 +942,63 @@ export default function CustomerRegistration() {
                     const customerType = watchCustomerType || "residential";
                     const isResidential = customerType === "residential";
                     const isCommercial = customerType === "commercial";
+                    const isIndustrial = customerType === "industrial";
                     
                     const capacityOptions = isResidential 
                       ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
                       : isCommercial 
                         ? [10, 15, 20, 25, 30, 40, 50, 60, 75, 100]
-                        : [50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
+                        : [5, 10, 15, 20, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
+
+                    const [useCustomCapacity, setUseCustomCapacity] = useState(false);
 
                     return (
                       <FormItem>
                         <FormLabel>Proposed Capacity (kW) *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-capacity">
-                              <SelectValue placeholder="Select capacity" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {capacityOptions.map((cap) => (
-                              <SelectItem key={cap} value={cap.toString()}>{cap} kW</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={useCustomCapacity}
+                              onCheckedChange={setUseCustomCapacity}
+                              data-testid="switch-custom-capacity"
+                            />
+                            <span className="text-sm text-muted-foreground">
+                              {useCustomCapacity ? "Custom value" : "Select from list"}
+                            </span>
+                          </div>
+                          {useCustomCapacity ? (
+                            <FormControl>
+                              <Input
+                                type="number"
+                                placeholder="Enter capacity in kW"
+                                data-testid="input-custom-capacity"
+                                value={field.value || ""}
+                                onChange={(e) => field.onChange(e.target.value)}
+                                min={isResidential ? 1 : isCommercial ? 10 : 5}
+                                max={isResidential ? 10 : isCommercial ? 100 : 1000}
+                              />
+                            </FormControl>
+                          ) : (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-capacity">
+                                  <SelectValue placeholder="Select capacity" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {capacityOptions.map((cap) => (
+                                  <SelectItem key={cap} value={cap.toString()}>{cap} kW</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
                         <FormDescription>
                           {isResidential 
                             ? "Subsidy available up to 3 kW for residential installations"
                             : isCommercial
                               ? "Commercial: 10-100 kW (no subsidy)"
-                              : "Industrial: 50-1000 kW (no subsidy)"}
+                              : "Industrial: 5-1000 kW (no subsidy)"}
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
