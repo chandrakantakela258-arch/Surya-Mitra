@@ -1390,14 +1390,17 @@ export default function LandingPage() {
             <div>
               <h4 className="font-semibold mb-4">Legal</h4>
               <div className="flex flex-col gap-2">
+                <WouterLink href="/about-us" className="text-sm text-muted-foreground hover:text-foreground">
+                  About Us
+                </WouterLink>
                 <WouterLink href="/privacy-policy" className="text-sm text-muted-foreground hover:text-foreground">
                   Privacy Policy
                 </WouterLink>
-                <WouterLink href="/disclaimer" className="text-sm text-muted-foreground hover:text-foreground">
-                  Disclaimer
-                </WouterLink>
                 <WouterLink href="/terms-and-conditions" className="text-sm text-muted-foreground hover:text-foreground">
                   Terms and Conditions
+                </WouterLink>
+                <WouterLink href="/disclaimer" className="text-sm text-muted-foreground hover:text-foreground">
+                  Disclaimer
                 </WouterLink>
               </div>
             </div>

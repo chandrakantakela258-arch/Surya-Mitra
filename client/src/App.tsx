@@ -68,6 +68,7 @@ import ProfilePage from "@/pages/profile";
 import PrivacyPolicyPage from "@/pages/privacy-policy";
 import DisclaimerPage from "@/pages/disclaimer";
 import TermsAndConditionsPage from "@/pages/terms-and-conditions";
+import AboutUsPage from "@/pages/about-us";
 import NotificationsPage from "@/pages/notifications";
 import NewsPage from "@/pages/news";
 import PanelComparisonPage from "@/pages/panel-comparison";
@@ -598,6 +599,9 @@ function PublicRouter() {
       </Route>
       <Route path="/terms-and-conditions">
         <TermsAndConditionsPage />
+      </Route>
+      <Route path="/about-us">
+        <AboutUsPage />
       </Route>
       <Route path="/news">
         <NewsPage />
