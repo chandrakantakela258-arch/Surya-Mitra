@@ -15,12 +15,13 @@ const connectionString = process.env.DATABASE_URL || "";
 
 export const pool = new Pool({ 
   connectionString,
-  connectionTimeoutMillis: 10000,
-  idleTimeoutMillis: 30000,
-  max: 10,
+  connectionTimeoutMillis: 30000,
+  idleTimeoutMillis: 0,
+  max: 20,
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10000,
 });
 
-// Add error handler to pool to prevent unhandled errors
 pool.on('error', (err) => {
   console.error('Unexpected database pool error:', err);
 });

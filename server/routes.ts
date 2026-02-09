@@ -207,6 +207,9 @@ export async function registerRoutes(
         pool: pool,
         tableName: "user_sessions",
         createTableIfMissing: true,
+        errorLog: (err: Error) => {
+          console.error("Session store error:", err.message);
+        },
       }),
       secret: process.env.SESSION_SECRET || "surya-partner-secret-key",
       resave: false,
