@@ -169,11 +169,13 @@ function calculateSubsidy(
   customerType: CustomerType = "residential",
   interestRate: number = 10,
   electricityUnitRate: number = 7,
-  downPaymentPercent: number = 15
+  downPaymentPercent: number = 15,
+  customRatePerWatt: number | null = null
 ): SubsidyResult {
-  // Calculate rate per watt based on panel type and inverter type
   let ratePerWatt: number;
-  if (panelType === "dcr") {
+  if (customRatePerWatt !== null && customRatePerWatt > 0) {
+    ratePerWatt = customRatePerWatt;
+  } else if (panelType === "dcr") {
     ratePerWatt = inverterType === "hybrid" ? DCR_HYBRID_RATE_PER_WATT : DCR_ONGRID_RATE_PER_WATT;
   } else {
     ratePerWatt = NON_DCR_RATE_PER_WATT;
@@ -1340,12 +1342,18 @@ export function SubsidyCalculator({
   const [batteryBackupInput, setBatteryBackupInput] = useState<string>("4");
   const [batteryVoltage, setBatteryVoltage] = useState<number>(48);
   const [batteryType, setBatteryType] = useState<"tubular_gel" | "lithium_ion">("tubular_gel");
+  const [customRatePerWatt, setCustomRatePerWatt] = useState<number | null>(null);
+  const [customRateInput, setCustomRateInput] = useState<string>("");
   
   const { toast } = useToast();
   
   const maxCapacity = customerTypeConfig[customerType].maxCapacity;
+
+  const defaultRate = panelType === "dcr" 
+    ? (inverterType === "hybrid" ? DCR_HYBRID_RATE_PER_WATT : DCR_ONGRID_RATE_PER_WATT) 
+    : NON_DCR_RATE_PER_WATT;
   
-  const result = useMemo(() => calculateSubsidy(capacity, selectedState, panelType, inverterType, customerType, interestRate, electricityUnitRate, downPaymentPercent), [capacity, selectedState, panelType, inverterType, customerType, interestRate, electricityUnitRate, downPaymentPercent]);
+  const result = useMemo(() => calculateSubsidy(capacity, selectedState, panelType, inverterType, customerType, interestRate, electricityUnitRate, downPaymentPercent, customRatePerWatt), [capacity, selectedState, panelType, inverterType, customerType, interestRate, electricityUnitRate, downPaymentPercent, customRatePerWatt]);
   const commission = useMemo(() => calculateCommission(capacity, panelType), [capacity, panelType]);
   
   // Get EMI for selected tenure
@@ -1778,7 +1786,7 @@ Website: https://divyanshisolar.com`;
                 type="button"
                 variant={panelType === "dcr" ? "default" : "outline"}
                 className="flex-1"
-                onClick={() => setPanelType("dcr")}
+                onClick={() => { setPanelType("dcr"); setCustomRatePerWatt(null); setCustomRateInput(""); }}
                 data-testid="button-panel-dcr"
               >
                 DCR
@@ -1787,7 +1795,7 @@ Website: https://divyanshisolar.com`;
                 type="button"
                 variant={panelType === "non_dcr" ? "default" : "outline"}
                 className="flex-1"
-                onClick={() => setPanelType("non_dcr")}
+                onClick={() => { setPanelType("non_dcr"); setCustomRatePerWatt(null); setCustomRateInput(""); }}
                 data-testid="button-panel-non-dcr"
               >
                 Non-DCR
@@ -1830,6 +1838,44 @@ Website: https://divyanshisolar.com`;
               </p>
             </div>
           )}
+
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <IndianRupee className="h-4 w-4 text-muted-foreground" />
+              <Label>Plant Rate (Per Watt)</Label>
+            </div>
+            <Input
+              type="number"
+              min="1"
+              max="200"
+              value={customRateInput}
+              onChange={(e) => {
+                setCustomRateInput(e.target.value);
+                const val = parseFloat(e.target.value);
+                if (!isNaN(val) && val > 0) {
+                  setCustomRatePerWatt(val);
+                } else if (e.target.value === "") {
+                  setCustomRatePerWatt(null);
+                }
+              }}
+              placeholder={`Default: Rs ${defaultRate}/W`}
+              data-testid="input-custom-rate-per-watt"
+            />
+            <p className="text-xs text-muted-foreground">
+              {customRatePerWatt ? `Custom: Rs ${customRatePerWatt}/W` : `Default: Rs ${defaultRate}/W (${panelType === "dcr" ? "DCR" : "Non-DCR"})`}
+            </p>
+            {customRatePerWatt && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => { setCustomRatePerWatt(null); setCustomRateInput(""); }}
+                data-testid="button-reset-rate"
+              >
+                Reset to Default
+              </Button>
+            )}
+          </div>
           
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-4 flex-wrap">
