@@ -163,50 +163,86 @@ export class NotificationService {
     }
   }
 
-  private static readonly CUNNEKT_TEMPLATE_MAP: Record<string, string> = {
-    "status_update": "status_update",
-    "milestone_complete": "milestone_complete",
-    "commission_earned": "commission_earned",
-    "otp_verification": "otp_verification",
-    "welcome_message": "welcome_message",
-    "Divyanshi_Partner_Meeting": "partner_meeting",
-  };
+  private formatCunnektPhone(phone: string): string {
+    let phoneNumber = phone.replace(/\D/g, "");
+    if (phoneNumber.length === 10) {
+      phoneNumber = "91" + phoneNumber;
+    }
+    if (phoneNumber.startsWith("+")) {
+      phoneNumber = phoneNumber.substring(1);
+    }
+    return phoneNumber;
+  }
 
-  private async sendWhatsAppViaCunnekt(to: string, message: string, campaignOrTemplateId?: string, templateParams?: string[]): Promise<boolean> {
+  private async sendWhatsAppViaCunnekt(to: string, message: string, _campaignOrTemplateId?: string, _templateParams?: string[]): Promise<boolean> {
     if (!this.cunnektApiKey) {
       console.error("[Cunnekt] WhatsApp notification skipped - CUNNEKT_API_KEY not configured");
       return false;
     }
 
     try {
-      let phoneNumber = to.replace(/\D/g, "");
-      if (phoneNumber.length === 10) {
-        phoneNumber = "91" + phoneNumber;
-      }
-      if (phoneNumber.startsWith("+")) {
-        phoneNumber = phoneNumber.substring(1);
-      }
-
-      const templateId = campaignOrTemplateId
-        ? (NotificationService.CUNNEKT_TEMPLATE_MAP[campaignOrTemplateId] || campaignOrTemplateId)
-        : undefined;
-
-      if (templateId) {
-        return this.sendCunnektTemplateMessage(phoneNumber, templateId, templateParams);
-      }
-
-      console.log("[Cunnekt] No template ID provided - attempting sendnotification with default template. Note: sendreplymessage only works within 24-hour window.");
-      return this.sendCunnektTemplateMessage(phoneNumber, "general_notification", [message.substring(0, 1024)]);
+      const phoneNumber = this.formatCunnektPhone(to);
+      return this.sendCunnektDirectMessage(phoneNumber, message);
     } catch (error) {
       console.error("[Cunnekt] Error sending WhatsApp:", error);
       return false;
     }
   }
 
-  private async sendCunnektTemplateMessage(phoneNumber: string, templateId: string, templateParams?: string[]): Promise<boolean> {
+  private async sendCunnektDirectMessage(phoneNumber: string, message: string): Promise<boolean> {
     try {
-      const requestBody: any = {
+      const requestBody = {
         mobile: phoneNumber,
+        message: message,
+        type: "text",
+      };
+
+      console.log("[Cunnekt] Sending message to:", phoneNumber);
+
+      const response = await fetch("https://app2.cunnekt.com/v1/sendreplymessage", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "API-KEY": this.cunnektApiKey!,
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const responseText = await response.text();
+      console.log("[Cunnekt] Response status:", response.status);
+      console.log("[Cunnekt] Response body:", responseText);
+
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch {
+        console.error("[Cunnekt] Failed to parse response as JSON");
+        return response.ok;
+      }
+
+      if (!response.ok) {
+        console.error("[Cunnekt] Message error:", JSON.stringify(responseData));
+        return false;
+      }
+
+      console.log(`[Cunnekt] Message sent successfully to ${phoneNumber}`);
+      return true;
+    } catch (error) {
+      console.error("[Cunnekt] Error sending message:", error);
+      return false;
+    }
+  }
+
+  async sendCunnektNotification(phoneNumber: string, templateId: string, templateParams?: string[]): Promise<boolean> {
+    if (!this.cunnektApiKey) {
+      console.error("[Cunnekt] Notification skipped - CUNNEKT_API_KEY not configured");
+      return false;
+    }
+
+    try {
+      const formattedPhone = this.formatCunnektPhone(phoneNumber);
+      const requestBody: any = {
+        mobile: formattedPhone,
         templateid: templateId,
       };
 
@@ -224,128 +260,7 @@ export class NotificationService {
         };
       }
 
-      console.log("[Cunnekt] Sending template message to:", phoneNumber, "Template:", templateId);
-
-      const response = await fetch("https://app2.cunnekt.com/v1/sendnotification", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "API-KEY": this.cunnektApiKey!,
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      const responseText = await response.text();
-      console.log("[Cunnekt] Template response status:", response.status);
-      console.log("[Cunnekt] Template response body:", responseText);
-
-      let responseData;
-      try {
-        responseData = JSON.parse(responseText);
-      } catch {
-        console.error("[Cunnekt] Failed to parse template response as JSON");
-        return response.ok;
-      }
-
-      if (!response.ok) {
-        console.error("[Cunnekt] Template message error:", JSON.stringify(responseData));
-        return false;
-      }
-
-      console.log(`[Cunnekt] Template message sent successfully to ${phoneNumber}`);
-      return true;
-    } catch (error) {
-      console.error("[Cunnekt] Error sending template message:", error);
-      return false;
-    }
-  }
-
-  private async sendCunnektReplyMessage(phoneNumber: string, message: string): Promise<boolean> {
-    try {
-      const requestBody = {
-        mobile: phoneNumber,
-        message: message,
-        type: "text",
-      };
-
-      console.log("[Cunnekt] Sending reply message to:", phoneNumber);
-
-      const response = await fetch("https://app2.cunnekt.com/v1/sendreplymessage", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "API-KEY": this.cunnektApiKey!,
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      const responseText = await response.text();
-      console.log("[Cunnekt] Reply response status:", response.status);
-      console.log("[Cunnekt] Reply response body:", responseText);
-
-      let responseData;
-      try {
-        responseData = JSON.parse(responseText);
-      } catch {
-        console.error("[Cunnekt] Failed to parse reply response as JSON");
-        return response.ok;
-      }
-
-      if (!response.ok) {
-        console.error("[Cunnekt] Reply message error:", JSON.stringify(responseData));
-        return false;
-      }
-
-      console.log(`[Cunnekt] Reply message sent successfully to ${phoneNumber}`);
-      return true;
-    } catch (error) {
-      console.error("[Cunnekt] Error sending reply message:", error);
-      return false;
-    }
-  }
-
-  async sendCunnektMediaTemplate(phoneNumber: string, templateId: string, mediaType: "image" | "video" | "document", mediaUrl: string, templateParams?: string[], fileName?: string): Promise<boolean> {
-    if (!this.cunnektApiKey) {
-      console.error("[Cunnekt] Media template skipped - CUNNEKT_API_KEY not configured");
-      return false;
-    }
-
-    try {
-      let formattedPhone = phoneNumber.replace(/\D/g, "");
-      if (formattedPhone.length === 10) {
-        formattedPhone = "91" + formattedPhone;
-      }
-
-      const headerParam: any = { type: mediaType };
-      headerParam[mediaType] = { link: mediaUrl };
-      if (mediaType === "document" && fileName) {
-        headerParam[mediaType].filename = fileName;
-      }
-
-      const components: any[] = [
-        {
-          type: "header",
-          parameters: [headerParam],
-        },
-      ];
-
-      if (templateParams && templateParams.length > 0) {
-        components.push({
-          type: "body",
-          parameters: templateParams.map(param => ({
-            type: "text",
-            text: param,
-          })),
-        });
-      }
-
-      const requestBody = {
-        mobile: formattedPhone,
-        templateid: templateId,
-        template: { components },
-      };
-
-      console.log("[Cunnekt] Sending media template to:", formattedPhone, "Template:", templateId, "Media:", mediaType);
+      console.log("[Cunnekt] Sending notification to:", formattedPhone, "Template:", templateId);
 
       const response = await fetch("https://app2.cunnekt.com/v1/sendnotification", {
         method: "POST",
@@ -357,17 +272,69 @@ export class NotificationService {
       });
 
       const responseText = await response.text();
-      console.log("[Cunnekt] Media template response:", response.status, responseText);
+      console.log("[Cunnekt] Notification response:", response.status, responseText);
 
       if (!response.ok) {
-        console.error("[Cunnekt] Media template error:", responseText);
+        console.error("[Cunnekt] Notification error:", responseText);
         return false;
       }
 
-      console.log(`[Cunnekt] Media template sent successfully to ${formattedPhone}`);
+      console.log(`[Cunnekt] Notification sent successfully to ${formattedPhone}`);
       return true;
     } catch (error) {
-      console.error("[Cunnekt] Error sending media template:", error);
+      console.error("[Cunnekt] Error sending notification:", error);
+      return false;
+    }
+  }
+
+  async sendCunnektMediaMessage(phoneNumber: string, mediaType: "image" | "video" | "document", mediaUrl: string, caption?: string, fileName?: string): Promise<boolean> {
+    if (!this.cunnektApiKey) {
+      console.error("[Cunnekt] Media message skipped - CUNNEKT_API_KEY not configured");
+      return false;
+    }
+
+    try {
+      const formattedPhone = this.formatCunnektPhone(phoneNumber);
+      const requestBody: any = {
+        mobile: formattedPhone,
+        type: mediaType,
+      };
+
+      if (mediaType === "image") {
+        requestBody.image = { link: mediaUrl };
+        if (caption) requestBody.image.caption = caption;
+      } else if (mediaType === "video") {
+        requestBody.video = { link: mediaUrl };
+        if (caption) requestBody.video.caption = caption;
+      } else if (mediaType === "document") {
+        requestBody.document = { link: mediaUrl };
+        if (fileName) requestBody.document.filename = fileName;
+        if (caption) requestBody.document.caption = caption;
+      }
+
+      console.log("[Cunnekt] Sending media message to:", formattedPhone, "Type:", mediaType);
+
+      const response = await fetch("https://app2.cunnekt.com/v1/sendreplymessage", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "API-KEY": this.cunnektApiKey,
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const responseText = await response.text();
+      console.log("[Cunnekt] Media response:", response.status, responseText);
+
+      if (!response.ok) {
+        console.error("[Cunnekt] Media message error:", responseText);
+        return false;
+      }
+
+      console.log(`[Cunnekt] Media message sent successfully to ${formattedPhone}`);
+      return true;
+    } catch (error) {
+      console.error("[Cunnekt] Error sending media message:", error);
       return false;
     }
   }
