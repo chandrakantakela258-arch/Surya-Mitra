@@ -327,7 +327,7 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   const blueColor: [number, number, number] = [41, 98, 255];
   const whiteColor: [number, number, number] = [255, 255, 255];
   
-  const totalPages = 10;
+  const totalPages = 11;
   
   const addHeader = (pageNum: number, sectionTitle: string) => {
     doc.setFillColor(...primaryColor);
@@ -1315,7 +1315,7 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   doc.setFont("helvetica", "normal");
   doc.text("Total Capacity Installed", 30 + (pageWidth - 50) / 2 + ((pageWidth - 50) / 4), y + 27, { align: "center" });
 
-  addFooter(doc.getNumberOfPages());
+  addFooter(10);
 
   doc.addPage();
   
@@ -1370,7 +1370,7 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   doc.setFontSize(9);
   doc.text("info@divyanshisolar.com | www.divyanshisolar.com", pageWidth / 2, y, { align: "center" });
   
-  addFooter(10);
+  addFooter(11);
   
   return doc;
 }
