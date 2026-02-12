@@ -359,7 +359,7 @@ function generateProposalPDF(data: ProposalData): jsPDF {
     doc.setTextColor(...lightGray);
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
-    doc.text("PM Surya Ghar Yojana Authorized Partner | www.divyanshisolar.com", margin, pageHeight - 12);
+    doc.text("Divyanshi Solar - Authorized Marketing Partner of Hewtech System Pvt. Ltd. | SBPDCL & NBPDCL", margin, pageHeight - 12);
     doc.text(`Page ${pageNum} of ${totalPages}`, pageWidth - margin, pageHeight - 12, { align: "right" });
   };
   
@@ -391,7 +391,7 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text("(Divyanshi Digital Services Pvt. Ltd.)", pageWidth / 2, brandingY + 24, { align: "center" });
+  doc.text("(Hewtech System Pvt. Ltd. | Registered with - SBPDCL & NBPDCL)", pageWidth / 2, brandingY + 24, { align: "center" });
   
   doc.setFontSize(8);
   doc.setFont("helvetica", "italic");
@@ -1363,7 +1363,9 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   doc.text("Divyanshi Solar", pageWidth / 2, y + 32, { align: "center" });
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text("PM Surya Ghar Yojana Authorized Partner", pageWidth / 2, y + 42, { align: "center" });
+  doc.text("Authorized Marketing Partner of Hewtech System Pvt. Ltd.", pageWidth / 2, y + 42, { align: "center" });
+  doc.setFontSize(8);
+  doc.text("Registered with - SBPDCL & NBPDCL", pageWidth / 2, y + 50, { align: "center" });
   
   y = 270;
   doc.setTextColor(...grayColor);
@@ -1594,7 +1596,8 @@ export function SubsidyCalculator({
       const pdfUrl = pdfResponse.downloadUrl ? `${baseUrl}${pdfResponse.downloadUrl}` : '';
       console.log("[WhatsApp] PDF URL:", pdfUrl);
       
-      const message = `*Divyanshi Solar - PM Surya Ghar Yojana Proposal*
+      const message = `*Divyanshi Solar (Hewtech System Pvt. Ltd.) - Solar Proposal*
+_Registered with - SBPDCL & NBPDCL_
 
 *Plant Details:*
 - Capacity: ${data.capacity} kW ${data.panelType === "dcr" ? "DCR" : "Non-DCR"}
@@ -1628,7 +1631,7 @@ Website: https://divyanshisolar.com`;
     } catch (error: any) {
       console.error("WhatsApp share error:", error);
       // Fallback: share without PDF link
-      const message = `*Divyanshi Solar - PM Surya Ghar Yojana Proposal*
+      const message = `*Divyanshi Solar (Hewtech System Pvt. Ltd.) - Solar Proposal*
 
 *Plant Details:*
 - Capacity: ${data.capacity} kW ${data.panelType === "dcr" ? "DCR" : "Non-DCR"}

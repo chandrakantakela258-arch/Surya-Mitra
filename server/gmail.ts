@@ -228,7 +228,8 @@ export function createProposalEmailTemplate(data: ProposalEmailData): string {
           <tr>
             <td style="background-color: #FF6600; padding: 30px 40px; text-align: center;">
               <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Divyanshi Solar</h1>
-              <p style="color: #ffffff; margin: 10px 0 0; font-size: 14px;">PM Surya Ghar Yojana Authorized Partner</p>
+              <p style="color: #ffffff; margin: 10px 0 0; font-size: 13px;">Authorized Marketing Partner of Hewtech System Pvt. Ltd.</p>
+              <p style="color: #ffffffcc; margin: 5px 0 0; font-size: 11px;">Registered with - SBPDCL & NBPDCL</p>
             </td>
           </tr>
           
@@ -398,12 +399,10 @@ export function createProposalEmailTemplate(data: ProposalEmailData): string {
           <!-- Footer -->
           <tr>
             <td style="background-color: #333333; padding: 25px 40px; text-align: center;">
-              <p style="color: #ffffff; margin: 0 0 10px; font-size: 14px;">Divyanshi Digital Services Pvt. Ltd.</p>
+              <p style="color: #ffffff; margin: 0 0 5px; font-size: 14px;">Divyanshi Digital Services Pvt. Ltd. (Hewtech System Pvt. Ltd.)</p>
+              <p style="color: #cccccc; margin: 0 0 5px; font-size: 11px;">Registered with - SBPDCL & NBPDCL</p>
               <p style="color: #999999; margin: 0; font-size: 12px;">
                 www.divyanshisolar.com | info@divyanshisolar.com
-              </p>
-              <p style="color: #999999; margin: 10px 0 0; font-size: 11px;">
-                PM Surya Ghar Yojana Authorized Partner
               </p>
             </td>
           </tr>

@@ -92,15 +92,19 @@ export async function generateProposalPDF(data: ProposalPDFData): Promise<string
   });
   
   page1.drawText('Divyanshi Solar', {
-    x: margin, y: pageHeight - 55, size: 32, font: fontBold, color: white,
+    x: margin, y: pageHeight - 45, size: 32, font: fontBold, color: white,
   });
   
-  page1.drawText('PM Surya Ghar Yojana Authorized Partner', {
-    x: margin, y: pageHeight - 85, size: 14, font: font, color: white,
+  page1.drawText('Authorized Marketing Partner of Hewtech System Pvt. Ltd.', {
+    x: margin, y: pageHeight - 70, size: 12, font: font, color: white,
+  });
+  
+  page1.drawText('Registered with - SBPDCL & NBPDCL', {
+    x: margin, y: pageHeight - 85, size: 11, font: font, color: rgb(1, 0.9, 0.8),
   });
   
   page1.drawText('www.divyanshisolar.com', {
-    x: margin, y: pageHeight - 105, size: 12, font: font, color: rgb(1, 0.9, 0.8),
+    x: margin, y: pageHeight - 100, size: 11, font: font, color: rgb(1, 0.9, 0.8),
   });
   
   // Main title
@@ -680,12 +684,12 @@ export async function generateProposalPDF(data: ProposalPDFData): Promise<string
     color: rgb(1, 0.97, 0.93), borderColor: orange, borderWidth: 1,
   });
   
-  page6.drawText('Why Choose Divyanshi Solar?', {
+  page6.drawText('Why Choose Divyanshi Solar (Hewtech System Pvt. Ltd.)?', {
     x: margin + 15, y: y - 25, size: 14, font: fontBold, color: orange,
   });
   
   const whyUs = [
-    'PM Surya Ghar Yojana Authorized Partner',
+    'Authorized Marketing Partner of Hewtech System Pvt. Ltd.',
     'End-to-end installation with subsidy processing',
     'Experienced team with 1000+ installations',
     'Premium quality components with full warranty',
@@ -712,10 +716,9 @@ export async function generateProposalPDF(data: ProposalPDFData): Promise<string
   });
   
   const contactInfo = [
-    'Divyanshi Digital Services Pvt. Ltd.',
-    'Website: www.divyanshisolar.com',
-    'Email: info@divyanshisolar.com',
-    'Phone: +91-XXXXXXXXXX',
+    'Divyanshi Digital Services Pvt. Ltd. (Hewtech System Pvt. Ltd.)',
+    'Registered with - SBPDCL & NBPDCL',
+    'Website: www.divyanshisolar.com | Email: info@divyanshisolar.com',
   ];
   
   sy = y - 50;
@@ -782,12 +785,16 @@ function drawHeader(page: PDFPage, fontBold: PDFFont, font: PDFFont, title: stri
     x: 0, y: pageHeight - 80, width: pageWidth, height: 80, color: orange,
   });
   
-  page.drawText('Divyanshi Solar', {
-    x: margin, y: pageHeight - 40, size: 20, font: fontBold, color: white,
+  page.drawText('Divyanshi Solar (Hewtech System Pvt. Ltd.)', {
+    x: margin, y: pageHeight - 35, size: 18, font: fontBold, color: white,
+  });
+  
+  page.drawText('Registered with - SBPDCL & NBPDCL', {
+    x: margin, y: pageHeight - 52, size: 9, font: font, color: rgb(1, 0.9, 0.8),
   });
   
   page.drawText(title, {
-    x: margin, y: pageHeight - 65, size: 14, font: font, color: white,
+    x: margin, y: pageHeight - 70, size: 14, font: font, color: white,
   });
 }
 
@@ -795,8 +802,11 @@ function drawFooter(page: PDFPage, font: PDFFont, pageNum: number) {
   const pageWidth = 595;
   const gray = rgb(0.5, 0.5, 0.5);
   
-  page.drawText(`Page ${pageNum} | Divyanshi Solar - PM Surya Ghar Yojana Partner | www.divyanshisolar.com`, {
-    x: 50, y: 25, size: 8, font, color: gray,
+  page.drawText(`Page ${pageNum} | Divyanshi Solar - Authorized Marketing Partner of Hewtech System Pvt. Ltd.`, {
+    x: 50, y: 33, size: 8, font, color: gray,
+  });
+  page.drawText('Registered with - SBPDCL & NBPDCL | www.divyanshisolar.com', {
+    x: 50, y: 22, size: 8, font, color: gray,
   });
 }
 
