@@ -1282,8 +1282,9 @@ export default function LandingPage() {
                 </div>
                 <h3 className="font-semibold text-lg mb-2">Office Address</h3>
                 <p className="text-muted-foreground text-sm">
-                  PIPARWAN, PANCHAYAT-JAITIPUR,<br />
-                  NAUBATPUR, PATNA 800014
+                  Hewtech System Pvt. Ltd. (Registered with - SBPDCL & NBPDCL)<br />
+                  Golu Babu Market, Ashiyana Digha Road,<br />
+                  Rajiv Nagar, Patna, 800025
                 </p>
               </CardContent>
             </Card>

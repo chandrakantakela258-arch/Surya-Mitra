@@ -716,8 +716,8 @@ export async function generateProposalPDF(data: ProposalPDFData): Promise<string
   });
   
   const contactInfo = [
-    'Divyanshi Digital Services Pvt. Ltd. (Hewtech System Pvt. Ltd.)',
-    'Registered with - SBPDCL & NBPDCL',
+    'Hewtech System Pvt. Ltd. (Registered with - SBPDCL & NBPDCL)',
+    'Golu Babu Market, Ashiyana Digha Road, Rajiv Nagar, Patna, 800025',
     'Website: www.divyanshisolar.com | Email: info@divyanshisolar.com',
   ];
   

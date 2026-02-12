@@ -399,8 +399,8 @@ export function createProposalEmailTemplate(data: ProposalEmailData): string {
           <!-- Footer -->
           <tr>
             <td style="background-color: #333333; padding: 25px 40px; text-align: center;">
-              <p style="color: #ffffff; margin: 0 0 5px; font-size: 14px;">Divyanshi Digital Services Pvt. Ltd. (Hewtech System Pvt. Ltd.)</p>
-              <p style="color: #cccccc; margin: 0 0 5px; font-size: 11px;">Registered with - SBPDCL & NBPDCL</p>
+              <p style="color: #ffffff; margin: 0 0 5px; font-size: 14px;">Hewtech System Pvt. Ltd. (Registered with - SBPDCL & NBPDCL)</p>
+              <p style="color: #cccccc; margin: 0 0 5px; font-size: 11px;">Golu Babu Market, Ashiyana Digha Road, Rajiv Nagar, Patna, 800025</p>
               <p style="color: #999999; margin: 0; font-size: 12px;">
                 www.divyanshisolar.com | info@divyanshisolar.com
               </p>

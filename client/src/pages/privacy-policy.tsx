@@ -107,7 +107,8 @@ export default function PrivacyPolicyPage() {
                 <h2 className="text-xl font-semibold text-foreground mb-3">7. Contact Us</h2>
                 <p className="mb-2">For privacy-related inquiries, please contact:</p>
                 <p><strong>Divyanshi Digital Services Pvt. Ltd.</strong></p>
-                <p>PIPARWAN, PANCHAYAT-JAITIPUR, NAUBATPUR, PATNA 800014</p>
+                <p>Hewtech System Pvt. Ltd. (Registered with - SBPDCL & NBPDCL)</p>
+                <p>Golu Babu Market, Ashiyana Digha Road, Rajiv Nagar, Patna, 800025</p>
                 <p>Email: chandrakant@divyanshisolar.com</p>
                 <p>Phone: 9801005212, 8709127232</p>
               </section>

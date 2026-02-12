@@ -129,7 +129,8 @@ export default function AboutUsPage() {
                     <MapPin className="w-5 h-5 text-primary mt-1 flex-shrink-0" />
                     <div>
                       <p className="font-medium text-foreground">Registered Office</p>
-                      <p>PIPARWAN, PANCHAYAT-JAITIPUR, NAUBATPUR, PATNA 800014</p>
+                      <p>Hewtech System Pvt. Ltd. (Registered with - SBPDCL & NBPDCL)</p>
+                      <p>Golu Babu Market, Ashiyana Digha Road, Rajiv Nagar, Patna, 800025</p>
                     </div>
                   </div>
                   
