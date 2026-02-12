@@ -175,10 +175,12 @@ export class NotificationService {
   }
 
   private async sendWhatsAppViaCunnekt(to: string, message: string, _campaignOrTemplateId?: string, _templateParams?: string[]): Promise<boolean> {
-    if (!this.cunnektApiKey) {
+    const apiKey = process.env.CUNNEKT_API_KEY || this.cunnektApiKey;
+    if (!apiKey) {
       console.error("[Cunnekt] WhatsApp notification skipped - CUNNEKT_API_KEY not configured");
       return false;
     }
+    this.cunnektApiKey = apiKey;
 
     try {
       const phoneNumber = this.formatCunnektPhone(to);
@@ -787,11 +789,11 @@ _Thank you for choosing Divyanshi Solar!_`;
 
   isConfigured(): { twilio: boolean; resend: boolean; aisensy: boolean; fast2sms: boolean; cunnekt: boolean } {
     return {
-      twilio: !!(this.twilioAccountSid && this.twilioAuthToken && this.twilioPhoneNumber),
-      resend: !!this.resendApiKey,
-      aisensy: !!this.aisensyApiKey,
-      fast2sms: !!this.fast2smsApiKey,
-      cunnekt: !!this.cunnektApiKey,
+      twilio: !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER),
+      resend: !!process.env.RESEND_API_KEY,
+      aisensy: !!process.env.AISENSY_API_KEY,
+      fast2sms: !!process.env.FAST2SMS_API_KEY,
+      cunnekt: !!process.env.CUNNEKT_API_KEY,
     };
   }
 
