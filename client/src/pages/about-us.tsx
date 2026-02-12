@@ -35,9 +35,11 @@ export default function AboutUsPage() {
         <Card>
           <CardContent className="p-8">
             <h1 className="text-3xl font-bold mb-6">About Us</h1>
-            <p className="text-muted-foreground mb-4">
+            <p className="text-muted-foreground mb-1">
               <strong>Divyanshi Solar (Divyanshi Digital Services Pvt. Ltd.)</strong>
             </p>
+            <p className="text-sm text-muted-foreground mb-1">Authorized Marketing Partner of Hewtech System Pvt. Ltd.</p>
+            <p className="text-sm text-muted-foreground mb-4">Registered with - SBPDCL & NBPDCL</p>
 
             <div className="space-y-8 text-muted-foreground">
               {/* Company Overview */}

@@ -35,9 +35,11 @@ export default function PrivacyPolicyPage() {
         <Card>
           <CardContent className="p-8">
             <h1 className="text-3xl font-bold mb-6">Privacy Policy</h1>
-            <p className="text-muted-foreground mb-4">
+            <p className="text-muted-foreground mb-1">
               <strong>Divyanshi Solar (Divyanshi Digital Services Pvt. Ltd.)</strong>
             </p>
+            <p className="text-sm text-muted-foreground mb-1">Authorized Marketing Partner of Hewtech System Pvt. Ltd.</p>
+            <p className="text-sm text-muted-foreground mb-4">Registered with - SBPDCL & NBPDCL</p>
             <p className="text-sm text-muted-foreground mb-8">Last Updated: December 2024</p>
 
             <div className="space-y-6 text-muted-foreground">
