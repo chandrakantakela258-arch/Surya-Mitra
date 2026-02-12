@@ -1352,9 +1352,14 @@ export default function LandingPage() {
                   className="h-12 w-auto object-contain"
                 />
               </div>
+              <p className="text-sm text-muted-foreground mb-1">
+                A brand of Divyanshi Digital Services Pvt. Ltd.
+              </p>
+              <p className="text-sm text-muted-foreground mb-1">
+                Authorized Marketing Partner of Hewtech System Pvt. Ltd.
+              </p>
               <p className="text-sm text-muted-foreground mb-4">
-                A brand of Divyanshi Digital Services Pvt. Ltd.<br />
-                Authorized Partner Network for PM Surya Ghar Yojana
+                Registered with - SBPDCL & NBPDCL
               </p>
               <p className="text-xs text-muted-foreground">
                 CIN: U93090BR2017PTC036522
