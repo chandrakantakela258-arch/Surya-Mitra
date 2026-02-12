@@ -1367,10 +1367,11 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   doc.setFontSize(8);
   doc.text("Registered with - SBPDCL & NBPDCL", pageWidth / 2, y + 50, { align: "center" });
   
-  y = 270;
-  doc.setTextColor(...grayColor);
-  doc.setFontSize(9);
-  doc.text("info@divyanshisolar.com | www.divyanshisolar.com", pageWidth / 2, y, { align: "center" });
+  y = 268;
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(8);
+  doc.text("Hewtech System Pvt. Ltd. (Registered with - SBPDCL & NBPDCL), Golu Babu Market, Ashiyana Digha Road, Rajiv Nagar, Patna,", pageWidth / 2, y, { align: "center" });
+  doc.text("800025 , Chandrakant Akela , Mobile Number - 9801005212 , chandrakant@divyanshi.solar.com", pageWidth / 2, y + 10, { align: "center" });
   
   addFooter(11);
   

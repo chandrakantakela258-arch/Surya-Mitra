@@ -718,7 +718,8 @@ export async function generateProposalPDF(data: ProposalPDFData): Promise<string
   const contactInfo = [
     'Hewtech System Pvt. Ltd. (Registered with - SBPDCL & NBPDCL)',
     'Golu Babu Market, Ashiyana Digha Road, Rajiv Nagar, Patna, 800025',
-    'Website: www.divyanshisolar.com | Email: info@divyanshisolar.com',
+    'Chandrakant Akela, Mobile: 9801005212, chandrakant@divyanshisolar.com',
+    'Website: www.divyanshisolar.com',
   ];
   
   sy = y - 50;
