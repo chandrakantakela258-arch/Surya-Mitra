@@ -3637,6 +3637,26 @@ export async function registerRoutes(
     }
   });
 
+  // ============ CUNNEKT WHATSAPP WEBHOOK ============
+
+  app.post("/api/cunnekt/webhook", async (req, res) => {
+    try {
+      const payload = req.body;
+      console.log("[Cunnekt Webhook] Received:", JSON.stringify(payload, null, 2));
+
+      if (payload.type === "message_status") {
+        console.log(`[Cunnekt Webhook] Message ${payload.messageId} status: ${payload.status} for ${payload.mobile}`);
+      } else if (payload.type === "incoming_message" || payload.message) {
+        console.log(`[Cunnekt Webhook] Incoming message from ${payload.mobile || payload.from}: ${payload.message || payload.text || "media"}`);
+      }
+
+      res.json({ status: "ok" });
+    } catch (error) {
+      console.error("[Cunnekt Webhook] Error:", error);
+      res.status(500).json({ message: "Webhook processing failed" });
+    }
+  });
+
   // ============ PUBLIC CUSTOMER REGISTRATION ============
   
   // Public: Register as a customer (no authentication required)

@@ -60,7 +60,8 @@ The system uses session-based authentication stored in PostgreSQL, with role-bas
 ### Communication Services
 - **Fast2SMS**: Primary SMS provider for India (cost-effective, Rs 50 starting trial). Uses 'q' route for general messages and 'otp' route for OTP.
 - **Twilio**: Alternative SMS provider and WhatsApp Business API support. Set `SMS_PROVIDER=twilio` to use Twilio for SMS.
-- **AiSensy**: Primary WhatsApp Business API provider (prepaid model, free setup). Supports template-based messaging and OTP via WhatsApp.
+- **Cunnekt**: Primary WhatsApp Business API provider (Official Meta Service Partner). Supports template-based messaging via `sendnotification` endpoint and reply messaging within 24-hour window via `sendreplymessage` endpoint. Also supports media templates (image, video, document headers).
+- **AiSensy**: Alternative WhatsApp Business API provider (prepaid model, free setup). Supports template-based messaging and OTP via WhatsApp.
 - **Gmail API (via Replit Connectors)**: For sending professional HTML emails directly to customers. Uses OAuth2 authentication through Replit's Gmail connection. Supports proposal emails with solar system details, welcome emails, and custom HTML emails.
 - **Resend**: Alternative for professional HTML email notifications.
 
@@ -70,7 +71,14 @@ The system uses session-based authentication stored in PostgreSQL, with role-bas
 - For Twilio: Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_PHONE_NUMBER`
 
 **WhatsApp Provider Configuration**:
-- Set `WHATSAPP_PROVIDER` environment variable to `aisensy` (default) or `twilio`
+- Set `WHATSAPP_PROVIDER` environment variable to `cunnekt` (default), `aisensy`, or `twilio`
+- For Cunnekt: Set `CUNNEKT_API_KEY` (get from Cunnekt Dashboard -> API Settings at https://app2.cunnekt.com/dashboard/apisetup)
+  - Base URL: `https://app2.cunnekt.com/v1`
+  - Template messages: `POST /v1/sendnotification` (business-initiated, requires pre-approved templates)
+  - Reply messages: `POST /v1/sendreplymessage` (within 24-hour customer service window)
+  - Media templates: Supports image, video, and document headers in template messages
+  - Webhook callback: Set callback URL in Cunnekt API Settings to `https://your-domain/api/cunnekt/webhook` for delivery receipts and incoming messages
+  - Phone format: Country code + number (e.g., 919898989898)
 - For AiSensy: Set `AISENSY_API_KEY` (get from AiSensy Dashboard -> Manage -> API Key at https://aisensy.com)
 - For Twilio: Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_PHONE_NUMBER`
 - AiSensy requires pre-approved WhatsApp message templates. Create campaigns in AiSensy dashboard before using.

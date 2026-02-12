@@ -49,8 +49,9 @@ export class NotificationService {
   private twilioPhoneNumber: string | undefined;
   private fast2smsApiKey: string | undefined;
   private aisensyApiKey: string | undefined;
+  private cunnektApiKey: string | undefined;
   private smsProvider: "twilio" | "fast2sms";
-  private whatsappProvider: "twilio" | "aisensy";
+  private whatsappProvider: "twilio" | "aisensy" | "cunnekt";
   private resendApiKey: string | undefined;
   private fromEmail: string;
 
@@ -60,8 +61,9 @@ export class NotificationService {
     this.twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
     this.fast2smsApiKey = process.env.FAST2SMS_API_KEY;
     this.aisensyApiKey = process.env.AISENSY_API_KEY;
+    this.cunnektApiKey = process.env.CUNNEKT_API_KEY;
     this.smsProvider = (process.env.SMS_PROVIDER as "twilio" | "fast2sms") || "fast2sms";
-    this.whatsappProvider = (process.env.WHATSAPP_PROVIDER as "twilio" | "aisensy") || "aisensy";
+    this.whatsappProvider = (process.env.WHATSAPP_PROVIDER as "twilio" | "aisensy" | "cunnekt") || "cunnekt";
     this.resendApiKey = process.env.RESEND_API_KEY;
     this.fromEmail = process.env.FROM_EMAIL || "notifications@divyanshisolar.com";
   }
@@ -78,6 +80,9 @@ export class NotificationService {
   }
 
   async sendWhatsAppMessage(to: string, message: string, campaignName?: string, templateParams?: string[], userName?: string): Promise<boolean> {
+    if (this.whatsappProvider === "cunnekt") {
+      return this.sendWhatsAppViaCunnekt(to, message, campaignName, templateParams);
+    }
     if (this.whatsappProvider === "aisensy") {
       return this.sendWhatsAppViaAiSensy(to, message, campaignName, templateParams, userName);
     }
@@ -154,6 +159,215 @@ export class NotificationService {
       return true;
     } catch (error) {
       console.error("[AiSensy] Error sending WhatsApp:", error);
+      return false;
+    }
+  }
+
+  private static readonly CUNNEKT_TEMPLATE_MAP: Record<string, string> = {
+    "status_update": "status_update",
+    "milestone_complete": "milestone_complete",
+    "commission_earned": "commission_earned",
+    "otp_verification": "otp_verification",
+    "welcome_message": "welcome_message",
+    "Divyanshi_Partner_Meeting": "partner_meeting",
+  };
+
+  private async sendWhatsAppViaCunnekt(to: string, message: string, campaignOrTemplateId?: string, templateParams?: string[]): Promise<boolean> {
+    if (!this.cunnektApiKey) {
+      console.error("[Cunnekt] WhatsApp notification skipped - CUNNEKT_API_KEY not configured");
+      return false;
+    }
+
+    try {
+      let phoneNumber = to.replace(/\D/g, "");
+      if (phoneNumber.length === 10) {
+        phoneNumber = "91" + phoneNumber;
+      }
+      if (phoneNumber.startsWith("+")) {
+        phoneNumber = phoneNumber.substring(1);
+      }
+
+      const templateId = campaignOrTemplateId
+        ? (NotificationService.CUNNEKT_TEMPLATE_MAP[campaignOrTemplateId] || campaignOrTemplateId)
+        : undefined;
+
+      if (templateId) {
+        return this.sendCunnektTemplateMessage(phoneNumber, templateId, templateParams);
+      }
+
+      console.log("[Cunnekt] No template ID provided - attempting sendnotification with default template. Note: sendreplymessage only works within 24-hour window.");
+      return this.sendCunnektTemplateMessage(phoneNumber, "general_notification", [message.substring(0, 1024)]);
+    } catch (error) {
+      console.error("[Cunnekt] Error sending WhatsApp:", error);
+      return false;
+    }
+  }
+
+  private async sendCunnektTemplateMessage(phoneNumber: string, templateId: string, templateParams?: string[]): Promise<boolean> {
+    try {
+      const requestBody: any = {
+        mobile: phoneNumber,
+        templateid: templateId,
+      };
+
+      if (templateParams && templateParams.length > 0) {
+        requestBody.template = {
+          components: [
+            {
+              type: "body",
+              parameters: templateParams.map(param => ({
+                type: "text",
+                text: param,
+              })),
+            },
+          ],
+        };
+      }
+
+      console.log("[Cunnekt] Sending template message to:", phoneNumber, "Template:", templateId);
+
+      const response = await fetch("https://app2.cunnekt.com/v1/sendnotification", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "API-KEY": this.cunnektApiKey!,
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const responseText = await response.text();
+      console.log("[Cunnekt] Template response status:", response.status);
+      console.log("[Cunnekt] Template response body:", responseText);
+
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch {
+        console.error("[Cunnekt] Failed to parse template response as JSON");
+        return response.ok;
+      }
+
+      if (!response.ok) {
+        console.error("[Cunnekt] Template message error:", JSON.stringify(responseData));
+        return false;
+      }
+
+      console.log(`[Cunnekt] Template message sent successfully to ${phoneNumber}`);
+      return true;
+    } catch (error) {
+      console.error("[Cunnekt] Error sending template message:", error);
+      return false;
+    }
+  }
+
+  private async sendCunnektReplyMessage(phoneNumber: string, message: string): Promise<boolean> {
+    try {
+      const requestBody = {
+        mobile: phoneNumber,
+        message: message,
+        type: "text",
+      };
+
+      console.log("[Cunnekt] Sending reply message to:", phoneNumber);
+
+      const response = await fetch("https://app2.cunnekt.com/v1/sendreplymessage", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "API-KEY": this.cunnektApiKey!,
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const responseText = await response.text();
+      console.log("[Cunnekt] Reply response status:", response.status);
+      console.log("[Cunnekt] Reply response body:", responseText);
+
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch {
+        console.error("[Cunnekt] Failed to parse reply response as JSON");
+        return response.ok;
+      }
+
+      if (!response.ok) {
+        console.error("[Cunnekt] Reply message error:", JSON.stringify(responseData));
+        return false;
+      }
+
+      console.log(`[Cunnekt] Reply message sent successfully to ${phoneNumber}`);
+      return true;
+    } catch (error) {
+      console.error("[Cunnekt] Error sending reply message:", error);
+      return false;
+    }
+  }
+
+  async sendCunnektMediaTemplate(phoneNumber: string, templateId: string, mediaType: "image" | "video" | "document", mediaUrl: string, templateParams?: string[], fileName?: string): Promise<boolean> {
+    if (!this.cunnektApiKey) {
+      console.error("[Cunnekt] Media template skipped - CUNNEKT_API_KEY not configured");
+      return false;
+    }
+
+    try {
+      let formattedPhone = phoneNumber.replace(/\D/g, "");
+      if (formattedPhone.length === 10) {
+        formattedPhone = "91" + formattedPhone;
+      }
+
+      const headerParam: any = { type: mediaType };
+      headerParam[mediaType] = { link: mediaUrl };
+      if (mediaType === "document" && fileName) {
+        headerParam[mediaType].filename = fileName;
+      }
+
+      const components: any[] = [
+        {
+          type: "header",
+          parameters: [headerParam],
+        },
+      ];
+
+      if (templateParams && templateParams.length > 0) {
+        components.push({
+          type: "body",
+          parameters: templateParams.map(param => ({
+            type: "text",
+            text: param,
+          })),
+        });
+      }
+
+      const requestBody = {
+        mobile: formattedPhone,
+        templateid: templateId,
+        template: { components },
+      };
+
+      console.log("[Cunnekt] Sending media template to:", formattedPhone, "Template:", templateId, "Media:", mediaType);
+
+      const response = await fetch("https://app2.cunnekt.com/v1/sendnotification", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "API-KEY": this.cunnektApiKey,
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const responseText = await response.text();
+      console.log("[Cunnekt] Media template response:", response.status, responseText);
+
+      if (!response.ok) {
+        console.error("[Cunnekt] Media template error:", responseText);
+        return false;
+      }
+
+      console.log(`[Cunnekt] Media template sent successfully to ${formattedPhone}`);
+      return true;
+    } catch (error) {
+      console.error("[Cunnekt] Error sending media template:", error);
       return false;
     }
   }
@@ -263,6 +477,9 @@ export class NotificationService {
   }
 
   async sendWhatsAppOTP(to: string, otp: string): Promise<boolean> {
+    if (this.whatsappProvider === "cunnekt" && this.cunnektApiKey) {
+      return this.sendWhatsAppMessage(to, otp, "otp_verification", [otp]);
+    }
     if (this.whatsappProvider === "aisensy" && this.aisensyApiKey) {
       return this.sendWhatsAppMessage(to, otp, "otp_verification", [otp]);
     }
@@ -601,12 +818,13 @@ _Thank you for choosing Divyanshi Solar!_`;
     }
   }
 
-  isConfigured(): { twilio: boolean; resend: boolean; aisensy: boolean; fast2sms: boolean } {
+  isConfigured(): { twilio: boolean; resend: boolean; aisensy: boolean; fast2sms: boolean; cunnekt: boolean } {
     return {
       twilio: !!(this.twilioAccountSid && this.twilioAuthToken && this.twilioPhoneNumber),
       resend: !!this.resendApiKey,
       aisensy: !!this.aisensyApiKey,
       fast2sms: !!this.fast2smsApiKey,
+      cunnekt: !!this.cunnektApiKey,
     };
   }
 
