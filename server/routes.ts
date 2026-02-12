@@ -3909,14 +3909,14 @@ export async function registerRoutes(
   app.get("/api/admin/notification-config", requireAdmin, async (req, res) => {
     try {
       const config = notificationService.isConfigured();
-      // Gmail is configured via Replit connector (always active if connection exists)
-      const gmailActive = true; // Gmail API is connected via Replit integrations
+      const gmailActive = true;
+      const whatsappActive = config.cunnekt || config.aisensy || config.twilio;
       res.json({
-        whatsapp: config.aisensy,
+        whatsapp: whatsappActive,
         sms: config.fast2sms,
         email: gmailActive,
-        message: !config.aisensy && !config.fast2sms && !gmailActive
-          ? "No notification services configured. Add AISENSY_API_KEY and FAST2SMS_API_KEY secrets to enable."
+        message: !whatsappActive && !config.fast2sms && !gmailActive
+          ? "No notification services configured. Add CUNNEKT_API_KEY and FAST2SMS_API_KEY secrets to enable."
           : "Notification services active.",
       });
     } catch (error) {
@@ -4510,17 +4510,16 @@ export async function registerRoutes(
         }
         
         try {
-          // Use Divyanshi_Partner_Meeting campaign for test broadcasts
           const whatsappSuccess = await notificationService.sendWhatsAppMessage(
             phone, 
             message, 
             "Divyanshi_Partner_Meeting", 
-            [], // Empty templateParams as per AiSensy spec
+            [],
             "Divyanshi digital service pvt ltd"
           );
           results.whatsapp = whatsappSuccess ? "sent" : "failed";
           if (!whatsappSuccess) {
-            console.error("Test WhatsApp failed - check AiSensy configuration and AISENSY_API_KEY");
+            console.error("Test WhatsApp failed - check WhatsApp provider configuration (CUNNEKT_API_KEY or AISENSY_API_KEY)");
           }
         } catch (err) {
           results.whatsapp = "failed";

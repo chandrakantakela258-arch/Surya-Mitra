@@ -232,7 +232,7 @@ export default function NotificationSettingsPage() {
                 </div>
                 <div>
                   <p className="font-medium">WhatsApp</p>
-                  <p className="text-xs text-muted-foreground">AiSensy</p>
+                  <p className="text-xs text-muted-foreground">Cunnekt</p>
                 </div>
               </div>
               {configLoading ? (
