@@ -1242,6 +1242,86 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   doc.setTextColor(...grayColor);
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
+  doc.text("OUR PARTNER", pageWidth - 20, 20, { align: "right" });
+  
+  y = 50;
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.text("Hewtech System Pvt. Ltd.", 20, y);
+  
+  y = 65;
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  doc.text("Registered with - SBPDCL & NBPDCL", 20, y);
+
+  y = 90;
+  doc.setFillColor(245, 245, 245);
+  doc.roundedRect(20, y, pageWidth - 40, 55, 3, 3, 'F');
+  doc.setFillColor(...primaryColor);
+  doc.roundedRect(20, y, 4, 55, 2, 2, 'F');
+  
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("Residential Solar Installations", 32, y + 15);
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  const residentialLines = doc.splitTextToSize(
+    "Hewtech System has installed rooftop solar plants under PM Surya Ghar Yojana on more than 93 households with a total plant capacity of 331 kW.",
+    pageWidth - 72
+  );
+  doc.text(residentialLines, 32, y + 28);
+
+  y = 160;
+  doc.setFillColor(245, 245, 245);
+  doc.roundedRect(20, y, pageWidth - 40, 55, 3, 3, 'F');
+  doc.setFillColor(255, 102, 0);
+  doc.roundedRect(20, y, 4, 55, 2, 2, 'F');
+  
+  doc.setTextColor(255, 102, 0);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("Commercial Solar Installations", 32, y + 15);
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  const commercialLines = doc.splitTextToSize(
+    "Hewtech System has also installed commercial solar plants of more than 700 kW on commercial units.",
+    pageWidth - 72
+  );
+  doc.text(commercialLines, 32, y + 28);
+
+  y = 230;
+  doc.setFillColor(...primaryColor);
+  doc.roundedRect(20, y, (pageWidth - 50) / 2, 35, 3, 3, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(20);
+  doc.setFont("helvetica", "bold");
+  doc.text("93+", 20 + ((pageWidth - 50) / 4), y + 15, { align: "center" });
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("Households Served", 20 + ((pageWidth - 50) / 4), y + 27, { align: "center" });
+
+  doc.setFillColor(255, 102, 0);
+  doc.roundedRect(30 + (pageWidth - 50) / 2, y, (pageWidth - 50) / 2, 35, 3, 3, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(20);
+  doc.setFont("helvetica", "bold");
+  doc.text("1000+ kW", 30 + (pageWidth - 50) / 2 + ((pageWidth - 50) / 4), y + 15, { align: "center" });
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("Total Capacity Installed", 30 + (pageWidth - 50) / 2 + ((pageWidth - 50) / 4), y + 27, { align: "center" });
+
+  addFooter(doc.getNumberOfPages());
+
+  doc.addPage();
+  
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
   doc.text("TERMS", pageWidth - 20, 20, { align: "right" });
   
   y = 50;
