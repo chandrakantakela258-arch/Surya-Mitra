@@ -537,10 +537,12 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold mb-4">About Divyanshi Solar</h2>
-            <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+            <p className="text-lg text-muted-foreground max-w-3xl mx-auto mb-2">
               Divyanshi Solar is an authorized partner network under PM Surya Ghar Yojana, committed to helping 
               Indian households transition to clean, reliable, and affordable solar energy.
             </p>
+            <p className="text-sm font-medium text-foreground">Divyanshi Solar is a Authorized Marketing Partner of Hewtech System Pvt. Ltd.</p>
+            <p className="text-sm text-muted-foreground">Registered with - SBPDCL & NBPDCL</p>
           </div>
 
           {/* Company Background */}
