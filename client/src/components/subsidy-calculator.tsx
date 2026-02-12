@@ -1350,28 +1350,29 @@ function generateProposalPDF(data: ProposalData): jsPDF {
     doc.text(term, 30, y + 10 + (i * 20));
   });
   
-  y = 210;
+  y = 215;
   doc.setFillColor(255, 102, 0);
-  doc.rect(0, y, pageWidth, 50, 'F');
+  doc.rect(0, y, pageWidth, 48, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(10);
   doc.setFont("helvetica", "italic");
-  doc.text("\"For us Customers are not clients - They are Family\"", pageWidth / 2, y + 15, { align: "center" });
+  doc.text("\"For us Customers are not clients - They are Family\"", pageWidth / 2, y + 13, { align: "center" });
   
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text("Divyanshi Solar", pageWidth / 2, y + 32, { align: "center" });
+  doc.text("Divyanshi Solar", pageWidth / 2, y + 28, { align: "center" });
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text("Authorized Marketing Partner of Hewtech System Pvt. Ltd.", pageWidth / 2, y + 42, { align: "center" });
+  doc.text("Authorized Marketing Partner of Hewtech System Pvt. Ltd.", pageWidth / 2, y + 38, { align: "center" });
   doc.setFontSize(8);
-  doc.text("Registered with - SBPDCL & NBPDCL", pageWidth / 2, y + 50, { align: "center" });
+  doc.text("Registered with - SBPDCL & NBPDCL", pageWidth / 2, y + 46, { align: "center" });
   
-  y = 268;
+  y = y + 53;
   doc.setTextColor(...darkColor);
-  doc.setFontSize(8);
-  doc.text("Hewtech System Pvt. Ltd. (Registered with - SBPDCL & NBPDCL), Golu Babu Market, Ashiyana Digha Road, Rajiv Nagar, Patna,", pageWidth / 2, y, { align: "center" });
-  doc.text("800025 , Chandrakant Akela , Mobile Number - 9801005212 , chandrakant@divyanshi.solar.com", pageWidth / 2, y + 10, { align: "center" });
+  doc.setFontSize(7.5);
+  doc.text("Hewtech System Pvt. Ltd. (Registered with - SBPDCL & NBPDCL)", pageWidth / 2, y, { align: "center" });
+  doc.text("Golu Babu Market, Ashiyana Digha Road, Rajiv Nagar, Patna, 800025", pageWidth / 2, y + 8, { align: "center" });
+  doc.text("Chandrakant Akela | Mobile: 9801005212 | chandrakant@divyanshisolar.com", pageWidth / 2, y + 16, { align: "center" });
   
   addFooter(11);
   
