@@ -66,10 +66,12 @@ export default function NotificationSettingsPage() {
   const [broadcastPartnerType, setBroadcastPartnerType] = useState("all");
   const [broadcastTemplateId, setBroadcastTemplateId] = useState("");
   const [broadcastTemplateParams, setBroadcastTemplateParams] = useState("");
+  const [broadcastImageUrl, setBroadcastImageUrl] = useState("");
   
   // Test notification state
   const [testTemplateId, setTestTemplateId] = useState("");
   const [testTemplateParams, setTestTemplateParams] = useState("");
+  const [testImageUrl, setTestImageUrl] = useState("");
 
   const { data: config, isLoading: configLoading } = useQuery<{
     whatsapp: boolean;
@@ -120,7 +122,7 @@ export default function NotificationSettingsPage() {
   });
 
   const testNotificationMutation = useMutation({
-    mutationFn: (data: { phone?: string; email?: string; message: string; templateId?: string; templateParams?: string[] }) =>
+    mutationFn: (data: { phone?: string; email?: string; message: string; templateId?: string; templateParams?: string[]; imageUrl?: string }) =>
       apiRequest("POST", "/api/admin/test-notification", data),
     onSuccess: (data: any) => {
       setShowTestDialog(false);
@@ -137,7 +139,7 @@ export default function NotificationSettingsPage() {
   });
 
   const broadcastMutation = useMutation({
-    mutationFn: (data: { subject: string; message: string; sendWhatsApp: boolean; sendEmail: boolean; partnerType: string; templateId?: string; templateParams?: string[] }) =>
+    mutationFn: (data: { subject: string; message: string; sendWhatsApp: boolean; sendEmail: boolean; partnerType: string; templateId?: string; templateParams?: string[]; imageUrl?: string }) =>
       apiRequest("POST", "/api/admin/broadcast-partners", data),
     onSuccess: (data: any) => {
       setShowBroadcastDialog(false);
@@ -145,6 +147,7 @@ export default function NotificationSettingsPage() {
       setBroadcastMessage("");
       setBroadcastTemplateId("");
       setBroadcastTemplateParams("");
+      setBroadcastImageUrl("");
       const results = data.results || { whatsapp: { sent: 0, failed: 0 }, email: { sent: 0, failed: 0 } };
       toast({ 
         title: "Broadcast sent successfully!", 
@@ -553,6 +556,19 @@ export default function NotificationSettingsPage() {
               </p>
             </div>
             <div>
+              <Label htmlFor="testImageUrl">Image URL (for image templates)</Label>
+              <Input
+                id="testImageUrl"
+                value={testImageUrl}
+                onChange={(e) => setTestImageUrl(e.target.value)}
+                placeholder="https://example.com/image.jpg"
+                data-testid="input-test-image-url"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Public URL of the image for templates with image headers
+              </p>
+            </div>
+            <div>
               <Label htmlFor="testEmail">Email Address</Label>
               <Input
                 id="testEmail"
@@ -586,6 +602,7 @@ export default function NotificationSettingsPage() {
                   message: testMessage,
                   templateId: testTemplateId || undefined,
                   templateParams: testTemplateParams ? testTemplateParams.split(",").map(p => p.trim()) : undefined,
+                  imageUrl: testImageUrl || undefined,
                 })
               }
               disabled={testNotificationMutation.isPending}
@@ -671,6 +688,20 @@ export default function NotificationSettingsPage() {
             </div>
 
             <div>
+              <Label htmlFor="broadcastImageUrl">Image URL (for image templates)</Label>
+              <Input
+                id="broadcastImageUrl"
+                value={broadcastImageUrl}
+                onChange={(e) => setBroadcastImageUrl(e.target.value)}
+                placeholder="https://example.com/image.jpg"
+                data-testid="input-broadcast-image-url"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Public URL of the image for templates with image headers (must be HTTPS, max 5MB)
+              </p>
+            </div>
+
+            <div>
               <Label htmlFor="broadcastMessage">Message (for Email)</Label>
               <Textarea
                 id="broadcastMessage"
@@ -729,6 +760,7 @@ export default function NotificationSettingsPage() {
                   partnerType: broadcastPartnerType,
                   templateId: broadcastTemplateId || undefined,
                   templateParams: broadcastTemplateParams ? broadcastTemplateParams.split(",").map(p => p.trim()) : undefined,
+                  imageUrl: broadcastImageUrl || undefined,
                 })
               }
               disabled={broadcastMutation.isPending || (!broadcastMessage.trim() && !broadcastTemplateId.trim()) || (!broadcastSendWhatsApp && !broadcastSendEmail)}

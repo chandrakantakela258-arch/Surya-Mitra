@@ -79,9 +79,9 @@ export class NotificationService {
     return cleaned;
   }
 
-  async sendWhatsAppMessage(to: string, message: string, campaignName?: string, templateParams?: string[], userName?: string): Promise<boolean> {
+  async sendWhatsAppMessage(to: string, message: string, campaignName?: string, templateParams?: string[], userName?: string, imageUrl?: string): Promise<boolean> {
     if (this.whatsappProvider === "cunnekt") {
-      return this.sendWhatsAppViaCunnekt(to, message, campaignName, templateParams);
+      return this.sendWhatsAppViaCunnekt(to, message, campaignName, templateParams, imageUrl);
     }
     if (this.whatsappProvider === "aisensy") {
       return this.sendWhatsAppViaAiSensy(to, message, campaignName, templateParams, userName);
@@ -174,7 +174,7 @@ export class NotificationService {
     return phoneNumber;
   }
 
-  private async sendWhatsAppViaCunnekt(to: string, message: string, templateId?: string, templateParams?: string[]): Promise<boolean> {
+  private async sendWhatsAppViaCunnekt(to: string, message: string, templateId?: string, templateParams?: string[], imageUrl?: string): Promise<boolean> {
     const apiKey = process.env.CUNNEKT_API_KEY || this.cunnektApiKey;
     if (!apiKey) {
       console.error("[Cunnekt] WhatsApp notification skipped - CUNNEKT_API_KEY not configured");
@@ -186,7 +186,7 @@ export class NotificationService {
       const phoneNumber = this.formatCunnektPhone(to);
       
       if (templateId) {
-        return this.sendCunnektNotificationMessage(phoneNumber, templateId, templateParams);
+        return this.sendCunnektNotificationMessage(phoneNumber, templateId, templateParams, imageUrl);
       }
       
       return this.sendCunnektDirectMessage(phoneNumber, message);
@@ -196,28 +196,43 @@ export class NotificationService {
     }
   }
 
-  private async sendCunnektNotificationMessage(phoneNumber: string, templateId: string, templateParams?: string[]): Promise<boolean> {
+  private async sendCunnektNotificationMessage(phoneNumber: string, templateId: string, templateParams?: string[], imageUrl?: string): Promise<boolean> {
     try {
       const requestBody: any = {
         mobile: phoneNumber,
         templateid: templateId,
       };
 
-      if (templateParams && templateParams.length > 0) {
-        requestBody.template = {
-          components: [
-            {
-              type: "body",
-              parameters: templateParams.map(param => ({
-                type: "text",
-                text: param,
-              })),
+      const components: any[] = [];
+
+      if (imageUrl) {
+        components.push({
+          type: "header",
+          parameters: [{
+            type: "image",
+            image: {
+              link: imageUrl,
             },
-          ],
-        };
+          }],
+        });
       }
 
-      console.log("[Cunnekt] Sending notification to:", phoneNumber, "Template:", templateId);
+      if (templateParams && templateParams.length > 0) {
+        components.push({
+          type: "body",
+          parameters: templateParams.map(param => ({
+            type: "text",
+            text: param,
+          })),
+        });
+      }
+
+      if (components.length > 0) {
+        requestBody.template = { components };
+      }
+
+      console.log("[Cunnekt] Sending notification to:", phoneNumber, "Template:", templateId, "Image:", imageUrl || "none");
+      console.log("[Cunnekt] Request body:", JSON.stringify(requestBody, null, 2));
 
       const response = await fetch("https://app2.cunnekt.com/v1/sendnotification", {
         method: "POST",
@@ -856,7 +871,8 @@ _Thank you for choosing Divyanshi Solar!_`;
     recipients: Array<{ phone: string; name: string }>,
     message: string,
     templateId?: string,
-    templateParams?: string[]
+    templateParams?: string[],
+    imageUrl?: string
   ): Promise<{ sent: number; failed: number; results: Array<{ phone: string; name: string; success: boolean }> }> {
     const results: Array<{ phone: string; name: string; success: boolean }> = [];
     let sent = 0;
@@ -877,7 +893,8 @@ _Thank you for choosing Divyanshi Solar!_`;
           message.replace(/\{\{name\}\}/g, recipient.name),
           templateId || undefined,
           personalizedParams || [],
-          "Divyanshi digital service pvt ltd"
+          "Divyanshi digital service pvt ltd",
+          imageUrl
         );
 
         results.push({ phone: recipient.phone, name: recipient.name, success });

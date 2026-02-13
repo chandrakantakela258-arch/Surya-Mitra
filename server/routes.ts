@@ -4489,7 +4489,7 @@ export async function registerRoutes(
   app.post("/api/admin/test-notification", requireAdmin, async (req, res) => {
     try {
       console.log("[Test Notification] Request received:", JSON.stringify(req.body));
-      const { phone, email, message, templateId, templateParams } = req.body;
+      const { phone, email, message, templateId, templateParams, imageUrl } = req.body;
       
       if (!message && !templateId) {
         return res.status(400).json({ message: "Message or Template ID is required" });
@@ -4515,7 +4515,8 @@ export async function registerRoutes(
             message || "",
             templateId || undefined,
             templateParams || [],
-            "Divyanshi digital service pvt ltd"
+            "Divyanshi digital service pvt ltd",
+            imageUrl || undefined
           );
           results.whatsapp = whatsappSuccess ? "sent" : "failed";
           if (!whatsappSuccess) {
@@ -4561,7 +4562,7 @@ export async function registerRoutes(
   app.post("/api/admin/broadcast-partners", requireAdmin, async (req, res) => {
     try {
       console.log("[Broadcast] Request received:", JSON.stringify(req.body));
-      const { subject, message, sendWhatsApp, sendEmail, partnerType, templateId, templateParams } = req.body;
+      const { subject, message, sendWhatsApp, sendEmail, partnerType, templateId, templateParams, imageUrl } = req.body;
       
       if (!message && !templateId) {
         return res.status(400).json({ message: "Message or Template ID is required" });
@@ -4605,7 +4606,8 @@ export async function registerRoutes(
             whatsAppRecipients,
             message || "",
             templateId || undefined,
-            templateParams || undefined
+            templateParams || undefined,
+            imageUrl || undefined
           );
           console.log("[Broadcast] WhatsApp result:", JSON.stringify(whatsAppResult));
           results.whatsapp = { sent: whatsAppResult.sent, failed: whatsAppResult.failed };
