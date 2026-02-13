@@ -4489,17 +4489,17 @@ export async function registerRoutes(
   app.post("/api/admin/test-notification", requireAdmin, async (req, res) => {
     try {
       console.log("[Test Notification] Request received:", JSON.stringify(req.body));
-      const { phone, email, message } = req.body;
+      const { phone, email, message, templateId, templateParams } = req.body;
       
-      if (!message) {
-        return res.status(400).json({ message: "Message is required" });
+      if (!message && !templateId) {
+        return res.status(400).json({ message: "Message or Template ID is required" });
       }
       
       const results: { sms?: string; whatsapp?: string; email?: string } = {};
       
       if (phone) {
         try {
-          const smsSuccess = await notificationService.sendSMS(phone, message);
+          const smsSuccess = await notificationService.sendSMS(phone, message || "Test from Divyanshi Solar");
           results.sms = smsSuccess ? "sent" : "failed";
           if (!smsSuccess) {
             console.error("Test SMS failed - check Fast2SMS configuration");
@@ -4512,14 +4512,14 @@ export async function registerRoutes(
         try {
           const whatsappSuccess = await notificationService.sendWhatsAppMessage(
             phone, 
-            message, 
-            "Divyanshi_Partner_Meeting", 
-            [],
+            message || "",
+            templateId || undefined,
+            templateParams || [],
             "Divyanshi digital service pvt ltd"
           );
           results.whatsapp = whatsappSuccess ? "sent" : "failed";
           if (!whatsappSuccess) {
-            console.error("Test WhatsApp failed - check WhatsApp provider configuration (CUNNEKT_API_KEY or AISENSY_API_KEY)");
+            console.error("Test WhatsApp failed - check WhatsApp provider configuration (CUNNEKT_API_KEY)");
           }
         } catch (err) {
           results.whatsapp = "failed";
@@ -4561,10 +4561,10 @@ export async function registerRoutes(
   app.post("/api/admin/broadcast-partners", requireAdmin, async (req, res) => {
     try {
       console.log("[Broadcast] Request received:", JSON.stringify(req.body));
-      const { subject, message, sendWhatsApp, sendEmail, partnerType } = req.body;
+      const { subject, message, sendWhatsApp, sendEmail, partnerType, templateId, templateParams } = req.body;
       
-      if (!message) {
-        return res.status(400).json({ message: "Message is required" });
+      if (!message && !templateId) {
+        return res.status(400).json({ message: "Message or Template ID is required" });
       }
       
       if (!sendWhatsApp && !sendEmail) {
@@ -4603,8 +4603,9 @@ export async function registerRoutes(
         if (whatsAppRecipients.length > 0) {
           const whatsAppResult = await notificationService.sendBulkWhatsApp(
             whatsAppRecipients,
-            message,
-            "Divyanshi_Partner_Meeting"
+            message || "",
+            templateId || undefined,
+            templateParams || undefined
           );
           console.log("[Broadcast] WhatsApp result:", JSON.stringify(whatsAppResult));
           results.whatsapp = { sent: whatsAppResult.sent, failed: whatsAppResult.failed };

@@ -174,7 +174,7 @@ export class NotificationService {
     return phoneNumber;
   }
 
-  private async sendWhatsAppViaCunnekt(to: string, message: string, _campaignOrTemplateId?: string, _templateParams?: string[]): Promise<boolean> {
+  private async sendWhatsAppViaCunnekt(to: string, message: string, templateId?: string, templateParams?: string[]): Promise<boolean> {
     const apiKey = process.env.CUNNEKT_API_KEY || this.cunnektApiKey;
     if (!apiKey) {
       console.error("[Cunnekt] WhatsApp notification skipped - CUNNEKT_API_KEY not configured");
@@ -184,9 +184,63 @@ export class NotificationService {
 
     try {
       const phoneNumber = this.formatCunnektPhone(to);
+      
+      if (templateId) {
+        return this.sendCunnektNotificationMessage(phoneNumber, templateId, templateParams);
+      }
+      
       return this.sendCunnektDirectMessage(phoneNumber, message);
     } catch (error) {
       console.error("[Cunnekt] Error sending WhatsApp:", error);
+      return false;
+    }
+  }
+
+  private async sendCunnektNotificationMessage(phoneNumber: string, templateId: string, templateParams?: string[]): Promise<boolean> {
+    try {
+      const requestBody: any = {
+        mobile: phoneNumber,
+        templateid: templateId,
+      };
+
+      if (templateParams && templateParams.length > 0) {
+        requestBody.template = {
+          components: [
+            {
+              type: "body",
+              parameters: templateParams.map(param => ({
+                type: "text",
+                text: param,
+              })),
+            },
+          ],
+        };
+      }
+
+      console.log("[Cunnekt] Sending notification to:", phoneNumber, "Template:", templateId);
+
+      const response = await fetch("https://app2.cunnekt.com/v1/sendnotification", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "API-KEY": this.cunnektApiKey!,
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const responseText = await response.text();
+      console.log("[Cunnekt] Notification response status:", response.status);
+      console.log("[Cunnekt] Notification response body:", responseText);
+
+      if (!response.ok) {
+        console.error("[Cunnekt] Notification error:", responseText);
+        return false;
+      }
+
+      console.log(`[Cunnekt] Notification sent successfully to ${phoneNumber}`);
+      return true;
+    } catch (error) {
+      console.error("[Cunnekt] Error sending notification:", error);
       return false;
     }
   }
@@ -801,7 +855,8 @@ _Thank you for choosing Divyanshi Solar!_`;
   async sendBulkWhatsApp(
     recipients: Array<{ phone: string; name: string }>,
     message: string,
-    campaignName?: string
+    templateId?: string,
+    templateParams?: string[]
   ): Promise<{ sent: number; failed: number; results: Array<{ phone: string; name: string; success: boolean }> }> {
     const results: Array<{ phone: string; name: string; success: boolean }> = [];
     let sent = 0;
@@ -809,17 +864,19 @@ _Thank you for choosing Divyanshi Solar!_`;
 
     for (const recipient of recipients) {
       try {
-        // Add small delay between messages to avoid rate limiting
         if (results.length > 0) {
           await new Promise(resolve => setTimeout(resolve, 500));
         }
 
-        // Use empty templateParams as required by AiSensy for "Divyanshi_Partner_Meeting" template
+        const personalizedParams = templateParams?.map(p => 
+          p.replace(/\{\{name\}\}/g, recipient.name)
+        );
+
         const success = await this.sendWhatsAppMessage(
           recipient.phone,
-          message,
-          campaignName || "Divyanshi_Partner_Meeting",
-          [], // Empty templateParams as per AiSensy spec
+          message.replace(/\{\{name\}\}/g, recipient.name),
+          templateId || undefined,
+          personalizedParams || [],
           "Divyanshi digital service pvt ltd"
         );
 

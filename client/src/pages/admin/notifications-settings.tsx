@@ -64,6 +64,12 @@ export default function NotificationSettingsPage() {
   const [broadcastSendWhatsApp, setBroadcastSendWhatsApp] = useState(true);
   const [broadcastSendEmail, setBroadcastSendEmail] = useState(true);
   const [broadcastPartnerType, setBroadcastPartnerType] = useState("all");
+  const [broadcastTemplateId, setBroadcastTemplateId] = useState("");
+  const [broadcastTemplateParams, setBroadcastTemplateParams] = useState("");
+  
+  // Test notification state
+  const [testTemplateId, setTestTemplateId] = useState("");
+  const [testTemplateParams, setTestTemplateParams] = useState("");
 
   const { data: config, isLoading: configLoading } = useQuery<{
     whatsapp: boolean;
@@ -114,7 +120,7 @@ export default function NotificationSettingsPage() {
   });
 
   const testNotificationMutation = useMutation({
-    mutationFn: (data: { phone?: string; email?: string; message: string }) =>
+    mutationFn: (data: { phone?: string; email?: string; message: string; templateId?: string; templateParams?: string[] }) =>
       apiRequest("POST", "/api/admin/test-notification", data),
     onSuccess: (data: any) => {
       setShowTestDialog(false);
@@ -131,12 +137,14 @@ export default function NotificationSettingsPage() {
   });
 
   const broadcastMutation = useMutation({
-    mutationFn: (data: { subject: string; message: string; sendWhatsApp: boolean; sendEmail: boolean; partnerType: string }) =>
+    mutationFn: (data: { subject: string; message: string; sendWhatsApp: boolean; sendEmail: boolean; partnerType: string; templateId?: string; templateParams?: string[] }) =>
       apiRequest("POST", "/api/admin/broadcast-partners", data),
     onSuccess: (data: any) => {
       setShowBroadcastDialog(false);
       setBroadcastSubject("");
       setBroadcastMessage("");
+      setBroadcastTemplateId("");
+      setBroadcastTemplateParams("");
       const results = data.results || { whatsapp: { sent: 0, failed: 0 }, email: { sent: 0, failed: 0 } };
       toast({ 
         title: "Broadcast sent successfully!", 
@@ -515,7 +523,34 @@ export default function NotificationSettingsPage() {
                 value={testPhone}
                 onChange={(e) => setTestPhone(e.target.value)}
                 placeholder="+91 9876543210"
+                data-testid="input-test-phone"
               />
+            </div>
+            <div>
+              <Label htmlFor="testTemplateId">WhatsApp Template ID (Cunnekt)</Label>
+              <Input
+                id="testTemplateId"
+                value={testTemplateId}
+                onChange={(e) => setTestTemplateId(e.target.value)}
+                placeholder="Enter Cunnekt template ID"
+                data-testid="input-test-template-id"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Get Template ID from Cunnekt Dashboard &gt; Template List
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="testTemplateParams">Template Parameters (comma separated)</Label>
+              <Input
+                id="testTemplateParams"
+                value={testTemplateParams}
+                onChange={(e) => setTestTemplateParams(e.target.value)}
+                placeholder="e.g., Rahul, 10:00 AM, Tomorrow"
+                data-testid="input-test-template-params"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Variables to fill in template placeholders, separated by commas
+              </p>
             </div>
             <div>
               <Label htmlFor="testEmail">Email Address</Label>
@@ -525,15 +560,17 @@ export default function NotificationSettingsPage() {
                 value={testEmail}
                 onChange={(e) => setTestEmail(e.target.value)}
                 placeholder="test@example.com"
+                data-testid="input-test-email"
               />
             </div>
             <div>
-              <Label htmlFor="testMessage">Message</Label>
+              <Label htmlFor="testMessage">Message (for SMS/Email)</Label>
               <Textarea
                 id="testMessage"
                 value={testMessage}
                 onChange={(e) => setTestMessage(e.target.value)}
                 rows={3}
+                data-testid="input-test-message"
               />
             </div>
           </div>
@@ -547,9 +584,12 @@ export default function NotificationSettingsPage() {
                   phone: testPhone || undefined,
                   email: testEmail || undefined,
                   message: testMessage,
+                  templateId: testTemplateId || undefined,
+                  templateParams: testTemplateParams ? testTemplateParams.split(",").map(p => p.trim()) : undefined,
                 })
               }
               disabled={testNotificationMutation.isPending}
+              data-testid="button-send-test"
             >
               <Send className="w-4 h-4 mr-2" />
               Send Test
@@ -603,17 +643,45 @@ export default function NotificationSettingsPage() {
             </div>
             
             <div>
-              <Label htmlFor="broadcastMessage">Message</Label>
+              <Label htmlFor="broadcastTemplateId">WhatsApp Template ID (Cunnekt)</Label>
+              <Input
+                id="broadcastTemplateId"
+                value={broadcastTemplateId}
+                onChange={(e) => setBroadcastTemplateId(e.target.value)}
+                placeholder="Enter Cunnekt template ID for WhatsApp"
+                data-testid="input-broadcast-template-id"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Required for WhatsApp. Get from Cunnekt Dashboard &gt; Template List
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="broadcastTemplateParams">Template Parameters (comma separated)</Label>
+              <Input
+                id="broadcastTemplateParams"
+                value={broadcastTemplateParams}
+                onChange={(e) => setBroadcastTemplateParams(e.target.value)}
+                placeholder="e.g., Meeting, 10:00 AM, Tomorrow"
+                data-testid="input-broadcast-template-params"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Variables to fill template placeholders. Use {"{{name}}"} for partner's name.
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="broadcastMessage">Message (for Email)</Label>
               <Textarea
                 id="broadcastMessage"
                 value={broadcastMessage}
                 onChange={(e) => setBroadcastMessage(e.target.value)}
-                placeholder="Enter your message here. Use {{name}} to personalize with partner's name."
+                placeholder="Enter email message. Use {{name}} to personalize with partner's name."
                 rows={5}
                 data-testid="input-broadcast-message"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Use {"{{name}}"} to include the partner's name in the message.
+                Use {"{{name}}"} to include the partner's name in the email.
               </p>
             </div>
             
@@ -659,9 +727,11 @@ export default function NotificationSettingsPage() {
                   sendWhatsApp: broadcastSendWhatsApp,
                   sendEmail: broadcastSendEmail,
                   partnerType: broadcastPartnerType,
+                  templateId: broadcastTemplateId || undefined,
+                  templateParams: broadcastTemplateParams ? broadcastTemplateParams.split(",").map(p => p.trim()) : undefined,
                 })
               }
-              disabled={broadcastMutation.isPending || !broadcastMessage.trim() || (!broadcastSendWhatsApp && !broadcastSendEmail)}
+              disabled={broadcastMutation.isPending || (!broadcastMessage.trim() && !broadcastTemplateId.trim()) || (!broadcastSendWhatsApp && !broadcastSendEmail)}
               data-testid="button-send-broadcast"
             >
               {broadcastMutation.isPending ? (
