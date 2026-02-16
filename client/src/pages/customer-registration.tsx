@@ -100,8 +100,8 @@ const publicCustomerFormSchema = z.object({
   ifscCode: z.string().length(11, "IFSC code must be 11 characters").regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, "Invalid IFSC format"),
   bankName: z.string().min(2, "Bank name is required"),
   upiId: z.string().optional().or(z.literal("")),
-  // Documents - Required
-  documents: z.array(z.string()).min(1, "At least one document is required"),
+  // Documents - Optional
+  documents: z.array(z.string()).optional().default([]),
   // Optional
   referralCode: z.string().optional(),
 }).refine((data) => {
@@ -1117,10 +1117,10 @@ export default function CustomerRegistration() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <FileText className="w-5 h-5" />
-                  Documents Upload
+                  Documents Upload (Optional)
                 </CardTitle>
                 <CardDescription>
-                  Upload required documents (Aadhaar, PAN, Electricity Bill, Photo)
+                  Upload documents if available (Aadhaar, PAN, Electricity Bill, Photo)
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1129,7 +1129,7 @@ export default function CustomerRegistration() {
                   name="documents"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Upload Documents *</FormLabel>
+                      <FormLabel>Upload Documents</FormLabel>
                       <FormControl>
                         <div className="space-y-2">
                           <Input

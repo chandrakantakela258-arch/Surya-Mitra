@@ -1227,10 +1227,10 @@ export default function CustomerForm() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="w-5 h-5 text-primary" />
-                Documents Upload *
+                Documents Upload (Optional)
               </CardTitle>
               <CardDescription>
-                Upload at least one document (Electricity Bill, Aadhaar, PAN Card, Property documents, etc.)
+                Upload documents if available (Electricity Bill, Aadhaar, PAN Card, Property documents, etc.)
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
