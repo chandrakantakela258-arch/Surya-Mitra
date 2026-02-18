@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +14,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Search, Phone, MapPin, Zap, Calendar, MoreVertical, CheckCircle, Clock, FileCheck, Truck, PartyPopper, Eye, Camera, Video, Play, X, Image, Smartphone, ShieldOff } from "lucide-react";
+import { Search, Phone, MapPin, Zap, Calendar, MoreVertical, CheckCircle, Clock, FileCheck, Truck, PartyPopper, Eye, Camera, Video, Play, X, Image, Smartphone, ShieldOff, Settings, Mail, Trash2, Plus } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { CustomerJourneyMini, ExpandableSiteProgress } from "@/components/customer-journey-tracker";
@@ -30,10 +31,11 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { CustomerJourneyTracker } from "@/components/customer-journey-tracker";
-import type { CustomerWithPartnerInfo } from "@shared/schema";
+import { indianStates, type CustomerWithPartnerInfo } from "@shared/schema";
 
 function formatINR(amount: number): string {
   return new Intl.NumberFormat("en-IN", {
@@ -41,6 +43,12 @@ function formatINR(amount: number): string {
     currency: "INR",
     maximumFractionDigits: 0,
   }).format(amount);
+}
+
+interface StateEmail {
+  state: string;
+  email: string;
+  updatedAt?: string;
 }
 
 export default function AdminCustomers() {
@@ -51,6 +59,9 @@ export default function AdminCustomers() {
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithPartnerInfo | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [previewVideo, setPreviewVideo] = useState(false);
+  const [showEmailSettings, setShowEmailSettings] = useState(false);
+  const [newState, setNewState] = useState("");
+  const [newEmail, setNewEmail] = useState("");
   const { toast } = useToast();
 
   const { data: customers, isLoading } = useQuery<CustomerWithPartnerInfo[]>({
@@ -78,6 +89,38 @@ export default function AdminCustomers() {
         description: "Failed to update customer status.",
         variant: "destructive",
       });
+    },
+  });
+
+  const { data: stateEmails } = useQuery<StateEmail[]>({
+    queryKey: ["/api/admin/state-emails"],
+  });
+
+  const addStateEmailMutation = useMutation({
+    mutationFn: async ({ state, email }: { state: string; email: string }) => {
+      return apiRequest("POST", "/api/admin/state-emails", { state, email });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/state-emails"] });
+      setNewState("");
+      setNewEmail("");
+      toast({ title: "Email Saved", description: "State forwarding email has been saved." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteStateEmailMutation = useMutation({
+    mutationFn: async (state: string) => {
+      return apiRequest("DELETE", `/api/admin/state-emails/${encodeURIComponent(state)}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/state-emails"] });
+      toast({ title: "Removed", description: "State forwarding email has been removed." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
@@ -146,9 +189,22 @@ export default function AdminCustomers() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold" data-testid="text-page-title">All Customers</h1>
-        <p className="text-muted-foreground">View all solar applications across the platform</p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold" data-testid="text-page-title">All Customers</h1>
+          <p className="text-muted-foreground">View all solar applications across the platform</p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => setShowEmailSettings(true)}
+          data-testid="button-email-settings"
+        >
+          <Settings className="w-4 h-4 mr-2" />
+          Email Forwarding
+          {stateEmails && stateEmails.length > 0 && (
+            <Badge variant="secondary" className="ml-2">{stateEmails.length}</Badge>
+          )}
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -531,6 +587,91 @@ export default function AdminCustomers() {
               data-testid="video-admin-preview"
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showEmailSettings} onOpenChange={setShowEmailSettings}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="w-5 h-5" />
+              State Email Forwarding
+            </DialogTitle>
+            <DialogDescription>
+              Set an email address for each state. When a customer from that state is marked as "Verified", their details will be automatically sent to the assigned email.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Select value={newState} onValueChange={setNewState}>
+                <SelectTrigger className="flex-1" data-testid="select-new-state">
+                  <SelectValue placeholder="Select state" />
+                </SelectTrigger>
+                <SelectContent>
+                  {indianStates
+                    .filter(s => !stateEmails?.some(se => se.state === s))
+                    .map((state) => (
+                      <SelectItem key={state} value={state}>{state}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <Input
+                type="email"
+                placeholder="Email address"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                className="flex-1"
+                data-testid="input-new-state-email"
+              />
+              <Button
+                onClick={() => {
+                  if (newState && newEmail) {
+                    addStateEmailMutation.mutate({ state: newState, email: newEmail });
+                  }
+                }}
+                disabled={!newState || !newEmail || addStateEmailMutation.isPending}
+                data-testid="button-add-state-email"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Add
+              </Button>
+            </div>
+
+            {stateEmails && stateEmails.length > 0 ? (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {stateEmails.map((se) => (
+                  <div key={se.state} className="flex items-center justify-between gap-3 p-3 rounded-md border" data-testid={`row-state-email-${se.state}`}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" data-testid={`badge-state-${se.state}`}>{se.state}</Badge>
+                        <span className="text-sm text-muted-foreground truncate" data-testid={`text-email-${se.state}`}>{se.email}</span>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => deleteStateEmailMutation.mutate(se.state)}
+                      disabled={deleteStateEmailMutation.isPending}
+                      data-testid={`button-delete-state-email-${se.state}`}
+                    >
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-muted-foreground">
+                <Mail className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No state emails configured yet.</p>
+                <p className="text-xs mt-1">Add a state and email above to start forwarding customer details automatically.</p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEmailSettings(false)}>Close</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

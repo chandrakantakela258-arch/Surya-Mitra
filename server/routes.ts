@@ -8,7 +8,7 @@ import path from "path";
 import fs from "fs";
 import { pool } from "./db";
 import { storage, generatePartnerCode, generateCustomerCode } from "./storage";
-import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSchema, updateFeedbackStatusSchema, inverterCommission, insertVendorSchema, vendorStates, insertSiteSurveySchema, insertMeterInstallationReportSchema, insertPortalSubmissionReportSchema, insertRemainingPaymentReportSchema, insertSubsidyApplicationReportSchema, insertSubsidyDisbursementReportSchema, insertProposalLeadSchema } from "@shared/schema";
+import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSchema, updateFeedbackStatusSchema, inverterCommission, insertVendorSchema, vendorStates, insertSiteSurveySchema, insertMeterInstallationReportSchema, insertPortalSubmissionReportSchema, insertRemainingPaymentReportSchema, insertSubsidyApplicationReportSchema, insertSubsidyDisbursementReportSchema, insertProposalLeadSchema, indianStates } from "@shared/schema";
 import { z } from "zod";
 import { notificationService } from "./notification-service";
 import { calculateLeadScore, type LeadScoreResult } from "./lead-scoring-service";
@@ -190,6 +190,38 @@ async function requireCustomerPartner(req: Request, res: Response, next: NextFun
   }
   (req as any).user = user;
   next();
+}
+
+async function forwardCustomerEmailToState(customer: any) {
+  if (!customer.state) return;
+  const normalizedState = customer.state.trim();
+  const forwardEmail = await storage.getAdminSetting(`state_email_${normalizedState}`);
+  if (!forwardEmail) return;
+
+  const ddp = await storage.getUser(customer.ddpId);
+  let bdpName: string | undefined;
+  let bdpPhone: string | undefined;
+  if (ddp?.parentId) {
+    const bdp = await storage.getUser(ddp.parentId);
+    bdpName = bdp?.fullName;
+    bdpPhone = bdp?.phone;
+  }
+  const emailHtml = createCustomerForwardEmailTemplate({
+    customerName: customer.name, phone: customer.phone, email: customer.email || undefined,
+    address: customer.address, district: customer.district, state: customer.state, pincode: customer.pincode,
+    electricityBoard: customer.electricityBoard || undefined, consumerNumber: customer.consumerNumber || undefined,
+    sanctionedLoad: customer.sanctionedLoad || undefined, avgMonthlyBill: customer.avgMonthlyBill || undefined,
+    roofType: customer.roofType || undefined, roofArea: customer.roofArea || undefined,
+    panelType: customer.panelType || undefined, proposedCapacity: customer.proposedCapacity || undefined,
+    customerType: customer.customerType || undefined, customerCode: customer.customerCode || undefined,
+    ddpName: ddp?.fullName, ddpPhone: ddp?.phone, bdpName, bdpPhone, status: "Verified",
+  });
+  await sendGmailEmail({
+    to: forwardEmail,
+    subject: `New Verified Customer: ${customer.name} - ${customer.state} (${customer.proposedCapacity || '-'} kW)`,
+    htmlContent: emailHtml,
+  });
+  console.log(`Customer details forwarded to ${forwardEmail} for state ${normalizedState}`);
 }
 
 export async function registerRoutes(
@@ -1837,6 +1869,10 @@ export async function registerRoutes(
         newStatus: status,
       });
       
+      if (status === "verified") {
+        try { await forwardCustomerEmailToState(customer); } catch (emailErr) { console.error("Error forwarding customer email:", emailErr); }
+      }
+
       // When installation is completed, check if the DDP's referrer should get their reward
       // Partner referral reward is earned when referred partner completes 15 installations
       if (status === "completed" && customer.ddpId) {
@@ -2755,6 +2791,10 @@ export async function registerRoutes(
         newStatus: status,
       });
       
+      if (status === "verified") {
+        try { await forwardCustomerEmailToState(customer); } catch (emailErr) { console.error("Error forwarding customer email:", emailErr); }
+      }
+
       // When installation is completed, check if the DDP's referrer should get their reward
       // Partner referral reward is earned when referred partner completes 15 installations
       if (status === "completed" && customer.ddpId) {
@@ -8924,6 +8964,58 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Send proposal email error:", error);
       res.status(500).json({ success: false, message: error.message || "Failed to send email" });
+    }
+  });
+
+  // ========== ADMIN SETTINGS - STATE EMAIL FORWARDING ==========
+
+  app.get("/api/admin/state-emails", requireAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getAdminSettingsByPrefix("state_email_");
+      const stateEmails = settings.map(s => ({
+        state: s.key.replace("state_email_", ""),
+        email: s.value,
+        updatedAt: s.updatedAt,
+      }));
+      res.json(stateEmails);
+    } catch (error: any) {
+      console.error("Get state emails error:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch state emails" });
+    }
+  });
+
+  app.post("/api/admin/state-emails", requireAdmin, async (req, res) => {
+    try {
+      const { state, email } = req.body;
+      if (!state || !email) {
+        return res.status(400).json({ message: "State and email are required" });
+      }
+      if (!indianStates.includes(state)) {
+        return res.status(400).json({ message: "Invalid state name" });
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ message: "Invalid email format" });
+      }
+      const setting = await storage.setAdminSetting(`state_email_${state}`, email);
+      res.json({ state, email: setting.value, updatedAt: setting.updatedAt });
+    } catch (error: any) {
+      console.error("Set state email error:", error);
+      res.status(500).json({ message: error.message || "Failed to save state email" });
+    }
+  });
+
+  app.delete("/api/admin/state-emails/:state", requireAdmin, async (req, res) => {
+    try {
+      const { state } = req.params;
+      const deleted = await storage.deleteAdminSetting(`state_email_${state}`);
+      if (!deleted) {
+        return res.status(404).json({ message: "State email not found" });
+      }
+      res.json({ message: "State email removed successfully" });
+    } catch (error: any) {
+      console.error("Delete state email error:", error);
+      res.status(500).json({ message: error.message || "Failed to delete state email" });
     }
   });
 

@@ -490,6 +490,8 @@ export interface IStorage {
   updateProposalLead(id: string, data: Partial<ProposalLead>): Promise<ProposalLead | undefined>;
   getAdminSetting(key: string): Promise<string | null>;
   setAdminSetting(key: string, value: string): Promise<AdminSetting>;
+  getAdminSettingsByPrefix(prefix: string): Promise<AdminSetting[]>;
+  deleteAdminSetting(key: string): Promise<boolean>;
 }
 
 // Helper function to generate next partner code
@@ -3522,6 +3524,16 @@ export class DatabaseStorage implements IStorage {
     }
     const [created] = await db.insert(adminSettings).values({ key, value }).returning();
     return created;
+  }
+
+  async getAdminSettingsByPrefix(prefix: string): Promise<AdminSetting[]> {
+    const allSettings = await db.select().from(adminSettings);
+    return allSettings.filter(s => s.key.startsWith(prefix));
+  }
+
+  async deleteAdminSetting(key: string): Promise<boolean> {
+    const result = await db.delete(adminSettings).where(eq(adminSettings.key, key)).returning();
+    return result.length > 0;
   }
 }
 

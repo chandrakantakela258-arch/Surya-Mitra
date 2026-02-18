@@ -37,6 +37,7 @@ The system uses session-based authentication stored in PostgreSQL, with role-bas
 - **Public Customer Registration**: Self-service registration form with real-time subsidy and savings estimates, supporting both independent and referred customers.
 - **AI-Powered Lead Scoring**: Uses OpenAI to analyze customer conversion potential based on various factors, assigning lead tiers (Hot, Warm, Cold) and providing recommendations.
 - **Notification System**: Multi-channel notifications (WhatsApp, SMS, Email, In-App) for status changes and milestones, with user-configurable preferences.
+- **State-wise Email Forwarding**: Admin can configure forwarding email addresses per state. When a registered customer is marked as "Verified", their complete details (customer info, address, solar installation specs, electricity details, partner info) are automatically emailed to the state-assigned email recipient. Managed via "Email Forwarding" button on the All Customers admin page. Settings stored in `admin_settings` table with `state_email_` prefix.
 - **Vendor Quotation System**: Category-specific pricing structures for 13 vendor types with auto-population to work orders:
   - Logistic: Per KM rate (logisticRatePerKm)
   - Bank Loan Liaison: Per loan approval rate (bankLoanApprovalRate)
