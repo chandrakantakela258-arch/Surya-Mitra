@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Search, Phone, MapPin, Zap, Calendar, MoreVertical, CheckCircle, Clock, FileCheck, Truck, PartyPopper, Eye, Camera, Video, Play, X, Image, Smartphone, ShieldOff, Settings, Mail, Trash2, Plus, Pencil, Check, CreditCard, Landmark, User } from "lucide-react";
+import { Search, Phone, MapPin, Zap, Calendar, MoreVertical, CheckCircle, Clock, FileCheck, Truck, PartyPopper, Eye, Camera, Video, Play, X, Image, Smartphone, ShieldOff, Settings, Mail, Trash2, Plus, Pencil, Check, CreditCard, Landmark, User, Home, Building2, Factory, Hash, FileText, Globe, IndianRupee, SunMedium, BatteryCharging } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { CustomerJourneyMini, ExpandableSiteProgress } from "@/components/customer-journey-tracker";
@@ -51,12 +51,33 @@ interface StateEmail {
   updatedAt?: string;
 }
 
+function DetailRow({ icon: Icon, label, value, highlight }: { icon: any; label: string; value: string | null | undefined; highlight?: boolean }) {
+  return (
+    <div className="flex items-center justify-between py-1.5 gap-4">
+      <span className="text-sm text-muted-foreground flex items-center gap-2 shrink-0">
+        <Icon className="w-4 h-4" />
+        {label}
+      </span>
+      {value ? (
+        <span className={`text-sm font-medium text-right ${highlight ? "text-orange-600 dark:text-orange-400" : ""}`} data-testid={`text-detail-${label.toLowerCase().replace(/\s+/g, "-")}`}>
+          {value}
+        </span>
+      ) : (
+        <span className={`text-sm italic ${highlight ? "text-orange-500" : "text-muted-foreground/60"}`}>
+          {highlight ? "Not provided" : "—"}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export default function AdminCustomers() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [panelFilter, setPanelFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithPartnerInfo | null>(null);
+  const [viewDetailsCustomer, setViewDetailsCustomer] = useState<CustomerWithPartnerInfo | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [previewVideo, setPreviewVideo] = useState(false);
   const [showEmailSettings, setShowEmailSettings] = useState(false);
@@ -521,10 +542,17 @@ export default function AdminCustomers() {
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
+                            onClick={() => setViewDetailsCustomer(customer)}
+                            data-testid={`button-view-details-${customer.id}`}
+                          >
+                            <Eye className="w-4 h-4 mr-2" />
+                            View All Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
                             onClick={() => setSelectedCustomer(customer)}
                             data-testid={`button-view-journey-${customer.id}`}
                           >
-                            <Eye className="w-4 h-4 mr-2" />
+                            <Clock className="w-4 h-4 mr-2" />
                             View Journey
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
@@ -652,6 +680,228 @@ export default function AdminCustomers() {
         </SheetContent>
       </Sheet>
       
+      <Sheet open={!!viewDetailsCustomer} onOpenChange={(open) => !open && setViewDetailsCustomer(null)}>
+        <SheetContent className="sm:max-w-xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <User className="w-5 h-5" />
+              {viewDetailsCustomer?.name}
+            </SheetTitle>
+            <SheetDescription>
+              {viewDetailsCustomer?.customerCode && (
+                <Badge variant="outline" className="mr-2">{viewDetailsCustomer.customerCode}</Badge>
+              )}
+              Complete customer information
+            </SheetDescription>
+          </SheetHeader>
+          {viewDetailsCustomer && (
+            <div className="mt-4 space-y-5">
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Personal Information</h3>
+                <Card>
+                  <CardContent className="pt-4 space-y-2">
+                    <DetailRow icon={User} label="Name" value={viewDetailsCustomer.name} />
+                    <DetailRow icon={Phone} label="Phone" value={viewDetailsCustomer.phone} />
+                    <DetailRow icon={Mail} label="Email" value={viewDetailsCustomer.email} />
+                    <DetailRow icon={MapPin} label="Address" value={viewDetailsCustomer.address} />
+                    <DetailRow icon={Globe} label="District" value={viewDetailsCustomer.district} />
+                    <DetailRow icon={MapPin} label="State" value={viewDetailsCustomer.state} />
+                    <DetailRow icon={Hash} label="Pincode" value={viewDetailsCustomer.pincode} />
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Identity Documents</h3>
+                <Card>
+                  <CardContent className="pt-4 space-y-2">
+                    <DetailRow icon={CreditCard} label="Aadhaar Number" value={viewDetailsCustomer.aadharNumber} highlight={!viewDetailsCustomer.aadharNumber} />
+                    <DetailRow icon={CreditCard} label="PAN Number" value={viewDetailsCustomer.panNumber} highlight={!viewDetailsCustomer.panNumber} />
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Electricity Details</h3>
+                <Card>
+                  <CardContent className="pt-4 space-y-2">
+                    <DetailRow icon={Zap} label="Electricity Board" value={viewDetailsCustomer.electricityBoard} />
+                    <DetailRow icon={Hash} label="Consumer Number" value={viewDetailsCustomer.consumerNumber} />
+                    <DetailRow icon={Zap} label="Sanctioned Load" value={viewDetailsCustomer.sanctionedLoad ? `${viewDetailsCustomer.sanctionedLoad} kW` : null} />
+                    <DetailRow icon={IndianRupee} label="Avg Monthly Bill" value={viewDetailsCustomer.avgMonthlyBill ? formatINR(viewDetailsCustomer.avgMonthlyBill) : null} />
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Solar Installation</h3>
+                <Card>
+                  <CardContent className="pt-4 space-y-2">
+                    <DetailRow icon={Home} label="Roof Type" value={viewDetailsCustomer.roofType} />
+                    <DetailRow icon={Home} label="Roof Area" value={viewDetailsCustomer.roofArea ? `${viewDetailsCustomer.roofArea} sq ft` : null} />
+                    <DetailRow icon={SunMedium} label="Panel Type" value={viewDetailsCustomer.panelType === "dcr" ? "DCR" : viewDetailsCustomer.panelType === "non_dcr" ? "Non-DCR" : viewDetailsCustomer.panelType} />
+                    <DetailRow icon={BatteryCharging} label="Proposed Capacity" value={viewDetailsCustomer.proposedCapacity ? `${viewDetailsCustomer.proposedCapacity} kW` : null} />
+                    <DetailRow icon={Building2} label="Customer Type" value={viewDetailsCustomer.customerType ? viewDetailsCustomer.customerType.charAt(0).toUpperCase() + viewDetailsCustomer.customerType.slice(1) : null} />
+                    {viewDetailsCustomer.unitType && (
+                      <DetailRow icon={Factory} label="Unit Type" value={viewDetailsCustomer.unitType} />
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Application Status</h3>
+                <Card>
+                  <CardContent className="pt-4 space-y-2">
+                    <div className="flex items-center justify-between py-1">
+                      <span className="text-sm text-muted-foreground flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4" /> Status
+                      </span>
+                      <Badge variant={
+                        viewDetailsCustomer.status === "completed" ? "default" :
+                        viewDetailsCustomer.status === "verified" ? "secondary" :
+                        "outline"
+                      }>
+                        {viewDetailsCustomer.status.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+                      </Badge>
+                    </div>
+                    <DetailRow icon={FileText} label="Source" value={viewDetailsCustomer.source ? viewDetailsCustomer.source.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()) : "Partner Added"} />
+                    <DetailRow icon={Calendar} label="Registered" value={viewDetailsCustomer.createdAt ? new Date(viewDetailsCustomer.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : null} />
+                    {viewDetailsCustomer.installationDate && (
+                      <DetailRow icon={Calendar} label="Installation Date" value={new Date(viewDetailsCustomer.installationDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })} />
+                    )}
+                    <DetailRow icon={Smartphone} label="Portal Access" value={viewDetailsCustomer.portalEnabled ? "Enabled" : "Disabled"} />
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Bank Details</h3>
+                <Card>
+                  <CardContent className="pt-4 space-y-2">
+                    <DetailRow icon={User} label="Account Holder" value={viewDetailsCustomer.accountHolderName} />
+                    <DetailRow icon={Landmark} label="Bank Name" value={viewDetailsCustomer.bankName} />
+                    <DetailRow icon={Hash} label="Account Number" value={viewDetailsCustomer.accountNumber} />
+                    <DetailRow icon={Hash} label="IFSC Code" value={viewDetailsCustomer.ifscCode} />
+                    <DetailRow icon={CreditCard} label="UPI ID" value={viewDetailsCustomer.upiId} />
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Partner Information</h3>
+                <Card>
+                  <CardContent className="pt-4 space-y-2">
+                    <DetailRow icon={User} label="DDP Name" value={viewDetailsCustomer.ddpName} />
+                    <DetailRow icon={Phone} label="DDP Phone" value={viewDetailsCustomer.ddpPhone} />
+                    <DetailRow icon={User} label="BDP Name" value={viewDetailsCustomer.bdpName} />
+                    <DetailRow icon={Phone} label="BDP Phone" value={viewDetailsCustomer.bdpPhone} />
+                  </CardContent>
+                </Card>
+              </div>
+
+              {viewDetailsCustomer.leadScore !== null && viewDetailsCustomer.leadScore !== undefined && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">AI Lead Score</h3>
+                  <Card>
+                    <CardContent className="pt-4 space-y-2">
+                      <div className="flex items-center justify-between py-1">
+                        <span className="text-sm text-muted-foreground">Lead Score</span>
+                        <Badge variant={viewDetailsCustomer.leadScore >= 70 ? "default" : viewDetailsCustomer.leadScore >= 40 ? "secondary" : "outline"}>
+                          {viewDetailsCustomer.leadScore}/100
+                        </Badge>
+                      </div>
+                      {viewDetailsCustomer.leadScoreUpdatedAt && (
+                        <DetailRow icon={Calendar} label="Scored At" value={new Date(viewDetailsCustomer.leadScoreUpdatedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })} />
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {viewDetailsCustomer.stateEmailSentAt && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">State Email Forwarding</h3>
+                  <Card>
+                    <CardContent className="pt-4 space-y-2">
+                      <DetailRow icon={Mail} label="Sent To" value={viewDetailsCustomer.stateEmailSentTo} />
+                      <DetailRow icon={Calendar} label="Sent At" value={new Date(viewDetailsCustomer.stateEmailSentAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true })} />
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {((viewDetailsCustomer.sitePictures && viewDetailsCustomer.sitePictures.length > 0) || viewDetailsCustomer.siteVideo) && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Site Media</h3>
+                  <Card>
+                    <CardContent className="pt-4 space-y-3">
+                      {viewDetailsCustomer.sitePictures && viewDetailsCustomer.sitePictures.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-sm text-muted-foreground flex items-center gap-1">
+                            <Image className="w-3 h-3" />
+                            {viewDetailsCustomer.sitePictures.length} Site Pictures
+                          </p>
+                          <div className="grid grid-cols-3 gap-2">
+                            {viewDetailsCustomer.sitePictures.map((url, index) => (
+                              <div key={index} className="aspect-square rounded-md overflow-hidden cursor-pointer hover-elevate" onClick={() => setPreviewImage(url)}>
+                                <img src={url} alt={`Site ${index + 1}`} className="w-full h-full object-cover" data-testid={`img-detail-site-picture-${index}`} />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {viewDetailsCustomer.siteVideo && (
+                        <div className="space-y-2">
+                          <p className="text-sm text-muted-foreground flex items-center gap-1">
+                            <Video className="w-3 h-3" />
+                            Highlight Video
+                          </p>
+                          <div className="relative aspect-[9/16] max-w-[150px] bg-muted rounded-md overflow-hidden cursor-pointer" onClick={() => setPreviewVideo(true)}>
+                            <video src={viewDetailsCustomer.siteVideo} className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                              <Play className="w-8 h-8 text-white" />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {viewDetailsCustomer.documents && viewDetailsCustomer.documents.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Documents</h3>
+                  <Card>
+                    <CardContent className="pt-4 space-y-2">
+                      {viewDetailsCustomer.documents.map((doc, index) => (
+                        <a key={index} href={doc} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary hover:underline py-1">
+                          <FileText className="w-4 h-4" />
+                          Document {index + 1}
+                        </a>
+                      ))}
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {viewDetailsCustomer.latitude && viewDetailsCustomer.longitude && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Location</h3>
+                  <Card>
+                    <CardContent className="pt-4 space-y-2">
+                      <DetailRow icon={MapPin} label="Latitude" value={viewDetailsCustomer.latitude} />
+                      <DetailRow icon={MapPin} label="Longitude" value={viewDetailsCustomer.longitude} />
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
       <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
