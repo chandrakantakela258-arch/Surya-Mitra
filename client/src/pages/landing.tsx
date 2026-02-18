@@ -46,12 +46,33 @@ import {
   Eye
 } from "lucide-react";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import type { Product } from "@shared/schema";
+
+function formatINR(amount: number): string {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+const categoryLabels: Record<string, string> = {
+  solar_package: "Solar Package",
+  marketing_material: "Marketing Material",
+  accessory: "Accessory",
+};
 
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [socialMediaOpen, setSocialMediaOpen] = useState(false);
   const [floatingSocialOpen, setFloatingSocialOpen] = useState(false);
+
+  const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
+    queryKey: ["/api/products"],
+  });
 
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
@@ -112,12 +133,20 @@ export default function LandingPage() {
                   Partner Map
                 </button>
               </WouterLink>
+              <button 
+                onClick={() => scrollToSection("store")} 
+                className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-200"
+                data-testid="nav-store"
+              >
+                <Store className="w-4 h-4 text-orange-500" />
+                Store
+              </button>
               <WouterLink href="/vendor-registration">
                 <button 
                   className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-200"
                   data-testid="nav-vendor-registration"
                 >
-                  <Store className="w-4 h-4 text-orange-500" />
+                  <ClipboardList className="w-4 h-4 text-teal-500" />
                   Vendor
                 </button>
               </WouterLink>
@@ -200,12 +229,20 @@ export default function LandingPage() {
                     Partner Network Map
                   </div>
                 </WouterLink>
+                <button 
+                  onClick={() => scrollToSection("store")} 
+                  className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left w-full"
+                  data-testid="mobile-nav-store"
+                >
+                  <Store className="w-4 h-4 text-orange-500" />
+                  Store
+                </button>
                 <WouterLink href="/vendor-registration" onClick={() => setMobileMenuOpen(false)}>
                   <div 
                     className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left"
                     data-testid="mobile-nav-vendor-registration"
                   >
-                    <Store className="w-4 h-4 text-orange-500" />
+                    <ClipboardList className="w-4 h-4 text-teal-500" />
                     Vendor Registration
                   </div>
                 </WouterLink>
@@ -967,6 +1004,100 @@ export default function LandingPage() {
               </CardContent>
             </Card>
           </div>
+        </div>
+      </section>
+
+      {/* Store / Product Catalogue Section */}
+      <section id="store" className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-4">
+              <Store className="w-4 h-4" />
+              Our Products
+            </div>
+            <h2 className="text-3xl font-bold mb-4">Solar Products & Packages</h2>
+            <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+              Browse our range of solar packages, accessories, and marketing materials. Book your solar system online with a small booking amount.
+            </p>
+          </div>
+
+          {productsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-64 rounded-lg" />
+              ))}
+            </div>
+          ) : products && products.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {products.map((product) => (
+                <Card key={product.id} data-testid={`card-store-product-${product.id}`}>
+                  {product.imageUrl ? (
+                    <div className="w-full h-48 overflow-hidden rounded-t-lg">
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-full h-48 bg-muted rounded-t-lg flex items-center justify-center">
+                      {product.category === "solar_package" ? (
+                        <Sun className="w-16 h-16 text-primary/40" />
+                      ) : (
+                        <Store className="w-16 h-16 text-muted-foreground/40" />
+                      )}
+                    </div>
+                  )}
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <h3 className="font-semibold text-lg" data-testid={`text-product-name-${product.id}`}>{product.name}</h3>
+                      <Badge variant="outline">
+                        {categoryLabels[product.category] || product.category}
+                      </Badge>
+                    </div>
+                    {product.description && (
+                      <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{product.description}</p>
+                    )}
+                    {product.category === "solar_package" && product.bookingAmount ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Plant Cost:</span>
+                          <span className="font-medium">{formatINR(product.price)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Booking Amount:</span>
+                          <span className="text-xl font-bold text-primary">{formatINR(product.bookingAmount)}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Price:</span>
+                        <span className="text-2xl font-bold">{formatINR(product.price)}</span>
+                      </div>
+                    )}
+                    <div className="mt-4">
+                      <WouterLink href="/customer-registration">
+                        <Button className="w-full gap-2" data-testid={`button-enquire-${product.id}`}>
+                          <ClipboardList className="w-4 h-4" />
+                          {product.category === "solar_package" ? "Register & Book" : "Enquire Now"}
+                        </Button>
+                      </WouterLink>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Store className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">Products coming soon</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Our solar product catalog is being updated. Please check back shortly.
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </section>
 
