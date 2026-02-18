@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Search, Phone, MapPin, Zap, Calendar, MoreVertical, CheckCircle, Clock, FileCheck, Truck, PartyPopper, Eye, Camera, Video, Play, X, Image, Smartphone, ShieldOff, Settings, Mail, Trash2, Plus } from "lucide-react";
+import { Search, Phone, MapPin, Zap, Calendar, MoreVertical, CheckCircle, Clock, FileCheck, Truck, PartyPopper, Eye, Camera, Video, Play, X, Image, Smartphone, ShieldOff, Settings, Mail, Trash2, Plus, Pencil, Check } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { CustomerJourneyMini, ExpandableSiteProgress } from "@/components/customer-journey-tracker";
@@ -62,6 +62,8 @@ export default function AdminCustomers() {
   const [showEmailSettings, setShowEmailSettings] = useState(false);
   const [newState, setNewState] = useState("");
   const [newEmail, setNewEmail] = useState("");
+  const [editingState, setEditingState] = useState<string | null>(null);
+  const [editingEmail, setEditingEmail] = useState("");
   const { toast } = useToast();
 
   const { data: customers, isLoading } = useQuery<CustomerWithPartnerInfo[]>({
@@ -656,18 +658,75 @@ export default function AdminCustomers() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge variant="outline" data-testid={`badge-state-${se.state}`}>{se.state}</Badge>
-                        <span className="text-sm text-muted-foreground truncate" data-testid={`text-email-${se.state}`}>{se.email}</span>
+                        {editingState === se.state ? (
+                          <Input
+                            type="email"
+                            value={editingEmail}
+                            onChange={(e) => setEditingEmail(e.target.value)}
+                            className="flex-1 min-w-[180px]"
+                            data-testid={`input-edit-email-${se.state}`}
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && editingEmail) {
+                                addStateEmailMutation.mutate({ state: se.state, email: editingEmail }, {
+                                  onSuccess: () => setEditingState(null),
+                                });
+                              }
+                              if (e.key === "Escape") setEditingState(null);
+                            }}
+                          />
+                        ) : (
+                          <span className="text-sm text-muted-foreground truncate" data-testid={`text-email-${se.state}`}>{se.email}</span>
+                        )}
                       </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => deleteStateEmailMutation.mutate(se.state)}
-                      disabled={deleteStateEmailMutation.isPending}
-                      data-testid={`button-delete-state-email-${se.state}`}
-                    >
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      {editingState === se.state ? (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              if (editingEmail) {
+                                addStateEmailMutation.mutate({ state: se.state, email: editingEmail }, {
+                                  onSuccess: () => setEditingState(null),
+                                });
+                              }
+                            }}
+                            disabled={!editingEmail || addStateEmailMutation.isPending}
+                            data-testid={`button-save-email-${se.state}`}
+                          >
+                            <Check className="w-4 h-4 text-green-600" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setEditingState(null)}
+                            data-testid={`button-cancel-edit-${se.state}`}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => { setEditingState(se.state); setEditingEmail(se.email); }}
+                          data-testid={`button-edit-state-email-${se.state}`}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deleteStateEmailMutation.mutate(se.state)}
+                        disabled={deleteStateEmailMutation.isPending}
+                        data-testid={`button-delete-state-email-${se.state}`}
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
