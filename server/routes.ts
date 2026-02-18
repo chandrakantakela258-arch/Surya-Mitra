@@ -2811,6 +2811,29 @@ export async function registerRoutes(
     }
   });
 
+  // Admin: Get partner info for a specific customer
+  app.get("/api/admin/customers/:id/partner-info", requireAdmin, async (req, res) => {
+    try {
+      const customer = await storage.getCustomer(req.params.id);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      const ddp = await storage.getUser(customer.ddpId);
+      const bdp = ddp?.parentId ? await storage.getUser(ddp.parentId) : null;
+      res.json({
+        ddpName: ddp?.name || null,
+        ddpPhone: ddp?.phone || null,
+        ddpPartnerCode: ddp?.partnerCode || null,
+        bdpName: bdp?.name || null,
+        bdpPhone: bdp?.phone || null,
+        bdpPartnerCode: bdp?.partnerCode || null,
+      });
+    } catch (error) {
+      console.error("Get partner info error:", error);
+      res.status(500).json({ message: "Failed to get partner info" });
+    }
+  });
+
   // Admin update customer status (with notifications)
   app.patch("/api/admin/customers/:id/status", requireAdmin, async (req, res) => {
     try {

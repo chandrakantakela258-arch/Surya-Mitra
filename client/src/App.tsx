@@ -36,6 +36,7 @@ import AdminDashboard from "@/pages/admin/dashboard";
 import AdminPartners from "@/pages/admin/partners";
 import AdminPartnerHierarchy from "@/pages/admin/partner-hierarchy";
 import AdminCustomers from "@/pages/admin/customers";
+import AdminCustomerDetail from "@/pages/admin/customer-detail";
 import AdminPayouts from "@/pages/admin/payouts";
 import AdminProducts from "@/pages/admin/products";
 import AdminOrders from "@/pages/admin/orders";
@@ -208,6 +209,13 @@ function AuthenticatedRoutes() {
         <ProtectedRoute allowedRoles={["admin"]}>
           <DashboardLayout>
             <AdminCustomerJourney />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/customers/:id">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminCustomerDetail />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
