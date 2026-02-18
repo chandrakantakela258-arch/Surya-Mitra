@@ -468,6 +468,10 @@ export interface CustomerForwardEmailData {
   district: string;
   state: string;
   pincode: string;
+  aadharNumber?: string;
+  panNumber?: string;
+  latitude?: string;
+  longitude?: string;
   electricityBoard?: string;
   consumerNumber?: string;
   sanctionedLoad?: string;
@@ -513,6 +517,8 @@ export function createCustomerForwardEmailTemplate(data: CustomerForwardEmailDat
                 <tr><td style="color:#666;font-size:13px;">Phone</td><td style="color:#333;font-size:13px;">${data.phone}</td></tr>
                 ${data.email ? `<tr style="background:#fafafa;"><td style="color:#666;font-size:13px;">Email</td><td style="color:#333;font-size:13px;">${data.email}</td></tr>` : ''}
                 ${data.customerCode ? `<tr><td style="color:#666;font-size:13px;">Customer Code</td><td style="color:#333;font-weight:600;font-size:13px;">${data.customerCode}</td></tr>` : ''}
+                ${data.aadharNumber ? `<tr style="background:#fafafa;"><td style="color:#666;font-size:13px;">Aadhaar Number</td><td style="color:#333;font-size:13px;">${data.aadharNumber}</td></tr>` : ''}
+                ${data.panNumber ? `<tr><td style="color:#666;font-size:13px;">PAN Number</td><td style="color:#333;font-size:13px;">${data.panNumber}</td></tr>` : ''}
                 <tr style="background:#fafafa;"><td style="color:#666;font-size:13px;">Type</td><td style="color:#333;font-size:13px;">${typeLabel}</td></tr>
                 <tr><td style="color:#666;font-size:13px;">Status</td><td style="color:#333;font-size:13px;"><span style="background:#16a34a;color:#fff;padding:2px 10px;border-radius:12px;font-size:12px;">${data.status}</span></td></tr>
               </table>
@@ -522,6 +528,7 @@ export function createCustomerForwardEmailTemplate(data: CustomerForwardEmailDat
                 <tr><td style="color:#666;font-size:13px;">District</td><td style="color:#333;font-size:13px;">${data.district}</td></tr>
                 <tr style="background:#fafafa;"><td style="color:#666;font-size:13px;">State</td><td style="color:#333;font-size:13px;">${data.state}</td></tr>
                 <tr><td style="color:#666;font-size:13px;">Pincode</td><td style="color:#333;font-size:13px;">${data.pincode}</td></tr>
+                ${data.latitude && data.longitude ? `<tr style="background:#fafafa;"><td style="color:#666;font-size:13px;">Geo Location</td><td style="color:#333;font-size:13px;"><a href="https://www.google.com/maps?q=${data.latitude},${data.longitude}" style="color:#2563eb;text-decoration:underline;">${data.latitude}, ${data.longitude}</a></td></tr>` : ''}
               </table>
               <table width="100%" cellpadding="8" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;border-collapse:separate;margin-bottom:16px;">
                 <tr style="background:#16a34a;"><td colspan="2" style="color:#fff;font-weight:600;font-size:14px;border-radius:8px 8px 0 0;">Solar Installation Details</td></tr>

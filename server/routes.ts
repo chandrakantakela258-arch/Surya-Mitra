@@ -209,6 +209,8 @@ async function forwardCustomerEmailToState(customer: any) {
   const emailHtml = createCustomerForwardEmailTemplate({
     customerName: customer.name, phone: customer.phone, email: customer.email || undefined,
     address: customer.address, district: customer.district, state: customer.state, pincode: customer.pincode,
+    aadharNumber: customer.aadharNumber || undefined, panNumber: customer.panNumber || undefined,
+    latitude: customer.latitude || undefined, longitude: customer.longitude || undefined,
     electricityBoard: customer.electricityBoard || undefined, consumerNumber: customer.consumerNumber || undefined,
     sanctionedLoad: customer.sanctionedLoad || undefined, avgMonthlyBill: customer.avgMonthlyBill || undefined,
     roofType: customer.roofType || undefined, roofArea: customer.roofArea || undefined,

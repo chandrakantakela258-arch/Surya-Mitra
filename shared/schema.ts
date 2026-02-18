@@ -74,6 +74,10 @@ export const customers = pgTable("customers", {
   // Unique Customer Code (DS + first 2 letters of BDP + first 3 letters of DDP + sequence)
   customerCode: text("customer_code").unique(),
   
+  // Identity Documents
+  aadharNumber: text("aadhar_number"),
+  panNumber: text("pan_number"),
+  
   // Documents
   documents: text("documents").array(),
   
