@@ -12,7 +12,7 @@ import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSche
 import { z } from "zod";
 import { notificationService } from "./notification-service";
 import { calculateLeadScore, type LeadScoreResult } from "./lead-scoring-service";
-import { sendEmail as sendGmailEmail, createProposalEmailTemplate, createWelcomeEmailTemplate } from "./gmail";
+import { sendEmail as sendGmailEmail, createProposalEmailTemplate, createWelcomeEmailTemplate, createCustomerForwardEmailTemplate } from "./gmail";
 import { generateProposalPDF, getProposalPath, type ProposalPDFData } from "./pdf-generator";
 
 // Configure multer for file uploads

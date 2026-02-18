@@ -459,3 +459,103 @@ export function createWelcomeEmailTemplate(customerName: string, partnerName?: s
 </html>
   `;
 }
+
+export interface CustomerForwardEmailData {
+  customerName: string;
+  phone: string;
+  email?: string;
+  address: string;
+  district: string;
+  state: string;
+  pincode: string;
+  electricityBoard?: string;
+  consumerNumber?: string;
+  sanctionedLoad?: string;
+  avgMonthlyBill?: number;
+  roofType?: string;
+  roofArea?: number;
+  panelType?: string;
+  proposedCapacity?: string;
+  customerType?: string;
+  customerCode?: string;
+  ddpName?: string;
+  ddpPhone?: string;
+  bdpName?: string;
+  bdpPhone?: string;
+  status: string;
+}
+
+export function createCustomerForwardEmailTemplate(data: CustomerForwardEmailData): string {
+  const formatINR = (amount: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
+  const panelLabel = data.panelType === 'dcr' ? 'DCR' : 'Non-DCR';
+  const typeLabel = (data.customerType || 'residential').charAt(0).toUpperCase() + (data.customerType || 'residential').slice(1);
+
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif;background-color:#f4f4f4;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;">
+    <tr>
+      <td>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="background: linear-gradient(135deg, #f97316, #ea580c); padding: 24px; text-align: center;">
+              <h1 style="color:#fff;margin:0;font-size:22px;">New Customer Registration</h1>
+              <p style="color:#fff;margin:6px 0 0;font-size:14px;opacity:0.9;">Divyanshi Solar - Hewtech System Pvt. Ltd.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#fff;padding:24px;">
+              <p style="color:#333;font-size:15px;margin:0 0 16px;">A customer has been verified and confirmed as genuine. Below are the complete details for processing the installation:</p>
+              <table width="100%" cellpadding="8" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;border-collapse:separate;margin-bottom:16px;">
+                <tr style="background:#f97316;"><td colspan="2" style="color:#fff;font-weight:600;font-size:14px;border-radius:8px 8px 0 0;">Customer Information</td></tr>
+                <tr style="background:#fafafa;"><td style="color:#666;width:40%;font-size:13px;">Name</td><td style="color:#333;font-weight:600;font-size:13px;">${data.customerName}</td></tr>
+                <tr><td style="color:#666;font-size:13px;">Phone</td><td style="color:#333;font-size:13px;">${data.phone}</td></tr>
+                ${data.email ? `<tr style="background:#fafafa;"><td style="color:#666;font-size:13px;">Email</td><td style="color:#333;font-size:13px;">${data.email}</td></tr>` : ''}
+                ${data.customerCode ? `<tr><td style="color:#666;font-size:13px;">Customer Code</td><td style="color:#333;font-weight:600;font-size:13px;">${data.customerCode}</td></tr>` : ''}
+                <tr style="background:#fafafa;"><td style="color:#666;font-size:13px;">Type</td><td style="color:#333;font-size:13px;">${typeLabel}</td></tr>
+                <tr><td style="color:#666;font-size:13px;">Status</td><td style="color:#333;font-size:13px;"><span style="background:#16a34a;color:#fff;padding:2px 10px;border-radius:12px;font-size:12px;">${data.status}</span></td></tr>
+              </table>
+              <table width="100%" cellpadding="8" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;border-collapse:separate;margin-bottom:16px;">
+                <tr style="background:#2563eb;"><td colspan="2" style="color:#fff;font-weight:600;font-size:14px;border-radius:8px 8px 0 0;">Address Details</td></tr>
+                <tr style="background:#fafafa;"><td style="color:#666;width:40%;font-size:13px;">Address</td><td style="color:#333;font-size:13px;">${data.address}</td></tr>
+                <tr><td style="color:#666;font-size:13px;">District</td><td style="color:#333;font-size:13px;">${data.district}</td></tr>
+                <tr style="background:#fafafa;"><td style="color:#666;font-size:13px;">State</td><td style="color:#333;font-size:13px;">${data.state}</td></tr>
+                <tr><td style="color:#666;font-size:13px;">Pincode</td><td style="color:#333;font-size:13px;">${data.pincode}</td></tr>
+              </table>
+              <table width="100%" cellpadding="8" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;border-collapse:separate;margin-bottom:16px;">
+                <tr style="background:#16a34a;"><td colspan="2" style="color:#fff;font-weight:600;font-size:14px;border-radius:8px 8px 0 0;">Solar Installation Details</td></tr>
+                <tr style="background:#fafafa;"><td style="color:#666;width:40%;font-size:13px;">Panel Type</td><td style="color:#333;font-size:13px;">${panelLabel}</td></tr>
+                <tr><td style="color:#666;font-size:13px;">Proposed Capacity</td><td style="color:#333;font-weight:600;font-size:13px;">${data.proposedCapacity || '-'} kW</td></tr>
+                ${data.roofType ? `<tr style="background:#fafafa;"><td style="color:#666;font-size:13px;">Roof Type</td><td style="color:#333;font-size:13px;">${data.roofType}</td></tr>` : ''}
+                ${data.roofArea ? `<tr><td style="color:#666;font-size:13px;">Roof Area</td><td style="color:#333;font-size:13px;">${data.roofArea} sq ft</td></tr>` : ''}
+              </table>
+              ${data.electricityBoard || data.consumerNumber || data.avgMonthlyBill ? `
+              <table width="100%" cellpadding="8" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;border-collapse:separate;margin-bottom:16px;">
+                <tr style="background:#7c3aed;"><td colspan="2" style="color:#fff;font-weight:600;font-size:14px;border-radius:8px 8px 0 0;">Electricity Details</td></tr>
+                ${data.electricityBoard ? `<tr style="background:#fafafa;"><td style="color:#666;width:40%;font-size:13px;">Electricity Board</td><td style="color:#333;font-size:13px;">${data.electricityBoard}</td></tr>` : ''}
+                ${data.consumerNumber ? `<tr><td style="color:#666;font-size:13px;">Consumer Number</td><td style="color:#333;font-size:13px;">${data.consumerNumber}</td></tr>` : ''}
+                ${data.sanctionedLoad ? `<tr style="background:#fafafa;"><td style="color:#666;font-size:13px;">Sanctioned Load</td><td style="color:#333;font-size:13px;">${data.sanctionedLoad} kW</td></tr>` : ''}
+                ${data.avgMonthlyBill ? `<tr><td style="color:#666;font-size:13px;">Avg Monthly Bill</td><td style="color:#333;font-size:13px;">${formatINR(data.avgMonthlyBill)}</td></tr>` : ''}
+              </table>` : ''}
+              ${data.ddpName || data.bdpName ? `
+              <table width="100%" cellpadding="8" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;border-collapse:separate;margin-bottom:16px;">
+                <tr style="background:#333;"><td colspan="2" style="color:#fff;font-weight:600;font-size:14px;border-radius:8px 8px 0 0;">Partner Details</td></tr>
+                ${data.ddpName ? `<tr style="background:#fafafa;"><td style="color:#666;width:40%;font-size:13px;">DDP</td><td style="color:#333;font-size:13px;">${data.ddpName} (${data.ddpPhone || '-'})</td></tr>` : ''}
+                ${data.bdpName ? `<tr><td style="color:#666;font-size:13px;">BDP</td><td style="color:#333;font-size:13px;">${data.bdpName} (${data.bdpPhone || '-'})</td></tr>` : ''}
+              </table>` : ''}
+              <p style="color:#666;font-size:12px;margin-top:16px;text-align:center;">This email was sent automatically by Divyanshi Solar Partner Management System.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color:#333;padding:20px;text-align:center;">
+              <p style="color:#999;margin:0;font-size:12px;">www.divyanshisolar.com</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
