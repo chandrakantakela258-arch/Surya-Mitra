@@ -57,13 +57,50 @@ async function getUncachableGmailClient() {
   return google.gmail({ version: 'v1', auth: oauth2Client });
 }
 
-function createEmailMessage(to: string, subject: string, htmlContent: string, fromName: string = 'Divyanshi Solar', pdfAttachment?: { filename: string; data: string }): string {
+export interface EmailAttachment {
+  filename: string;
+  data: string;
+  mimeType: string;
+}
+
+function getContentTypeFromUrl(url: string): string {
+  const ext = url.split('.').pop()?.toLowerCase()?.split('?')[0] || '';
+  const mimeMap: Record<string, string> = {
+    'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png', 'gif': 'image/gif', 'webp': 'image/webp',
+    'pdf': 'application/pdf', 'doc': 'application/msword', 'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'mp4': 'video/mp4', 'mov': 'video/quicktime', 'avi': 'video/x-msvideo',
+  };
+  return mimeMap[ext] || 'application/octet-stream';
+}
+
+export async function downloadFileAsBase64(url: string): Promise<{ data: string; mimeType: string } | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const mimeType = response.headers.get('content-type') || getContentTypeFromUrl(url);
+    return { data: buffer.toString('base64'), mimeType };
+  } catch (err) {
+    console.error('Failed to download file for attachment:', url, err);
+    return null;
+  }
+}
+
+function createEmailMessage(to: string, subject: string, htmlContent: string, fromName: string = 'Divyanshi Solar', pdfAttachment?: { filename: string; data: string }, attachments?: EmailAttachment[]): string {
   const fromEmail = connectionSettings?.settings?.email || 'noreply@divyanshisolar.com';
   const boundary = '----=_Part_' + Date.now().toString(36);
   
+  const allAttachments: EmailAttachment[] = [];
+  if (pdfAttachment) {
+    allAttachments.push({ filename: pdfAttachment.filename, data: pdfAttachment.data, mimeType: 'application/pdf' });
+  }
+  if (attachments) {
+    allAttachments.push(...attachments);
+  }
+
   let messageParts: string[];
   
-  if (pdfAttachment) {
+  if (allAttachments.length > 0) {
     messageParts = [
       `From: ${fromName} <${fromEmail}>`,
       `To: ${to}`,
@@ -76,16 +113,19 @@ function createEmailMessage(to: string, subject: string, htmlContent: string, fr
       'Content-Transfer-Encoding: 7bit',
       '',
       htmlContent,
-      '',
-      `--${boundary}`,
-      'Content-Type: application/pdf',
-      'Content-Transfer-Encoding: base64',
-      `Content-Disposition: attachment; filename="${pdfAttachment.filename}"`,
-      '',
-      pdfAttachment.data,
-      '',
-      `--${boundary}--`
     ];
+    for (const att of allAttachments) {
+      messageParts.push(
+        '',
+        `--${boundary}`,
+        `Content-Type: ${att.mimeType}`,
+        'Content-Transfer-Encoding: base64',
+        `Content-Disposition: attachment; filename="${att.filename}"`,
+        '',
+        att.data,
+      );
+    }
+    messageParts.push('', `--${boundary}--`);
   } else {
     messageParts = [
       `From: ${fromName} <${fromEmail}>`,
@@ -114,8 +154,9 @@ export interface EmailOptions {
   fromName?: string;
   pdfAttachment?: {
     filename: string;
-    data: string;  // Base64 encoded PDF data
+    data: string;
   };
+  attachments?: EmailAttachment[];
 }
 
 export async function sendEmail(options: EmailOptions): Promise<{ success: boolean; messageId?: string; error?: string }> {
@@ -130,7 +171,8 @@ export async function sendEmail(options: EmailOptions): Promise<{ success: boole
       options.subject,
       options.htmlContent,
       options.fromName,
-      options.pdfAttachment
+      options.pdfAttachment,
+      options.attachments
     );
     
     console.log('Sending email via Gmail API...');
@@ -482,11 +524,17 @@ export interface CustomerForwardEmailData {
   proposedCapacity?: string;
   customerType?: string;
   customerCode?: string;
+  accountHolderName?: string;
+  accountNumber?: string;
+  ifscCode?: string;
+  bankName?: string;
+  upiId?: string;
   ddpName?: string;
   ddpPhone?: string;
   bdpName?: string;
   bdpPhone?: string;
   status: string;
+  attachmentCount?: number;
 }
 
 export function createCustomerForwardEmailTemplate(data: CustomerForwardEmailData): string {
@@ -545,11 +593,27 @@ export function createCustomerForwardEmailTemplate(data: CustomerForwardEmailDat
                 ${data.sanctionedLoad ? `<tr style="background:#fafafa;"><td style="color:#666;font-size:13px;">Sanctioned Load</td><td style="color:#333;font-size:13px;">${data.sanctionedLoad} kW</td></tr>` : ''}
                 ${data.avgMonthlyBill ? `<tr><td style="color:#666;font-size:13px;">Avg Monthly Bill</td><td style="color:#333;font-size:13px;">${formatINR(data.avgMonthlyBill)}</td></tr>` : ''}
               </table>` : ''}
+              ${data.accountHolderName || data.accountNumber || data.bankName || data.upiId ? `
+              <table width="100%" cellpadding="8" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;border-collapse:separate;margin-bottom:16px;">
+                <tr style="background:#0891b2;"><td colspan="2" style="color:#fff;font-weight:600;font-size:14px;border-radius:8px 8px 0 0;">Bank Details</td></tr>
+                ${data.accountHolderName ? `<tr style="background:#fafafa;"><td style="color:#666;width:40%;font-size:13px;">Account Holder</td><td style="color:#333;font-size:13px;">${data.accountHolderName}</td></tr>` : ''}
+                ${data.accountNumber ? `<tr><td style="color:#666;font-size:13px;">Account Number</td><td style="color:#333;font-size:13px;">${data.accountNumber}</td></tr>` : ''}
+                ${data.ifscCode ? `<tr style="background:#fafafa;"><td style="color:#666;font-size:13px;">IFSC Code</td><td style="color:#333;font-size:13px;">${data.ifscCode}</td></tr>` : ''}
+                ${data.bankName ? `<tr><td style="color:#666;font-size:13px;">Bank Name</td><td style="color:#333;font-size:13px;">${data.bankName}</td></tr>` : ''}
+                ${data.upiId ? `<tr style="background:#fafafa;"><td style="color:#666;font-size:13px;">UPI ID</td><td style="color:#333;font-size:13px;">${data.upiId}</td></tr>` : ''}
+              </table>` : ''}
               ${data.ddpName || data.bdpName ? `
               <table width="100%" cellpadding="8" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;border-collapse:separate;margin-bottom:16px;">
                 <tr style="background:#333;"><td colspan="2" style="color:#fff;font-weight:600;font-size:14px;border-radius:8px 8px 0 0;">Partner Details</td></tr>
                 ${data.ddpName ? `<tr style="background:#fafafa;"><td style="color:#666;width:40%;font-size:13px;">DDP</td><td style="color:#333;font-size:13px;">${data.ddpName} (${data.ddpPhone || '-'})</td></tr>` : ''}
                 ${data.bdpName ? `<tr><td style="color:#666;font-size:13px;">BDP</td><td style="color:#333;font-size:13px;">${data.bdpName} (${data.bdpPhone || '-'})</td></tr>` : ''}
+              </table>` : ''}
+              ${data.attachmentCount && data.attachmentCount > 0 ? `
+              <table width="100%" cellpadding="8" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;border-collapse:separate;margin-bottom:16px;">
+                <tr style="background:#7c3aed;"><td colspan="2" style="color:#fff;font-weight:600;font-size:14px;border-radius:8px 8px 0 0;">Uploaded Documents & Media</td></tr>
+                <tr style="background:#fafafa;"><td colspan="2" style="color:#333;font-size:13px;padding:12px;">
+                  <strong>${data.attachmentCount} file(s)</strong> attached to this email. Please check the attachments for site photos, documents, and videos uploaded by the partner.
+                </td></tr>
               </table>` : ''}
               <p style="color:#666;font-size:12px;margin-top:16px;text-align:center;">This email was sent automatically by Divyanshi Solar Partner Management System.</p>
             </td>

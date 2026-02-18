@@ -67,8 +67,8 @@ const publicCustomerFormSchema = z.object({
   district: z.string().min(2, "District is required"),
   state: z.string().min(2, "State is required"),
   pincode: z.string().min(6, "Pincode must be 6 digits").max(6, "Pincode must be 6 digits"),
-  aadharNumber: z.string().length(12, "Aadhaar must be 12 digits").regex(/^\d{12}$/, "Aadhaar must contain only digits"),
-  panNumber: z.string().length(10, "PAN must be 10 characters").regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, "Invalid PAN format (e.g., ABCDE1234F)"),
+  aadharNumber: z.string().optional().or(z.literal("")).refine(val => !val || /^\d{12}$/.test(val), { message: "Aadhaar must be 12 digits" }),
+  panNumber: z.string().optional().or(z.literal("")).refine(val => !val || /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(val), { message: "Invalid PAN format (e.g., ABCDE1234F)" }),
   // Electricity Details - Required
   electricityBoard: z.string().min(2, "Electricity board is required"),
   consumerNumber: z.string().min(3, "Consumer number is required"),
@@ -95,10 +95,10 @@ const publicCustomerFormSchema = z.object({
   panelType: z.enum(panelTypes),
   proposedCapacity: z.string().min(1, "Capacity is required"),
   // Payment Details - Required
-  accountHolderName: z.string().min(2, "Account holder name is required"),
-  accountNumber: z.string().min(8, "Account number must be at least 8 digits"),
-  ifscCode: z.string().length(11, "IFSC code must be 11 characters").regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, "Invalid IFSC format"),
-  bankName: z.string().min(2, "Bank name is required"),
+  accountHolderName: z.string().optional().or(z.literal("")),
+  accountNumber: z.string().optional().or(z.literal("")),
+  ifscCode: z.string().optional().or(z.literal("")).refine(val => !val || /^[A-Z]{4}0[A-Z0-9]{6}$/.test(val), { message: "Invalid IFSC format" }),
+  bankName: z.string().optional().or(z.literal("")),
   upiId: z.string().optional().or(z.literal("")),
   // Documents - Optional
   documents: z.array(z.string()).optional().default([]),

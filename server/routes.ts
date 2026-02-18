@@ -12,7 +12,7 @@ import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSche
 import { z } from "zod";
 import { notificationService } from "./notification-service";
 import { calculateLeadScore, type LeadScoreResult } from "./lead-scoring-service";
-import { sendEmail as sendGmailEmail, createProposalEmailTemplate, createWelcomeEmailTemplate, createCustomerForwardEmailTemplate } from "./gmail";
+import { sendEmail as sendGmailEmail, createProposalEmailTemplate, createWelcomeEmailTemplate, createCustomerForwardEmailTemplate, downloadFileAsBase64, type EmailAttachment } from "./gmail";
 import { generateProposalPDF, getProposalPath, type ProposalPDFData } from "./pdf-generator";
 
 // Configure multer for file uploads
@@ -206,6 +206,7 @@ async function forwardCustomerEmailToState(customer: any) {
     bdpName = bdp?.fullName;
     bdpPhone = bdp?.phone;
   }
+  const attachmentCount = (customer.sitePictures?.length || 0) + (customer.documents?.length || 0) + (customer.siteVideo ? 1 : 0);
   const emailHtml = createCustomerForwardEmailTemplate({
     customerName: customer.name, phone: customer.phone, email: customer.email || undefined,
     address: customer.address, district: customer.district, state: customer.state, pincode: customer.pincode,
@@ -216,12 +217,61 @@ async function forwardCustomerEmailToState(customer: any) {
     roofType: customer.roofType || undefined, roofArea: customer.roofArea || undefined,
     panelType: customer.panelType || undefined, proposedCapacity: customer.proposedCapacity || undefined,
     customerType: customer.customerType || undefined, customerCode: customer.customerCode || undefined,
+    accountHolderName: customer.accountHolderName || undefined, accountNumber: customer.accountNumber || undefined,
+    ifscCode: customer.ifscCode || undefined, bankName: customer.bankName || undefined, upiId: customer.upiId || undefined,
     ddpName: ddp?.fullName, ddpPhone: ddp?.phone, bdpName, bdpPhone, status: "Verified",
+    attachmentCount,
   });
+
+  const emailAttachments: EmailAttachment[] = [];
+  const MAX_TOTAL_SIZE = 20 * 1024 * 1024; // 20MB limit (Gmail allows ~25MB)
+  const MAX_SINGLE_FILE = 8 * 1024 * 1024; // 8MB per file
+  let totalSize = 0;
+  let skippedFiles = 0;
+
+  const tryAttach = async (url: string, filename: string) => {
+    if (totalSize >= MAX_TOTAL_SIZE) { skippedFiles++; return; }
+    const file = await downloadFileAsBase64(url);
+    if (!file) return;
+    const fileSize = Buffer.byteLength(file.data, 'base64');
+    if (fileSize > MAX_SINGLE_FILE || totalSize + fileSize > MAX_TOTAL_SIZE) {
+      skippedFiles++;
+      console.log(`Skipping attachment ${filename} (${(fileSize / 1024 / 1024).toFixed(1)}MB) - exceeds size limit`);
+      return;
+    }
+    totalSize += fileSize;
+    emailAttachments.push({ filename, data: file.data, mimeType: file.mimeType });
+  };
+
+  try {
+    if (customer.sitePictures && customer.sitePictures.length > 0) {
+      for (let i = 0; i < customer.sitePictures.length; i++) {
+        const ext = customer.sitePictures[i].split('.').pop()?.split('?')[0] || 'jpg';
+        await tryAttach(customer.sitePictures[i], `site_photo_${i + 1}.${ext}`);
+      }
+    }
+    if (customer.documents && customer.documents.length > 0) {
+      for (let i = 0; i < customer.documents.length; i++) {
+        const ext = customer.documents[i].split('.').pop()?.split('?')[0] || 'pdf';
+        await tryAttach(customer.documents[i], `document_${i + 1}.${ext}`);
+      }
+    }
+    if (customer.siteVideo) {
+      const ext = customer.siteVideo.split('.').pop()?.split('?')[0] || 'mp4';
+      await tryAttach(customer.siteVideo, `site_video.${ext}`);
+    }
+    if (skippedFiles > 0) {
+      console.log(`Skipped ${skippedFiles} file(s) due to size limits in forwarding email`);
+    }
+  } catch (err) {
+    console.error('Error downloading attachments for forwarding email:', err);
+  }
+
   await sendGmailEmail({
     to: forwardEmail,
     subject: `New Verified Customer: ${customer.name} - ${customer.state} (${customer.proposedCapacity || '-'} kW)`,
     htmlContent: emailHtml,
+    attachments: emailAttachments.length > 0 ? emailAttachments : undefined,
   });
   await storage.updateCustomer(customer.id, {
     stateEmailSentAt: new Date(),

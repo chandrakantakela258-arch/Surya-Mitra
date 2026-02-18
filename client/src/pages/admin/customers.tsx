@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Search, Phone, MapPin, Zap, Calendar, MoreVertical, CheckCircle, Clock, FileCheck, Truck, PartyPopper, Eye, Camera, Video, Play, X, Image, Smartphone, ShieldOff, Settings, Mail, Trash2, Plus, Pencil, Check } from "lucide-react";
+import { Search, Phone, MapPin, Zap, Calendar, MoreVertical, CheckCircle, Clock, FileCheck, Truck, PartyPopper, Eye, Camera, Video, Play, X, Image, Smartphone, ShieldOff, Settings, Mail, Trash2, Plus, Pencil, Check, CreditCard, Landmark, User } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { CustomerJourneyMini, ExpandableSiteProgress } from "@/components/customer-journey-tracker";
@@ -359,6 +359,48 @@ export default function AdminCustomers() {
                           </span>
                         )}
                       </div>
+                      {(customer.aadharNumber || customer.panNumber) && (
+                        <div className="flex flex-wrap gap-4 text-sm mt-1">
+                          {customer.aadharNumber && (
+                            <span className="text-muted-foreground flex items-center gap-1">
+                              <CreditCard className="w-3 h-3" />
+                              <span className="font-medium text-foreground">Aadhaar:</span> {customer.aadharNumber}
+                            </span>
+                          )}
+                          {customer.panNumber && (
+                            <span className="text-muted-foreground flex items-center gap-1">
+                              <CreditCard className="w-3 h-3" />
+                              <span className="font-medium text-foreground">PAN:</span> {customer.panNumber}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {(customer.bankName || customer.accountNumber) && (
+                        <div className="flex flex-wrap gap-4 text-sm mt-1">
+                          {customer.bankName && (
+                            <span className="text-muted-foreground flex items-center gap-1">
+                              <Landmark className="w-3 h-3" />
+                              <span className="font-medium text-foreground">Bank:</span> {customer.bankName}
+                            </span>
+                          )}
+                          {customer.accountNumber && (
+                            <span className="text-muted-foreground flex items-center gap-1">
+                              <span className="font-medium text-foreground">A/C:</span> {customer.accountNumber}
+                            </span>
+                          )}
+                          {customer.ifscCode && (
+                            <span className="text-muted-foreground">
+                              <span className="font-medium text-foreground">IFSC:</span> {customer.ifscCode}
+                            </span>
+                          )}
+                          {customer.accountHolderName && (
+                            <span className="text-muted-foreground flex items-center gap-1">
+                              <User className="w-3 h-3" />
+                              {customer.accountHolderName}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       {customer.stateEmailSentAt && (
                         <div className="flex items-center gap-2 mt-1" data-testid={`state-email-status-${customer.id}`}>
                           <Badge variant="outline" className="text-xs bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-700">
