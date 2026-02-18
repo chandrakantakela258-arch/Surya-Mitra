@@ -3970,21 +3970,24 @@ export async function registerRoutes(
         }
       }
       
-      // For independent customers (no valid referral), still need to assign a DDP for tracking
-      // but mark as independent so no commission is generated
+      // For independent customers (no valid referral), assign to designated DDP (Anamika Kumari - DSDDP001001)
+      // under BDP Chandrakant Akela for tracking purposes, no commission is generated
       if (!ddpId) {
-        const allPartners = await storage.getAllPartners();
-        const activeDDPs = allPartners.filter(p => p.role === "ddp" && p.status === "active");
-        
-        if (activeDDPs.length > 0) {
-          // Assign to a random active DDP for tracking purposes only
-          ddpId = activeDDPs[Math.floor(Math.random() * activeDDPs.length)].id;
+        const designatedDDP = await storage.getUserByPartnerCode("DSDDP001001");
+        if (designatedDDP) {
+          ddpId = designatedDDP.id;
         } else {
-          const anyDDP = allPartners.find(p => p.role === "ddp");
-          if (anyDDP) {
-            ddpId = anyDDP.id;
+          const allPartners = await storage.getAllPartners();
+          const activeDDPs = allPartners.filter(p => p.role === "ddp" && (p.status === "active" || p.status === "approved"));
+          if (activeDDPs.length > 0) {
+            ddpId = activeDDPs[0].id;
           } else {
-            return res.status(400).json({ message: "No partners available. Please try again later." });
+            const anyDDP = allPartners.find(p => p.role === "ddp");
+            if (anyDDP) {
+              ddpId = anyDDP.id;
+            } else {
+              return res.status(400).json({ message: "No partners available. Please try again later." });
+            }
           }
         }
       }
