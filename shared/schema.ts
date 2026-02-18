@@ -1,5 +1,5 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, decimal, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, decimal, boolean, serial } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -3064,6 +3064,16 @@ export const insertProposalLeadSchema = createInsertSchema(proposalLeads).omit({
 
 export type InsertProposalLead = z.infer<typeof insertProposalLeadSchema>;
 export type ProposalLead = typeof proposalLeads.$inferSelect;
+
+// Admin Settings table for configurable options
+export const adminSettings = pgTable("admin_settings", {
+  id: serial("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type AdminSetting = typeof adminSettings.$inferSelect;
 
 // Re-export chat models for OpenAI integration
 export * from "./models/chat";

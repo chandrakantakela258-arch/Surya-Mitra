@@ -140,6 +140,8 @@ import {
   proposalLeads,
   type ProposalLead,
   type InsertProposalLead,
+  adminSettings,
+  type AdminSetting,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, inArray, isNull, not, or, lt, asc } from "drizzle-orm";
@@ -486,6 +488,8 @@ export interface IStorage {
   getProposalLeads(): Promise<ProposalLead[]>;
   getProposalLead(id: string): Promise<ProposalLead | undefined>;
   updateProposalLead(id: string, data: Partial<ProposalLead>): Promise<ProposalLead | undefined>;
+  getAdminSetting(key: string): Promise<string | null>;
+  setAdminSetting(key: string, value: string): Promise<AdminSetting>;
 }
 
 // Helper function to generate next partner code
@@ -3503,6 +3507,21 @@ export class DatabaseStorage implements IStorage {
   async updateProposalLead(id: string, data: Partial<ProposalLead>): Promise<ProposalLead | undefined> {
     const [lead] = await db.update(proposalLeads).set(data).where(eq(proposalLeads.id, id)).returning();
     return lead;
+  }
+
+  async getAdminSetting(key: string): Promise<string | null> {
+    const [setting] = await db.select().from(adminSettings).where(eq(adminSettings.key, key));
+    return setting?.value || null;
+  }
+
+  async setAdminSetting(key: string, value: string): Promise<AdminSetting> {
+    const existing = await db.select().from(adminSettings).where(eq(adminSettings.key, key));
+    if (existing.length > 0) {
+      const [updated] = await db.update(adminSettings).set({ value, updatedAt: new Date() }).where(eq(adminSettings.key, key)).returning();
+      return updated;
+    }
+    const [created] = await db.insert(adminSettings).values({ key, value }).returning();
+    return created;
   }
 }
 
