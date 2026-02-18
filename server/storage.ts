@@ -137,6 +137,9 @@ import {
   customerTestimonials,
   type CustomerTestimonial,
   type InsertCustomerTestimonial,
+  proposalLeads,
+  type ProposalLead,
+  type InsertProposalLead,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, inArray, isNull, not, or, lt, asc } from "drizzle-orm";
@@ -477,6 +480,12 @@ export interface IStorage {
   updateCustomerTestimonial(id: string, data: Partial<CustomerTestimonial>): Promise<CustomerTestimonial | undefined>;
   approveTestimonial(id: string, approvedBy: string): Promise<CustomerTestimonial | undefined>;
   markTestimonialShared(id: string, platform: 'facebook' | 'instagram'): Promise<CustomerTestimonial | undefined>;
+
+  // Proposal Lead operations
+  createProposalLead(lead: InsertProposalLead): Promise<ProposalLead>;
+  getProposalLeads(): Promise<ProposalLead[]>;
+  getProposalLead(id: string): Promise<ProposalLead | undefined>;
+  updateProposalLead(id: string, data: Partial<ProposalLead>): Promise<ProposalLead | undefined>;
 }
 
 // Helper function to generate next partner code
@@ -3476,6 +3485,24 @@ export class DatabaseStorage implements IStorage {
       .where(eq(customerTestimonials.id, id))
       .returning();
     return testimonial;
+  }
+  async createProposalLead(lead: InsertProposalLead): Promise<ProposalLead> {
+    const [newLead] = await db.insert(proposalLeads).values(lead).returning();
+    return newLead;
+  }
+
+  async getProposalLeads(): Promise<ProposalLead[]> {
+    return await db.select().from(proposalLeads).orderBy(desc(proposalLeads.createdAt));
+  }
+
+  async getProposalLead(id: string): Promise<ProposalLead | undefined> {
+    const [lead] = await db.select().from(proposalLeads).where(eq(proposalLeads.id, id));
+    return lead;
+  }
+
+  async updateProposalLead(id: string, data: Partial<ProposalLead>): Promise<ProposalLead | undefined> {
+    const [lead] = await db.update(proposalLeads).set(data).where(eq(proposalLeads.id, id)).returning();
+    return lead;
   }
 }
 

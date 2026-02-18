@@ -8,7 +8,7 @@ import path from "path";
 import fs from "fs";
 import { pool } from "./db";
 import { storage, generatePartnerCode, generateCustomerCode } from "./storage";
-import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSchema, updateFeedbackStatusSchema, inverterCommission, insertVendorSchema, vendorStates, insertSiteSurveySchema, insertMeterInstallationReportSchema, insertPortalSubmissionReportSchema, insertRemainingPaymentReportSchema, insertSubsidyApplicationReportSchema, insertSubsidyDisbursementReportSchema } from "@shared/schema";
+import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSchema, updateFeedbackStatusSchema, inverterCommission, insertVendorSchema, vendorStates, insertSiteSurveySchema, insertMeterInstallationReportSchema, insertPortalSubmissionReportSchema, insertRemainingPaymentReportSchema, insertSubsidyApplicationReportSchema, insertSubsidyDisbursementReportSchema, insertProposalLeadSchema } from "@shared/schema";
 import { z } from "zod";
 import { notificationService } from "./notification-service";
 import { calculateLeadScore, type LeadScoreResult } from "./lead-scoring-service";
@@ -8924,6 +8924,71 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Send proposal email error:", error);
       res.status(500).json({ success: false, message: error.message || "Failed to send email" });
+    }
+  });
+
+  // ========== PROPOSAL LEADS ENDPOINTS ==========
+
+  // Public: Save proposal lead when a proposal is generated
+  app.post("/api/proposal-leads", async (req, res) => {
+    try {
+      const parsed = insertProposalLeadSchema.safeParse({
+        ...req.body,
+        plantCapacity: String(req.body.plantCapacity || ""),
+        totalCost: req.body.totalCost ? Number(req.body.totalCost) : null,
+        netCost: req.body.netCost ? Number(req.body.netCost) : null,
+        subsidy: req.body.subsidy ? Number(req.body.subsidy) : null,
+        source: req.body.source || "calculator",
+        status: "new",
+      });
+
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid data", errors: parsed.error.flatten().fieldErrors });
+      }
+
+      const lead = await storage.createProposalLead(parsed.data);
+
+      res.json(lead);
+    } catch (error: any) {
+      console.error("Create proposal lead error:", error);
+      res.status(500).json({ message: error.message || "Failed to save lead" });
+    }
+  });
+
+  // Admin: Get all proposal leads
+  app.get("/api/admin/proposal-leads", requireAuth, async (req, res) => {
+    try {
+      if (req.user?.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      const leads = await storage.getProposalLeads();
+      res.json(leads);
+    } catch (error: any) {
+      console.error("Get proposal leads error:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch leads" });
+    }
+  });
+
+  // Admin: Update proposal lead status/notes
+  app.patch("/api/admin/proposal-leads/:id", requireAuth, async (req, res) => {
+    try {
+      if (req.user?.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      const { id } = req.params;
+      const { status, notes } = req.body;
+      const validStatuses = ["new", "contacted", "converted", "closed"];
+      if (status && !validStatuses.includes(status)) {
+        return res.status(400).json({ message: "Invalid status. Must be one of: new, contacted, converted, closed" });
+      }
+      const lead = await storage.updateProposalLead(id, { status, notes });
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      res.json(lead);
+    } catch (error: any) {
+      console.error("Update proposal lead error:", error);
+      res.status(500).json({ message: error.message || "Failed to update lead" });
     }
   });
 

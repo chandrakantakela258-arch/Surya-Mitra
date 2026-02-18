@@ -87,6 +87,7 @@ const adminMenuSections: MenuSection[] = [
       { title: "Partner Hierarchy", url: "/admin/partner-hierarchy", icon: Users },
       { title: "All Customers", url: "/admin/customers", icon: Users },
       { title: "Independent Customers", url: "/admin/independent-customers", icon: UserPlus },
+      { title: "Customer Leads", url: "/admin/customer-leads", icon: UserPlus },
     ],
   },
   {

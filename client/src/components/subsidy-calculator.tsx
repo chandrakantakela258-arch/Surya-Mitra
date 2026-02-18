@@ -1535,7 +1535,34 @@ export function SubsidyCalculator({
     };
   }, [capacity, panelType, inverterType, customerType, result, selectedEmiTenure, selectedEmi, interestRate, electricityUnitRate, selectedState, customerName, partnerName, partnerPhone, installationAddress]);
   
+  async function saveProposalLead(source: string = "calculator") {
+    if (!customerName.trim() || !customerPhone.trim() || !capacity || !panelType || !inverterType) return;
+    try {
+      await fetch("/api/proposal-leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerName: customerName.trim(),
+          phone: customerPhone.trim(),
+          email: customerEmail.trim() || null,
+          plantCapacity: String(capacity),
+          plantType: panelType,
+          inverterType,
+          address: installationAddress.trim() || null,
+          state: selectedState || null,
+          totalCost: result?.totalCost || null,
+          netCost: result?.netCost || null,
+          subsidy: result?.totalSubsidy || null,
+          source,
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to save proposal lead:", err);
+    }
+  }
+
   async function handleDownloadProposal() {
+    saveProposalLead("pdf_download");
     // Use detailed client-side jsPDF generator for rich formatting with images
     try {
       const data = getProposalData();
@@ -1554,6 +1581,7 @@ export function SubsidyCalculator({
   }
   
   async function handleShareWhatsApp() {
+    saveProposalLead("whatsapp_share");
     const data = getProposalData();
     
     console.log("[WhatsApp] Starting PDF generation...");
@@ -1686,6 +1714,8 @@ Website: https://divyanshisolar.com`;
       });
       return;
     }
+    
+    saveProposalLead("email_proposal");
     
     // Capture ALL form values synchronously BEFORE setting loading state
     // This ensures values are preserved even if component state changes during async operation

@@ -3037,5 +3037,33 @@ export const insertCustomerTestimonialSchema = createInsertSchema(customerTestim
 export type InsertCustomerTestimonial = z.infer<typeof insertCustomerTestimonialSchema>;
 export type CustomerTestimonial = typeof customerTestimonials.$inferSelect;
 
+// Proposal Leads - captures customer details when proposals are generated
+export const proposalLeads = pgTable("proposal_leads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerName: text("customer_name").notNull(),
+  phone: text("phone").notNull(),
+  email: text("email"),
+  plantCapacity: text("plant_capacity").notNull(),
+  plantType: text("plant_type").notNull(), // dcr or non_dcr
+  inverterType: text("inverter_type").notNull(), // hybrid or ongrid
+  address: text("address"),
+  state: text("state"),
+  totalCost: integer("total_cost"),
+  netCost: integer("net_cost"),
+  subsidy: integer("subsidy"),
+  source: text("source").default("calculator"), // calculator, landing_page
+  status: text("status").notNull().default("new"), // new, contacted, converted, closed
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertProposalLeadSchema = createInsertSchema(proposalLeads).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertProposalLead = z.infer<typeof insertProposalLeadSchema>;
+export type ProposalLead = typeof proposalLeads.$inferSelect;
+
 // Re-export chat models for OpenAI integration
 export * from "./models/chat";
