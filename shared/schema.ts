@@ -111,6 +111,10 @@ export const customers = pgTable("customers", {
   otpExpiry: timestamp("otp_expiry"), // OTP expiration time
   lastPortalLogin: timestamp("last_portal_login"),
   
+  // State Email Forwarding Tracking
+  stateEmailSentAt: timestamp("state_email_sent_at"),
+  stateEmailSentTo: text("state_email_sent_to"),
+  
   // Timestamps
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
