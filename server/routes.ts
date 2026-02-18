@@ -2889,6 +2889,31 @@ export async function registerRoutes(
     }
   });
 
+  // Admin update customer details (Aadhaar, PAN, Bank Details)
+  app.patch("/api/admin/customers/:id/details", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { aadharNumber, panNumber, accountHolderName, accountNumber, ifscCode, bankName, upiId } = req.body;
+      const updateData: any = {};
+      if (aadharNumber !== undefined) updateData.aadharNumber = aadharNumber || null;
+      if (panNumber !== undefined) updateData.panNumber = panNumber || null;
+      if (accountHolderName !== undefined) updateData.accountHolderName = accountHolderName || null;
+      if (accountNumber !== undefined) updateData.accountNumber = accountNumber || null;
+      if (ifscCode !== undefined) updateData.ifscCode = ifscCode || null;
+      if (bankName !== undefined) updateData.bankName = bankName || null;
+      if (upiId !== undefined) updateData.upiId = upiId || null;
+
+      const customer = await storage.updateCustomer(id, updateData);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      res.json(customer);
+    } catch (error) {
+      console.error("Admin update customer details error:", error);
+      res.status(500).json({ message: "Failed to update customer details" });
+    }
+  });
+
   // Get recent customers
   app.get("/api/admin/customers/recent", requireAdmin, async (req, res) => {
     try {

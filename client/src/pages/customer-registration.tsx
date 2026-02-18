@@ -547,16 +547,17 @@ export default function CustomerRegistration() {
                     name="aadharNumber"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Aadhaar Number *</FormLabel>
+                        <FormLabel className="text-orange-600 dark:text-orange-400 font-semibold">Aadhaar Number (Important)</FormLabel>
                         <FormControl>
                           <Input 
                             placeholder="12-digit Aadhaar number" 
                             maxLength={12}
+                            className="border-orange-300 dark:border-orange-700 focus:border-orange-500"
                             {...field} 
                             data-testid="input-aadhar"
                           />
                         </FormControl>
-                        <FormDescription>Required for subsidy application</FormDescription>
+                        <p className="text-xs text-orange-600 dark:text-orange-400">Required for subsidy application</p>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -567,17 +568,18 @@ export default function CustomerRegistration() {
                     name="panNumber"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>PAN Number *</FormLabel>
+                        <FormLabel className="text-orange-600 dark:text-orange-400 font-semibold">PAN Number (Important)</FormLabel>
                         <FormControl>
                           <Input 
                             placeholder="ABCDE1234F" 
                             maxLength={10}
+                            className="border-orange-300 dark:border-orange-700 focus:border-orange-500"
                             {...field} 
                             onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                             data-testid="input-pan"
                           />
                         </FormControl>
-                        <FormDescription>Required for subsidy and tax purposes</FormDescription>
+                        <p className="text-xs text-orange-600 dark:text-orange-400">Required for subsidy and tax purposes</p>
                         <FormMessage />
                       </FormItem>
                     )}

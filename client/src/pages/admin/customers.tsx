@@ -64,6 +64,14 @@ export default function AdminCustomers() {
   const [newEmail, setNewEmail] = useState("");
   const [editingState, setEditingState] = useState<string | null>(null);
   const [editingEmail, setEditingEmail] = useState("");
+  const [editDetailsCustomer, setEditDetailsCustomer] = useState<CustomerWithPartnerInfo | null>(null);
+  const [editAadhar, setEditAadhar] = useState("");
+  const [editPan, setEditPan] = useState("");
+  const [editAccountHolder, setEditAccountHolder] = useState("");
+  const [editAccountNumber, setEditAccountNumber] = useState("");
+  const [editIfsc, setEditIfsc] = useState("");
+  const [editBankName, setEditBankName] = useState("");
+  const [editUpi, setEditUpi] = useState("");
   const { toast } = useToast();
 
   const { data: customers, isLoading } = useQuery<CustomerWithPartnerInfo[]>({
@@ -125,6 +133,31 @@ export default function AdminCustomers() {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
+
+  const updateDetailsMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, string> }) => {
+      return apiRequest("PATCH", `/api/admin/customers/${id}/details`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/customers"] });
+      setEditDetailsCustomer(null);
+      toast({ title: "Details Updated", description: "Customer Aadhaar/PAN/Bank details have been saved." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update customer details.", variant: "destructive" });
+    },
+  });
+
+  const openEditDetails = (customer: CustomerWithPartnerInfo) => {
+    setEditDetailsCustomer(customer);
+    setEditAadhar(customer.aadharNumber || "");
+    setEditPan(customer.panNumber || "");
+    setEditAccountHolder(customer.accountHolderName || "");
+    setEditAccountNumber(customer.accountNumber || "");
+    setEditIfsc(customer.ifscCode || "");
+    setEditBankName(customer.bankName || "");
+    setEditUpi(customer.upiId || "");
+  };
 
   const togglePortalMutation = useMutation({
     mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
@@ -515,6 +548,14 @@ export default function AdminCustomers() {
                               </>
                             )}
                           </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => openEditDetails(customer)}
+                            data-testid={`button-edit-details-${customer.id}`}
+                          >
+                            <Pencil className="w-4 h-4 mr-2 text-blue-500" />
+                            Edit Aadhaar/PAN/Bank
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -783,6 +824,89 @@ export default function AdminCustomers() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEmailSettings(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editDetailsCustomer} onOpenChange={(open) => !open && setEditDetailsCustomer(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Customer Details</DialogTitle>
+            <DialogDescription>
+              Update Aadhaar, PAN, and Bank details for {editDetailsCustomer?.name}
+            </DialogDescription>
+          </DialogHeader>
+          {editDetailsCustomer && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-orange-600 dark:text-orange-400 font-semibold">Aadhaar Number</Label>
+                <Input
+                  placeholder="12-digit Aadhaar number"
+                  maxLength={12}
+                  value={editAadhar}
+                  onChange={(e) => setEditAadhar(e.target.value.replace(/\D/g, ''))}
+                  data-testid="input-edit-aadhar"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-orange-600 dark:text-orange-400 font-semibold">PAN Number</Label>
+                <Input
+                  placeholder="e.g., ABCDE1234F"
+                  maxLength={10}
+                  value={editPan}
+                  onChange={(e) => setEditPan(e.target.value.toUpperCase())}
+                  data-testid="input-edit-pan"
+                />
+              </div>
+              <Separator />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Account Holder</Label>
+                  <Input placeholder="Account holder name" value={editAccountHolder} onChange={(e) => setEditAccountHolder(e.target.value)} data-testid="input-edit-account-holder" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Bank Name</Label>
+                  <Input placeholder="Bank name" value={editBankName} onChange={(e) => setEditBankName(e.target.value)} data-testid="input-edit-bank-name" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Account Number</Label>
+                  <Input placeholder="Account number" value={editAccountNumber} onChange={(e) => setEditAccountNumber(e.target.value)} data-testid="input-edit-account-number" />
+                </div>
+                <div className="space-y-2">
+                  <Label>IFSC Code</Label>
+                  <Input placeholder="e.g., SBIN0001234" maxLength={11} value={editIfsc} onChange={(e) => setEditIfsc(e.target.value.toUpperCase())} data-testid="input-edit-ifsc" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>UPI ID</Label>
+                <Input placeholder="e.g., name@upi" value={editUpi} onChange={(e) => setEditUpi(e.target.value)} data-testid="input-edit-upi" />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDetailsCustomer(null)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                if (editDetailsCustomer) {
+                  updateDetailsMutation.mutate({
+                    id: editDetailsCustomer.id,
+                    data: {
+                      aadharNumber: editAadhar,
+                      panNumber: editPan,
+                      accountHolderName: editAccountHolder,
+                      accountNumber: editAccountNumber,
+                      ifscCode: editIfsc,
+                      bankName: editBankName,
+                      upiId: editUpi,
+                    },
+                  });
+                }
+              }}
+              disabled={updateDetailsMutation.isPending}
+              data-testid="button-save-customer-details"
+            >
+              {updateDetailsMutation.isPending ? "Saving..." : "Save Details"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
