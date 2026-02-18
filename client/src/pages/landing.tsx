@@ -6,6 +6,16 @@ import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { HeroSlider } from "@/components/hero-slider";
 import { FeedbackDialog } from "@/components/feedback-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import logoImage from "@assets/88720521_logo_1766219255006.png";
 import { SiLinkedin, SiX, SiFacebook, SiInstagram, SiWhatsapp, SiYoutube } from "react-icons/si";
 import { 
@@ -43,10 +53,14 @@ import {
   MessageSquare,
   Map,
   Store,
-  Eye
+  Eye,
+  CreditCard,
+  ShoppingCart
 } from "lucide-react";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { Product } from "@shared/schema";
@@ -59,20 +73,137 @@ function formatINR(amount: number): string {
   }).format(amount);
 }
 
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
+
 const categoryLabels: Record<string, string> = {
   solar_package: "Solar Package",
   marketing_material: "Marketing Material",
   accessory: "Accessory",
 };
 
+interface BuyerDetails {
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+}
+
 export default function LandingPage() {
+  const { toast } = useToast();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [socialMediaOpen, setSocialMediaOpen] = useState(false);
   const [floatingSocialOpen, setFloatingSocialOpen] = useState(false);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [buyerDetails, setBuyerDetails] = useState<BuyerDetails>({
+    name: "",
+    phone: "",
+    email: "",
+    address: "",
+  });
 
   const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
     queryKey: ["/api/products"],
   });
+
+  const createOrderMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("POST", "/api/public/orders/create", data);
+      return response;
+    },
+    onSuccess: async (data: any) => {
+      const options = {
+        key: data.razorpayKeyId,
+        amount: data.amount,
+        currency: data.currency,
+        name: "DivyanshiSolar",
+        description: selectedProduct?.name || "Order Payment",
+        order_id: data.razorpayOrderId,
+        handler: async function (response: any) {
+          try {
+            await apiRequest("POST", "/api/public/orders/verify-payment", {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            });
+            setShowCheckout(false);
+            setSelectedProduct(null);
+            setBuyerDetails({ name: "", phone: "", email: "", address: "" });
+            toast({
+              title: "Payment Successful",
+              description: "Your order has been placed successfully! We will contact you shortly.",
+            });
+          } catch (error: any) {
+            toast({
+              title: "Payment Verification Failed",
+              description: error.message || "Please contact support.",
+              variant: "destructive",
+            });
+          }
+        },
+        prefill: {
+          name: buyerDetails.name,
+          email: buyerDetails.email,
+          contact: buyerDetails.phone,
+        },
+        theme: {
+          color: "#f59e0b",
+        },
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Order Failed",
+        description: error.message || "Failed to create order. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleBuyNow = (product: Product) => {
+    setSelectedProduct(product);
+    setShowCheckout(true);
+  };
+
+  const handlePayment = () => {
+    if (!buyerDetails.name || !buyerDetails.phone) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter your name and phone number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!/^\d{10}$/.test(buyerDetails.phone.replace(/\D/g, '').slice(-10))) {
+      toast({
+        title: "Invalid Phone",
+        description: "Please enter a valid 10-digit phone number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!selectedProduct) return;
+
+    createOrderMutation.mutate({
+      items: [{
+        productId: selectedProduct.id,
+        quantity: 1,
+      }],
+      customerName: buyerDetails.name,
+      customerPhone: buyerDetails.phone,
+      customerEmail: buyerDetails.email,
+      customerAddress: buyerDetails.address,
+    });
+  };
 
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
@@ -1076,12 +1207,14 @@ export default function LandingPage() {
                       </div>
                     )}
                     <div className="mt-4">
-                      <WouterLink href="/customer-registration">
-                        <Button className="w-full gap-2" data-testid={`button-enquire-${product.id}`}>
-                          <ClipboardList className="w-4 h-4" />
-                          {product.category === "solar_package" ? "Register & Book" : "Enquire Now"}
-                        </Button>
-                      </WouterLink>
+                      <Button 
+                        className="w-full gap-2" 
+                        onClick={() => handleBuyNow(product)}
+                        data-testid={`button-buy-${product.id}`}
+                      >
+                        <ShoppingCart className="w-4 h-4" />
+                        {product.category === "solar_package" && product.bookingAmount ? "Book Now" : "Buy Now"}
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -1682,6 +1815,103 @@ export default function LandingPage() {
           }
         />
       </div>
+
+      {/* Checkout Dialog */}
+      <Dialog open={showCheckout} onOpenChange={(open) => {
+        setShowCheckout(open);
+        if (!open) setSelectedProduct(null);
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="w-5 h-5" />
+              {selectedProduct?.category === "solar_package" && selectedProduct?.bookingAmount ? "Book Solar System" : "Buy Now"}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedProduct && (
+                <span className="block mt-1">
+                  {selectedProduct.name} - {formatINR(
+                    selectedProduct.category === "solar_package" && selectedProduct.bookingAmount 
+                      ? selectedProduct.bookingAmount 
+                      : selectedProduct.price
+                  )}
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Your Name *</Label>
+              <Input
+                value={buyerDetails.name}
+                onChange={(e) => setBuyerDetails({ ...buyerDetails, name: e.target.value })}
+                placeholder="Enter your full name"
+                data-testid="input-buyer-name"
+              />
+            </div>
+            <div>
+              <Label>Phone Number *</Label>
+              <Input
+                value={buyerDetails.phone}
+                onChange={(e) => setBuyerDetails({ ...buyerDetails, phone: e.target.value })}
+                placeholder="Enter 10-digit phone number"
+                data-testid="input-buyer-phone"
+              />
+            </div>
+            <div>
+              <Label>Email (optional)</Label>
+              <Input
+                value={buyerDetails.email}
+                onChange={(e) => setBuyerDetails({ ...buyerDetails, email: e.target.value })}
+                placeholder="Enter email address"
+                data-testid="input-buyer-email"
+              />
+            </div>
+            <div>
+              <Label>Address (optional)</Label>
+              <Input
+                value={buyerDetails.address}
+                onChange={(e) => setBuyerDetails({ ...buyerDetails, address: e.target.value })}
+                placeholder="Enter your address"
+                data-testid="input-buyer-address"
+              />
+            </div>
+            {selectedProduct && (
+              <div className="pt-4 border-t">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">
+                    {selectedProduct.category === "solar_package" && selectedProduct.bookingAmount ? "Booking Amount" : "Total Amount"}
+                  </span>
+                  <span className="text-2xl font-bold text-primary">
+                    {formatINR(
+                      selectedProduct.category === "solar_package" && selectedProduct.bookingAmount 
+                        ? selectedProduct.bookingAmount 
+                        : selectedProduct.price
+                    )}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowCheckout(false); setSelectedProduct(null); }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handlePayment}
+              disabled={createOrderMutation.isPending}
+              data-testid="button-pay-now"
+            >
+              <CreditCard className="w-4 h-4 mr-2" />
+              {createOrderMutation.isPending ? "Processing..." : `Pay ${selectedProduct ? formatINR(
+                selectedProduct.category === "solar_package" && selectedProduct.bookingAmount 
+                  ? selectedProduct.bookingAmount 
+                  : selectedProduct.price
+              ) : ""}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

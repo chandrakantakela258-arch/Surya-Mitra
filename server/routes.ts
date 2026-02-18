@@ -3511,6 +3511,214 @@ export async function registerRoutes(
     }
   });
 
+  // Public: Create order (no auth required - for landing page store)
+  const publicOrderRateLimit = new Map<string, { count: number; resetAt: number }>();
+  app.post("/api/public/orders/create", async (req, res) => {
+    try {
+      const clientIp = req.ip || req.socket.remoteAddress || "unknown";
+      const now = Date.now();
+      const rateEntry = publicOrderRateLimit.get(clientIp);
+      if (rateEntry && rateEntry.resetAt > now) {
+        if (rateEntry.count >= 10) {
+          return res.status(429).json({ message: "Too many requests. Please try again later." });
+        }
+        rateEntry.count++;
+      } else {
+        publicOrderRateLimit.set(clientIp, { count: 1, resetAt: now + 600000 });
+      }
+
+      const { items, customerName, customerPhone, customerEmail, customerAddress } = req.body;
+      
+      if (!items || !Array.isArray(items) || items.length === 0 || items.length > 5) {
+        return res.status(400).json({ message: "Order must have 1-5 items" });
+      }
+      
+      if (!customerName || typeof customerName !== "string" || customerName.trim().length < 2) {
+        return res.status(400).json({ message: "Valid customer name is required" });
+      }
+      
+      if (!customerPhone || typeof customerPhone !== "string" || !/^\d{10}$/.test(customerPhone.replace(/\D/g, '').slice(-10))) {
+        return res.status(400).json({ message: "Valid 10-digit phone number is required" });
+      }
+      
+      let totalAmount = 0;
+      const orderItems: Array<{productId?: string; productName: string; quantity: number; unitPrice: number; totalPrice: number}> = [];
+      
+      for (const item of items) {
+        if (!item.productId) {
+          return res.status(400).json({ message: "Each item must have a valid productId" });
+        }
+        
+        const product = await storage.getProduct(item.productId);
+        if (!product) {
+          return res.status(400).json({ message: `Product not found: ${item.productId}` });
+        }
+        
+        if (product.isActive !== "active") {
+          return res.status(400).json({ message: `Product is not available: ${product.name}` });
+        }
+        
+        const unitPrice = (product.category === "solar_package" && product.bookingAmount) 
+          ? product.bookingAmount 
+          : product.price;
+        const quantity = Math.max(1, Math.min(item.quantity || 1, 100));
+        const totalPrice = unitPrice * quantity;
+        
+        orderItems.push({
+          productId: item.productId,
+          productName: product.name,
+          quantity,
+          unitPrice,
+          totalPrice,
+        });
+        
+        totalAmount += totalPrice;
+      }
+      
+      if (totalAmount <= 0) {
+        return res.status(400).json({ message: "Order total must be greater than zero" });
+      }
+      
+      const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+      
+      const order = await storage.createOrder({
+        orderNumber,
+        customerId: null,
+        customerName,
+        customerPhone,
+        customerEmail: customerEmail || null,
+        customerAddress: customerAddress || null,
+        totalAmount,
+        status: "pending",
+        razorpayOrderId: null,
+        ddpId: "public",
+        notes: "Public store purchase",
+      });
+      
+      for (const item of orderItems) {
+        await storage.createOrderItem({
+          orderId: order.id,
+          ...item,
+        });
+      }
+      
+      const keyId = process.env.RAZORPAY_KEY_ID;
+      const keySecret = process.env.RAZORPAY_KEY_SECRET;
+      
+      if (!keyId || !keySecret) {
+        return res.status(500).json({ message: "Payment gateway not configured" });
+      }
+      
+      const Razorpay = require("razorpay");
+      const razorpay = new Razorpay({
+        key_id: keyId,
+        key_secret: keySecret,
+      });
+      
+      const razorpayOrder = await razorpay.orders.create({
+        amount: totalAmount * 100,
+        currency: "INR",
+        receipt: orderNumber,
+        notes: {
+          orderId: order.id,
+          customerName,
+          source: "public_store",
+        },
+      });
+      
+      await storage.updateOrder(order.id, {
+        razorpayOrderId: razorpayOrder.id,
+      });
+      
+      await storage.createPayment({
+        orderId: order.id,
+        razorpayOrderId: razorpayOrder.id,
+        razorpayPaymentId: null,
+        razorpaySignature: null,
+        amount: totalAmount,
+        currency: "INR",
+        method: null,
+        status: "pending",
+        failureReason: null,
+        paidAt: null,
+      });
+      
+      res.json({
+        order,
+        razorpayOrderId: razorpayOrder.id,
+        razorpayKeyId: keyId,
+        amount: totalAmount * 100,
+        currency: "INR",
+      });
+    } catch (error: any) {
+      console.error("Public create order error:", error);
+      res.status(500).json({ message: error.message || "Failed to create order" });
+    }
+  });
+
+  // Public: Verify payment (no auth required - for landing page store)
+  app.post("/api/public/orders/verify-payment", async (req, res) => {
+    try {
+      const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+      
+      if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+        return res.status(400).json({ message: "Missing required payment verification fields" });
+      }
+      
+      const keySecret = process.env.RAZORPAY_KEY_SECRET;
+      if (!keySecret) {
+        return res.status(500).json({ message: "Payment gateway not configured" });
+      }
+      
+      const order = await storage.getOrderByRazorpayId(razorpay_order_id);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      
+      if (order.status === "paid") {
+        return res.json({ success: true, order, message: "Order already verified" });
+      }
+      
+      if (order.status !== "pending") {
+        return res.status(400).json({ message: `Order cannot be verified in ${order.status} state` });
+      }
+      
+      const existingPayments = await storage.getPaymentsByOrderId(order.id);
+      const pendingPayment = existingPayments.find(p => p.status === "pending");
+      if (!pendingPayment) {
+        return res.status(400).json({ message: "No pending payment found for this order" });
+      }
+      
+      const crypto = require("crypto");
+      const expectedSignature = crypto
+        .createHmac("sha256", keySecret)
+        .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+        .digest("hex");
+      
+      if (expectedSignature !== razorpay_signature) {
+        console.error("Public payment signature verification failed", { razorpay_order_id, orderId: order.id });
+        return res.status(400).json({ message: "Invalid payment signature" });
+      }
+      
+      await storage.updateOrder(order.id, {
+        status: "paid",
+      });
+      
+      await storage.updatePayment(pendingPayment.id, {
+        razorpayPaymentId: razorpay_payment_id,
+        razorpaySignature: razorpay_signature,
+        status: "captured",
+        paidAt: new Date(),
+      });
+      
+      const updatedOrder = await storage.getOrder(order.id);
+      res.json({ success: true, order: updatedOrder });
+    } catch (error: any) {
+      console.error("Public verify payment error:", error);
+      res.status(500).json({ message: error.message || "Failed to verify payment" });
+    }
+  });
+
   // Get orders for current user (DDP)
   app.get("/api/orders", requireAuth, async (req, res) => {
     try {
