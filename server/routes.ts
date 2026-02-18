@@ -221,6 +221,10 @@ async function forwardCustomerEmailToState(customer: any) {
     subject: `New Verified Customer: ${customer.name} - ${customer.state} (${customer.proposedCapacity || '-'} kW)`,
     htmlContent: emailHtml,
   });
+  await storage.updateCustomer(customer.id, {
+    stateEmailSentAt: new Date(),
+    stateEmailSentTo: forwardEmail,
+  } as any);
   console.log(`Customer details forwarded to ${forwardEmail} for state ${normalizedState}`);
 }
 
@@ -1869,10 +1873,6 @@ export async function registerRoutes(
         newStatus: status,
       });
       
-      if (status === "verified") {
-        try { await forwardCustomerEmailToState(customer); } catch (emailErr) { console.error("Error forwarding customer email:", emailErr); }
-      }
-
       // When installation is completed, check if the DDP's referrer should get their reward
       // Partner referral reward is earned when referred partner completes 15 installations
       if (status === "completed" && customer.ddpId) {

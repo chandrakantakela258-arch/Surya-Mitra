@@ -357,6 +357,17 @@ export default function AdminCustomers() {
                           </span>
                         )}
                       </div>
+                      {customer.stateEmailSentAt && (
+                        <div className="flex items-center gap-2 mt-1" data-testid={`state-email-status-${customer.id}`}>
+                          <Badge variant="outline" className="text-xs bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-700">
+                            <Mail className="w-3 h-3 mr-1" />
+                            Email sent to {customer.stateEmailSentTo}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(customer.stateEmailSentAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })} at {new Date(customer.stateEmailSentAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
+                          </span>
+                        </div>
+                      )}
                       <div className="mt-2 max-w-[250px]">
                         <ExpandableSiteProgress 
                           customerId={customer.id} 
