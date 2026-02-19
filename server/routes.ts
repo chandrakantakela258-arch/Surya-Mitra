@@ -9120,6 +9120,29 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/admin/customers/:id/resend-state-email", requireAdmin, async (req, res) => {
+    try {
+      const customerId = parseInt(req.params.id);
+      const customer = await storage.getCustomer(customerId);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      if (!customer.state) {
+        return res.status(400).json({ message: "Customer has no state assigned" });
+      }
+      const normalizedState = customer.state.trim();
+      const forwardEmail = await storage.getAdminSetting(`state_email_${normalizedState}`);
+      if (!forwardEmail) {
+        return res.status(400).json({ message: `No forwarding email configured for state: ${normalizedState}. Please set one in Email Forwarding settings.` });
+      }
+      await forwardCustomerEmailToState(customer);
+      res.json({ message: `Email resent successfully to ${forwardEmail}`, sentTo: forwardEmail });
+    } catch (error: any) {
+      console.error("Resend state email error:", error);
+      res.status(500).json({ message: error.message || "Failed to resend email" });
+    }
+  });
+
   app.delete("/api/admin/state-emails/:state", requireAdmin, async (req, res) => {
     try {
       const { state } = req.params;

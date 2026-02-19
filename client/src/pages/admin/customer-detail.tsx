@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute, useLocation } from "wouter";
-import { ArrowLeft, User, MapPin, Zap, Home, Phone, Mail, FileText, CheckCircle, Clock, Camera, Video, Image, Play, X, CreditCard, Landmark, Hash, Globe, SunMedium, BatteryCharging, Building2, Factory, Smartphone, Pencil, IndianRupee, Calendar, ShieldOff } from "lucide-react";
+import { ArrowLeft, User, MapPin, Zap, Home, Phone, Mail, FileText, CheckCircle, Clock, Camera, Video, Image, Play, X, CreditCard, Landmark, Hash, Globe, SunMedium, BatteryCharging, Building2, Factory, Smartphone, Pencil, IndianRupee, Calendar, ShieldOff, RefreshCw, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -74,6 +74,19 @@ export default function AdminCustomerDetail() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers", customerId] });
       toast({ title: variables.enabled ? "Portal Access Enabled" : "Portal Access Disabled" });
+    },
+  });
+
+  const resendEmailMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", `/api/admin/customers/${customerId}/resend-state-email`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers", customerId] });
+      toast({ title: "Email Sent", description: "State forwarding email has been resent successfully." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to send email", description: error.message || "Something went wrong", variant: "destructive" });
     },
   });
 
@@ -482,30 +495,75 @@ export default function AdminCustomerDetail() {
 
           <DocumentManager customerId={customer.id} title="Customer Documents" showUpload={false} canVerify={true} />
 
-          {customer.stateEmailSentAt && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Mail className="w-5 h-5 text-primary" />
-                  State Email Forwarding
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <dl className="grid grid-cols-1 gap-3 text-sm">
-                  <div>
-                    <dt className="text-muted-foreground">Sent To</dt>
-                    <dd className="font-medium" data-testid="text-state-email">{customer.stateEmailSentTo}</dd>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="w-5 h-5 text-primary" />
+                State Email Forwarding
+              </CardTitle>
+              {customer.stateEmailSentAt && (
+                <CardDescription>
+                  Last sent on {new Date(customer.stateEmailSentAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })} at {new Date(customer.stateEmailSentAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
+                </CardDescription>
+              )}
+            </CardHeader>
+            <CardContent>
+              {customer.stateEmailSentAt ? (
+                <div className="space-y-4">
+                  <dl className="grid grid-cols-1 gap-3 text-sm">
+                    <div>
+                      <dt className="text-muted-foreground">Sent To</dt>
+                      <dd className="font-medium" data-testid="text-state-email">{customer.stateEmailSentTo}</dd>
+                    </div>
+                  </dl>
+                  <Separator />
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      data-testid="button-resend-state-email"
+                      disabled={resendEmailMutation.isPending}
+                      onClick={() => resendEmailMutation.mutate()}
+                    >
+                      {resendEmailMutation.isPending ? (
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                      )}
+                      Resend Email
+                    </Button>
+                    <span className="text-xs text-muted-foreground">
+                      Resend with latest customer data and attachments
+                    </span>
                   </div>
-                  <div>
-                    <dt className="text-muted-foreground">Sent At</dt>
-                    <dd className="font-medium" data-testid="text-state-email-date">
-                      {new Date(customer.stateEmailSentAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true })}
-                    </dd>
-                  </div>
-                </dl>
-              </CardContent>
-            </Card>
-          )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    {customer.status === "Verified"
+                      ? "Email has not been sent yet for this verified customer."
+                      : "Email will be sent automatically when customer status is changed to Verified."}
+                  </p>
+                  {customer.state && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      data-testid="button-send-state-email"
+                      disabled={resendEmailMutation.isPending}
+                      onClick={() => resendEmailMutation.mutate()}
+                    >
+                      {resendEmailMutation.isPending ? (
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Send className="w-4 h-4 mr-2" />
+                      )}
+                      Send Email Now
+                    </Button>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {customer.leadScore !== null && customer.leadScore !== undefined && (
             <Card>
