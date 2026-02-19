@@ -79,6 +79,7 @@ const adminBottomNavItems: NavItem[] = [
 
 // Additional menu items for admin (shown in More menu only)
 const adminMenuItems: NavItem[] = [
+  { icon: Users, label: "All Customers", href: "/admin/customers" },
   { icon: GitBranch, label: "Hierarchy", href: "/admin/partner-hierarchy" },
   { icon: UserCheck, label: "Partner Approval", href: "/admin/partners" },
   { icon: CreditCard, label: "Commission Payout", href: "/admin/payouts" },
