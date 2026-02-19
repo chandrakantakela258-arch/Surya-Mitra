@@ -9122,8 +9122,8 @@ export async function registerRoutes(
 
   app.post("/api/admin/customers/:id/resend-state-email", requireAdmin, async (req, res) => {
     try {
-      const customerId = parseInt(req.params.id);
-      const customer = await storage.getCustomer(customerId);
+      const customerId = req.params.id;
+      const customer = await storage.getCustomer(customerId as any);
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }

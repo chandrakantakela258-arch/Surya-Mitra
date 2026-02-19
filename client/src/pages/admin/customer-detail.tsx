@@ -81,8 +81,7 @@ export default function AdminCustomerDetail() {
 
   const resendEmailMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/admin/customers/${customerId}/resend-state-email`);
-      return res.json();
+      return apiRequest("POST", `/api/admin/customers/${customerId}/resend-state-email`);
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers", customerId] });
