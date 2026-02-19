@@ -203,37 +203,24 @@ async function forwardCustomerEmailToState(customer: any) {
   let bdpPhone: string | undefined;
   if (ddp?.parentId) {
     const bdp = await storage.getUser(ddp.parentId);
-    bdpName = bdp?.fullName;
+    bdpName = bdp?.name;
     bdpPhone = bdp?.phone;
   }
-  const attachmentCount = (customer.sitePictures?.length || 0) + (customer.documents?.length || 0) + (customer.siteVideo ? 1 : 0);
-  const emailHtml = createCustomerForwardEmailTemplate({
-    customerName: customer.name, phone: customer.phone, email: customer.email || undefined,
-    address: customer.address, district: customer.district, state: customer.state, pincode: customer.pincode,
-    aadharNumber: customer.aadharNumber || undefined, panNumber: customer.panNumber || undefined,
-    latitude: customer.latitude || undefined, longitude: customer.longitude || undefined,
-    electricityBoard: customer.electricityBoard || undefined, consumerNumber: customer.consumerNumber || undefined,
-    sanctionedLoad: customer.sanctionedLoad || undefined, avgMonthlyBill: customer.avgMonthlyBill || undefined,
-    roofType: customer.roofType || undefined, roofArea: customer.roofArea || undefined,
-    panelType: customer.panelType || undefined, proposedCapacity: customer.proposedCapacity || undefined,
-    customerType: customer.customerType || undefined, customerCode: customer.customerCode || undefined,
-    accountHolderName: customer.accountHolderName || undefined, accountNumber: customer.accountNumber || undefined,
-    ifscCode: customer.ifscCode || undefined, bankName: customer.bankName || undefined, upiId: customer.upiId || undefined,
-    ddpName: ddp?.fullName, ddpPhone: ddp?.phone, bdpName, bdpPhone, status: "Verified",
-    attachmentCount,
-  });
-
+  // Download attachments FIRST, then create template with actual count
   const emailAttachments: EmailAttachment[] = [];
   const MAX_TOTAL_SIZE = 20 * 1024 * 1024; // 20MB limit (Gmail allows ~25MB)
   const MAX_SINGLE_FILE = 8 * 1024 * 1024; // 8MB per file
   let totalSize = 0;
   let skippedFiles = 0;
+  let failedFiles = 0;
 
   const tryAttach = async (url: string, filename: string) => {
     if (totalSize >= MAX_TOTAL_SIZE) { skippedFiles++; return; }
+    console.log(`Downloading attachment: ${filename} from ${url.substring(0, 80)}...`);
     const file = await downloadFileAsBase64(url);
-    if (!file) return;
+    if (!file) { failedFiles++; console.log(`Failed to download: ${filename}`); return; }
     const fileSize = Buffer.byteLength(file.data, 'base64');
+    console.log(`Downloaded ${filename}: ${(fileSize / 1024 / 1024).toFixed(2)}MB, mimeType: ${file.mimeType}`);
     if (fileSize > MAX_SINGLE_FILE || totalSize + fileSize > MAX_TOTAL_SIZE) {
       skippedFiles++;
       console.log(`Skipping attachment ${filename} (${(fileSize / 1024 / 1024).toFixed(1)}MB) - exceeds size limit`);
@@ -246,14 +233,16 @@ async function forwardCustomerEmailToState(customer: any) {
   try {
     if (customer.sitePictures && customer.sitePictures.length > 0) {
       for (let i = 0; i < customer.sitePictures.length; i++) {
-        const ext = customer.sitePictures[i].split('.').pop()?.split('?')[0] || 'jpg';
-        await tryAttach(customer.sitePictures[i], `site_photo_${i + 1}.${ext}`);
+        const url = customer.sitePictures[i];
+        const ext = url.split('.').pop()?.split('?')[0] || 'jpg';
+        await tryAttach(url, `site_photo_${i + 1}.${ext}`);
       }
     }
     if (customer.documents && customer.documents.length > 0) {
       for (let i = 0; i < customer.documents.length; i++) {
-        const ext = customer.documents[i].split('.').pop()?.split('?')[0] || 'pdf';
-        await tryAttach(customer.documents[i], `document_${i + 1}.${ext}`);
+        const url = customer.documents[i];
+        const ext = url.split('.').pop()?.split('?')[0] || 'pdf';
+        await tryAttach(url, `document_${i + 1}.${ext}`);
       }
     }
     if (customer.siteVideo) {
@@ -263,9 +252,32 @@ async function forwardCustomerEmailToState(customer: any) {
     if (skippedFiles > 0) {
       console.log(`Skipped ${skippedFiles} file(s) due to size limits in forwarding email`);
     }
+    if (failedFiles > 0) {
+      console.log(`Failed to download ${failedFiles} file(s) for forwarding email`);
+    }
   } catch (err) {
     console.error('Error downloading attachments for forwarding email:', err);
   }
+
+  // Use ACTUAL attachment count (successfully downloaded) instead of expected count
+  const actualAttachmentCount = emailAttachments.length;
+  console.log(`Forwarding email: ${actualAttachmentCount} attachments ready (total ${(totalSize / 1024 / 1024).toFixed(2)}MB)`);
+
+  const emailHtml = createCustomerForwardEmailTemplate({
+    customerName: customer.name, phone: customer.phone, email: customer.email || undefined,
+    address: customer.address, district: customer.district, state: customer.state, pincode: customer.pincode,
+    aadharNumber: customer.aadharNumber || undefined, panNumber: customer.panNumber || undefined,
+    latitude: customer.latitude || undefined, longitude: customer.longitude || undefined,
+    electricityBoard: customer.electricityBoard || undefined, consumerNumber: customer.consumerNumber || undefined,
+    sanctionedLoad: customer.sanctionedLoad || undefined, avgMonthlyBill: customer.avgMonthlyBill || undefined,
+    roofType: customer.roofType || undefined, roofArea: customer.roofArea || undefined,
+    panelType: customer.panelType || undefined, proposedCapacity: customer.proposedCapacity || undefined,
+    customerType: customer.customerType || undefined, customerCode: customer.customerCode || undefined,
+    accountHolderName: customer.accountHolderName || undefined, accountNumber: customer.accountNumber || undefined,
+    ifscCode: customer.ifscCode || undefined, bankName: customer.bankName || undefined, upiId: customer.upiId || undefined,
+    ddpName: ddp?.name, ddpPhone: ddp?.phone, bdpName, bdpPhone, status: "Verified",
+    attachmentCount: actualAttachmentCount,
+  });
 
   await sendGmailEmail({
     to: forwardEmail,

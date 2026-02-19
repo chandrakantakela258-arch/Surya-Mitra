@@ -115,14 +115,15 @@ function createEmailMessage(to: string, subject: string, htmlContent: string, fr
       htmlContent,
     ];
     for (const att of allAttachments) {
+      const wrappedData = att.data.replace(/(.{76})/g, '$1\r\n');
       messageParts.push(
         '',
         `--${boundary}`,
-        `Content-Type: ${att.mimeType}`,
+        `Content-Type: ${att.mimeType}; name="${att.filename}"`,
         'Content-Transfer-Encoding: base64',
         `Content-Disposition: attachment; filename="${att.filename}"`,
         '',
-        att.data,
+        wrappedData,
       );
     }
     messageParts.push('', `--${boundary}--`);
