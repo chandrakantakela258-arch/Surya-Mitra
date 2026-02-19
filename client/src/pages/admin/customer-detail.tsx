@@ -441,63 +441,6 @@ export default function AdminCustomerDetail() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-primary" />
-                Customer Journey
-              </CardTitle>
-              <CardDescription>Track installation progress and milestones</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <CustomerJourneyTracker customerId={customer.id} customerName={customer.name} showActions={false} />
-            </CardContent>
-          </Card>
-
-          {(sitePictures.length > 0 || customer.siteVideo) && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Camera className="w-5 h-5 text-primary" />
-                  Site Media
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {sitePictures.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Image className="w-3 h-3" />
-                      {sitePictures.length} Site Pictures
-                    </p>
-                    <div className="grid grid-cols-3 gap-2">
-                      {sitePictures.map((url, index) => (
-                        <div key={index} className="aspect-square rounded-md overflow-hidden cursor-pointer hover-elevate" onClick={() => setPreviewImage(url)}>
-                          <img src={url} alt={`Site ${index + 1}`} className="w-full h-full object-cover" data-testid={`img-site-picture-${index}`} />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {customer.siteVideo && (
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Video className="w-3 h-3" />
-                      Highlight Video
-                    </p>
-                    <div className="relative aspect-[9/16] max-w-[150px] bg-muted rounded-md overflow-hidden cursor-pointer" onClick={() => setPreviewVideo(true)}>
-                      <video src={customer.siteVideo} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                        <Play className="w-8 h-8 text-white" />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          <DocumentManager customerId={customer.id} title="Customer Documents" showUpload={false} canVerify={true} />
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
                 <Mail className="w-5 h-5 text-primary" />
                 State Email Forwarding
               </CardTitle>
@@ -564,6 +507,63 @@ export default function AdminCustomerDetail() {
               )}
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-primary" />
+                Customer Journey
+              </CardTitle>
+              <CardDescription>Track installation progress and milestones</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CustomerJourneyTracker customerId={customer.id} customerName={customer.name} showActions={false} />
+            </CardContent>
+          </Card>
+
+          {(sitePictures.length > 0 || customer.siteVideo) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Camera className="w-5 h-5 text-primary" />
+                  Site Media
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {sitePictures.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Image className="w-3 h-3" />
+                      {sitePictures.length} Site Pictures
+                    </p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {sitePictures.map((url, index) => (
+                        <div key={index} className="aspect-square rounded-md overflow-hidden cursor-pointer hover-elevate" onClick={() => setPreviewImage(url)}>
+                          <img src={url} alt={`Site ${index + 1}`} className="w-full h-full object-cover" data-testid={`img-site-picture-${index}`} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {customer.siteVideo && (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Video className="w-3 h-3" />
+                      Highlight Video
+                    </p>
+                    <div className="relative aspect-[9/16] max-w-[150px] bg-muted rounded-md overflow-hidden cursor-pointer" onClick={() => setPreviewVideo(true)}>
+                      <video src={customer.siteVideo} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <Play className="w-8 h-8 text-white" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          <DocumentManager customerId={customer.id} title="Customer Documents" showUpload={false} canVerify={true} />
 
           {customer.leadScore !== null && customer.leadScore !== undefined && (
             <Card>
