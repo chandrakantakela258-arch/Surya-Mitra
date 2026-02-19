@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Search, Phone, MapPin, Zap, Calendar, MoreVertical, CheckCircle, Clock, FileCheck, Truck, PartyPopper, Eye, Camera, Video, Play, X, Image, Smartphone, ShieldOff, Settings, Mail, Trash2, Plus, Pencil, Check, CreditCard, Landmark, User } from "lucide-react";
+import { Search, Phone, MapPin, Zap, Calendar, MoreVertical, CheckCircle, Clock, FileCheck, Truck, PartyPopper, Eye, Camera, Video, Play, X, Image, Smartphone, ShieldOff, Settings, Mail, Trash2, Plus, Pencil, Check, CreditCard, Landmark, User, RefreshCw, Send } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { CustomerJourneyMini, ExpandableSiteProgress } from "@/components/customer-journey-tracker";
@@ -95,12 +95,25 @@ export default function AdminCustomers() {
         description: "Customer status has been updated and notifications sent.",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Failed to update customer status.",
+        description: error.message || "Failed to update customer status.",
         variant: "destructive",
       });
+    },
+  });
+
+  const resendEmailMutation = useMutation({
+    mutationFn: async ({ id }: { id: string }) => {
+      return apiRequest("POST", `/api/admin/customers/${id}/resend-state-email`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/customers"] });
+      toast({ title: "Email Sent", description: "State forwarding email has been sent successfully." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to send email", description: error.message || "Something went wrong", variant: "destructive" });
     },
   });
 
@@ -536,6 +549,25 @@ export default function AdminCustomers() {
                             <Clock className="w-4 h-4 mr-2" />
                             View Journey
                           </DropdownMenuItem>
+                          {customer.state && (
+                            <DropdownMenuItem
+                              onClick={() => resendEmailMutation.mutate({ id: String(customer.id) })}
+                              disabled={resendEmailMutation.isPending}
+                              data-testid={`button-resend-email-${customer.id}`}
+                            >
+                              {customer.stateEmailSentAt ? (
+                                <>
+                                  <RefreshCw className="w-4 h-4 mr-2 text-blue-500" />
+                                  Resend State Email
+                                </>
+                              ) : (
+                                <>
+                                  <Send className="w-4 h-4 mr-2 text-blue-500" />
+                                  Send State Email
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             onClick={() => togglePortalMutation.mutate({ 
