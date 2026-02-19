@@ -629,12 +629,12 @@ export default function AdminCustomerDetail() {
             </CardContent>
           </Card>
 
-          {(sitePictures.length > 0 || customer.siteVideo) && (
+          {(sitePictures.length > 0 || customer.siteVideo || (customer.documents && customer.documents.length > 0)) && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Camera className="w-5 h-5 text-primary" />
-                  Site Media
+                  Site Media & Uploaded Documents
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -650,6 +650,30 @@ export default function AdminCustomerDetail() {
                           <img src={url} alt={`Site ${index + 1}`} className="w-full h-full object-cover" data-testid={`img-site-picture-${index}`} />
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+                {customer.documents && customer.documents.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <FileText className="w-3 h-3" />
+                      {customer.documents.length} Uploaded Document{customer.documents.length !== 1 ? "s" : ""}
+                    </p>
+                    <div className="space-y-1">
+                      {customer.documents.map((url: string, index: number) => {
+                        const fileName = url.split('/').pop() || `Document ${index + 1}`;
+                        const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
+                        return isImage ? (
+                          <div key={index} className="aspect-square max-w-[120px] rounded-md overflow-hidden cursor-pointer hover-elevate" onClick={() => setPreviewImage(url)}>
+                            <img src={url} alt={`Doc ${index + 1}`} className="w-full h-full object-cover" data-testid={`img-customer-doc-${index}`} />
+                          </div>
+                        ) : (
+                          <a key={index} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 rounded-md border text-sm hover-elevate" data-testid={`link-customer-doc-${index}`}>
+                            <FileText className="w-4 h-4 shrink-0 text-muted-foreground" />
+                            <span className="truncate">{decodeURIComponent(fileName)}</span>
+                          </a>
+                        );
+                      })}
                     </div>
                   </div>
                 )}

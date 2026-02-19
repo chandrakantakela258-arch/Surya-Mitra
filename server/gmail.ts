@@ -2,6 +2,8 @@
 // Uses Replit's Gmail connection for secure email sending
 
 import { google } from 'googleapis';
+import * as fs from 'fs';
+import * as path from 'path';
 
 let connectionSettings: any;
 
@@ -75,6 +77,17 @@ function getContentTypeFromUrl(url: string): string {
 
 export async function downloadFileAsBase64(url: string): Promise<{ data: string; mimeType: string } | null> {
   try {
+    if (url.startsWith('/uploads/') || url.startsWith('uploads/')) {
+      const relativePath = url.startsWith('/') ? url.substring(1) : url;
+      const localPath = path.join(process.cwd(), relativePath);
+      if (!fs.existsSync(localPath)) {
+        console.log(`Local file not found: ${localPath}`);
+        return null;
+      }
+      const buffer = fs.readFileSync(localPath);
+      const mimeType = getContentTypeFromUrl(url);
+      return { data: buffer.toString('base64'), mimeType };
+    }
     const response = await fetch(url);
     if (!response.ok) return null;
     const buffer = Buffer.from(await response.arrayBuffer());

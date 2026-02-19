@@ -249,6 +249,15 @@ async function forwardCustomerEmailToState(customer: any) {
       const ext = customer.siteVideo.split('.').pop()?.split('?')[0] || 'mp4';
       await tryAttach(customer.siteVideo, `site_video.${ext}`);
     }
+    const dbDocuments = await storage.getDocumentsByCustomerId(customer.id);
+    if (dbDocuments && dbDocuments.length > 0) {
+      for (let i = 0; i < dbDocuments.length; i++) {
+        const doc = dbDocuments[i];
+        const ext = doc.originalName?.split('.').pop() || doc.url.split('.').pop()?.split('?')[0] || 'pdf';
+        const docName = doc.originalName || `managed_doc_${i + 1}.${ext}`;
+        await tryAttach(doc.url, docName);
+      }
+    }
     if (skippedFiles > 0) {
       console.log(`Skipped ${skippedFiles} file(s) due to size limits in forwarding email`);
     }
