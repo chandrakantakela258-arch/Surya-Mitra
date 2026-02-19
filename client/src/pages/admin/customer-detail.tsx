@@ -81,11 +81,13 @@ export default function AdminCustomerDetail() {
 
   const resendEmailMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", `/api/admin/customers/${customerId}/resend-state-email`);
+      const res = await apiRequest("POST", `/api/admin/customers/${customerId}/resend-state-email`);
+      return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers", customerId] });
-      toast({ title: "Email Sent", description: "State forwarding email has been resent successfully." });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/state-emails"] });
+      toast({ title: "Email Sent", description: `Email sent successfully to ${data?.sentTo || "configured address"}.` });
     },
     onError: (error: any) => {
       toast({ title: "Failed to send email", description: error.message || "Something went wrong", variant: "destructive" });
@@ -550,7 +552,7 @@ export default function AdminCustomerDetail() {
                     variant={customer.stateEmailSentAt ? "outline" : "default"}
                     size="sm"
                     data-testid="button-resend-state-email"
-                    disabled={resendEmailMutation.isPending || !currentStateEmail}
+                    disabled={resendEmailMutation.isPending || updateStateEmailMutation.isPending || !currentStateEmail}
                     onClick={() => resendEmailMutation.mutate()}
                   >
                     {resendEmailMutation.isPending ? (
