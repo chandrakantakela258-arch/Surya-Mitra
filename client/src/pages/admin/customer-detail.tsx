@@ -477,43 +477,88 @@ export default function AdminCustomerDetail() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Forwarding Email for {customer.state || "—"}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Forwarding Emails for {customer.state || "—"} <span className="normal-case">(up to 3)</span></p>
                 {editingStateEmail ? (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Input
-                      type="email"
-                      value={stateEmailInput}
-                      onChange={(e) => setStateEmailInput(e.target.value)}
-                      placeholder="Enter email address"
-                      className="flex-1 min-w-[200px]"
-                      data-testid="input-state-email-edit"
-                    />
-                    <Button
-                      size="sm"
-                      disabled={!stateEmailInput.trim() || updateStateEmailMutation.isPending}
-                      data-testid="button-save-state-email"
-                      onClick={() => {
-                        if (customer.state && stateEmailInput.trim()) {
-                          updateStateEmailMutation.mutate({ state: customer.state.trim(), email: stateEmailInput.trim() });
-                        }
-                      }}
-                    >
-                      {updateStateEmailMutation.isPending ? <RefreshCw className="w-4 h-4 animate-spin" /> : "Save"}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setEditingStateEmail(false)}
-                      data-testid="button-cancel-state-email"
-                    >
-                      Cancel
-                    </Button>
+                  <div className="space-y-2">
+                    {stateEmailInput.split(',').map((e) => e.trim()).filter(Boolean).concat(['']).slice(0, 3).map((emailVal, idx, arr) => {
+                      const existingEmails = stateEmailInput.split(',').map((e) => e.trim()).filter(Boolean);
+                      const isAddRow = idx === existingEmails.length && existingEmails.length < 3;
+                      const isExistingRow = idx < existingEmails.length;
+                      if (!isAddRow && !isExistingRow) return null;
+                      return (
+                        <div key={idx} className="flex items-center gap-2">
+                          <Input
+                            type="email"
+                            value={isExistingRow ? emailVal : ""}
+                            onChange={(e) => {
+                              const parts = stateEmailInput.split(',').map((p) => p.trim()).filter(Boolean);
+                              if (isExistingRow) {
+                                parts[idx] = e.target.value;
+                              } else {
+                                parts.push(e.target.value);
+                              }
+                              setStateEmailInput(parts.join(', '));
+                            }}
+                            placeholder={isAddRow ? "Add another email" : `Email ${idx + 1}`}
+                            className="flex-1"
+                            data-testid={`input-state-email-${idx}`}
+                          />
+                          {isExistingRow && existingEmails.length > 1 && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              data-testid={`button-remove-email-${idx}`}
+                              onClick={() => {
+                                const parts = stateEmailInput.split(',').map((p) => p.trim()).filter(Boolean);
+                                parts.splice(idx, 1);
+                                setStateEmailInput(parts.join(', '));
+                              }}
+                            >
+                              <X className="w-4 h-4 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        disabled={!stateEmailInput.trim() || updateStateEmailMutation.isPending}
+                        data-testid="button-save-state-email"
+                        onClick={() => {
+                          if (customer.state && stateEmailInput.trim()) {
+                            updateStateEmailMutation.mutate({ state: customer.state.trim(), email: stateEmailInput.trim() });
+                          }
+                        }}
+                      >
+                        {updateStateEmailMutation.isPending ? <RefreshCw className="w-4 h-4 animate-spin" /> : "Save"}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditingStateEmail(false)}
+                        data-testid="button-cancel-state-email"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-sm" data-testid="text-configured-state-email">
-                      {currentStateEmail || "Not configured"}
-                    </span>
+                  <div className="flex items-start gap-2 flex-wrap">
+                    <div className="flex-1 min-w-0" data-testid="text-configured-state-email">
+                      {currentStateEmail ? (
+                        <div className="space-y-1">
+                          {currentStateEmail.split(',').map((e, i) => (
+                            <div key={i} className="flex items-center gap-2">
+                              <Mail className="w-3 h-3 text-muted-foreground shrink-0" />
+                              <span className="font-medium text-sm truncate">{e.trim()}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Not configured</span>
+                      )}
+                    </div>
                     {customer.state && (
                       <Button
                         variant="ghost"

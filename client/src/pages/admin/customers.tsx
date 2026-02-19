@@ -754,8 +754,8 @@ export default function AdminCustomers() {
                 </SelectContent>
               </Select>
               <Input
-                type="email"
-                placeholder="Email address"
+                type="text"
+                placeholder="Email(s) - comma separated, max 3"
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
                 className="flex-1"
@@ -784,9 +784,10 @@ export default function AdminCustomers() {
                         <Badge variant="outline" data-testid={`badge-state-${se.state}`}>{se.state}</Badge>
                         {editingState === se.state ? (
                           <Input
-                            type="email"
+                            type="text"
                             value={editingEmail}
                             onChange={(e) => setEditingEmail(e.target.value)}
+                            placeholder="Comma separated, max 3"
                             className="flex-1 min-w-[180px]"
                             data-testid={`input-edit-email-${se.state}`}
                             autoFocus
@@ -800,7 +801,11 @@ export default function AdminCustomers() {
                             }}
                           />
                         ) : (
-                          <span className="text-sm text-muted-foreground truncate" data-testid={`text-email-${se.state}`}>{se.email}</span>
+                          <div className="flex flex-col gap-0.5" data-testid={`text-email-${se.state}`}>
+                            {se.email.split(',').map((e: string, i: number) => (
+                              <span key={i} className="text-sm text-muted-foreground truncate">{e.trim()}</span>
+                            ))}
+                          </div>
                         )}
                       </div>
                     </div>

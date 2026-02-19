@@ -9109,10 +9109,20 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid state name" });
       }
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        return res.status(400).json({ message: "Invalid email format" });
+      const emails = email.split(',').map((e: string) => e.trim()).filter((e: string) => e);
+      if (emails.length === 0) {
+        return res.status(400).json({ message: "At least one email is required" });
       }
-      const setting = await storage.setAdminSetting(`state_email_${state}`, email);
+      if (emails.length > 3) {
+        return res.status(400).json({ message: "Maximum 3 email addresses allowed" });
+      }
+      for (const e of emails) {
+        if (!emailRegex.test(e)) {
+          return res.status(400).json({ message: `Invalid email format: ${e}` });
+        }
+      }
+      const emailValue = emails.join(', ');
+      const setting = await storage.setAdminSetting(`state_email_${state}`, emailValue);
       res.json({ state, email: setting.value, updatedAt: setting.updatedAt });
     } catch (error: any) {
       console.error("Set state email error:", error);
