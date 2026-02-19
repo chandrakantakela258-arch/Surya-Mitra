@@ -36,6 +36,8 @@ export default function AdminCustomerDetail() {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [previewVideo, setPreviewVideo] = useState(false);
   const [showEditDetails, setShowEditDetails] = useState(false);
+  const [editingStateEmail, setEditingStateEmail] = useState(false);
+  const [stateEmailInput, setStateEmailInput] = useState("");
   const [editAadhar, setEditAadhar] = useState("");
   const [editPan, setEditPan] = useState("");
   const [editAccountHolder, setEditAccountHolder] = useState("");
@@ -87,6 +89,28 @@ export default function AdminCustomerDetail() {
     },
     onError: (error: any) => {
       toast({ title: "Failed to send email", description: error.message || "Something went wrong", variant: "destructive" });
+    },
+  });
+
+  const stateEmailQuery = useQuery<{ state: string; email: string }[]>({
+    queryKey: ["/api/admin/state-emails"],
+  });
+
+  const currentStateEmail = customer?.state
+    ? stateEmailQuery.data?.find(s => s.state === customer.state.trim())?.email || ""
+    : "";
+
+  const updateStateEmailMutation = useMutation({
+    mutationFn: async ({ state, email }: { state: string; email: string }) => {
+      return apiRequest("POST", "/api/admin/state-emails", { state, email });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/state-emails"] });
+      setEditingStateEmail(false);
+      toast({ title: "Email Updated", description: "State forwarding email has been updated." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to update email", description: error.message || "Something went wrong", variant: "destructive" });
     },
   });
 
@@ -450,61 +474,99 @@ export default function AdminCustomerDetail() {
                 </CardDescription>
               )}
             </CardHeader>
-            <CardContent>
-              {customer.stateEmailSentAt ? (
-                <div className="space-y-4">
-                  <dl className="grid grid-cols-1 gap-3 text-sm">
-                    <div>
-                      <dt className="text-muted-foreground">Sent To</dt>
-                      <dd className="font-medium" data-testid="text-state-email">{customer.stateEmailSentTo}</dd>
-                    </div>
-                  </dl>
-                  <Separator />
-                  <div className="flex items-center gap-3 flex-wrap">
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Forwarding Email for {customer.state || "—"}</p>
+                {editingStateEmail ? (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Input
+                      type="email"
+                      value={stateEmailInput}
+                      onChange={(e) => setStateEmailInput(e.target.value)}
+                      placeholder="Enter email address"
+                      className="flex-1 min-w-[200px]"
+                      data-testid="input-state-email-edit"
+                    />
                     <Button
-                      variant="outline"
                       size="sm"
-                      data-testid="button-resend-state-email"
-                      disabled={resendEmailMutation.isPending}
-                      onClick={() => resendEmailMutation.mutate()}
+                      disabled={!stateEmailInput.trim() || updateStateEmailMutation.isPending}
+                      data-testid="button-save-state-email"
+                      onClick={() => {
+                        if (customer.state && stateEmailInput.trim()) {
+                          updateStateEmailMutation.mutate({ state: customer.state.trim(), email: stateEmailInput.trim() });
+                        }
+                      }}
                     >
-                      {resendEmailMutation.isPending ? (
-                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <RefreshCw className="w-4 h-4 mr-2" />
-                      )}
-                      Resend Email
+                      {updateStateEmailMutation.isPending ? <RefreshCw className="w-4 h-4 animate-spin" /> : "Save"}
                     </Button>
-                    <span className="text-xs text-muted-foreground">
-                      Resend with latest customer data and attachments
-                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setEditingStateEmail(false)}
+                      data-testid="button-cancel-state-email"
+                    >
+                      Cancel
+                    </Button>
                   </div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    {customer.status === "Verified"
-                      ? "Email has not been sent yet for this verified customer."
-                      : "Email will be sent automatically when customer status is changed to Verified."}
-                  </p>
-                  {customer.state && (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      data-testid="button-send-state-email"
-                      disabled={resendEmailMutation.isPending}
-                      onClick={() => resendEmailMutation.mutate()}
-                    >
-                      {resendEmailMutation.isPending ? (
-                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Send className="w-4 h-4 mr-2" />
-                      )}
-                      Send Email Now
-                    </Button>
-                  )}
-                </div>
+                ) : (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium text-sm" data-testid="text-configured-state-email">
+                      {currentStateEmail || "Not configured"}
+                    </span>
+                    {customer.state && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        data-testid="button-edit-state-email"
+                        onClick={() => {
+                          setStateEmailInput(currentStateEmail);
+                          setEditingStateEmail(true);
+                        }}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {customer.stateEmailSentAt && (
+                <>
+                  <Separator />
+                  <div className="text-sm">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Last Sent</p>
+                    <p className="font-medium" data-testid="text-state-email">{customer.stateEmailSentTo}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {new Date(customer.stateEmailSentAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })} at {new Date(customer.stateEmailSentAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
+                    </p>
+                  </div>
+                </>
               )}
+
+              <Separator />
+              <div className="flex items-center gap-3 flex-wrap">
+                {customer.state && (
+                  <Button
+                    variant={customer.stateEmailSentAt ? "outline" : "default"}
+                    size="sm"
+                    data-testid="button-resend-state-email"
+                    disabled={resendEmailMutation.isPending || !currentStateEmail}
+                    onClick={() => resendEmailMutation.mutate()}
+                  >
+                    {resendEmailMutation.isPending ? (
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    ) : customer.stateEmailSentAt ? (
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                    ) : (
+                      <Send className="w-4 h-4 mr-2" />
+                    )}
+                    {customer.stateEmailSentAt ? "Resend Email" : "Send Email Now"}
+                  </Button>
+                )}
+                <span className="text-xs text-muted-foreground">
+                  {!currentStateEmail ? "Configure email above first" : "Send with latest customer data and attachments"}
+                </span>
+              </div>
             </CardContent>
           </Card>
 
