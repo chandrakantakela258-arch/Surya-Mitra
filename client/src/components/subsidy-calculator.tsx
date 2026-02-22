@@ -80,6 +80,7 @@ const DCR_ONGRID_RATE_PER_WATT = 66;  // With Ongrid Inverter
 
 // Non-DCR Panel Pricing
 const NON_DCR_RATE_PER_WATT = 55;
+const NON_DCR_COMMERCIAL_RATE_PER_WATT = 45;
 
 type InverterType = "hybrid" | "ongrid";
 
@@ -128,7 +129,7 @@ function calculateEMI(principal: number, annualRate: number = 10, tenureMonths: 
   return Math.round(emi);
 }
 
-function calculateCommission(capacityKW: number, panelType: string): CommissionResult {
+function calculateCommission(capacityKW: number, panelType: string, customerType: string = "residential"): CommissionResult {
   let ddpCommission = 0;
   let bdpCommission = 0;
 
@@ -150,8 +151,13 @@ function calculateCommission(capacityKW: number, panelType: string): CommissionR
       bdpCommission = capacityKW * 3000;
     }
   } else {
-    ddpCommission = capacityKW * 4000;
-    bdpCommission = capacityKW * 2000;
+    if (customerType === "commercial" || customerType === "industrial") {
+      ddpCommission = capacityKW * 2000;
+      bdpCommission = capacityKW * 1000;
+    } else {
+      ddpCommission = capacityKW * 4000;
+      bdpCommission = capacityKW * 2000;
+    }
   }
 
   return {
@@ -177,6 +183,8 @@ function calculateSubsidy(
     ratePerWatt = customRatePerWatt;
   } else if (panelType === "dcr") {
     ratePerWatt = inverterType === "hybrid" ? DCR_HYBRID_RATE_PER_WATT : DCR_ONGRID_RATE_PER_WATT;
+  } else if ((customerType === "commercial" || customerType === "industrial") && panelType !== "dcr") {
+    ratePerWatt = NON_DCR_COMMERCIAL_RATE_PER_WATT;
   } else {
     ratePerWatt = NON_DCR_RATE_PER_WATT;
   }
@@ -1434,10 +1442,10 @@ export function SubsidyCalculator({
 
   const defaultRate = panelType === "dcr" 
     ? (inverterType === "hybrid" ? DCR_HYBRID_RATE_PER_WATT : DCR_ONGRID_RATE_PER_WATT) 
-    : NON_DCR_RATE_PER_WATT;
+    : ((customerType === "commercial" || customerType === "industrial") ? NON_DCR_COMMERCIAL_RATE_PER_WATT : NON_DCR_RATE_PER_WATT);
   
   const result = useMemo(() => calculateSubsidy(capacity, selectedState, panelType, inverterType, customerType, interestRate, electricityUnitRate, downPaymentPercent, customRatePerWatt), [capacity, selectedState, panelType, inverterType, customerType, interestRate, electricityUnitRate, downPaymentPercent, customRatePerWatt]);
-  const commission = useMemo(() => calculateCommission(capacity, panelType), [capacity, panelType]);
+  const commission = useMemo(() => calculateCommission(capacity, panelType, customerType), [capacity, panelType, customerType]);
   
   // Get EMI for selected tenure
   const selectedEmi = useMemo(() => {
@@ -2870,5 +2878,5 @@ Website: https://divyanshisolar.com`;
   );
 }
 
-export { calculateSubsidy, calculateCommission, formatINR, stateSubsidies, DCR_HYBRID_RATE_PER_WATT, DCR_ONGRID_RATE_PER_WATT, NON_DCR_RATE_PER_WATT };
+export { calculateSubsidy, calculateCommission, formatINR, stateSubsidies, DCR_HYBRID_RATE_PER_WATT, DCR_ONGRID_RATE_PER_WATT, NON_DCR_RATE_PER_WATT, NON_DCR_COMMERCIAL_RATE_PER_WATT };
 export type { SubsidyResult, CommissionResult, InverterType };

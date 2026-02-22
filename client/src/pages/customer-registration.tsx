@@ -132,7 +132,7 @@ function formatINR(amount: number): string {
   }).format(amount);
 }
 
-function calculateSubsidy(capacityKw: number, panelType: string) {
+function calculateSubsidy(capacityKw: number, panelType: string, customerType: string = "residential") {
   let centralSubsidy = 0;
   let totalCost = 0;
   
@@ -155,20 +155,22 @@ function calculateSubsidy(capacityKw: number, panelType: string) {
       centralSubsidy = 78000;
     }
   } else {
-    totalCost = capacityKw * 55000;
+    const ratePerKw = (customerType === "commercial" || customerType === "industrial") ? 45000 : 55000;
+    totalCost = capacityKw * ratePerKw;
     centralSubsidy = 0;
   }
   
   const netCost = Math.max(0, totalCost - centralSubsidy);
   const dailyGeneration = capacityKw * 4;
   const monthlyGeneration = dailyGeneration * 30;
-  const monthlySavings = monthlyGeneration * 7;
+  const electricityRate = customerType === "industrial" ? 9 : customerType === "commercial" ? 8 : 7;
+  const monthlySavings = monthlyGeneration * electricityRate;
   const annualSavings = monthlySavings * 12;
   
   return { centralSubsidy, totalCost, netCost, dailyGeneration, monthlyGeneration, monthlySavings, annualSavings };
 }
 
-function SubsidyPreview({ capacity, panelType }: { capacity: string; panelType: string }) {
+function SubsidyPreview({ capacity, panelType, customerType = "residential" }: { capacity: string; panelType: string; customerType?: string }) {
   const capacityNum = parseFloat(capacity || "0") || 0;
   const isNonDcr = panelType === "non_dcr";
   
@@ -176,7 +178,8 @@ function SubsidyPreview({ capacity, panelType }: { capacity: string; panelType: 
     return null;
   }
   
-  const result = calculateSubsidy(capacityNum, panelType);
+  const result = calculateSubsidy(capacityNum, panelType, customerType);
+  const ratePerWatt = isNonDcr ? ((customerType === "commercial" || customerType === "industrial") ? 45 : 55) : (panelType === "dcr_hybrid" ? 75 : 66);
   
   return (
     <Card className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
@@ -185,6 +188,7 @@ function SubsidyPreview({ capacity, panelType }: { capacity: string; panelType: 
           <div className="p-2 bg-background rounded-lg">
             <p className="text-sm text-muted-foreground">System Cost</p>
             <p className="text-lg font-bold">{formatINR(result.totalCost)}</p>
+            <p className="text-xs text-muted-foreground">Rs {ratePerWatt}/Watt</p>
           </div>
           {!isNonDcr && (
             <div className="p-2 bg-green-100 dark:bg-green-900/50 rounded-lg">
@@ -910,7 +914,7 @@ export default function CustomerRegistration() {
                         <SelectContent>
                           <SelectItem value="dcr_hybrid">DCR with 3-in-1 Hybrid Inverter (Rs 75/W) - Subsidy Eligible</SelectItem>
                           <SelectItem value="dcr_ongrid">DCR with Ongrid Inverter (Rs 66/W) - Subsidy Eligible</SelectItem>
-                          <SelectItem value="non_dcr">Non-DCR Panels (Rs 55/W) - No Subsidy</SelectItem>
+                          <SelectItem value="non_dcr">Non-DCR Panels - No Subsidy</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormDescription>
@@ -993,7 +997,7 @@ export default function CustomerRegistration() {
                 />
                 
                 {watchCapacity && watchPanelType && (
-                  <SubsidyPreview capacity={watchCapacity} panelType={watchPanelType} />
+                  <SubsidyPreview capacity={watchCapacity} panelType={watchPanelType} customerType={watchCustomerType || "residential"} />
                 )}
               </CardContent>
             </Card>

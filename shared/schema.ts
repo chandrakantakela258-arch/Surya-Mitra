@@ -1055,19 +1055,29 @@ export const dcrFixedCommission: Record<number, { ddp: number; bdp: number }> = 
 // Per-kW commission rates for DCR panels above 5kW (up to 10kW)
 export const dcrPerKwRates = { ddp: 6000, bdp: 3000 };
 
-// Per-kW commission rates for Non-DCR panels (above 5kW)
+// Per-kW commission rates for Non-DCR panels (residential)
 export const nonDcrPerKwRates = { ddp: 4000, bdp: 2000 };
 
-// Non-DCR panel cost per kW
+// Per-kW commission rates for Non-DCR commercial panels (5KW-1000KW)
+export const nonDcrCommercialPerKwRates = { ddp: 2000, bdp: 1000 };
+
+// Non-DCR panel cost per kW (residential)
 export const nonDcrCostPerKw = 55000;
+
+// Non-DCR commercial panel cost per watt (Rs 45/watt = Rs 45000/kW)
+export const NON_DCR_COMMERCIAL_RATE_PER_WATT = 45;
 
 // SunPunch 3-in-1 Inverter commission rates (per unit sold)
 export const inverterCommission = { ddp: 4000, bdp: 1000 };
 
-// Calculate DDP commission based on capacity and panel type
-export function calculateCommission(capacityKw: number, panelType: string = "dcr"): number {
+// Calculate DDP commission based on capacity, panel type, and customer type
+export function calculateCommission(capacityKw: number, panelType: string = "dcr", customerType: string = "residential"): number {
   if (panelType === "non_dcr") {
-    // Non-DCR: Rs 4,000 per kW
+    if (customerType === "commercial" || customerType === "industrial") {
+      // Commercial/Industrial Non-DCR: Rs 2,000 per kW
+      return capacityKw * nonDcrCommercialPerKwRates.ddp;
+    }
+    // Residential Non-DCR: Rs 4,000 per kW
     return capacityKw * nonDcrPerKwRates.ddp;
   }
   
@@ -1085,10 +1095,14 @@ export function calculateCommission(capacityKw: number, panelType: string = "dcr
   return 0;
 }
 
-// Calculate BDP commission based on capacity and panel type
-export function calculateBdpCommission(capacityKw: number, panelType: string = "dcr"): number {
+// Calculate BDP commission based on capacity, panel type, and customer type
+export function calculateBdpCommission(capacityKw: number, panelType: string = "dcr", customerType: string = "residential"): number {
   if (panelType === "non_dcr") {
-    // Non-DCR: Rs 2,000 per kW
+    if (customerType === "commercial" || customerType === "industrial") {
+      // Commercial/Industrial Non-DCR: Rs 1,000 per kW
+      return capacityKw * nonDcrCommercialPerKwRates.bdp;
+    }
+    // Residential Non-DCR: Rs 2,000 per kW
     return capacityKw * nonDcrPerKwRates.bdp;
   }
   

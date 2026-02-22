@@ -919,7 +919,8 @@ export class DatabaseStorage implements IStorage {
       ));
     
     const panelType = customer.panelType || "dcr";
-    const ddpCommissionAmount = calculateCommission(capacityKw, panelType);
+    const custType = customer.customerType || "residential";
+    const ddpCommissionAmount = calculateCommission(capacityKw, panelType, custType);
     
     if (existingDdpCommissions.length === 0) {
       // Create DDP commission
@@ -944,7 +945,7 @@ export class DatabaseStorage implements IStorage {
     // Always check and create BDP commission (even if DDP already existed)
     const ddp = await this.getUser(partnerId);
     if (ddp?.parentId) {
-      const bdpCommissionAmount = calculateBdpCommission(capacityKw, panelType);
+      const bdpCommissionAmount = calculateBdpCommission(capacityKw, panelType, custType);
       
       // Check for existing BDP commission
       const existingBdpCommissions = await db
