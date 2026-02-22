@@ -2275,83 +2275,81 @@ Website: https://divyanshisolar.com`;
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {showCommission === 'ddp_only' ? (
-                <div className="text-center">
-                  <div className="p-4 bg-background rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-1">Your Commission</p>
-                    <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">{formatINR(commission.ddpCommission)}</p>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {panelType === "dcr" 
-                        ? (capacity === 3 ? "Rs 20,000 fixed" : capacity === 5 ? "Rs 35,000 fixed" : "Rs 6,000/kW")
-                        : "Rs 4,000/kW"}
-                    </p>
-                  </div>
-                  <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-                    <p className="text-xs text-muted-foreground text-center">
-                      <strong>{panelType === "dcr" ? "DCR Commission:" : "Non-DCR Commission:"}</strong>{" "}
-                      {panelType === "dcr" 
-                        ? "3 kW: Rs 20k | 5 kW: Rs 35k | 6+ kW: Rs 6k/kW"
-                        : "All capacities: Rs 4,000/kW"}
-                    </p>
-                  </div>
-                </div>
-              ) : showCommission === 'bdp_only' ? (
-                <div className="text-center">
-                  <div className="p-4 bg-background rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-1">Your Commission</p>
-                    <p className="text-3xl font-bold text-pink-600 dark:text-pink-400">{formatINR(commission.bdpCommission)}</p>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {panelType === "dcr" 
-                        ? (capacity === 3 ? "Rs 10,000 fixed" : capacity === 5 ? "Rs 15,000 fixed" : "Rs 3,000/kW")
-                        : "Rs 2,000/kW"}
-                    </p>
-                  </div>
-                  <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-                    <p className="text-xs text-muted-foreground text-center">
-                      <strong>{panelType === "dcr" ? "DCR Commission:" : "Non-DCR Commission:"}</strong>{" "}
-                      {panelType === "dcr" 
-                        ? "3 kW: Rs 10k | 5 kW: Rs 15k | 6+ kW: Rs 3k/kW"
-                        : "All capacities: Rs 2,000/kW"}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+              {(() => {
+                const isCommercialNonDcr = panelType !== "dcr" && (customerType === "commercial" || customerType === "industrial");
+                const ddpRateLabel = panelType === "dcr" 
+                  ? (capacity === 3 ? "Rs 20,000 fixed" : capacity === 5 ? "Rs 35,000 fixed" : "Rs 6,000/kW")
+                  : (isCommercialNonDcr ? "Rs 2,000/kW" : "Rs 4,000/kW");
+                const bdpRateLabel = panelType === "dcr"
+                  ? (capacity === 3 ? "Rs 10,000 fixed" : capacity === 5 ? "Rs 15,000 fixed" : "Rs 3,000/kW")
+                  : (isCommercialNonDcr ? "Rs 1,000/kW" : "Rs 2,000/kW");
+                const ddpSummary = panelType === "dcr"
+                  ? "3 kW: Rs 20k | 5 kW: Rs 35k | 6+ kW: Rs 6k/kW"
+                  : (isCommercialNonDcr ? "All capacities: Rs 2,000/kW" : "All capacities: Rs 4,000/kW");
+                const bdpSummary = panelType === "dcr"
+                  ? "3 kW: Rs 10k | 5 kW: Rs 15k | 6+ kW: Rs 3k/kW"
+                  : (isCommercialNonDcr ? "All capacities: Rs 1,000/kW" : "All capacities: Rs 2,000/kW");
+                const fullSummary = panelType === "dcr"
+                  ? "3 kW (DDP Rs 20k, BDP Rs 10k) | 5 kW (DDP Rs 35k, BDP Rs 15k) | 6+ kW (DDP Rs 6k/kW, BDP Rs 3k/kW)"
+                  : (isCommercialNonDcr 
+                    ? "All capacities: DDP Rs 2,000/kW | BDP Rs 1,000/kW" 
+                    : "All capacities: DDP Rs 4,000/kW | BDP Rs 2,000/kW");
+
+                if (showCommission === 'ddp_only') return (
+                  <div className="text-center">
                     <div className="p-4 bg-background rounded-lg">
-                      <p className="text-sm text-muted-foreground mb-1">DDP Commission</p>
-                      <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{formatINR(commission.ddpCommission)}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {panelType === "dcr" 
-                          ? (capacity === 3 ? "Rs 20,000 fixed" : capacity === 5 ? "Rs 35,000 fixed" : "Rs 6,000/kW")
-                          : "Rs 4,000/kW"}
+                      <p className="text-sm text-muted-foreground mb-1">Your Commission</p>
+                      <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">{formatINR(commission.ddpCommission)}</p>
+                      <p className="text-xs text-muted-foreground mt-2">{ddpRateLabel}</p>
+                    </div>
+                    <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                      <p className="text-xs text-muted-foreground text-center">
+                        <strong>{panelType === "dcr" ? "DCR Commission:" : "Non-DCR Commission:"}</strong>{" "}{ddpSummary}
                       </p>
                     </div>
+                  </div>
+                );
+                if (showCommission === 'bdp_only') return (
+                  <div className="text-center">
                     <div className="p-4 bg-background rounded-lg">
-                      <p className="text-sm text-muted-foreground mb-1">BDP Commission</p>
-                      <p className="text-2xl font-bold text-pink-600 dark:text-pink-400">{formatINR(commission.bdpCommission)}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {panelType === "dcr" 
-                          ? (capacity === 3 ? "Rs 10,000 fixed" : capacity === 5 ? "Rs 15,000 fixed" : "Rs 3,000/kW")
-                          : "Rs 2,000/kW"}
+                      <p className="text-sm text-muted-foreground mb-1">Your Commission</p>
+                      <p className="text-3xl font-bold text-pink-600 dark:text-pink-400">{formatINR(commission.bdpCommission)}</p>
+                      <p className="text-xs text-muted-foreground mt-2">{bdpRateLabel}</p>
+                    </div>
+                    <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                      <p className="text-xs text-muted-foreground text-center">
+                        <strong>{panelType === "dcr" ? "DCR Commission:" : "Non-DCR Commission:"}</strong>{" "}{bdpSummary}
                       </p>
                     </div>
-                    <div className="p-4 bg-purple-100 dark:bg-purple-900/50 rounded-lg">
-                      <p className="text-sm font-medium text-purple-700 dark:text-purple-300 mb-1">Total Commission</p>
-                      <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">{formatINR(commission.totalCommission)}</p>
-                      <p className="text-xs text-muted-foreground">DDP + BDP</p>
+                  </div>
+                );
+                return (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                      <div className="p-4 bg-background rounded-lg">
+                        <p className="text-sm text-muted-foreground mb-1">DDP Commission</p>
+                        <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{formatINR(commission.ddpCommission)}</p>
+                        <p className="text-xs text-muted-foreground">{ddpRateLabel}</p>
+                      </div>
+                      <div className="p-4 bg-background rounded-lg">
+                        <p className="text-sm text-muted-foreground mb-1">BDP Commission</p>
+                        <p className="text-2xl font-bold text-pink-600 dark:text-pink-400">{formatINR(commission.bdpCommission)}</p>
+                        <p className="text-xs text-muted-foreground">{bdpRateLabel}</p>
+                      </div>
+                      <div className="p-4 bg-purple-100 dark:bg-purple-900/50 rounded-lg">
+                        <p className="text-sm font-medium text-purple-700 dark:text-purple-300 mb-1">Total Commission</p>
+                        <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">{formatINR(commission.totalCommission)}</p>
+                        <p className="text-xs text-muted-foreground">DDP + BDP</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-                    <p className="text-xs text-muted-foreground text-center">
-                      <strong>{panelType === "dcr" ? "DCR Commission:" : "Non-DCR Commission:"}</strong>{" "}
-                      {panelType === "dcr" 
-                        ? "3 kW (DDP Rs 20k, BDP Rs 10k) | 5 kW (DDP Rs 35k, BDP Rs 15k) | 6+ kW (DDP Rs 6k/kW, BDP Rs 3k/kW)"
-                        : "All capacities: DDP Rs 4,000/kW | BDP Rs 2,000/kW"}
-                    </p>
-                  </div>
-                </>
-              )}
+                    <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                      <p className="text-xs text-muted-foreground text-center">
+                        <strong>{panelType === "dcr" ? "DCR Commission:" : "Non-DCR Commission:"}</strong>{" "}{fullSummary}
+                      </p>
+                    </div>
+                  </>
+                );
+              })()}
             </CardContent>
           </Card>
         )}
@@ -2866,11 +2864,12 @@ Website: https://divyanshisolar.com`;
         
         <div className="text-xs text-muted-foreground space-y-1">
           <p>* DCR Panel Rate: Rs {DCR_HYBRID_RATE_PER_WATT}/W (Hybrid Inverter) | Rs {DCR_ONGRID_RATE_PER_WATT}/W (Ongrid Inverter)</p>
-          <p>* Non-DCR Panel Rate: Rs {NON_DCR_RATE_PER_WATT}/W (No Subsidy)</p>
+          <p>* Non-DCR Panel Rate: Residential Rs {NON_DCR_RATE_PER_WATT}/W | Commercial/Industrial Rs {NON_DCR_COMMERCIAL_RATE_PER_WATT}/W (No Subsidy)</p>
           <p>* Central Subsidy (DCR only): Up to 2 kW - Rs 30,000/kW | 2-3 kW - Rs 18,000/kW | Above 3 kW - Capped at Rs 78,000</p>
           <p>* State Subsidies (DCR only): Odisha - Rs 20,000/kW (Max Rs 60,000) | UP - Rs 10,000/kW (Max Rs 30,000)</p>
           <p>* DCR Commission: 3kW (DDP Rs 20k, BDP Rs 10k) | 5kW (DDP Rs 35k, BDP Rs 15k) | 6+ kW (DDP Rs 6k/kW, BDP Rs 3k/kW)</p>
-          <p>* Non-DCR Commission: DDP Rs 4,000/kW | BDP Rs 2,000/kW</p>
+          <p>* Non-DCR Commission (Residential): DDP Rs 4,000/kW | BDP Rs 2,000/kW</p>
+          <p>* Non-DCR Commission (Commercial/Industrial): DDP Rs 2,000/kW | BDP Rs 1,000/kW</p>
           <p>* Calculations based on average solar generation of 4 kWh/kW/day and Rs 7/kWh electricity tariff</p>
         </div>
       </CardContent>
