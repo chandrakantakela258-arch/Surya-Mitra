@@ -1108,6 +1108,9 @@ export default function CustomerRegistration() {
                 <CardDescription>
                   Upload documents if available (Aadhaar, PAN, Electricity Bill, Photo)
                 </CardDescription>
+                <p className="text-sm font-bold text-red-600 mt-2">
+                  Please upload Bank Proof (Bank Passbook or Bank Cancel Cheque) - Optional
+                </p>
               </CardHeader>
               <CardContent className="space-y-4">
                 <FormField

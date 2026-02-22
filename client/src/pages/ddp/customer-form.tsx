@@ -1236,6 +1236,9 @@ export default function CustomerForm() {
               <CardDescription>
                 Upload documents if available (Electricity Bill, Aadhaar, PAN Card, Property documents, etc.)
               </CardDescription>
+              <p className="text-sm font-bold text-red-600 mt-2">
+                Please upload Bank Proof (Bank Passbook or Bank Cancel Cheque) - Optional
+              </p>
             </CardHeader>
             <CardContent className="space-y-4">
               <div 
