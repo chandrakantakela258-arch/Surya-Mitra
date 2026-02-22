@@ -875,7 +875,7 @@ export default function CustomerForm() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="residential">Residential (1 kW to 10 kW)</SelectItem>
-                          <SelectItem value="commercial">Commercial (10 kW to 100 kW)</SelectItem>
+                          <SelectItem value="commercial">Commercial (3 kW to 500 kW)</SelectItem>
                           <SelectItem value="industrial">Industrial (5 kW to 1000 kW)</SelectItem>
                         </SelectContent>
                       </Select>
@@ -921,7 +921,7 @@ export default function CustomerForm() {
                       name="commercialUnitDescription"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Commercial Unit Description *</FormLabel>
+                          <FormLabel>Commercial Unit Description</FormLabel>
                           <FormControl>
                             <Textarea 
                               placeholder="Provide additional details about the commercial establishment" 
@@ -1038,7 +1038,7 @@ export default function CustomerForm() {
                     const capacityOptions = isResidential 
                       ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
                       : isCommercial 
-                        ? [10, 15, 20, 25, 30, 40, 50, 60, 75, 100]
+                        ? [3, 5, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100, 150, 200, 250, 300, 400, 500]
                         : [5, 10, 15, 20, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
                     
                     const [useCustom, setUseCustom] = useState(false);
@@ -1065,8 +1065,8 @@ export default function CustomerForm() {
                                 data-testid="input-custom-capacity"
                                 value={field.value || ""}
                                 onChange={(e) => field.onChange(e.target.value)}
-                                min={isResidential ? 1 : isCommercial ? 10 : 5}
-                                max={isResidential ? 10 : isCommercial ? 100 : 1000}
+                                min={isResidential ? 1 : isCommercial ? 3 : 5}
+                                max={isResidential ? 10 : isCommercial ? 500 : 1000}
                               />
                             </FormControl>
                           ) : (
@@ -1092,7 +1092,7 @@ export default function CustomerForm() {
                               ? "Residential: 1-10 kW (subsidy up to 3 kW)" 
                               : "Residential: 1-10 kW at Rs 55,000/kW")
                             : isCommercial
-                              ? "Commercial: 10-100 kW (no subsidy)"
+                              ? "Commercial: 3-500 kW (no subsidy)"
                               : "Industrial: 5-1000 kW (no subsidy)"}
                         </FormDescription>
                         <FormMessage />
