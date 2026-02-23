@@ -1462,6 +1462,9 @@ export function SubsidyCalculator({
   
   // Capacity options based on customer type, panel type, and inverter type
   const capacityOptions = useMemo(() => {
+    if (customerType === "residential" && panelType === "dcr") {
+      return [3, 5, 6];
+    }
     if (panelType === "non_dcr" && inverterType === "hybrid" && customerType === "residential") {
       return [3, 5, 6];
     }
@@ -1911,7 +1914,14 @@ Website: https://divyanshisolar.com`;
                 type="button"
                 variant={panelType === "dcr" ? "default" : "outline"}
                 className="flex-1"
-                onClick={() => { setPanelType("dcr"); setCustomRatePerWatt(null); setCustomRateInput(""); }}
+                onClick={() => { 
+                  setPanelType("dcr"); 
+                  setCustomRatePerWatt(null); 
+                  setCustomRateInput(""); 
+                  if (customerType === "residential" && ![3, 5, 6].includes(capacity)) {
+                    handleCapacityChange(3);
+                  }
+                }}
                 data-testid="button-panel-dcr"
               >
                 DCR
