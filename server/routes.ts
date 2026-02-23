@@ -9235,6 +9235,22 @@ export async function registerRoutes(
     }
   });
 
+  // Admin: Delete a proposal lead
+  app.delete("/api/admin/proposal-leads/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const lead = await storage.getProposalLead(id);
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      await storage.deleteProposalLead(id);
+      res.json({ message: "Lead deleted successfully" });
+    } catch (error: any) {
+      console.error("Delete proposal lead error:", error);
+      res.status(500).json({ message: error.message || "Failed to delete lead" });
+    }
+  });
+
   // ========== PDF GENERATION ENDPOINTS ==========
 
   // Generate proposal PDF and return download link (public endpoint for WhatsApp sharing)

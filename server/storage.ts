@@ -3512,6 +3512,11 @@ export class DatabaseStorage implements IStorage {
     return lead;
   }
 
+  async deleteProposalLead(id: string): Promise<boolean> {
+    const result = await db.delete(proposalLeads).where(eq(proposalLeads.id, id));
+    return true;
+  }
+
   async getAdminSetting(key: string): Promise<string | null> {
     const [setting] = await db.select().from(adminSettings).where(eq(adminSettings.key, key));
     return setting?.value || null;

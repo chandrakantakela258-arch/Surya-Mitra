@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { UserPlus, Phone, Mail, MapPin, Sun, Search, Filter, IndianRupee, Calendar, FileText, MessageSquare } from "lucide-react";
+import { UserPlus, Phone, Mail, MapPin, Sun, Search, Filter, IndianRupee, Calendar, FileText, MessageSquare, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState } from "react";
@@ -68,6 +68,19 @@ export default function AdminCustomerLeads() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/proposal-leads"] });
       toast({ title: "Lead Updated", description: "Lead status has been updated successfully" });
       setEditingLead(null);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("DELETE", `/api/admin/proposal-leads/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/proposal-leads"] });
+      toast({ title: "Lead Deleted", description: "Lead has been removed successfully" });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -270,6 +283,21 @@ export default function AdminCustomerLeads() {
                         Call
                       </Button>
                     </a>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+                      onClick={() => {
+                        if (window.confirm(`Delete lead "${lead.customerName}"? This cannot be undone.`)) {
+                          deleteMutation.mutate(lead.id);
+                        }
+                      }}
+                      disabled={deleteMutation.isPending}
+                      data-testid={`button-delete-lead-${lead.id}`}
+                    >
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      Delete
+                    </Button>
                   </div>
                 </div>
               </CardContent>
