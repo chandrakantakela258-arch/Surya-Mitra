@@ -1056,7 +1056,7 @@ export const dcrFixedCommission: Record<number, { ddp: number; bdp: number }> = 
 export const dcrPerKwRates = { ddp: 6000, bdp: 3000 };
 
 // Per-kW commission rates for Non-DCR panels (residential)
-export const nonDcrPerKwRates = { ddp: 4000, bdp: 2000 };
+export const nonDcrPerKwRates = { ddp: 2000, bdp: 1000 };
 
 // Per-kW commission rates for Non-DCR commercial panels (5KW-1000KW)
 export const nonDcrCommercialPerKwRates = { ddp: 2000, bdp: 1000 };
@@ -1073,11 +1073,7 @@ export const inverterCommission = { ddp: 4000, bdp: 1000 };
 // Calculate DDP commission based on capacity, panel type, and customer type
 export function calculateCommission(capacityKw: number, panelType: string = "dcr", customerType: string = "residential"): number {
   if (panelType === "non_dcr") {
-    if (customerType === "commercial" || customerType === "industrial") {
-      // Commercial/Industrial Non-DCR: Rs 2,000 per kW
-      return capacityKw * nonDcrCommercialPerKwRates.ddp;
-    }
-    // Residential Non-DCR: Rs 4,000 per kW
+    // All Non-DCR: Rs 2,000 per kW (DDP)
     return capacityKw * nonDcrPerKwRates.ddp;
   }
   
@@ -1098,11 +1094,7 @@ export function calculateCommission(capacityKw: number, panelType: string = "dcr
 // Calculate BDP commission based on capacity, panel type, and customer type
 export function calculateBdpCommission(capacityKw: number, panelType: string = "dcr", customerType: string = "residential"): number {
   if (panelType === "non_dcr") {
-    if (customerType === "commercial" || customerType === "industrial") {
-      // Commercial/Industrial Non-DCR: Rs 1,000 per kW
-      return capacityKw * nonDcrCommercialPerKwRates.bdp;
-    }
-    // Residential Non-DCR: Rs 2,000 per kW
+    // All Non-DCR: Rs 1,000 per kW (BDP)
     return capacityKw * nonDcrPerKwRates.bdp;
   }
   

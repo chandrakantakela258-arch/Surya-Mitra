@@ -152,13 +152,8 @@ function calculateCommission(capacityKW: number, panelType: string, customerType
       bdpCommission = capacityKW * 3000;
     }
   } else {
-    if (customerType === "commercial" || customerType === "industrial") {
-      ddpCommission = capacityKW * 2000;
-      bdpCommission = capacityKW * 1000;
-    } else {
-      ddpCommission = capacityKW * 4000;
-      bdpCommission = capacityKW * 2000;
-    }
+    ddpCommission = capacityKW * 2000;
+    bdpCommission = capacityKW * 1000;
   }
 
   return {
@@ -2322,24 +2317,21 @@ Website: https://divyanshisolar.com`;
             </CardHeader>
             <CardContent>
               {(() => {
-                const isCommercialNonDcr = panelType !== "dcr" && (customerType === "commercial" || customerType === "industrial");
                 const ddpRateLabel = panelType === "dcr" 
                   ? (capacity === 3 ? "Rs 20,000 fixed" : capacity === 5 ? "Rs 35,000 fixed" : "Rs 6,000/kW")
-                  : (isCommercialNonDcr ? "Rs 2,000/kW" : "Rs 4,000/kW");
+                  : "Rs 2,000/kW";
                 const bdpRateLabel = panelType === "dcr"
                   ? (capacity === 3 ? "Rs 10,000 fixed" : capacity === 5 ? "Rs 15,000 fixed" : "Rs 3,000/kW")
-                  : (isCommercialNonDcr ? "Rs 1,000/kW" : "Rs 2,000/kW");
+                  : "Rs 1,000/kW";
                 const ddpSummary = panelType === "dcr"
                   ? "3 kW: Rs 20k | 5 kW: Rs 35k | 6+ kW: Rs 6k/kW"
-                  : (isCommercialNonDcr ? "All capacities: Rs 2,000/kW" : "All capacities: Rs 4,000/kW");
+                  : "All capacities: Rs 2,000/kW";
                 const bdpSummary = panelType === "dcr"
                   ? "3 kW: Rs 10k | 5 kW: Rs 15k | 6+ kW: Rs 3k/kW"
-                  : (isCommercialNonDcr ? "All capacities: Rs 1,000/kW" : "All capacities: Rs 2,000/kW");
+                  : "All capacities: Rs 1,000/kW";
                 const fullSummary = panelType === "dcr"
                   ? "3 kW (DDP Rs 20k, BDP Rs 10k) | 5 kW (DDP Rs 35k, BDP Rs 15k) | 6+ kW (DDP Rs 6k/kW, BDP Rs 3k/kW)"
-                  : (isCommercialNonDcr 
-                    ? "All capacities: DDP Rs 2,000/kW | BDP Rs 1,000/kW" 
-                    : "All capacities: DDP Rs 4,000/kW | BDP Rs 2,000/kW");
+                  : "All capacities: DDP Rs 2,000/kW | BDP Rs 1,000/kW";
 
                 if (showCommission === 'ddp_only') return (
                   <div className="text-center">
@@ -2914,8 +2906,7 @@ Website: https://divyanshisolar.com`;
           <p>* Central Subsidy (DCR only): Up to 2 kW - Rs 30,000/kW | 2-3 kW - Rs 18,000/kW | Above 3 kW - Capped at Rs 78,000</p>
           <p>* State Subsidies (DCR only): Odisha - Rs 20,000/kW (Max Rs 60,000) | UP - Rs 10,000/kW (Max Rs 30,000)</p>
           <p>* DCR Commission: 3kW (DDP Rs 20k, BDP Rs 10k) | 5kW (DDP Rs 35k, BDP Rs 15k) | 6+ kW (DDP Rs 6k/kW, BDP Rs 3k/kW)</p>
-          <p>* Non-DCR Commission (Residential): DDP Rs 4,000/kW | BDP Rs 2,000/kW</p>
-          <p>* Non-DCR Commission (Commercial/Industrial): DDP Rs 2,000/kW | BDP Rs 1,000/kW</p>
+          <p>* Non-DCR Commission (All): DDP Rs 2,000/kW | BDP Rs 1,000/kW</p>
           <p>* Calculations based on average solar generation of 4 kWh/kW/day and Rs 7/kWh electricity tariff</p>
         </div>
       </CardContent>
