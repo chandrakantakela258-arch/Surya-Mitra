@@ -23,12 +23,8 @@ interface EquipmentOptions {
 export default function EquipmentSettings() {
   const { toast } = useToast();
   const [newModuleMake, setNewModuleMake] = useState("");
-  const [newModuleModel, setNewModuleModel] = useState("");
-  const [editingModuleMake, setEditingModuleMake] = useState<string | null>(null);
-
   const [newInverterMake, setNewInverterMake] = useState("");
-  const [newInverterModel, setNewInverterModel] = useState("");
-  const [editingInverterMake, setEditingInverterMake] = useState<string | null>(null);
+  const [modelInputs, setModelInputs] = useState<Record<string, string>>({});
 
   const { data: options, isLoading } = useQuery<EquipmentOptions>({
     queryKey: ["/api/admin/equipment-options"],
@@ -75,8 +71,11 @@ export default function EquipmentSettings() {
     else setNewInverterMake("");
   };
 
+  const getModelInputKey = (type: string, make: string) => `${type}_${make}`;
+
   const handleAddModel = (type: "module" | "inverter", make: string) => {
-    const model = type === "module" ? newModuleModel.trim() : newInverterModel.trim();
+    const key = getModelInputKey(type, make);
+    const model = (modelInputs[key] || "").trim();
     if (!model) return;
 
     const existing = type === "module" ? options?.moduleMakes : options?.inverterMakes;
@@ -89,8 +88,7 @@ export default function EquipmentSettings() {
     }
 
     saveMutation.mutate({ type, make, models: [...currentModels, model] });
-    if (type === "module") setNewModuleModel("");
-    else setNewInverterModel("");
+    setModelInputs(prev => ({ ...prev, [key]: "" }));
   };
 
   const handleRemoveModel = (type: "module" | "inverter", make: string, model: string) => {
@@ -106,11 +104,7 @@ export default function EquipmentSettings() {
     icon: ReactNode,
     makes: EquipmentMake[],
     newMake: string,
-    setNewMake: (v: string) => void,
-    newModel: string,
-    setNewModel: (v: string) => void,
-    editingMake: string | null,
-    setEditingMake: (v: string | null) => void
+    setNewMake: (v: string) => void
   ) => (
     <Card>
       <CardHeader>
@@ -119,25 +113,28 @@ export default function EquipmentSettings() {
           {title}
         </CardTitle>
         <CardDescription>
-          Add makes and their models. These will appear as dropdown options in the MOA agreement form.
+          Add makes first, then add models under each make. These will appear as dropdown options in the MOA agreement form.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex gap-2">
-          <Input
-            value={newMake}
-            onChange={(e) => setNewMake(e.target.value)}
-            placeholder={`Enter new ${type === "module" ? "solar module" : "inverter"} make name`}
-            onKeyDown={(e) => e.key === "Enter" && handleAddMake(type)}
-            data-testid={`input-new-${type}-make`}
-          />
-          <Button
-            onClick={() => handleAddMake(type)}
-            disabled={!newMake.trim() || saveMutation.isPending}
-            data-testid={`button-add-${type}-make`}
-          >
-            <Plus className="w-4 h-4 mr-1" /> Add Make
-          </Button>
+        <div>
+          <Label className="text-xs font-medium mb-1.5 block">Add New Make</Label>
+          <div className="flex gap-2">
+            <Input
+              value={newMake}
+              onChange={(e) => setNewMake(e.target.value)}
+              placeholder={`e.g., ${type === "module" ? "IB Solar, Tata Power Solar" : "SunPunch, Growatt"}`}
+              onKeyDown={(e) => e.key === "Enter" && handleAddMake(type)}
+              data-testid={`input-new-${type}-make`}
+            />
+            <Button
+              onClick={() => handleAddMake(type)}
+              disabled={!newMake.trim() || saveMutation.isPending}
+              data-testid={`button-add-${type}-make`}
+            >
+              <Plus className="w-4 h-4 mr-1" /> Add
+            </Button>
+          </div>
         </div>
 
         {makes.length === 0 && (
@@ -146,76 +143,68 @@ export default function EquipmentSettings() {
           </p>
         )}
 
-        {makes.map((entry) => (
-          <div key={entry.make} className="border rounded-lg p-3 space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="font-semibold text-sm" data-testid={`text-${type}-make-${entry.make}`}>{entry.make}</h4>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => deleteMutation.mutate({ type, make: entry.make })}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                data-testid={`button-delete-${type}-make-${entry.make}`}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </div>
+        {makes.map((entry) => {
+          const inputKey = getModelInputKey(type, entry.make);
+          const modelInputValue = modelInputs[inputKey] || "";
 
-            <div className="flex flex-wrap gap-2">
-              {entry.models.map((model) => (
-                <Badge key={model} variant="secondary" className="gap-1 py-1 px-2" data-testid={`badge-${type}-model-${model}`}>
-                  {model}
-                  <button
-                    onClick={() => handleRemoveModel(type, entry.make, model)}
-                    className="ml-1 rounded-full hover:bg-muted-foreground/20 p-0.5"
-                    data-testid={`button-remove-${type}-model-${model}`}
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </Badge>
-              ))}
-              {entry.models.length === 0 && (
-                <span className="text-xs text-muted-foreground">No models added yet</span>
-              )}
-            </div>
-
-            {editingMake === entry.make ? (
-              <div className="flex gap-2">
-                <Input
-                  value={newModel}
-                  onChange={(e) => setNewModel(e.target.value)}
-                  placeholder={`Add model for ${entry.make}`}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleAddModel(type, entry.make);
-                    if (e.key === "Escape") setEditingMake(null);
-                  }}
-                  autoFocus
-                  data-testid={`input-new-${type}-model`}
-                />
+          return (
+            <div key={entry.make} className="border rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-semibold" data-testid={`text-${type}-make-${entry.make}`}>{entry.make}</h4>
                 <Button
+                  variant="ghost"
                   size="sm"
-                  onClick={() => handleAddModel(type, entry.make)}
-                  disabled={!newModel.trim() || saveMutation.isPending}
-                  data-testid={`button-add-${type}-model`}
+                  onClick={() => deleteMutation.mutate({ type, make: entry.make })}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  data-testid={`button-delete-${type}-make-${entry.make}`}
                 >
-                  <Plus className="w-4 h-4" />
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => { setEditingMake(null); setNewModel(""); }}>
-                  Cancel
+                  <Trash2 className="w-4 h-4 mr-1" /> Remove Make
                 </Button>
               </div>
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => { setEditingMake(entry.make); setNewModel(""); }}
-                data-testid={`button-open-add-model-${type}-${entry.make}`}
-              >
-                <Plus className="w-4 h-4 mr-1" /> Add Model
-              </Button>
-            )}
-          </div>
-        ))}
+
+              <Separator />
+
+              <div>
+                <Label className="text-xs font-medium mb-1.5 block">Models ({entry.models.length} added)</Label>
+                {entry.models.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {entry.models.map((model) => (
+                      <Badge key={model} variant="secondary" className="gap-1 py-1.5 px-3 text-sm" data-testid={`badge-${type}-model-${model}`}>
+                        {model}
+                        <button
+                          onClick={() => handleRemoveModel(type, entry.make, model)}
+                          className="ml-1 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                          data-testid={`button-remove-${type}-model-${model}`}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <Input
+                    value={modelInputValue}
+                    onChange={(e) => setModelInputs(prev => ({ ...prev, [inputKey]: e.target.value }))}
+                    placeholder={`Enter ${type === "module" ? "module" : "inverter"} model name for ${entry.make}`}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleAddModel(type, entry.make);
+                    }}
+                    data-testid={`input-model-${type}-${entry.make}`}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => handleAddModel(type, entry.make)}
+                    disabled={!modelInputValue.trim() || saveMutation.isPending}
+                    data-testid={`button-add-model-${type}-${entry.make}`}
+                  >
+                    <Plus className="w-4 h-4 mr-1" /> Add Model
+                  </Button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </CardContent>
     </Card>
   );
@@ -240,7 +229,7 @@ export default function EquipmentSettings() {
           Solar Equipment Settings
         </h1>
         <p className="text-muted-foreground mt-1">
-          Configure solar module and inverter options that will appear in the MOA agreement form dropdown selections.
+          Configure solar module and inverter options. Add makes and models here - they will appear as dropdown selections in the MOA agreement form.
         </p>
       </div>
 
@@ -252,11 +241,7 @@ export default function EquipmentSettings() {
         <Sun className="w-5 h-5 text-yellow-500" />,
         options?.moduleMakes || [],
         newModuleMake,
-        setNewModuleMake,
-        newModuleModel,
-        setNewModuleModel,
-        editingModuleMake,
-        setEditingModuleMake
+        setNewModuleMake
       )}
 
       {renderEquipmentSection(
@@ -265,11 +250,7 @@ export default function EquipmentSettings() {
         <Zap className="w-5 h-5 text-blue-500" />,
         options?.inverterMakes || [],
         newInverterMake,
-        setNewInverterMake,
-        newInverterModel,
-        setNewInverterModel,
-        editingInverterMake,
-        setEditingInverterMake
+        setNewInverterMake
       )}
     </div>
   );
