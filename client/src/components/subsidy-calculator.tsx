@@ -79,7 +79,8 @@ const DCR_HYBRID_RATE_PER_WATT = 75;  // With 3-in-1 Hybrid Inverter
 const DCR_ONGRID_RATE_PER_WATT = 66;  // With Ongrid Inverter
 
 // Non-DCR Panel Pricing
-const NON_DCR_RATE_PER_WATT = 55;
+const NON_DCR_ONGRID_RATE_PER_WATT = 45;      // Non-DCR with Ongrid Inverter
+const NON_DCR_HYBRID_RATE_PER_WATT = 55;       // Non-DCR with 3-in-1 Hybrid Inverter (3KW-6KW only)
 const NON_DCR_COMMERCIAL_RATE_PER_WATT = 45;
 
 type InverterType = "hybrid" | "ongrid";
@@ -186,7 +187,7 @@ function calculateSubsidy(
   } else if ((customerType === "commercial" || customerType === "industrial") && panelType !== "dcr") {
     ratePerWatt = NON_DCR_COMMERCIAL_RATE_PER_WATT;
   } else {
-    ratePerWatt = NON_DCR_RATE_PER_WATT;
+    ratePerWatt = inverterType === "hybrid" ? NON_DCR_HYBRID_RATE_PER_WATT : NON_DCR_ONGRID_RATE_PER_WATT;
   }
   
   const totalCost = capacityKW * ratePerWatt * 1000;
@@ -1442,7 +1443,7 @@ export function SubsidyCalculator({
 
   const defaultRate = panelType === "dcr" 
     ? (inverterType === "hybrid" ? DCR_HYBRID_RATE_PER_WATT : DCR_ONGRID_RATE_PER_WATT) 
-    : ((customerType === "commercial" || customerType === "industrial") ? NON_DCR_COMMERCIAL_RATE_PER_WATT : NON_DCR_RATE_PER_WATT);
+    : ((customerType === "commercial" || customerType === "industrial") ? NON_DCR_COMMERCIAL_RATE_PER_WATT : (inverterType === "hybrid" ? NON_DCR_HYBRID_RATE_PER_WATT : NON_DCR_ONGRID_RATE_PER_WATT));
   
   const result = useMemo(() => calculateSubsidy(capacity, selectedState, panelType, inverterType, customerType, interestRate, electricityUnitRate, downPaymentPercent, customRatePerWatt), [capacity, selectedState, panelType, inverterType, customerType, interestRate, electricityUnitRate, downPaymentPercent, customRatePerWatt]);
   const commission = useMemo(() => calculateCommission(capacity, panelType, customerType), [capacity, panelType, customerType]);
@@ -1459,17 +1460,19 @@ export function SubsidyCalculator({
     }
   }, [result, selectedEmiTenure]);
   
-  // Capacity options based on customer type
+  // Capacity options based on customer type, panel type, and inverter type
   const capacityOptions = useMemo(() => {
+    if (panelType === "non_dcr" && inverterType === "hybrid" && customerType === "residential") {
+      return [3, 5, 6];
+    }
     if (customerType === "residential") {
       return [1, 2, 3, 5, 7, 10];
     } else if (customerType === "commercial") {
       return [10, 15, 20, 25, 30, 40, 50, 60, 75, 100];
     } else {
-      // Industrial: 5 kW to 1000 kW
       return [5, 10, 15, 20, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
     }
-  }, [customerType]);
+  }, [customerType, panelType, inverterType]);
   
   function handleCapacityChange(value: number) {
     const clampedValue = Math.max(1, Math.min(maxCapacity, value));
@@ -1926,40 +1929,55 @@ Website: https://divyanshisolar.com`;
             <p className="text-xs text-muted-foreground">
               {panelType === "dcr" 
                 ? (result.subsidyEligible ? "DCR panels are eligible for government subsidy" : "DCR panels (subsidy only for residential)")
-                : "Non-DCR panels have no subsidy (Rs 55/W)"}
+                : `Non-DCR panels have no subsidy (${inverterType === "hybrid" ? `Rs ${NON_DCR_HYBRID_RATE_PER_WATT}/W Hybrid` : `Rs ${NON_DCR_ONGRID_RATE_PER_WATT}/W Ongrid`})`}
             </p>
           </div>
           
-          {panelType === "dcr" && (
-            <div className="space-y-4">
-              <Label>Inverter Type</Label>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant={inverterType === "hybrid" ? "default" : "outline"}
-                  className="flex-1"
-                  onClick={() => setInverterType("hybrid")}
-                  data-testid="button-inverter-hybrid"
-                >
-                  3-in-1 Hybrid
-                </Button>
-                <Button
-                  type="button"
-                  variant={inverterType === "ongrid" ? "default" : "outline"}
-                  className="flex-1"
-                  onClick={() => setInverterType("ongrid")}
-                  data-testid="button-inverter-ongrid"
-                >
-                  Ongrid
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {inverterType === "hybrid" 
-                  ? `3-in-1 Hybrid Inverter @ Rs ${DCR_HYBRID_RATE_PER_WATT}/W` 
-                  : `Ongrid Inverter @ Rs ${DCR_ONGRID_RATE_PER_WATT}/W`}
-              </p>
+          <div className="space-y-4">
+            <Label>Inverter Type</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={inverterType === "hybrid" ? "default" : "outline"}
+                className="flex-1"
+                onClick={() => {
+                  setInverterType("hybrid");
+                  setCustomRatePerWatt(null);
+                  setCustomRateInput("");
+                  if (panelType === "non_dcr" && customerType === "residential") {
+                    if (capacity < 3 || capacity > 6) {
+                      handleCapacityChange(3);
+                    }
+                  }
+                }}
+                data-testid="button-inverter-hybrid"
+              >
+                3-in-1 Hybrid
+              </Button>
+              <Button
+                type="button"
+                variant={inverterType === "ongrid" ? "default" : "outline"}
+                className="flex-1"
+                onClick={() => {
+                  setInverterType("ongrid");
+                  setCustomRatePerWatt(null);
+                  setCustomRateInput("");
+                }}
+                data-testid="button-inverter-ongrid"
+              >
+                Ongrid
+              </Button>
             </div>
-          )}
+            <p className="text-xs text-muted-foreground">
+              {panelType === "dcr" 
+                ? (inverterType === "hybrid" 
+                  ? `3-in-1 Hybrid Inverter @ Rs ${DCR_HYBRID_RATE_PER_WATT}/W` 
+                  : `Ongrid Inverter @ Rs ${DCR_ONGRID_RATE_PER_WATT}/W`)
+                : (inverterType === "hybrid"
+                  ? `3-in-1 Hybrid Inverter @ Rs ${NON_DCR_HYBRID_RATE_PER_WATT}/W (3-6 KW only)`
+                  : `Ongrid Inverter @ Rs ${NON_DCR_ONGRID_RATE_PER_WATT}/W`)}
+            </p>
+          </div>
 
           <div className="space-y-4">
             <div className="flex items-center gap-2">
@@ -2864,7 +2882,7 @@ Website: https://divyanshisolar.com`;
         
         <div className="text-xs text-muted-foreground space-y-1">
           <p>* DCR Panel Rate: Rs {DCR_HYBRID_RATE_PER_WATT}/W (Hybrid Inverter) | Rs {DCR_ONGRID_RATE_PER_WATT}/W (Ongrid Inverter)</p>
-          <p>* Non-DCR Panel Rate: Residential Rs {NON_DCR_RATE_PER_WATT}/W | Commercial/Industrial Rs {NON_DCR_COMMERCIAL_RATE_PER_WATT}/W (No Subsidy)</p>
+          <p>* Non-DCR Panel Rate: Ongrid Rs {NON_DCR_ONGRID_RATE_PER_WATT}/W | 3-in-1 Hybrid Rs {NON_DCR_HYBRID_RATE_PER_WATT}/W (3-6 KW only) | Commercial/Industrial Rs {NON_DCR_COMMERCIAL_RATE_PER_WATT}/W (No Subsidy)</p>
           <p>* Central Subsidy (DCR only): Up to 2 kW - Rs 30,000/kW | 2-3 kW - Rs 18,000/kW | Above 3 kW - Capped at Rs 78,000</p>
           <p>* State Subsidies (DCR only): Odisha - Rs 20,000/kW (Max Rs 60,000) | UP - Rs 10,000/kW (Max Rs 30,000)</p>
           <p>* DCR Commission: 3kW (DDP Rs 20k, BDP Rs 10k) | 5kW (DDP Rs 35k, BDP Rs 15k) | 6+ kW (DDP Rs 6k/kW, BDP Rs 3k/kW)</p>
@@ -2877,5 +2895,5 @@ Website: https://divyanshisolar.com`;
   );
 }
 
-export { calculateSubsidy, calculateCommission, formatINR, stateSubsidies, DCR_HYBRID_RATE_PER_WATT, DCR_ONGRID_RATE_PER_WATT, NON_DCR_RATE_PER_WATT, NON_DCR_COMMERCIAL_RATE_PER_WATT };
+export { calculateSubsidy, calculateCommission, formatINR, stateSubsidies, DCR_HYBRID_RATE_PER_WATT, DCR_ONGRID_RATE_PER_WATT, NON_DCR_ONGRID_RATE_PER_WATT, NON_DCR_HYBRID_RATE_PER_WATT, NON_DCR_COMMERCIAL_RATE_PER_WATT };
 export type { SubsidyResult, CommissionResult, InverterType };
