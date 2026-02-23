@@ -65,17 +65,17 @@ export default function EquipmentSettings() {
     },
   });
 
-  const { data: vendors = [] } = useQuery<Vendor[]>({
-    queryKey: ["/api/admin/vendors"],
+  const { data: moaVendors = [] } = useQuery<Vendor[]>({
+    queryKey: ["/api/admin/moa-vendors"],
   });
 
-  const addVendorMutation = useMutation({
+  const addMoaVendorMutation = useMutation({
     mutationFn: async (data: { name: string; address: string }) => {
-      return apiRequest("POST", "/api/admin/vendors", data);
+      return apiRequest("POST", "/api/admin/moa-vendors", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/vendors"] });
-      toast({ title: "Saved", description: "Vendor added successfully." });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/moa-vendors"] });
+      toast({ title: "Saved", description: "PM Surya Ghar vendor added successfully." });
       setNewVendorName("");
       setNewVendorAddress("");
     },
@@ -84,13 +84,13 @@ export default function EquipmentSettings() {
     },
   });
 
-  const deleteVendorMutation = useMutation({
+  const deleteMoaVendorMutation = useMutation({
     mutationFn: async (key: string) => {
-      return apiRequest("DELETE", `/api/admin/vendors/${encodeURIComponent(key)}`);
+      return apiRequest("DELETE", `/api/admin/moa-vendors/${encodeURIComponent(key)}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/vendors"] });
-      toast({ title: "Deleted", description: "Vendor removed." });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/moa-vendors"] });
+      toast({ title: "Deleted", description: "PM Surya Ghar vendor removed." });
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -300,10 +300,10 @@ export default function EquipmentSettings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Building2 className="w-5 h-5 text-green-600" />
-            Vendor Management
+            PM Surya Ghar Vendor
           </CardTitle>
           <CardDescription>
-            Add vendor names and addresses here. They will appear as dropdown options in the MOA agreement form and auto-populate vendor details.
+            Add vendor names and addresses for PM Surya Ghar Yojana MOA agreements. These vendors will appear as dropdown options in the Draft Agreement form only.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -314,7 +314,7 @@ export default function EquipmentSettings() {
                 value={newVendorName}
                 onChange={(e) => setNewVendorName(e.target.value)}
                 placeholder="e.g., Hewtech System Pvt. Ltd."
-                data-testid="input-new-vendor-name"
+                data-testid="input-new-moa-vendor-name"
               />
             </div>
             <div>
@@ -324,41 +324,41 @@ export default function EquipmentSettings() {
                 onChange={(e) => setNewVendorAddress(e.target.value)}
                 placeholder="e.g., Golu Babu Market, Ashiyana Digha Road, Rajiv Nagar, Patna -25"
                 rows={2}
-                data-testid="input-new-vendor-address"
+                data-testid="input-new-moa-vendor-address"
               />
             </div>
             <Button
               onClick={() => {
                 if (!newVendorName.trim()) return;
-                addVendorMutation.mutate({ name: newVendorName.trim(), address: newVendorAddress.trim() });
+                addMoaVendorMutation.mutate({ name: newVendorName.trim(), address: newVendorAddress.trim() });
               }}
-              disabled={!newVendorName.trim() || addVendorMutation.isPending}
-              data-testid="button-add-vendor"
+              disabled={!newVendorName.trim() || addMoaVendorMutation.isPending}
+              data-testid="button-add-moa-vendor"
             >
               <Plus className="w-4 h-4 mr-1" /> Add Vendor
             </Button>
           </div>
 
-          {vendors.length === 0 && (
+          {moaVendors.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-4">
-              No vendors added yet. Add a vendor above to get started.
+              No PM Surya Ghar vendors added yet. Add a vendor above to get started.
             </p>
           )}
 
-          {vendors.map((vendor) => (
-            <div key={vendor.id} className="border rounded-lg p-4 flex items-start justify-between gap-3" data-testid={`vendor-card-${vendor.id}`}>
+          {moaVendors.map((vendor) => (
+            <div key={vendor.id} className="border rounded-lg p-4 flex items-start justify-between gap-3" data-testid={`moa-vendor-card-${vendor.id}`}>
               <div className="min-w-0 flex-1">
-                <h4 className="font-semibold" data-testid={`text-vendor-name-${vendor.id}`}>{vendor.name}</h4>
+                <h4 className="font-semibold" data-testid={`text-moa-vendor-name-${vendor.id}`}>{vendor.name}</h4>
                 {vendor.address && (
-                  <p className="text-sm text-muted-foreground mt-0.5" data-testid={`text-vendor-address-${vendor.id}`}>{vendor.address}</p>
+                  <p className="text-sm text-muted-foreground mt-0.5" data-testid={`text-moa-vendor-address-${vendor.id}`}>{vendor.address}</p>
                 )}
               </div>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => deleteVendorMutation.mutate(vendor.id)}
+                onClick={() => deleteMoaVendorMutation.mutate(vendor.id)}
                 className="text-red-600 hover:text-red-700 hover:bg-red-50 shrink-0"
-                data-testid={`button-delete-vendor-${vendor.id}`}
+                data-testid={`button-delete-moa-vendor-${vendor.id}`}
               >
                 <Trash2 className="w-4 h-4 mr-1" /> Remove
               </Button>

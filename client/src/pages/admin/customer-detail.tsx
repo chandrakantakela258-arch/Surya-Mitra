@@ -136,7 +136,7 @@ export default function AdminCustomerDetail() {
   });
 
   const { data: vendorList = [] } = useQuery<{ id: string; name: string; address: string }[]>({
-    queryKey: ["/api/admin/vendors"],
+    queryKey: ["/api/admin/moa-vendors"],
   });
 
   const currentStateEmail = customer?.state

@@ -9290,6 +9290,51 @@ export async function registerRoutes(
     }
   });
 
+  // ========== PM SURYA GHAR VENDOR ENDPOINTS (for MOA) ==========
+
+  app.get("/api/admin/moa-vendors", requireAdmin, async (req, res) => {
+    try {
+      const vendorSettings = await storage.getAdminSettingsByPrefix("moa_vendor_");
+      const vendors = vendorSettings.map(s => {
+        const data = JSON.parse(s.value);
+        return { id: s.key, name: data.name, address: data.address };
+      });
+      res.json(vendors);
+    } catch (error: any) {
+      console.error("Get MOA vendors error:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch PM Surya Ghar vendors" });
+    }
+  });
+
+  app.post("/api/admin/moa-vendors", requireAdmin, async (req, res) => {
+    try {
+      const { name, address } = req.body;
+      if (!name || !name.trim()) {
+        return res.status(400).json({ message: "Vendor name is required" });
+      }
+      const key = `moa_vendor_${name.trim().toLowerCase().replace(/\s+/g, "_")}`;
+      await storage.setAdminSetting(key, JSON.stringify({ name: name.trim(), address: (address || "").trim() }));
+      res.json({ message: "PM Surya Ghar vendor saved successfully" });
+    } catch (error: any) {
+      console.error("Save MOA vendor error:", error);
+      res.status(500).json({ message: error.message || "Failed to save vendor" });
+    }
+  });
+
+  app.delete("/api/admin/moa-vendors/:key", requireAdmin, async (req, res) => {
+    try {
+      const key = req.params.key;
+      const deleted = await storage.deleteAdminSetting(key);
+      if (!deleted) {
+        return res.status(404).json({ message: "Vendor not found" });
+      }
+      res.json({ message: "PM Surya Ghar vendor removed successfully" });
+    } catch (error: any) {
+      console.error("Delete MOA vendor error:", error);
+      res.status(500).json({ message: error.message || "Failed to delete vendor" });
+    }
+  });
+
   // ========== MOA AGREEMENT ENDPOINTS ==========
 
   app.post("/api/admin/customers/:id/generate-agreement", requireAdmin, async (req, res) => {
