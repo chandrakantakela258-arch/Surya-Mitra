@@ -17,6 +17,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/status-badge";
 import { calculateSubsidy, formatINR, DCR_HYBRID_RATE_PER_WATT, DCR_ONGRID_RATE_PER_WATT, NON_DCR_ONGRID_RATE_PER_WATT, NON_DCR_HYBRID_RATE_PER_WATT } from "@/components/subsidy-calculator";
+
+const HYBRID_RATE_PER_KW = 75000;
+const ONGRID_RATE_PER_KW = 66000;
 import { CustomerJourneyTracker } from "@/components/customer-journey-tracker";
 import { DocumentManager } from "@/components/document-manager";
 import type { Customer } from "@shared/schema";
@@ -215,12 +218,19 @@ export default function AdminCustomerDetail() {
     };
   }
 
+  const [moaInverterType, setMoaInverterType] = useState<"hybrid" | "ongrid">("hybrid");
+
+  function getPlantCostForMOA(capacityKw: number, invType: "hybrid" | "ongrid"): number {
+    const ratePerKw = invType === "hybrid" ? HYBRID_RATE_PER_KW : ONGRID_RATE_PER_KW;
+    return capacityKw * ratePerKw;
+  }
+
   function openAgreementForm() {
     if (!customer) return;
     const capacityNum = parseFloat(customer.proposedCapacity || "0") || 0;
-    const panelType = customer.panelType || "dcr";
-    const ratePerWatt = panelType === "dcr" ? DCR_ONGRID_RATE_PER_WATT : NON_DCR_ONGRID_RATE_PER_WATT;
-    const totalCost = capacityNum * ratePerWatt * 1000;
+    const invType = (customer.inverterType === "ongrid" || customer.inverterType === "on-grid") ? "ongrid" : "hybrid";
+    setMoaInverterType(invType);
+    const totalCost = getPlantCostForMOA(capacityNum, invType);
     const costStr = totalCost > 0 ? formatRupees(totalCost) : "";
     const defaultAdvPct = 10;
     setAdvancePercent(defaultAdvPct);
@@ -897,7 +907,13 @@ export default function AdminCustomerDetail() {
                 <Label className="text-xs">Plant Capacity</Label>
                 <Select
                   value={agreementData.plantCapacity || undefined}
-                  onValueChange={(val) => setAgreementData(d => ({ ...d, plantCapacity: val }))}
+                  onValueChange={(val) => {
+                    const kw = parseFloat(val) || 0;
+                    const newCost = getPlantCostForMOA(kw, moaInverterType);
+                    const costStr = newCost > 0 ? formatRupees(newCost) : "";
+                    const payments = calculatePayments(costStr, advancePercent);
+                    setAgreementData(d => ({ ...d, plantCapacity: val, plantCost: costStr, ...payments }));
+                  }}
                 >
                   <SelectTrigger data-testid="select-moa-capacity">
                     <SelectValue placeholder="Select capacity" />
@@ -913,6 +929,28 @@ export default function AdminCustomerDetail() {
                     <SelectItem value="8 kW">8 kW</SelectItem>
                     <SelectItem value="9 kW">9 kW</SelectItem>
                     <SelectItem value="10 kW">10 kW</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Inverter Type (Rate: Hybrid Rs 75,000/kW | Ongrid Rs 66,000/kW)</Label>
+                <Select
+                  value={moaInverterType}
+                  onValueChange={(val: "hybrid" | "ongrid") => {
+                    setMoaInverterType(val);
+                    const kw = parseFloat(agreementData.plantCapacity) || 0;
+                    const newCost = getPlantCostForMOA(kw, val);
+                    const costStr = newCost > 0 ? formatRupees(newCost) : "";
+                    const payments = calculatePayments(costStr, advancePercent);
+                    setAgreementData(d => ({ ...d, plantCost: costStr, ...payments }));
+                  }}
+                >
+                  <SelectTrigger data-testid="select-moa-inverter-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="hybrid">3-in-1 Hybrid (Rs 75,000/kW)</SelectItem>
+                    <SelectItem value="ongrid">Ongrid (Rs 66,000/kW)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
