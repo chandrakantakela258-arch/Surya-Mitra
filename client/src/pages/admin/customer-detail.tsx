@@ -68,6 +68,8 @@ export default function AdminCustomerDetail() {
     performaInvoice: "",
     finalPayment: "",
   });
+  const [advancePercent, setAdvancePercent] = useState(10);
+  const FINAL_PAYMENT_PERCENT = 5;
   const [sendToCustomer, setSendToCustomer] = useState(true);
   const [sendToDDP, setSendToDDP] = useState(true);
   const [generatedPdfFile, setGeneratedPdfFile] = useState<string | null>(null);
@@ -191,12 +193,38 @@ export default function AdminCustomerDetail() {
     },
   });
 
+  function formatRupees(amount: number): string {
+    return `Rs ${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Math.round(amount))}`;
+  }
+
+  function parseRupeeAmount(str: string): number {
+    const cleaned = str.replace(/[^0-9.]/g, "");
+    return parseFloat(cleaned) || 0;
+  }
+
+  function calculatePayments(costStr: string, advPct: number) {
+    const cost = parseRupeeAmount(costStr);
+    if (cost <= 0) return { advancePayment: "", performaInvoice: "", finalPayment: "" };
+    const advance = Math.round(cost * advPct / 100);
+    const finalPay = Math.round(cost * FINAL_PAYMENT_PERCENT / 100);
+    const performa = Math.round(cost - advance - finalPay);
+    return {
+      advancePayment: formatRupees(advance),
+      performaInvoice: formatRupees(performa),
+      finalPayment: formatRupees(finalPay),
+    };
+  }
+
   function openAgreementForm() {
     if (!customer) return;
     const capacityNum = parseFloat(customer.proposedCapacity || "0") || 0;
     const panelType = customer.panelType || "dcr";
     const ratePerWatt = panelType === "dcr" ? DCR_ONGRID_RATE_PER_WATT : NON_DCR_ONGRID_RATE_PER_WATT;
     const totalCost = capacityNum * ratePerWatt * 1000;
+    const costStr = totalCost > 0 ? formatRupees(totalCost) : "";
+    const defaultAdvPct = 10;
+    setAdvancePercent(defaultAdvPct);
+    const payments = calculatePayments(costStr, defaultAdvPct);
     setAgreementData({
       dateOfAgreement: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" }),
       customerName: customer.name || "",
@@ -209,10 +237,8 @@ export default function AdminCustomerDetail() {
       solarModuleModel: "",
       solarInverterMake: "",
       solarInverterModel: "",
-      plantCost: totalCost > 0 ? `Rs ${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(totalCost)}` : "",
-      advancePayment: "",
-      performaInvoice: "",
-      finalPayment: "",
+      plantCost: costStr,
+      ...payments,
     });
     setGeneratedPdfFile(null);
     setSendToCustomer(true);
@@ -1067,36 +1093,57 @@ export default function AdminCustomerDetail() {
                 <Label className="text-xs">Total Plant Cost (Pre-filled from Ongrid rate - adjust if Hybrid)</Label>
                 <Input
                   value={agreementData.plantCost}
-                  onChange={(e) => setAgreementData(d => ({ ...d, plantCost: e.target.value }))}
+                  onChange={(e) => {
+                    const newCost = e.target.value;
+                    const payments = calculatePayments(newCost, advancePercent);
+                    setAgreementData(d => ({ ...d, plantCost: newCost, ...payments }));
+                  }}
                   placeholder="e.g., Rs 1,98,000"
                   data-testid="input-moa-plant-cost"
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Advance Payment</Label>
-                <Input
-                  value={agreementData.advancePayment}
-                  onChange={(e) => setAgreementData(d => ({ ...d, advancePayment: e.target.value }))}
-                  placeholder="e.g., Rs 50,000"
-                  data-testid="input-moa-advance"
-                />
+                <Label className="text-xs">Advance Payment %</Label>
+                <div className="flex gap-2 items-center">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={advancePercent}
+                    onChange={(e) => {
+                      const pct = Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
+                      setAdvancePercent(pct);
+                      const payments = calculatePayments(agreementData.plantCost, pct);
+                      setAgreementData(d => ({ ...d, ...payments }));
+                    }}
+                    className="w-20"
+                    data-testid="input-moa-advance-percent"
+                  />
+                  <span className="text-xs text-muted-foreground">%</span>
+                  <Input
+                    value={agreementData.advancePayment}
+                    readOnly
+                    className="flex-1 bg-muted"
+                    data-testid="input-moa-advance"
+                  />
+                </div>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Performa Invoice</Label>
+                <Label className="text-xs">Final Payment (Fixed {FINAL_PAYMENT_PERCENT}%)</Label>
                 <Input
-                  value={agreementData.performaInvoice}
-                  onChange={(e) => setAgreementData(d => ({ ...d, performaInvoice: e.target.value }))}
-                  placeholder="e.g., Rs 1,00,000"
-                  data-testid="input-moa-performa"
+                  value={agreementData.finalPayment}
+                  readOnly
+                  className="bg-muted"
+                  data-testid="input-moa-final"
                 />
               </div>
               <div className="space-y-1 sm:col-span-2">
-                <Label className="text-xs">Final Payment</Label>
+                <Label className="text-xs">Performa Invoice (Remaining: 100% - {advancePercent}% - {FINAL_PAYMENT_PERCENT}% = {100 - advancePercent - FINAL_PAYMENT_PERCENT}%)</Label>
                 <Input
-                  value={agreementData.finalPayment}
-                  onChange={(e) => setAgreementData(d => ({ ...d, finalPayment: e.target.value }))}
-                  placeholder="e.g., Rs 48,000"
-                  data-testid="input-moa-final"
+                  value={agreementData.performaInvoice}
+                  readOnly
+                  className="bg-muted"
+                  data-testid="input-moa-performa"
                 />
               </div>
             </div>
