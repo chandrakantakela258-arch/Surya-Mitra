@@ -362,7 +362,7 @@ export default function DDPEarnings() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <p className="text-sm font-medium text-muted-foreground">DCR Panels</p>
+              <p className="text-sm font-medium text-muted-foreground">DCR Panels (With Subsidy)</p>
               <div className="space-y-2">
                 <div className="p-3 rounded-lg bg-primary/10 flex items-center justify-between gap-4 flex-wrap">
                   <span className="text-sm">3 kW</span>
@@ -377,22 +377,24 @@ export default function DDPEarnings() {
                   </Badge>
                 </div>
                 <div className="p-3 rounded-lg bg-primary/10 flex items-center justify-between gap-4 flex-wrap">
-                  <span className="text-sm">6-10 kW</span>
+                  <span className="text-sm">6 kW & above</span>
                   <Badge variant="outline" className="font-mono">
                     {formatINR(dcrPerKwRates.ddp)}/kW
                   </Badge>
                 </div>
               </div>
+              <p className="text-xs text-muted-foreground mt-1">DCR Ongrid: Rs 66/W | DCR 3-in-1 Hybrid: Rs 75/W</p>
             </div>
             
             <div className="space-y-2">
-              <p className="text-sm font-medium text-muted-foreground">Non-DCR Panels</p>
+              <p className="text-sm font-medium text-muted-foreground">Non-DCR Panels (No Subsidy)</p>
               <div className="p-3 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-between gap-4 flex-wrap">
                 <span className="text-sm">All capacities</span>
                 <Badge variant="outline" className="font-mono">
                   {formatINR(nonDcrPerKwRates.ddp)}/kW
                 </Badge>
               </div>
+              <p className="text-xs text-muted-foreground mt-1">Non-DCR Ongrid: Rs 45/W | Non-DCR 3-in-1 Hybrid: Rs 55/W (3-6 KW only)</p>
             </div>
 
             <div className="space-y-2">
