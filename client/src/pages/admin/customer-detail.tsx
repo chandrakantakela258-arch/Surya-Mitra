@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/status-badge";
 import { calculateSubsidy, formatINR, DCR_HYBRID_RATE_PER_WATT, DCR_ONGRID_RATE_PER_WATT, NON_DCR_ONGRID_RATE_PER_WATT, NON_DCR_HYBRID_RATE_PER_WATT } from "@/components/subsidy-calculator";
 import { CustomerJourneyTracker } from "@/components/customer-journey-tracker";
@@ -120,6 +121,10 @@ export default function AdminCustomerDetail() {
 
   const stateEmailQuery = useQuery<{ state: string; email: string }[]>({
     queryKey: ["/api/admin/state-emails"],
+  });
+
+  const { data: equipmentOptions } = useQuery<{ moduleMakes: { make: string; models: string[] }[]; inverterMakes: { make: string; models: string[] }[] }>({
+    queryKey: ["/api/admin/equipment-options"],
   });
 
   const currentStateEmail = customer?.state
@@ -864,12 +869,19 @@ export default function AdminCustomerDetail() {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Plant Capacity</Label>
-                <Input
+                <Select
                   value={agreementData.plantCapacity}
-                  onChange={(e) => setAgreementData(d => ({ ...d, plantCapacity: e.target.value }))}
-                  placeholder="e.g., 3 kW"
-                  data-testid="input-moa-capacity"
-                />
+                  onValueChange={(val) => setAgreementData(d => ({ ...d, plantCapacity: val }))}
+                >
+                  <SelectTrigger data-testid="select-moa-capacity">
+                    <SelectValue placeholder="Select capacity" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="3 kW">3 kW</SelectItem>
+                    <SelectItem value="5 kW">5 kW</SelectItem>
+                    <SelectItem value="6 kW">6 kW</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -930,39 +942,111 @@ export default function AdminCustomerDetail() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Solar Module Make</Label>
-                <Input
-                  value={agreementData.solarModuleMake}
-                  onChange={(e) => setAgreementData(d => ({ ...d, solarModuleMake: e.target.value }))}
-                  placeholder="e.g., IB Solar"
-                  data-testid="input-moa-module-make"
-                />
+                {(equipmentOptions?.moduleMakes?.length ?? 0) > 0 ? (
+                  <Select
+                    value={agreementData.solarModuleMake}
+                    onValueChange={(val) => setAgreementData(d => ({ ...d, solarModuleMake: val, solarModuleModel: "" }))}
+                  >
+                    <SelectTrigger data-testid="select-moa-module-make">
+                      <SelectValue placeholder="Select module make" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {equipmentOptions!.moduleMakes.map(m => (
+                        <SelectItem key={m.make} value={m.make}>{m.make}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    value={agreementData.solarModuleMake}
+                    onChange={(e) => setAgreementData(d => ({ ...d, solarModuleMake: e.target.value }))}
+                    placeholder="e.g., IB Solar"
+                    data-testid="input-moa-module-make"
+                  />
+                )}
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Solar Module Model</Label>
-                <Input
-                  value={agreementData.solarModuleModel}
-                  onChange={(e) => setAgreementData(d => ({ ...d, solarModuleModel: e.target.value }))}
-                  placeholder="e.g., IB Solar 545W Mono PERC"
-                  data-testid="input-moa-module-model"
-                />
+                {(() => {
+                  const selectedMake = equipmentOptions?.moduleMakes?.find(m => m.make === agreementData.solarModuleMake);
+                  const models = selectedMake?.models || [];
+                  return models.length > 0 ? (
+                    <Select
+                      value={agreementData.solarModuleModel}
+                      onValueChange={(val) => setAgreementData(d => ({ ...d, solarModuleModel: val }))}
+                    >
+                      <SelectTrigger data-testid="select-moa-module-model">
+                        <SelectValue placeholder="Select module model" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {models.map(model => (
+                          <SelectItem key={model} value={model}>{model}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      value={agreementData.solarModuleModel}
+                      onChange={(e) => setAgreementData(d => ({ ...d, solarModuleModel: e.target.value }))}
+                      placeholder="e.g., IB Solar 545W Mono PERC"
+                      data-testid="input-moa-module-model"
+                    />
+                  );
+                })()}
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Solar Inverter Make</Label>
-                <Input
-                  value={agreementData.solarInverterMake}
-                  onChange={(e) => setAgreementData(d => ({ ...d, solarInverterMake: e.target.value }))}
-                  placeholder="e.g., SunPunch"
-                  data-testid="input-moa-inverter-make"
-                />
+                {(equipmentOptions?.inverterMakes?.length ?? 0) > 0 ? (
+                  <Select
+                    value={agreementData.solarInverterMake}
+                    onValueChange={(val) => setAgreementData(d => ({ ...d, solarInverterMake: val, solarInverterModel: "" }))}
+                  >
+                    <SelectTrigger data-testid="select-moa-inverter-make">
+                      <SelectValue placeholder="Select inverter make" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {equipmentOptions!.inverterMakes.map(m => (
+                        <SelectItem key={m.make} value={m.make}>{m.make}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    value={agreementData.solarInverterMake}
+                    onChange={(e) => setAgreementData(d => ({ ...d, solarInverterMake: e.target.value }))}
+                    placeholder="e.g., SunPunch"
+                    data-testid="input-moa-inverter-make"
+                  />
+                )}
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Solar Inverter Model</Label>
-                <Input
-                  value={agreementData.solarInverterModel}
-                  onChange={(e) => setAgreementData(d => ({ ...d, solarInverterModel: e.target.value }))}
-                  placeholder="e.g., SunPunch 3kW On-Grid"
-                  data-testid="input-moa-inverter-model"
-                />
+                {(() => {
+                  const selectedMake = equipmentOptions?.inverterMakes?.find(m => m.make === agreementData.solarInverterMake);
+                  const models = selectedMake?.models || [];
+                  return models.length > 0 ? (
+                    <Select
+                      value={agreementData.solarInverterModel}
+                      onValueChange={(val) => setAgreementData(d => ({ ...d, solarInverterModel: val }))}
+                    >
+                      <SelectTrigger data-testid="select-moa-inverter-model">
+                        <SelectValue placeholder="Select inverter model" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {models.map(model => (
+                          <SelectItem key={model} value={model}>{model}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      value={agreementData.solarInverterModel}
+                      onChange={(e) => setAgreementData(d => ({ ...d, solarInverterModel: e.target.value }))}
+                      placeholder="e.g., SunPunch 3kW On-Grid"
+                      data-testid="input-moa-inverter-model"
+                    />
+                  );
+                })()}
               </div>
             </div>
 

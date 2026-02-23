@@ -65,6 +65,7 @@ import AdminServiceRequests from "@/pages/admin/service-requests";
 import AdminTestimonials from "@/pages/admin/testimonials";
 import AdminVendorPayments from "@/pages/admin/vendor-payments";
 import AdminCustomerLeads from "@/pages/admin/customer-leads";
+import AdminEquipmentSettings from "@/pages/admin/equipment-settings";
 import PartnerServiceRequests from "@/pages/partner-service-requests";
 import ProfilePage from "@/pages/profile";
 import PrivacyPolicyPage from "@/pages/privacy-policy";
@@ -279,6 +280,13 @@ function AuthenticatedRoutes() {
         <ProtectedRoute allowedRoles={["admin"]}>
           <DashboardLayout>
             <AdminNotificationSettings />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/equipment-settings">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminEquipmentSettings />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>

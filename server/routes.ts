@@ -9178,6 +9178,73 @@ export async function registerRoutes(
     }
   });
 
+  // ========== ADMIN EQUIPMENT SETTINGS (Module & Inverter Options) ==========
+
+  app.get("/api/admin/equipment-options", requireAdmin, async (req, res) => {
+    try {
+      const moduleSettings = await storage.getAdminSettingsByPrefix("equipment_module_");
+      const inverterSettings = await storage.getAdminSettingsByPrefix("equipment_inverter_");
+
+      const moduleMakes: { make: string; models: string[] }[] = [];
+      const inverterMakes: { make: string; models: string[] }[] = [];
+
+      for (const s of moduleSettings) {
+        const make = s.key.replace("equipment_module_", "");
+        try {
+          moduleMakes.push({ make, models: JSON.parse(s.value) });
+        } catch { moduleMakes.push({ make, models: [] }); }
+      }
+      for (const s of inverterSettings) {
+        const make = s.key.replace("equipment_inverter_", "");
+        try {
+          inverterMakes.push({ make, models: JSON.parse(s.value) });
+        } catch { inverterMakes.push({ make, models: [] }); }
+      }
+
+      res.json({ moduleMakes, inverterMakes });
+    } catch (error: any) {
+      console.error("Get equipment options error:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch equipment options" });
+    }
+  });
+
+  app.post("/api/admin/equipment-options", requireAdmin, async (req, res) => {
+    try {
+      const { type, make, models } = req.body;
+      if (!type || !make) {
+        return res.status(400).json({ message: "Type and make are required" });
+      }
+      if (!["module", "inverter"].includes(type)) {
+        return res.status(400).json({ message: "Type must be 'module' or 'inverter'" });
+      }
+      const modelsArray = Array.isArray(models) ? models.filter((m: string) => m.trim()) : [];
+      const key = `equipment_${type}_${make}`;
+      await storage.setAdminSetting(key, JSON.stringify(modelsArray));
+      res.json({ make, models: modelsArray });
+    } catch (error: any) {
+      console.error("Set equipment option error:", error);
+      res.status(500).json({ message: error.message || "Failed to save equipment option" });
+    }
+  });
+
+  app.delete("/api/admin/equipment-options/:type/:make", requireAdmin, async (req, res) => {
+    try {
+      const { type, make } = req.params;
+      if (!["module", "inverter"].includes(type)) {
+        return res.status(400).json({ message: "Invalid type" });
+      }
+      const key = `equipment_${type}_${make}`;
+      const deleted = await storage.deleteAdminSetting(key);
+      if (!deleted) {
+        return res.status(404).json({ message: "Equipment option not found" });
+      }
+      res.json({ message: "Equipment option removed successfully" });
+    } catch (error: any) {
+      console.error("Delete equipment option error:", error);
+      res.status(500).json({ message: error.message || "Failed to delete equipment option" });
+    }
+  });
+
   // ========== MOA AGREEMENT ENDPOINTS ==========
 
   app.post("/api/admin/customers/:id/generate-agreement", requireAdmin, async (req, res) => {

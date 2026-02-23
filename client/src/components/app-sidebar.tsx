@@ -36,6 +36,7 @@ import {
   Banknote,
   Files,
   Phone,
+  Settings,
 } from "lucide-react";
 import { FeedbackDialog } from "@/components/feedback-dialog";
 import { ChatbotAssistant } from "@/components/chatbot-assistant";
@@ -128,6 +129,7 @@ const adminMenuSections: MenuSection[] = [
       { title: "Vendor Approvals", url: "/admin/vendors", icon: Wrench },
       { title: "Vendor Payments", url: "/admin/vendor-payments", icon: Wallet },
       { title: "Broadcast", url: "/admin/notifications", icon: Bell },
+      { title: "Equipment Settings", url: "/admin/equipment-settings", icon: Settings },
       { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },
     ],
   },
