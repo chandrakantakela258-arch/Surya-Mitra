@@ -9245,6 +9245,51 @@ export async function registerRoutes(
     }
   });
 
+  // ========== VENDOR MANAGEMENT ENDPOINTS ==========
+
+  app.get("/api/admin/vendors", requireAdmin, async (req, res) => {
+    try {
+      const vendorSettings = await storage.getAdminSettingsByPrefix("vendor_");
+      const vendors = vendorSettings.map(s => {
+        const data = JSON.parse(s.value);
+        return { id: s.key, name: data.name, address: data.address };
+      });
+      res.json(vendors);
+    } catch (error: any) {
+      console.error("Get vendors error:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch vendors" });
+    }
+  });
+
+  app.post("/api/admin/vendors", requireAdmin, async (req, res) => {
+    try {
+      const { name, address } = req.body;
+      if (!name || !name.trim()) {
+        return res.status(400).json({ message: "Vendor name is required" });
+      }
+      const key = `vendor_${name.trim().toLowerCase().replace(/\s+/g, "_")}`;
+      await storage.setAdminSetting(key, JSON.stringify({ name: name.trim(), address: (address || "").trim() }));
+      res.json({ message: "Vendor saved successfully" });
+    } catch (error: any) {
+      console.error("Save vendor error:", error);
+      res.status(500).json({ message: error.message || "Failed to save vendor" });
+    }
+  });
+
+  app.delete("/api/admin/vendors/:key", requireAdmin, async (req, res) => {
+    try {
+      const key = req.params.key;
+      const deleted = await storage.deleteAdminSetting(key);
+      if (!deleted) {
+        return res.status(404).json({ message: "Vendor not found" });
+      }
+      res.json({ message: "Vendor removed successfully" });
+    } catch (error: any) {
+      console.error("Delete vendor error:", error);
+      res.status(500).json({ message: error.message || "Failed to delete vendor" });
+    }
+  });
+
   // ========== MOA AGREEMENT ENDPOINTS ==========
 
   app.post("/api/admin/customers/:id/generate-agreement", requireAdmin, async (req, res) => {

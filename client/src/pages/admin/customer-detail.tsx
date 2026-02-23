@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute, useLocation } from "wouter";
-import { ArrowLeft, User, MapPin, Zap, Home, Phone, Mail, FileText, CheckCircle, Clock, Camera, Video, Image, Play, X, CreditCard, Landmark, Hash, Globe, SunMedium, BatteryCharging, Building2, Factory, Smartphone, Pencil, IndianRupee, Calendar, ShieldOff, RefreshCw, Send, ScrollText, Download, Eye } from "lucide-react";
+import { ArrowLeft, User, MapPin, Zap, Home, Phone, Mail, FileText, CheckCircle, Clock, Camera, Video, Image, Play, X, CreditCard, Landmark, Hash, Globe, SunMedium, BatteryCharging, Building2, Factory, Smartphone, Pencil, IndianRupee, CalendarIcon, ShieldOff, RefreshCw, Send, ScrollText, Download, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/status-badge";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format, parse } from "date-fns";
 import { calculateSubsidy, formatINR, DCR_HYBRID_RATE_PER_WATT, DCR_ONGRID_RATE_PER_WATT, NON_DCR_ONGRID_RATE_PER_WATT, NON_DCR_HYBRID_RATE_PER_WATT } from "@/components/subsidy-calculator";
 
 const HYBRID_RATE_PER_KW = 75000;
@@ -59,8 +62,8 @@ export default function AdminCustomerDetail() {
     customerName: "",
     consumerNumber: "",
     customerAddress: "",
-    vendorName: "Hewtech System Pvt. Ltd.",
-    vendorAddress: "Golu Babu Market, Ashiyana Digha Road, Rajiv Nagar, Patna -25",
+    vendorName: "",
+    vendorAddress: "",
     plantCapacity: "",
     solarModuleMake: "",
     solarModuleModel: "",
@@ -130,6 +133,10 @@ export default function AdminCustomerDetail() {
 
   const { data: equipmentOptions } = useQuery<{ moduleMakes: { make: string; models: string[] }[]; inverterMakes: { make: string; models: string[] }[] }>({
     queryKey: ["/api/admin/equipment-options"],
+  });
+
+  const { data: vendorList = [] } = useQuery<{ id: string; name: string; address: string }[]>({
+    queryKey: ["/api/admin/vendors"],
   });
 
   const currentStateEmail = customer?.state
@@ -240,8 +247,8 @@ export default function AdminCustomerDetail() {
       customerName: customer.name || "",
       consumerNumber: customer.consumerNumber || "",
       customerAddress: `${customer.address || ""}, ${customer.district || ""}, ${customer.state || ""} - ${customer.pincode || ""}`,
-      vendorName: "Hewtech System Pvt. Ltd.",
-      vendorAddress: "Golu Babu Market, Ashiyana Digha Road, Rajiv Nagar, Patna -25",
+      vendorName: vendorList.length > 0 ? vendorList[0].name : "",
+      vendorAddress: vendorList.length > 0 ? vendorList[0].address : "",
       plantCapacity: capacityNum > 0 ? `${capacityNum} kW` : "",
       solarModuleMake: "",
       solarModuleModel: "",
@@ -897,11 +904,37 @@ export default function AdminCustomerDetail() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Date of Agreement</Label>
-                <Input
-                  value={agreementData.dateOfAgreement}
-                  onChange={(e) => setAgreementData(d => ({ ...d, dateOfAgreement: e.target.value }))}
-                  data-testid="input-moa-date"
-                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                      data-testid="button-moa-date-picker"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {agreementData.dateOfAgreement || "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={(() => {
+                        try {
+                          return parse(agreementData.dateOfAgreement, "dd MMMM yyyy", new Date());
+                        } catch {
+                          return new Date();
+                        }
+                      })()}
+                      onSelect={(date) => {
+                        if (date) {
+                          setAgreementData(d => ({ ...d, dateOfAgreement: format(date, "dd MMMM yyyy") }));
+                        }
+                      }}
+                      initialFocus
+                      data-testid="calendar-moa-date"
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Plant Capacity</Label>
@@ -989,16 +1022,40 @@ export default function AdminCustomerDetail() {
             <Separator />
             <p className="text-sm font-semibold text-muted-foreground">Vendor Details</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Vendor Name</Label>
-                <Input
-                  value={agreementData.vendorName}
-                  onChange={(e) => setAgreementData(d => ({ ...d, vendorName: e.target.value }))}
-                  data-testid="input-moa-vendor-name"
-                />
-              </div>
+              {vendorList.length > 0 ? (
+                <div className="space-y-1">
+                  <Label className="text-xs">Select Vendor</Label>
+                  <Select
+                    value={vendorList.find(v => v.name === agreementData.vendorName)?.id || undefined}
+                    onValueChange={(val) => {
+                      const vendor = vendorList.find(v => v.id === val);
+                      if (vendor) {
+                        setAgreementData(d => ({ ...d, vendorName: vendor.name, vendorAddress: vendor.address }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger data-testid="select-moa-vendor">
+                      <SelectValue placeholder="Select a vendor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {vendorList.map(v => (
+                        <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <Label className="text-xs">Vendor Name</Label>
+                  <Input
+                    value={agreementData.vendorName}
+                    onChange={(e) => setAgreementData(d => ({ ...d, vendorName: e.target.value }))}
+                    data-testid="input-moa-vendor-name"
+                  />
+                </div>
+              )}
               <div className="space-y-1 sm:col-span-2">
-                <Label className="text-xs">Vendor Address</Label>
+                <Label className="text-xs">Vendor Address (auto-filled)</Label>
                 <Textarea
                   value={agreementData.vendorAddress}
                   onChange={(e) => setAgreementData(d => ({ ...d, vendorAddress: e.target.value }))}
