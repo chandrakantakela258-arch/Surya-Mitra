@@ -9205,11 +9205,8 @@ export async function registerRoutes(
   });
 
   // Admin: Get all proposal leads
-  app.get("/api/admin/proposal-leads", requireAuth, async (req, res) => {
+  app.get("/api/admin/proposal-leads", requireAdmin, async (req, res) => {
     try {
-      if (req.user?.role !== "admin") {
-        return res.status(403).json({ message: "Admin access required" });
-      }
       const leads = await storage.getProposalLeads();
       res.json(leads);
     } catch (error: any) {
@@ -9219,11 +9216,8 @@ export async function registerRoutes(
   });
 
   // Admin: Update proposal lead status/notes
-  app.patch("/api/admin/proposal-leads/:id", requireAuth, async (req, res) => {
+  app.patch("/api/admin/proposal-leads/:id", requireAdmin, async (req, res) => {
     try {
-      if (req.user?.role !== "admin") {
-        return res.status(403).json({ message: "Admin access required" });
-      }
       const { id } = req.params;
       const { status, notes } = req.body;
       const validStatuses = ["new", "contacted", "converted", "closed"];
