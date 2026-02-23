@@ -180,14 +180,20 @@ function calculateSubsidy(
   customRatePerWatt: number | null = null
 ): SubsidyResult {
   let ratePerWatt: number;
+  const nonDcrDefaultRate = inverterType === "hybrid" ? NON_DCR_HYBRID_RATE_PER_WATT : NON_DCR_ONGRID_RATE_PER_WATT;
   if (customRatePerWatt !== null && customRatePerWatt > 0) {
-    ratePerWatt = customRatePerWatt;
+    if (panelType !== "dcr") {
+      const minRate = (customerType === "commercial" || customerType === "industrial") ? NON_DCR_COMMERCIAL_RATE_PER_WATT : nonDcrDefaultRate;
+      ratePerWatt = Math.max(customRatePerWatt, minRate);
+    } else {
+      ratePerWatt = customRatePerWatt;
+    }
   } else if (panelType === "dcr") {
     ratePerWatt = inverterType === "hybrid" ? DCR_HYBRID_RATE_PER_WATT : DCR_ONGRID_RATE_PER_WATT;
   } else if ((customerType === "commercial" || customerType === "industrial") && panelType !== "dcr") {
     ratePerWatt = NON_DCR_COMMERCIAL_RATE_PER_WATT;
   } else {
-    ratePerWatt = inverterType === "hybrid" ? NON_DCR_HYBRID_RATE_PER_WATT : NON_DCR_ONGRID_RATE_PER_WATT;
+    ratePerWatt = nonDcrDefaultRate;
   }
   
   const totalCost = capacityKW * ratePerWatt * 1000;
@@ -1996,16 +2002,27 @@ Website: https://divyanshisolar.com`;
             </div>
             <Input
               type="number"
-              min="1"
+              min={panelType === "non_dcr" ? defaultRate : 1}
               max="200"
               value={customRateInput}
               onChange={(e) => {
                 setCustomRateInput(e.target.value);
                 const val = parseFloat(e.target.value);
                 if (!isNaN(val) && val > 0) {
-                  setCustomRatePerWatt(val);
+                  const minRate = panelType === "non_dcr" ? defaultRate : 1;
+                  if (val < minRate) {
+                    setCustomRatePerWatt(minRate);
+                  } else {
+                    setCustomRatePerWatt(val);
+                  }
                 } else if (e.target.value === "") {
                   setCustomRatePerWatt(null);
+                }
+              }}
+              onBlur={() => {
+                if (panelType === "non_dcr" && customRatePerWatt !== null && customRatePerWatt < defaultRate) {
+                  setCustomRatePerWatt(defaultRate);
+                  setCustomRateInput(defaultRate.toString());
                 }
               }}
               placeholder={`Default: Rs ${defaultRate}/W`}
@@ -2013,6 +2030,7 @@ Website: https://divyanshisolar.com`;
             />
             <p className="text-xs text-muted-foreground">
               {customRatePerWatt ? `Custom: Rs ${customRatePerWatt}/W` : `Default: Rs ${defaultRate}/W (${panelType === "dcr" ? "DCR" : "Non-DCR"})`}
+              {panelType === "non_dcr" && <span className="text-red-500 font-medium"> (Min: Rs {defaultRate}/W)</span>}
             </p>
             {customRatePerWatt && (
               <Button
