@@ -836,28 +836,22 @@ export interface MOAData {
   finalPayment: string;
 }
 
-function drawMOAHeader(page: PDFPage, fontBold: PDFFont, font: PDFFont) {
-  const orange = rgb(1, 0.4, 0);
-  const white = rgb(1, 1, 1);
+function drawMOAHeader(page: PDFPage, fontBold: PDFFont, font: PDFFont, isFirstPage: boolean = false) {
   const pageWidth = 595;
   const pageHeight = 842;
   const margin = 50;
-  
-  page.drawRectangle({
-    x: 0, y: pageHeight - 80, width: pageWidth, height: 80, color: orange,
-  });
-  
-  page.drawText('Divyanshi Solar (Hewtech System Pvt. Ltd.)', {
-    x: margin, y: pageHeight - 35, size: 16, font: fontBold, color: white,
-  });
-  
-  page.drawText('Memorandum of Agreement (MOA)', {
-    x: margin, y: pageHeight - 55, size: 12, font: fontBold, color: white,
-  });
-  
-  page.drawText('PM Surya Ghar: Muft Bijli Yojana', {
-    x: margin, y: pageHeight - 70, size: 10, font: font, color: rgb(1, 0.9, 0.8),
-  });
+  const black = rgb(0, 0, 0);
+  const gray = rgb(0.4, 0.4, 0.4);
+
+  if (!isFirstPage) {
+    page.drawText('Memorandum of Agreement (MOA)', {
+      x: margin, y: pageHeight - 35, size: 12, font: fontBold, color: black,
+    });
+    page.drawText('PM Surya Ghar: Muft Bijli Yojana', {
+      x: margin, y: pageHeight - 50, size: 10, font, color: gray,
+    });
+    page.drawLine({ start: { x: margin, y: pageHeight - 58 }, end: { x: pageWidth - margin, y: pageHeight - 58 }, thickness: 0.5, color: gray });
+  }
 }
 
 function wrapText(text: string, font: PDFFont, fontSize: number, maxWidth: number): string[] {
@@ -896,10 +890,7 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   const fontItalic = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
   
   const black = rgb(0, 0, 0);
-  const darkBlue = rgb(0.1, 0.2, 0.45);
   const gray = rgb(0.4, 0.4, 0.4);
-  const orange = rgb(1, 0.4, 0);
-  const lightBg = rgb(0.97, 0.97, 0.97);
   
   const margin = 50;
   const pageWidth = 595;
@@ -910,21 +901,23 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   const sectionGap = 10;
   
   let pageNum = 0;
+  let isFirst = true;
   
   function newPage(): PDFPage {
     pageNum++;
     const pg = pdfDoc.addPage([pageWidth, pageHeight]);
-    drawMOAHeader(pg, fontBold, font);
+    drawMOAHeader(pg, fontBold, font, isFirst);
     drawFooter(pg, font, pageNum);
+    if (isFirst) isFirst = false;
     return pg;
   }
   
-  // ========== PAGE 1: Title, Parties, Whereas ==========
+  // ========== PAGE 1: Top half blank for stamp, content starts below ==========
   let page = newPage();
-  let y = pageHeight - 105;
+  let y = pageHeight / 2;
   
   page.drawText('Memorandum of Agreement (MOA)', {
-    x: margin, y, size: 14, font: fontBold, color: darkBlue,
+    x: margin, y, size: 14, font: fontBold, color: black,
   });
   y -= 18;
   page.drawText('Between Consumer & Vendor for installation of Grid Connected Rooftop Solar (RTS)', {
@@ -939,25 +932,25 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   y = drawWrappedText(page, `This agreement is executed on ${data.dateOfAgreement} for design, supply, installation, commissioning and 5-year comprehensive maintenance of RTS project/system along with warranty under "PM Surya Ghar: Muft Bijli Yojana" scheme.`, margin, y, font, fontSize, contentWidth, black, lineHeight);
   y -= sectionGap;
   
-  page.drawText('Between', { x: margin, y, size: 11, font: fontBold, color: darkBlue });
+  page.drawText('Between', { x: margin, y, size: 11, font: fontBold, color: black });
   y -= lineHeight + 2;
   
   y = drawWrappedText(page, `${data.customerName} bearing Consumer No/ Connection No: ${data.consumerNumber} having address at - ${data.customerAddress} (herein after referred to as First Party i.e. consumer/purchaser/owner of the system).`, margin, y, fontBold, fontSize, contentWidth, black, lineHeight);
   y -= sectionGap;
   
-  page.drawText('And', { x: margin, y, size: 11, font: fontBold, color: darkBlue });
+  page.drawText('And', { x: margin, y, size: 11, font: fontBold, color: black });
   y -= lineHeight + 2;
   
   y = drawWrappedText(page, `${data.vendorName}, having office Address at ${data.vendorAddress}, (herein after referred to as Second Party i.e. Vendor/Contractor/System Integrator).`, margin, y, fontBold, fontSize, contentWidth, black, lineHeight);
   y -= sectionGap + 4;
   
-  page.drawText('Whereas', { x: margin, y, size: 11, font: fontBold, color: darkBlue });
+  page.drawText('Whereas', { x: margin, y, size: 11, font: fontBold, color: black });
   y -= lineHeight + 2;
   
   y = drawWrappedText(page, `First Party wishes to install ${data.plantCapacity} Grid Connected Roof Top Solar PV Power Plant on the Roof top of the residential building of the Consumer under PM Surya Ghar: Muft Bijli Yojana.`, margin, y, font, fontSize, contentWidth, black, lineHeight);
   y -= sectionGap;
   
-  page.drawText('And whereas', { x: margin, y, size: 11, font: fontBold, color: darkBlue });
+  page.drawText('And whereas', { x: margin, y, size: 11, font: fontBold, color: black });
   y -= lineHeight + 2;
   
   y = drawWrappedText(page, `Second Party has verified availability of appropriate roof and found it feasible to install a Grid Connected Roof Top Solar plant and that the second party is willing to design, supply, install, test, commission and carry out Operation & Maintenance of the Rooftop Solar plant for 5 year period.`, margin, y, font, fontSize, contentWidth, black, lineHeight);
@@ -967,8 +960,7 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   y -= sectionGap + 6;
   
   // RTS System section
-  page.drawRectangle({ x: margin - 5, y: y - 3, width: contentWidth + 10, height: 18, color: rgb(0.95, 0.92, 0.85) });
-  page.drawText('RTS System:', { x: margin, y, size: 11, font: fontBold, color: orange });
+  page.drawText('RTS System:', { x: margin, y, size: 11, font: fontBold, color: black });
   y -= 20;
   
   const rtsPoints = [
@@ -982,7 +974,7 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   
   for (const point of rtsPoints) {
     if (y < 80) { page = newPage(); y = pageHeight - 105; }
-    page.drawText('\u2022', { x: margin, y, size: fontSize, font, color: orange });
+    page.drawText('\u2022', { x: margin, y, size: fontSize, font, color: black });
     y = drawWrappedText(page, point, margin + 12, y, font, fontSize, contentWidth - 12, black, lineHeight);
     y -= 4;
   }
@@ -992,8 +984,7 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   // Price and Terms of Payment
   if (y < 200) { page = newPage(); y = pageHeight - 105; }
   
-  page.drawRectangle({ x: margin - 5, y: y - 3, width: contentWidth + 10, height: 18, color: rgb(0.95, 0.92, 0.85) });
-  page.drawText('Price and Terms of Payment:', { x: margin, y, size: 11, font: fontBold, color: orange });
+  page.drawText('Price and Terms of Payment:', { x: margin, y, size: 11, font: fontBold, color: black });
   y -= 20;
   
   y = drawWrappedText(page, `The cost of RTS System inclusive of all taxes will be ${data.plantCost}. The applicant shall pay the total cost to the Vendor as under:`, margin, y, font, fontSize, contentWidth, black, lineHeight);
@@ -1007,7 +998,7 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   
   for (const point of paymentPoints) {
     if (y < 80) { page = newPage(); y = pageHeight - 105; }
-    page.drawText('\u2022', { x: margin, y, size: fontSize, font, color: orange });
+    page.drawText('\u2022', { x: margin, y, size: fontSize, font, color: black });
     y = drawWrappedText(page, point, margin + 12, y, font, fontSize, contentWidth - 12, black, lineHeight);
     y -= 4;
   }
@@ -1023,13 +1014,13 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   const col3 = margin + contentWidth - 130;
   const rowH = 30;
   
-  page.drawRectangle({ x: col1, y: tableTop - rowH + 5, width: contentWidth, height: rowH, color: rgb(0.95, 0.92, 0.85) });
+  page.drawRectangle({ x: col1, y: tableTop - rowH + 5, width: contentWidth, height: rowH, borderColor: gray, borderWidth: 0.5 });
   page.drawText('Sl.', { x: col1 + 5, y: tableTop - 10, size: 8, font: fontBold, color: black });
   page.drawText('Particulars', { x: col2 + 5, y: tableTop - 10, size: 8, font: fontBold, color: black });
   page.drawText('Rate (Rs)', { x: col3 + 5, y: tableTop - 10, size: 8, font: fontBold, color: black });
   y = tableTop - rowH;
   
-  page.drawRectangle({ x: col1, y: y - rowH + 5, width: contentWidth, height: rowH, color: lightBg });
+  page.drawRectangle({ x: col1, y: y - rowH + 5, width: contentWidth, height: rowH, borderColor: gray, borderWidth: 0.5 });
   page.drawText('1', { x: col1 + 5, y: y - 5, size: 8, font, color: black });
   const r1Text = 'System cost, Installation & Commissioning and 5 years Maintenance & Performance Warranty Contract (MPWC) including taxes';
   const r1Lines = wrapText(r1Text, font, 7.5, col3 - col2 - 15);
@@ -1038,10 +1029,10 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   page.drawText(data.plantCost, { x: col3 + 5, y: y - 5, size: 8, font: fontBold, color: black });
   y -= rowH;
   
-  page.drawRectangle({ x: col1, y: y - rowH + 5, width: contentWidth, height: rowH, color: lightBg });
+  page.drawRectangle({ x: col1, y: y - rowH + 5, width: contentWidth, height: rowH, borderColor: gray, borderWidth: 0.5 });
   page.drawText('2', { x: col1 + 5, y: y - 5, size: 8, font, color: black });
-  page.drawText('Total Cost of Work Order', { x: col2 + 5, y: y - 5, size: 8, font, color: black });
-  page.drawText(data.plantCost, { x: col3 + 5, y: y - 5, size: 8, font: fontBold, color: orange });
+  page.drawText('Total Cost of Work Order', { x: col2 + 5, y: y - 5, size: 8, font: fontBold, color: black });
+  page.drawText(data.plantCost, { x: col3 + 5, y: y - 5, size: 8, font: fontBold, color: black });
   y -= rowH;
   
   y -= 8;
@@ -1051,8 +1042,7 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   page = newPage();
   y = pageHeight - 105;
   
-  page.drawRectangle({ x: margin - 5, y: y - 3, width: contentWidth + 10, height: 18, color: rgb(0.95, 0.92, 0.85) });
-  page.drawText('The First Party hereby undertakes to perform the following activities:', { x: margin, y, size: 10, font: fontBold, color: orange });
+  page.drawText('The First Party hereby undertakes to perform the following activities:', { x: margin, y, size: 10, font: fontBold, color: black });
   y -= 22;
   
   const firstPartyObligations = [
@@ -1066,7 +1056,7 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   
   for (const point of firstPartyObligations) {
     if (y < 80) { page = newPage(); y = pageHeight - 105; }
-    page.drawText('\u2022', { x: margin, y, size: fontSize, font, color: orange });
+    page.drawText('\u2022', { x: margin, y, size: fontSize, font, color: black });
     y = drawWrappedText(page, point, margin + 12, y, font, fontSize, contentWidth - 12, black, lineHeight);
     y -= 5;
   }
@@ -1074,8 +1064,7 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   y -= sectionGap;
   if (y < 120) { page = newPage(); y = pageHeight - 105; }
   
-  page.drawRectangle({ x: margin - 5, y: y - 3, width: contentWidth + 10, height: 18, color: rgb(0.95, 0.92, 0.85) });
-  page.drawText('The Second Party hereby undertakes to perform the following activities:', { x: margin, y, size: 10, font: fontBold, color: orange });
+  page.drawText('The Second Party hereby undertakes to perform the following activities:', { x: margin, y, size: 10, font: fontBold, color: black });
   y -= 22;
   
   const secondPartyObligations = [
@@ -1092,7 +1081,7 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   
   for (const point of secondPartyObligations) {
     if (y < 80) { page = newPage(); y = pageHeight - 105; }
-    page.drawText('\u2022', { x: margin, y, size: fontSize, font, color: orange });
+    page.drawText('\u2022', { x: margin, y, size: fontSize, font, color: black });
     y = drawWrappedText(page, point, margin + 12, y, font, fontSize, contentWidth - 12, black, lineHeight);
     y -= 5;
   }
@@ -1101,7 +1090,7 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   y -= sectionGap;
   if (y < 120) { page = newPage(); y = pageHeight - 105; }
   
-  page.drawText('Exception for warranty:', { x: margin, y, size: 10, font: fontBold, color: darkBlue });
+  page.drawText('Exception for warranty:', { x: margin, y, size: 10, font: fontBold, color: black });
   y -= lineHeight + 2;
   
   const warrantyExceptions = [
@@ -1134,7 +1123,7 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   
   for (const point of remainingObligations) {
     if (y < 80) { page = newPage(); y = pageHeight - 105; }
-    page.drawText('\u2022', { x: margin, y, size: fontSize, font, color: orange });
+    page.drawText('\u2022', { x: margin, y, size: fontSize, font, color: black });
     y = drawWrappedText(page, point, margin + 12, y, font, fontSize, contentWidth - 12, black, lineHeight);
     y -= 5;
   }
@@ -1143,8 +1132,7 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   if (y < 250) { page = newPage(); y = pageHeight - 105; }
   
   y -= sectionGap;
-  page.drawRectangle({ x: margin - 5, y: y - 3, width: contentWidth + 10, height: 18, color: rgb(0.95, 0.92, 0.85) });
-  page.drawText('IN WITNESS WHEREOF', { x: margin, y, size: 11, font: fontBold, color: orange });
+  page.drawText('IN WITNESS WHEREOF', { x: margin, y, size: 11, font: fontBold, color: black });
   y -= 20;
   
   y = drawWrappedText(page, 'The parties through their duly authorized representatives have executed these presents (execution whereof has been approved by the competent authorities of both the parties) on the day, month and year first above mentioned.', margin, y, font, fontSize, contentWidth, black, lineHeight);
@@ -1154,8 +1142,8 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   const sigColWidth = contentWidth / 2 - 15;
   
   // First Party (Left)
-  page.drawRectangle({ x: margin, y: y - 95, width: sigColWidth, height: 100, borderColor: rgb(0.8, 0.8, 0.8), borderWidth: 1, color: rgb(0.99, 0.99, 0.99) });
-  page.drawText('1st Party (Consumer)', { x: margin + 8, y: y - 5, size: 10, font: fontBold, color: darkBlue });
+  page.drawRectangle({ x: margin, y: y - 95, width: sigColWidth, height: 100, borderColor: gray, borderWidth: 0.5 });
+  page.drawText('1st Party (Consumer)', { x: margin + 8, y: y - 5, size: 10, font: fontBold, color: black });
   page.drawText(`Name: ${data.customerName}`, { x: margin + 8, y: y - 25, size: 8.5, font, color: black });
   const addrLines = wrapText(`Address: ${data.customerAddress}`, font, 8, sigColWidth - 20);
   let addrY = y - 40;
@@ -1164,8 +1152,8 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   
   // Second Party (Right)
   const rightCol = margin + sigColWidth + 30;
-  page.drawRectangle({ x: rightCol, y: y - 95, width: sigColWidth, height: 100, borderColor: rgb(0.8, 0.8, 0.8), borderWidth: 1, color: rgb(0.99, 0.99, 0.99) });
-  page.drawText('2nd Party (Vendor)', { x: rightCol + 8, y: y - 5, size: 10, font: fontBold, color: darkBlue });
+  page.drawRectangle({ x: rightCol, y: y - 95, width: sigColWidth, height: 100, borderColor: gray, borderWidth: 0.5 });
+  page.drawText('2nd Party (Vendor)', { x: rightCol + 8, y: y - 5, size: 10, font: fontBold, color: black });
   page.drawText(`Name: ${data.vendorName}`, { x: rightCol + 8, y: y - 25, size: 8.5, font, color: black });
   const vendAddrLines = wrapText(`Address: ${data.vendorAddress}`, font, 8, sigColWidth - 20);
   let vendY = y - 40;
@@ -1175,8 +1163,8 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   y -= 120;
   
   // Witness sections
-  page.drawText('WITNESS (1st Party):', { x: margin, y, size: 9, font: fontBold, color: darkBlue });
-  page.drawText('WITNESS (2nd Party):', { x: rightCol, y, size: 9, font: fontBold, color: darkBlue });
+  page.drawText('WITNESS (1st Party):', { x: margin, y, size: 9, font: fontBold, color: black });
+  page.drawText('WITNESS (2nd Party):', { x: rightCol, y, size: 9, font: fontBold, color: black });
   y -= 14;
   page.drawText('1. ______________________________', { x: margin, y, size: 8, font, color: gray });
   page.drawText('1. ______________________________', { x: rightCol, y, size: 8, font, color: gray });
@@ -1184,8 +1172,7 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   
   // Note about stamp paper
   y -= 15;
-  page.drawRectangle({ x: margin, y: y - 20, width: contentWidth, height: 30, color: rgb(1, 0.97, 0.93), borderColor: orange, borderWidth: 0.5 });
-  page.drawText('Note: This agreement is to be printed on Rs 50 Stamp Paper for official MOA purposes.', { x: margin + 8, y: y - 8, size: 8, font: fontBold, color: orange });
+  page.drawText('Note: This agreement is to be printed on Rs 50 Stamp Paper for official MOA purposes.', { x: margin, y: y - 8, size: 8, font: fontItalic, color: gray });
   
   // Save PDF
   const pdfBytes = await pdfDoc.save();
