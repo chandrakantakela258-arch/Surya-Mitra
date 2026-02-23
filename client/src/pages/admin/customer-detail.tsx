@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute, useLocation } from "wouter";
-import { ArrowLeft, User, MapPin, Zap, Home, Phone, Mail, FileText, CheckCircle, Clock, Camera, Video, Image, Play, X, CreditCard, Landmark, Hash, Globe, SunMedium, BatteryCharging, Building2, Factory, Smartphone, Pencil, IndianRupee, Calendar, ShieldOff, RefreshCw, Send } from "lucide-react";
+import { ArrowLeft, User, MapPin, Zap, Home, Phone, Mail, FileText, CheckCircle, Clock, Camera, Video, Image, Play, X, CreditCard, Landmark, Hash, Globe, SunMedium, BatteryCharging, Building2, Factory, Smartphone, Pencil, IndianRupee, Calendar, ShieldOff, RefreshCw, Send, ScrollText, Download, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,8 +12,10 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/status-badge";
-import { calculateSubsidy, formatINR } from "@/components/subsidy-calculator";
+import { calculateSubsidy, formatINR, DCR_HYBRID_RATE_PER_WATT, DCR_ONGRID_RATE_PER_WATT, NON_DCR_ONGRID_RATE_PER_WATT, NON_DCR_HYBRID_RATE_PER_WATT } from "@/components/subsidy-calculator";
 import { CustomerJourneyTracker } from "@/components/customer-journey-tracker";
 import { DocumentManager } from "@/components/document-manager";
 import type { Customer } from "@shared/schema";
@@ -21,9 +23,11 @@ import type { Customer } from "@shared/schema";
 interface PartnerInfo {
   ddpName?: string | null;
   ddpPhone?: string | null;
+  ddpEmail?: string | null;
   ddpPartnerCode?: string | null;
   bdpName?: string | null;
   bdpPhone?: string | null;
+  bdpEmail?: string | null;
   bdpPartnerCode?: string | null;
 }
 
@@ -45,6 +49,27 @@ export default function AdminCustomerDetail() {
   const [editIfsc, setEditIfsc] = useState("");
   const [editBankName, setEditBankName] = useState("");
   const [editUpi, setEditUpi] = useState("");
+  const [showAgreementForm, setShowAgreementForm] = useState(false);
+  const [agreementData, setAgreementData] = useState({
+    dateOfAgreement: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" }),
+    customerName: "",
+    consumerNumber: "",
+    customerAddress: "",
+    vendorName: "Hewtech System Pvt. Ltd.",
+    vendorAddress: "Golu Babu Market, Ashiyana Digha Road, Rajiv Nagar, Patna -25",
+    plantCapacity: "",
+    solarModuleMake: "",
+    solarModuleModel: "",
+    solarInverterMake: "",
+    solarInverterModel: "",
+    plantCost: "",
+    advancePayment: "",
+    performaInvoice: "",
+    finalPayment: "",
+  });
+  const [sendToCustomer, setSendToCustomer] = useState(true);
+  const [sendToDDP, setSendToDDP] = useState(true);
+  const [generatedPdfFile, setGeneratedPdfFile] = useState<string | null>(null);
 
   const { data: customer, isLoading } = useQuery<Customer>({
     queryKey: ["/api/customers", customerId],
@@ -129,6 +154,67 @@ export default function AdminCustomerDetail() {
     },
   });
 
+  const generateAgreementMutation = useMutation({
+    mutationFn: async (data: typeof agreementData) => {
+      return apiRequest("POST", `/api/admin/customers/${customerId}/generate-agreement`, data);
+    },
+    onSuccess: (data: any) => {
+      setGeneratedPdfFile(data.fileName);
+      toast({ title: "Agreement Generated", description: "PDF draft agreement has been generated successfully." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to generate agreement", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const sendAgreementMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", `/api/admin/customers/${customerId}/send-agreement`, {
+        ...agreementData,
+        sendToCustomer,
+        sendToDDP,
+        customerEmail: customer?.email || "",
+        ddpEmail: partnerInfo?.ddpEmail || "",
+      });
+    },
+    onSuccess: (data: any) => {
+      setGeneratedPdfFile(data.fileName);
+      toast({ title: "Agreement Sent", description: data.message });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to send agreement", description: error.message, variant: "destructive" });
+    },
+  });
+
+  function openAgreementForm() {
+    if (!customer) return;
+    const capacityNum = parseFloat(customer.proposedCapacity || "0") || 0;
+    const panelType = customer.panelType || "dcr";
+    const ratePerWatt = panelType === "dcr" ? DCR_ONGRID_RATE_PER_WATT : NON_DCR_ONGRID_RATE_PER_WATT;
+    const totalCost = capacityNum * ratePerWatt * 1000;
+    setAgreementData({
+      dateOfAgreement: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" }),
+      customerName: customer.name || "",
+      consumerNumber: customer.consumerNumber || "",
+      customerAddress: `${customer.address || ""}, ${customer.district || ""}, ${customer.state || ""} - ${customer.pincode || ""}`,
+      vendorName: "Hewtech System Pvt. Ltd.",
+      vendorAddress: "Golu Babu Market, Ashiyana Digha Road, Rajiv Nagar, Patna -25",
+      plantCapacity: capacityNum > 0 ? `${capacityNum} kW` : "",
+      solarModuleMake: "",
+      solarModuleModel: "",
+      solarInverterMake: "",
+      solarInverterModel: "",
+      plantCost: totalCost > 0 ? `Rs ${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(totalCost)}` : "",
+      advancePayment: "",
+      performaInvoice: "",
+      finalPayment: "",
+    });
+    setGeneratedPdfFile(null);
+    setSendToCustomer(true);
+    setSendToDDP(true);
+    setShowAgreementForm(true);
+  }
+
   function openEditDetails() {
     if (!customer) return;
     setEditAadhar(customer.aadharNumber || "");
@@ -201,6 +287,10 @@ export default function AdminCustomerDetail() {
           <Button variant="outline" size="sm" onClick={openEditDetails} data-testid="button-edit-details">
             <Pencil className="w-4 h-4 mr-2" />
             Edit Details
+          </Button>
+          <Button variant="outline" size="sm" onClick={openAgreementForm} data-testid="button-send-agreement" className="text-orange-600 border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-900/20">
+            <ScrollText className="w-4 h-4 mr-2" />
+            Draft Agreement
           </Button>
           <Button
             variant="outline"
@@ -742,6 +832,250 @@ export default function AdminCustomerDetail() {
           {customer.siteVideo && (
             <video src={customer.siteVideo} controls autoPlay className="w-full aspect-[9/16] rounded-md" data-testid="video-preview" />
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showAgreementForm} onOpenChange={setShowAgreementForm}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ScrollText className="w-5 h-5 text-orange-600" />
+              Draft MOA Agreement
+            </DialogTitle>
+            <DialogDescription>
+              Fill in agreement details. Customer data is pre-filled from registration. This will be printed on Rs 50 Stamp Paper.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
+              <p className="text-xs text-orange-700 dark:text-orange-300 font-medium">PM Surya Ghar: Muft Bijli Yojana - Memorandum of Agreement (MOA)</p>
+            </div>
+
+            <Separator />
+            <p className="text-sm font-semibold text-muted-foreground">Agreement Details</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Date of Agreement</Label>
+                <Input
+                  value={agreementData.dateOfAgreement}
+                  onChange={(e) => setAgreementData(d => ({ ...d, dateOfAgreement: e.target.value }))}
+                  data-testid="input-moa-date"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Plant Capacity</Label>
+                <Input
+                  value={agreementData.plantCapacity}
+                  onChange={(e) => setAgreementData(d => ({ ...d, plantCapacity: e.target.value }))}
+                  placeholder="e.g., 3 kW"
+                  data-testid="input-moa-capacity"
+                />
+              </div>
+            </div>
+
+            <Separator />
+            <p className="text-sm font-semibold text-muted-foreground">Customer Details (Pre-filled)</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Customer Name</Label>
+                <Input
+                  value={agreementData.customerName}
+                  onChange={(e) => setAgreementData(d => ({ ...d, customerName: e.target.value }))}
+                  data-testid="input-moa-customer-name"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Consumer Number</Label>
+                <Input
+                  value={agreementData.consumerNumber}
+                  onChange={(e) => setAgreementData(d => ({ ...d, consumerNumber: e.target.value }))}
+                  data-testid="input-moa-consumer-number"
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Customer Address</Label>
+              <Textarea
+                value={agreementData.customerAddress}
+                onChange={(e) => setAgreementData(d => ({ ...d, customerAddress: e.target.value }))}
+                rows={2}
+                data-testid="input-moa-customer-address"
+              />
+            </div>
+
+            <Separator />
+            <p className="text-sm font-semibold text-muted-foreground">Vendor Details</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Vendor Name</Label>
+                <Input
+                  value={agreementData.vendorName}
+                  onChange={(e) => setAgreementData(d => ({ ...d, vendorName: e.target.value }))}
+                  data-testid="input-moa-vendor-name"
+                />
+              </div>
+              <div className="space-y-1 sm:col-span-2">
+                <Label className="text-xs">Vendor Address</Label>
+                <Textarea
+                  value={agreementData.vendorAddress}
+                  onChange={(e) => setAgreementData(d => ({ ...d, vendorAddress: e.target.value }))}
+                  rows={2}
+                  data-testid="input-moa-vendor-address"
+                />
+              </div>
+            </div>
+
+            <Separator />
+            <p className="text-sm font-semibold text-muted-foreground">Solar Equipment</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Solar Module Make</Label>
+                <Input
+                  value={agreementData.solarModuleMake}
+                  onChange={(e) => setAgreementData(d => ({ ...d, solarModuleMake: e.target.value }))}
+                  placeholder="e.g., IB Solar"
+                  data-testid="input-moa-module-make"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Solar Module Model</Label>
+                <Input
+                  value={agreementData.solarModuleModel}
+                  onChange={(e) => setAgreementData(d => ({ ...d, solarModuleModel: e.target.value }))}
+                  placeholder="e.g., IB Solar 545W Mono PERC"
+                  data-testid="input-moa-module-model"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Solar Inverter Make</Label>
+                <Input
+                  value={agreementData.solarInverterMake}
+                  onChange={(e) => setAgreementData(d => ({ ...d, solarInverterMake: e.target.value }))}
+                  placeholder="e.g., SunPunch"
+                  data-testid="input-moa-inverter-make"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Solar Inverter Model</Label>
+                <Input
+                  value={agreementData.solarInverterModel}
+                  onChange={(e) => setAgreementData(d => ({ ...d, solarInverterModel: e.target.value }))}
+                  placeholder="e.g., SunPunch 3kW On-Grid"
+                  data-testid="input-moa-inverter-model"
+                />
+              </div>
+            </div>
+
+            <Separator />
+            <p className="text-sm font-semibold text-muted-foreground">Payment Details</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1 sm:col-span-2">
+                <Label className="text-xs">Total Plant Cost (Pre-filled from Ongrid rate - adjust if Hybrid)</Label>
+                <Input
+                  value={agreementData.plantCost}
+                  onChange={(e) => setAgreementData(d => ({ ...d, plantCost: e.target.value }))}
+                  placeholder="e.g., Rs 1,98,000"
+                  data-testid="input-moa-plant-cost"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Advance Payment</Label>
+                <Input
+                  value={agreementData.advancePayment}
+                  onChange={(e) => setAgreementData(d => ({ ...d, advancePayment: e.target.value }))}
+                  placeholder="e.g., Rs 50,000"
+                  data-testid="input-moa-advance"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Performa Invoice</Label>
+                <Input
+                  value={agreementData.performaInvoice}
+                  onChange={(e) => setAgreementData(d => ({ ...d, performaInvoice: e.target.value }))}
+                  placeholder="e.g., Rs 1,00,000"
+                  data-testid="input-moa-performa"
+                />
+              </div>
+              <div className="space-y-1 sm:col-span-2">
+                <Label className="text-xs">Final Payment</Label>
+                <Input
+                  value={agreementData.finalPayment}
+                  onChange={(e) => setAgreementData(d => ({ ...d, finalPayment: e.target.value }))}
+                  placeholder="e.g., Rs 48,000"
+                  data-testid="input-moa-final"
+                />
+              </div>
+            </div>
+
+            <Separator />
+            <p className="text-sm font-semibold text-muted-foreground">Send Agreement via Email</p>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="send-customer"
+                  checked={sendToCustomer}
+                  onCheckedChange={(checked) => setSendToCustomer(!!checked)}
+                  data-testid="checkbox-send-customer"
+                />
+                <Label htmlFor="send-customer" className="text-sm cursor-pointer">
+                  Send to Customer {customer.email ? `(${customer.email})` : "(no email)"}
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="send-ddp"
+                  checked={sendToDDP}
+                  onCheckedChange={(checked) => setSendToDDP(!!checked)}
+                  data-testid="checkbox-send-ddp"
+                />
+                <Label htmlFor="send-ddp" className="text-sm cursor-pointer">
+                  Send to DDP {partnerInfo?.ddpName ? `(${partnerInfo.ddpName})` : ""}
+                </Label>
+              </div>
+            </div>
+
+            {generatedPdfFile && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200">
+                <CheckCircle className="w-4 h-4 text-green-600" />
+                <span className="text-sm text-green-700 dark:text-green-300 flex-1">Agreement PDF ready</span>
+                <Button size="sm" variant="outline" asChild data-testid="button-preview-agreement">
+                  <a href={`/api/agreements/${generatedPdfFile}`} target="_blank" rel="noopener noreferrer">
+                    <Eye className="w-3 h-3 mr-1" /> Preview
+                  </a>
+                </Button>
+                <Button size="sm" variant="outline" asChild data-testid="button-download-agreement">
+                  <a href={`/api/agreements/${generatedPdfFile}`} download>
+                    <Download className="w-3 h-3 mr-1" /> Download
+                  </a>
+                </Button>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2 flex-wrap">
+            <Button variant="outline" onClick={() => setShowAgreementForm(false)} data-testid="button-cancel-agreement">
+              Cancel
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => generateAgreementMutation.mutate(agreementData)}
+              disabled={generateAgreementMutation.isPending}
+              data-testid="button-generate-agreement"
+            >
+              {generateAgreementMutation.isPending ? "Generating..." : (
+                <><Eye className="w-4 h-4 mr-2" />Preview PDF</>
+              )}
+            </Button>
+            <Button
+              onClick={() => sendAgreementMutation.mutate()}
+              disabled={sendAgreementMutation.isPending || (!sendToCustomer && !sendToDDP)}
+              className="bg-orange-600 hover:bg-orange-700"
+              data-testid="button-send-agreement-email"
+            >
+              {sendAgreementMutation.isPending ? "Sending..." : (
+                <><Send className="w-4 h-4 mr-2" />Generate & Send</>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

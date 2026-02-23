@@ -817,3 +817,385 @@ export function getProposalPath(fileName: string): string | null {
   }
   return null;
 }
+
+export interface MOAData {
+  dateOfAgreement: string;
+  customerName: string;
+  consumerNumber: string;
+  customerAddress: string;
+  vendorName: string;
+  vendorAddress: string;
+  plantCapacity: string;
+  solarModuleMake: string;
+  solarModuleModel: string;
+  solarInverterMake: string;
+  solarInverterModel: string;
+  plantCost: string;
+  advancePayment: string;
+  performaInvoice: string;
+  finalPayment: string;
+}
+
+function drawMOAHeader(page: PDFPage, fontBold: PDFFont, font: PDFFont) {
+  const orange = rgb(1, 0.4, 0);
+  const white = rgb(1, 1, 1);
+  const pageWidth = 595;
+  const pageHeight = 842;
+  const margin = 50;
+  
+  page.drawRectangle({
+    x: 0, y: pageHeight - 80, width: pageWidth, height: 80, color: orange,
+  });
+  
+  page.drawText('Divyanshi Solar (Hewtech System Pvt. Ltd.)', {
+    x: margin, y: pageHeight - 35, size: 16, font: fontBold, color: white,
+  });
+  
+  page.drawText('Memorandum of Agreement (MOA)', {
+    x: margin, y: pageHeight - 55, size: 12, font: fontBold, color: white,
+  });
+  
+  page.drawText('PM Surya Ghar: Muft Bijli Yojana', {
+    x: margin, y: pageHeight - 70, size: 10, font: font, color: rgb(1, 0.9, 0.8),
+  });
+}
+
+function wrapText(text: string, font: PDFFont, fontSize: number, maxWidth: number): string[] {
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let currentLine = '';
+  
+  for (const word of words) {
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    const testWidth = font.widthOfTextAtSize(testLine, fontSize);
+    if (testWidth > maxWidth && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+  return lines;
+}
+
+function drawWrappedText(page: PDFPage, text: string, x: number, y: number, font: PDFFont, fontSize: number, maxWidth: number, color: RGB = rgb(0, 0, 0), lineHeight: number = 14): number {
+  const lines = wrapText(text, font, fontSize, maxWidth);
+  let currentY = y;
+  for (const line of lines) {
+    page.drawText(line, { x, y: currentY, size: fontSize, font, color });
+    currentY -= lineHeight;
+  }
+  return currentY;
+}
+
+export async function generateMOAPDF(data: MOAData): Promise<string> {
+  const pdfDoc = await PDFDocument.create();
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const fontItalic = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
+  
+  const black = rgb(0, 0, 0);
+  const darkBlue = rgb(0.1, 0.2, 0.45);
+  const gray = rgb(0.4, 0.4, 0.4);
+  const orange = rgb(1, 0.4, 0);
+  const lightBg = rgb(0.97, 0.97, 0.97);
+  
+  const margin = 50;
+  const pageWidth = 595;
+  const pageHeight = 842;
+  const contentWidth = pageWidth - 2 * margin;
+  const fontSize = 9;
+  const lineHeight = 13;
+  const sectionGap = 10;
+  
+  let pageNum = 0;
+  
+  function newPage(): PDFPage {
+    pageNum++;
+    const pg = pdfDoc.addPage([pageWidth, pageHeight]);
+    drawMOAHeader(pg, fontBold, font);
+    drawFooter(pg, font, pageNum);
+    return pg;
+  }
+  
+  // ========== PAGE 1: Title, Parties, Whereas ==========
+  let page = newPage();
+  let y = pageHeight - 105;
+  
+  page.drawText('Memorandum of Agreement (MOA)', {
+    x: margin, y, size: 14, font: fontBold, color: darkBlue,
+  });
+  y -= 18;
+  page.drawText('Between Consumer & Vendor for installation of Grid Connected Rooftop Solar (RTS)', {
+    x: margin, y, size: 9, font, color: gray,
+  });
+  y -= 12;
+  page.drawText('Project under PM Surya Ghar: Muft Bijli Yojana', {
+    x: margin, y, size: 9, font, color: gray,
+  });
+  y -= 22;
+  
+  y = drawWrappedText(page, `This agreement is executed on ${data.dateOfAgreement} for design, supply, installation, commissioning and 5-year comprehensive maintenance of RTS project/system along with warranty under "PM Surya Ghar: Muft Bijli Yojana" scheme.`, margin, y, font, fontSize, contentWidth, black, lineHeight);
+  y -= sectionGap;
+  
+  page.drawText('Between', { x: margin, y, size: 11, font: fontBold, color: darkBlue });
+  y -= lineHeight + 2;
+  
+  y = drawWrappedText(page, `${data.customerName} bearing Consumer No/ Connection No: ${data.consumerNumber} having address at - ${data.customerAddress} (herein after referred to as First Party i.e. consumer/purchaser/owner of the system).`, margin, y, fontBold, fontSize, contentWidth, black, lineHeight);
+  y -= sectionGap;
+  
+  page.drawText('And', { x: margin, y, size: 11, font: fontBold, color: darkBlue });
+  y -= lineHeight + 2;
+  
+  y = drawWrappedText(page, `${data.vendorName}, having office Address at ${data.vendorAddress}, (herein after referred to as Second Party i.e. Vendor/Contractor/System Integrator).`, margin, y, fontBold, fontSize, contentWidth, black, lineHeight);
+  y -= sectionGap + 4;
+  
+  page.drawText('Whereas', { x: margin, y, size: 11, font: fontBold, color: darkBlue });
+  y -= lineHeight + 2;
+  
+  y = drawWrappedText(page, `First Party wishes to install ${data.plantCapacity} Grid Connected Roof Top Solar PV Power Plant on the Roof top of the residential building of the Consumer under PM Surya Ghar: Muft Bijli Yojana.`, margin, y, font, fontSize, contentWidth, black, lineHeight);
+  y -= sectionGap;
+  
+  page.drawText('And whereas', { x: margin, y, size: 11, font: fontBold, color: darkBlue });
+  y -= lineHeight + 2;
+  
+  y = drawWrappedText(page, `Second Party has verified availability of appropriate roof and found it feasible to install a Grid Connected Roof Top Solar plant and that the second party is willing to design, supply, install, test, commission and carry out Operation & Maintenance of the Rooftop Solar plant for 5 year period.`, margin, y, font, fontSize, contentWidth, black, lineHeight);
+  y -= sectionGap;
+  
+  y = drawWrappedText(page, 'On this day, the First Party and Second Party agree to the following:', margin, y, fontBold, fontSize, contentWidth, black, lineHeight);
+  y -= sectionGap + 6;
+  
+  // RTS System section
+  page.drawRectangle({ x: margin - 5, y: y - 3, width: contentWidth + 10, height: 18, color: rgb(0.95, 0.92, 0.85) });
+  page.drawText('RTS System:', { x: margin, y, size: 11, font: fontBold, color: orange });
+  y -= 20;
+  
+  const rtsPoints = [
+    `Total capacity of RTS System will be minimum ${data.plantCapacity}.`,
+    'The Solar modules, inverters and BoS will confirm to minimum specifications and Domestic Content Requirement (DCR) requirements of MNRE.',
+    `Solar modules of ${data.solarModuleMake} make, ${data.solarModuleModel}, capacity each and 22% efficiency will be procured and installed by the Vendor.`,
+    `Solar inverter of ${data.solarInverterMake}, ${data.solarInverterModel} rated output capacity will be procured and installed by the Vendor.`,
+    'Module mounting structure has to withstand minimum wind load pressure as specified by the MNRE.',
+    'Other BoS installation shall be as per best industry practice with all safety and protection gears installed by the vendor.',
+  ];
+  
+  for (const point of rtsPoints) {
+    if (y < 80) { page = newPage(); y = pageHeight - 105; }
+    page.drawText('\u2022', { x: margin, y, size: fontSize, font, color: orange });
+    y = drawWrappedText(page, point, margin + 12, y, font, fontSize, contentWidth - 12, black, lineHeight);
+    y -= 4;
+  }
+  
+  y -= sectionGap;
+  
+  // Price and Terms of Payment
+  if (y < 200) { page = newPage(); y = pageHeight - 105; }
+  
+  page.drawRectangle({ x: margin - 5, y: y - 3, width: contentWidth + 10, height: 18, color: rgb(0.95, 0.92, 0.85) });
+  page.drawText('Price and Terms of Payment:', { x: margin, y, size: 11, font: fontBold, color: orange });
+  y -= 20;
+  
+  y = drawWrappedText(page, `The cost of RTS System inclusive of all taxes will be ${data.plantCost}. The applicant shall pay the total cost to the Vendor as under:`, margin, y, font, fontSize, contentWidth, black, lineHeight);
+  y -= 6;
+  
+  const paymentPoints = [
+    `${data.advancePayment} as an advance on confirmation of the order & agreement between consumer & vendor.`,
+    `${data.performaInvoice} against Performa Invoice (PI) before dispatch of solar panels, inverters and other BoS items to be delivered.`,
+    `${data.finalPayment} after installation and commissioning of the RTS System and due inspection of the Solar Plant & verification of the Checklist of documents by the Competent Authority of SBPDCL.`,
+  ];
+  
+  for (const point of paymentPoints) {
+    if (y < 80) { page = newPage(); y = pageHeight - 105; }
+    page.drawText('\u2022', { x: margin, y, size: fontSize, font, color: orange });
+    y = drawWrappedText(page, point, margin + 12, y, font, fontSize, contentWidth - 12, black, lineHeight);
+    y -= 4;
+  }
+  
+  y -= sectionGap;
+  
+  // Cost Table
+  if (y < 160) { page = newPage(); y = pageHeight - 105; }
+  
+  const tableTop = y;
+  const col1 = margin;
+  const col2 = margin + 40;
+  const col3 = margin + contentWidth - 130;
+  const rowH = 30;
+  
+  page.drawRectangle({ x: col1, y: tableTop - rowH + 5, width: contentWidth, height: rowH, color: rgb(0.95, 0.92, 0.85) });
+  page.drawText('Sl.', { x: col1 + 5, y: tableTop - 10, size: 8, font: fontBold, color: black });
+  page.drawText('Particulars', { x: col2 + 5, y: tableTop - 10, size: 8, font: fontBold, color: black });
+  page.drawText('Rate (Rs)', { x: col3 + 5, y: tableTop - 10, size: 8, font: fontBold, color: black });
+  y = tableTop - rowH;
+  
+  page.drawRectangle({ x: col1, y: y - rowH + 5, width: contentWidth, height: rowH, color: lightBg });
+  page.drawText('1', { x: col1 + 5, y: y - 5, size: 8, font, color: black });
+  const r1Text = 'System cost, Installation & Commissioning and 5 years Maintenance & Performance Warranty Contract (MPWC) including taxes';
+  const r1Lines = wrapText(r1Text, font, 7.5, col3 - col2 - 15);
+  let r1y = y - 3;
+  for (const ln of r1Lines) { page.drawText(ln, { x: col2 + 5, y: r1y, size: 7.5, font, color: black }); r1y -= 10; }
+  page.drawText(data.plantCost, { x: col3 + 5, y: y - 5, size: 8, font: fontBold, color: black });
+  y -= rowH;
+  
+  page.drawRectangle({ x: col1, y: y - rowH + 5, width: contentWidth, height: rowH, color: lightBg });
+  page.drawText('2', { x: col1 + 5, y: y - 5, size: 8, font, color: black });
+  page.drawText('Total Cost of Work Order', { x: col2 + 5, y: y - 5, size: 8, font, color: black });
+  page.drawText(data.plantCost, { x: col3 + 5, y: y - 5, size: 8, font: fontBold, color: orange });
+  y -= rowH;
+  
+  y -= 8;
+  y = drawWrappedText(page, "The payment shall be made only through banker's cheque/NEFT/RTGS/Online payment portal as intimated by the vendor. No cash payment shall be accepted by the Vendor or its Authorized Person.", margin, y, fontItalic, 8, contentWidth, gray, 11);
+  
+  // ========== PAGES 2+: Obligations ==========
+  page = newPage();
+  y = pageHeight - 105;
+  
+  page.drawRectangle({ x: margin - 5, y: y - 3, width: contentWidth + 10, height: 18, color: rgb(0.95, 0.92, 0.85) });
+  page.drawText('The First Party hereby undertakes to perform the following activities:', { x: margin, y, size: 10, font: fontBold, color: orange });
+  y -= 22;
+  
+  const firstPartyObligations = [
+    'Submission of online application at National Portal for installation of RTS project/system, Submission of application for net-metering and system inspection and upload of the relevant documents on the National Portal of the scheme.',
+    'Provide secure storage of the material of the RTS plant delivered at the premises till hand over of the system.',
+    'Provide access to the Roof Top during installation of the plant, operation & maintenance, testing of the plant and equipment and for meter reading from solar meter, inverter etc.',
+    'Provide electricity during plant installation and water for cleaning of the panels.',
+    'Report any malfunctioning of the plant to the Vendor during the warranty period.',
+    'Pay the amount as per the payment schedule, including any additional amount to the second party for any additional work/customization required depending upon the building condition.',
+  ];
+  
+  for (const point of firstPartyObligations) {
+    if (y < 80) { page = newPage(); y = pageHeight - 105; }
+    page.drawText('\u2022', { x: margin, y, size: fontSize, font, color: orange });
+    y = drawWrappedText(page, point, margin + 12, y, font, fontSize, contentWidth - 12, black, lineHeight);
+    y -= 5;
+  }
+  
+  y -= sectionGap;
+  if (y < 120) { page = newPage(); y = pageHeight - 105; }
+  
+  page.drawRectangle({ x: margin - 5, y: y - 3, width: contentWidth + 10, height: 18, color: rgb(0.95, 0.92, 0.85) });
+  page.drawText('The Second Party hereby undertakes to perform the following activities:', { x: margin, y, size: 10, font: fontBold, color: orange });
+  y -= 22;
+  
+  const secondPartyObligations = [
+    'The Vendor must follow all the standards and safety guidelines prescribed under state regulations and technical standards prescribed by MNRE for RTS projects, failing which the vendor is liable for blacklisting from participation in the govt. project/scheme and other penal actions in accordance with the law.',
+    `Site Survey: Site visit, survey and development of detailed project report for installation of RTS system. This also includes, feasibility study of roof, strength of roof and shadow free area. If any additional work or customization is involved for the plant installation as per site condition and requirement of the consumer building, the Vendor shall prepare an estimate and can raise separate invoice including GST in addition to the amount towards standard plant cost.`,
+    'Design & Engineering: Design of plant along with drawings and selection of components as per standard provided by the DISCOM/SERC/MNRE for best performance and safety of the plant.',
+    'Module and Inverter: The solar modules, including the solar cells, should be manufactured in India. Both the solar modules and inverters shall conform to the relevant standards and specifications prescribed by MNRE.',
+    'Procurement & Supply: Procurement of complete system as per BIS/IS/IEC standard (whatever applicable) & safety guidelines for installation of rooftop solar plants. The supplied materials should comply with all MNRE standards for release of subsidy.',
+    'Installation & Civil work: Complete civil work, structure work and electrical work (including drawings) following all the safety and relevant BIS standards.',
+    'Documentation: All technical catalogues, warranty certificates, BIS certificates, test reports etc. shall be provided to the consumer for online uploading and submission.',
+    'Project completion report (PCR): Assisting the consumer in filling and uploading of signed documents (Consumer & Vendor) on the national portal.',
+    'Warranty: Warranty Card of all components supplied (SPV modules, Inverter, Meters etc.) must be provided to the consumer. The complete system should be warranted for 5 years from the date of commissioning by DISCOM.',
+  ];
+  
+  for (const point of secondPartyObligations) {
+    if (y < 80) { page = newPage(); y = pageHeight - 105; }
+    page.drawText('\u2022', { x: margin, y, size: fontSize, font, color: orange });
+    y = drawWrappedText(page, point, margin + 12, y, font, fontSize, contentWidth - 12, black, lineHeight);
+    y -= 5;
+  }
+  
+  // Warranty exceptions
+  y -= sectionGap;
+  if (y < 120) { page = newPage(); y = pageHeight - 105; }
+  
+  page.drawText('Exception for warranty:', { x: margin, y, size: 10, font: fontBold, color: darkBlue });
+  y -= lineHeight + 2;
+  
+  const warrantyExceptions = [
+    'Any attempt by any person other than Vendor or its Authorized persons to adjust, modify, repair or provide maintenance to the RTS System shall disentitle the Applicant of the warranty provided by the Vendor hereunder.',
+    'Vendor shall not be liable for any degeneration or damage to the RTS System due to any action or inaction on the part of the applicant.',
+    'Vendor shall not be bound or liable to remedy any damage, fault, failure or malfunctioning of the RTS System owing to external causes, including but not limited to accidents, misuse, neglect, Force Majeure Event, or negligence or default attributable to the Applicant.',
+    'Vendor shall not be liable to repair or remedy any accessories or parts added to the RTS System that were not originally sourced by Vendor to the Applicant.',
+  ];
+  
+  for (const point of warrantyExceptions) {
+    if (y < 80) { page = newPage(); y = pageHeight - 105; }
+    page.drawText('-', { x: margin + 8, y, size: fontSize, font, color: gray });
+    y = drawWrappedText(page, point, margin + 20, y, fontItalic, 8.5, contentWidth - 20, gray, 12);
+    y -= 4;
+  }
+  
+  // Remaining vendor obligations
+  y -= sectionGap;
+  
+  const remainingObligations = [
+    'NET / Smart Bi-directional meter & Grid Connectivity: Net meter supply/procurement, testing and approvals shall be in the scope of SBPDCL. Grid connection of the plant shall be in the scope of the vendor. Solar meter supply/procurement shall be in the scope of Vendor.',
+    'Testing and Commissioning: The vendor shall be present at the time of testing and commissioning by the DISCOM.',
+    'Operation & Maintenance: Five (5) years Comprehensive Operation and Maintenance including overhauling, wear and tear and regular checking of healthiness of system at proper interval shall be in the scope of vendor.',
+    'Insurance: Any insurance cost pertaining to material transfer/storage before commissioning of the system shall be in the scope of the vendor.',
+    'Applicable Standard: The system must meet the technical standards and specifications notified by MNRE. The vendor is solely responsible to supply component and service which meets the technical standards and specification prescribed by MNRE and State DISCOMs.',
+    'Dispute: In-case of any dispute between consumer and vendor, both parties must settle the same mutually or as per law. MNRE/DISCOM shall not be liable for any dispute arising between vendor and consumer.',
+    'Subsidy / Project Related Documents: Vendor must provide all the documents to consumer and help in uploading the same to National Portal for smooth release of subsidy.',
+    'Performance of Plant: The Performance Ratio (PR) of Plant must be 75% at the time of commissioning. Vendor must maintain the PR of the plant till warranty of project i.e. 5 years from the date of commissioning.',
+  ];
+  
+  for (const point of remainingObligations) {
+    if (y < 80) { page = newPage(); y = pageHeight - 105; }
+    page.drawText('\u2022', { x: margin, y, size: fontSize, font, color: orange });
+    y = drawWrappedText(page, point, margin + 12, y, font, fontSize, contentWidth - 12, black, lineHeight);
+    y -= 5;
+  }
+  
+  // ========== SIGNATURE PAGE ==========
+  if (y < 250) { page = newPage(); y = pageHeight - 105; }
+  
+  y -= sectionGap;
+  page.drawRectangle({ x: margin - 5, y: y - 3, width: contentWidth + 10, height: 18, color: rgb(0.95, 0.92, 0.85) });
+  page.drawText('IN WITNESS WHEREOF', { x: margin, y, size: 11, font: fontBold, color: orange });
+  y -= 20;
+  
+  y = drawWrappedText(page, 'The parties through their duly authorized representatives have executed these presents (execution whereof has been approved by the competent authorities of both the parties) on the day, month and year first above mentioned.', margin, y, font, fontSize, contentWidth, black, lineHeight);
+  y -= 30;
+  
+  // Signature blocks - side by side
+  const sigColWidth = contentWidth / 2 - 15;
+  
+  // First Party (Left)
+  page.drawRectangle({ x: margin, y: y - 95, width: sigColWidth, height: 100, borderColor: rgb(0.8, 0.8, 0.8), borderWidth: 1, color: rgb(0.99, 0.99, 0.99) });
+  page.drawText('1st Party (Consumer)', { x: margin + 8, y: y - 5, size: 10, font: fontBold, color: darkBlue });
+  page.drawText(`Name: ${data.customerName}`, { x: margin + 8, y: y - 25, size: 8.5, font, color: black });
+  const addrLines = wrapText(`Address: ${data.customerAddress}`, font, 8, sigColWidth - 20);
+  let addrY = y - 40;
+  for (const ln of addrLines) { page.drawText(ln, { x: margin + 8, y: addrY, size: 8, font, color: black }); addrY -= 11; }
+  page.drawText('Signature: ____________________', { x: margin + 8, y: y - 78, size: 8, font, color: gray });
+  
+  // Second Party (Right)
+  const rightCol = margin + sigColWidth + 30;
+  page.drawRectangle({ x: rightCol, y: y - 95, width: sigColWidth, height: 100, borderColor: rgb(0.8, 0.8, 0.8), borderWidth: 1, color: rgb(0.99, 0.99, 0.99) });
+  page.drawText('2nd Party (Vendor)', { x: rightCol + 8, y: y - 5, size: 10, font: fontBold, color: darkBlue });
+  page.drawText(`Name: ${data.vendorName}`, { x: rightCol + 8, y: y - 25, size: 8.5, font, color: black });
+  const vendAddrLines = wrapText(`Address: ${data.vendorAddress}`, font, 8, sigColWidth - 20);
+  let vendY = y - 40;
+  for (const ln of vendAddrLines) { page.drawText(ln, { x: rightCol + 8, y: vendY, size: 8, font, color: black }); vendY -= 11; }
+  page.drawText('Signature: ____________________', { x: rightCol + 8, y: y - 78, size: 8, font, color: gray });
+  
+  y -= 120;
+  
+  // Witness sections
+  page.drawText('WITNESS (1st Party):', { x: margin, y, size: 9, font: fontBold, color: darkBlue });
+  page.drawText('WITNESS (2nd Party):', { x: rightCol, y, size: 9, font: fontBold, color: darkBlue });
+  y -= 14;
+  page.drawText('1. ______________________________', { x: margin, y, size: 8, font, color: gray });
+  page.drawText('1. ______________________________', { x: rightCol, y, size: 8, font, color: gray });
+  y -= 20;
+  
+  // Note about stamp paper
+  y -= 15;
+  page.drawRectangle({ x: margin, y: y - 20, width: contentWidth, height: 30, color: rgb(1, 0.97, 0.93), borderColor: orange, borderWidth: 0.5 });
+  page.drawText('Note: This agreement is to be printed on Rs 50 Stamp Paper for official MOA purposes.', { x: margin + 8, y: y - 8, size: 8, font: fontBold, color: orange });
+  
+  // Save PDF
+  const pdfBytes = await pdfDoc.save();
+  const fileName = `moa_agreement_${Date.now()}_${Math.random().toString(36).substring(7)}.pdf`;
+  const filePath = path.join(pdfDir, fileName);
+  fs.writeFileSync(filePath, pdfBytes);
+  
+  setTimeout(() => {
+    try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (e) {}
+  }, 24 * 60 * 60 * 1000);
+  
+  return fileName;
+}

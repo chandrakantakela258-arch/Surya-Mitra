@@ -13,7 +13,7 @@ import { z } from "zod";
 import { notificationService } from "./notification-service";
 import { calculateLeadScore, type LeadScoreResult } from "./lead-scoring-service";
 import { sendEmail as sendGmailEmail, createProposalEmailTemplate, createWelcomeEmailTemplate, createCustomerForwardEmailTemplate, downloadFileAsBase64, type EmailAttachment } from "./gmail";
-import { generateProposalPDF, getProposalPath, type ProposalPDFData } from "./pdf-generator";
+import { generateProposalPDF, getProposalPath, generateMOAPDF, type ProposalPDFData, type MOAData } from "./pdf-generator";
 
 // Configure multer for file uploads
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -2844,9 +2844,11 @@ export async function registerRoutes(
       res.json({
         ddpName: ddp?.name || null,
         ddpPhone: ddp?.phone || null,
+        ddpEmail: ddp?.email || null,
         ddpPartnerCode: ddp?.partnerCode || null,
         bdpName: bdp?.name || null,
         bdpPhone: bdp?.phone || null,
+        bdpEmail: bdp?.email || null,
         bdpPartnerCode: bdp?.partnerCode || null,
       });
     } catch (error) {
@@ -9173,6 +9175,196 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Delete state email error:", error);
       res.status(500).json({ message: error.message || "Failed to delete state email" });
+    }
+  });
+
+  // ========== MOA AGREEMENT ENDPOINTS ==========
+
+  app.post("/api/admin/customers/:id/generate-agreement", requireAdmin, async (req, res) => {
+    try {
+      const customerId = req.params.id;
+      const customer = await storage.getCustomer(customerId as any);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+
+      const moaSchema = z.object({
+        dateOfAgreement: z.string().min(1, "Date is required"),
+        customerName: z.string().min(1, "Customer name is required"),
+        consumerNumber: z.string().min(1, "Consumer number is required"),
+        customerAddress: z.string().min(1, "Customer address is required"),
+        vendorName: z.string().min(1, "Vendor name is required"),
+        vendorAddress: z.string().min(1, "Vendor address is required"),
+        plantCapacity: z.string().min(1, "Plant capacity is required"),
+        solarModuleMake: z.string().min(1, "Solar module make is required"),
+        solarModuleModel: z.string().min(1, "Solar module model is required"),
+        solarInverterMake: z.string().min(1, "Solar inverter make is required"),
+        solarInverterModel: z.string().min(1, "Solar inverter model is required"),
+        plantCost: z.string().min(1, "Plant cost is required"),
+        advancePayment: z.string().min(1, "Advance payment is required"),
+        performaInvoice: z.string().min(1, "Performa invoice is required"),
+        finalPayment: z.string().min(1, "Final payment is required"),
+      });
+
+      const parsed = moaSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid data", errors: parsed.error.flatten().fieldErrors });
+      }
+
+      const fileName = await generateMOAPDF(parsed.data);
+      res.json({ fileName, message: "Agreement PDF generated successfully" });
+    } catch (error: any) {
+      console.error("Generate MOA error:", error);
+      res.status(500).json({ message: error.message || "Failed to generate agreement" });
+    }
+  });
+
+  app.post("/api/admin/customers/:id/send-agreement", requireAdmin, async (req, res) => {
+    try {
+      const customerId = req.params.id;
+      const customer = await storage.getCustomer(customerId as any);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+
+      const moaSchema = z.object({
+        dateOfAgreement: z.string().min(1),
+        customerName: z.string().min(1),
+        consumerNumber: z.string().min(1),
+        customerAddress: z.string().min(1),
+        vendorName: z.string().min(1),
+        vendorAddress: z.string().min(1),
+        plantCapacity: z.string().min(1),
+        solarModuleMake: z.string().min(1),
+        solarModuleModel: z.string().min(1),
+        solarInverterMake: z.string().min(1),
+        solarInverterModel: z.string().min(1),
+        plantCost: z.string().min(1),
+        advancePayment: z.string().min(1),
+        performaInvoice: z.string().min(1),
+        finalPayment: z.string().min(1),
+        sendToCustomer: z.boolean().optional(),
+        sendToDDP: z.boolean().optional(),
+        customerEmail: z.string().optional(),
+        ddpEmail: z.string().optional(),
+      });
+
+      const parsed = moaSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid data", errors: parsed.error.flatten().fieldErrors });
+      }
+
+      const { sendToCustomer, sendToDDP, customerEmail, ddpEmail, ...moaData } = parsed.data;
+
+      const fileName = await generateMOAPDF(moaData);
+      const filePath = getProposalPath(fileName);
+      if (!filePath) {
+        return res.status(500).json({ message: "Failed to generate agreement PDF" });
+      }
+
+      const pdfBuffer = fs.readFileSync(filePath);
+      const pdfBase64 = pdfBuffer.toString('base64');
+
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #FF6600, #FF8800); padding: 20px; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 22px;">Divyanshi Solar</h1>
+            <p style="color: #FFE0CC; margin: 5px 0 0; font-size: 13px;">Authorized Marketing Partner of Hewtech System Pvt. Ltd.</p>
+          </div>
+          <div style="background: #f9f9f9; padding: 25px; border-radius: 0 0 10px 10px; border: 1px solid #eee;">
+            <h2 style="color: #333; margin-top: 0;">Memorandum of Agreement (MOA)</h2>
+            <p style="color: #555; line-height: 1.6;">Dear <strong>${moaData.customerName}</strong>,</p>
+            <p style="color: #555; line-height: 1.6;">Please find attached your Memorandum of Agreement (MOA) for the installation of <strong>${moaData.plantCapacity}</strong> Grid Connected Rooftop Solar Power Plant under <strong>PM Surya Ghar: Muft Bijli Yojana</strong>.</p>
+            <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+              <tr style="background: #fff3e6;">
+                <td style="padding: 10px; border: 1px solid #eee; font-weight: bold; color: #555;">Plant Capacity</td>
+                <td style="padding: 10px; border: 1px solid #eee; color: #333;">${moaData.plantCapacity}</td>
+              </tr>
+              <tr>
+                <td style="padding: 10px; border: 1px solid #eee; font-weight: bold; color: #555;">Total Cost</td>
+                <td style="padding: 10px; border: 1px solid #eee; color: #333;">${moaData.plantCost}</td>
+              </tr>
+              <tr style="background: #fff3e6;">
+                <td style="padding: 10px; border: 1px solid #eee; font-weight: bold; color: #555;">Solar Modules</td>
+                <td style="padding: 10px; border: 1px solid #eee; color: #333;">${moaData.solarModuleMake} - ${moaData.solarModuleModel}</td>
+              </tr>
+              <tr>
+                <td style="padding: 10px; border: 1px solid #eee; font-weight: bold; color: #555;">Solar Inverter</td>
+                <td style="padding: 10px; border: 1px solid #eee; color: #333;">${moaData.solarInverterMake} - ${moaData.solarInverterModel}</td>
+              </tr>
+              <tr style="background: #fff3e6;">
+                <td style="padding: 10px; border: 1px solid #eee; font-weight: bold; color: #555;">Agreement Date</td>
+                <td style="padding: 10px; border: 1px solid #eee; color: #333;">${moaData.dateOfAgreement}</td>
+              </tr>
+            </table>
+            <p style="color: #555; line-height: 1.6;">This agreement is to be printed on <strong>Rs 50 Stamp Paper</strong> for official MOA purposes.</p>
+            <p style="color: #888; font-size: 12px; margin-top: 20px;">Please review the attached document and contact us for any queries.</p>
+          </div>
+          <div style="text-align: center; padding: 15px; color: #999; font-size: 11px;">
+            <p>Divyanshi Solar | Authorized Marketing Partner of Hewtech System Pvt. Ltd.</p>
+            <p>Registered with SBPDCL & NBPDCL</p>
+          </div>
+        </div>
+      `;
+
+      const sentTo: string[] = [];
+      const errors: string[] = [];
+
+      if (sendToCustomer && customerEmail) {
+        try {
+          const result = await sendGmailEmail({
+            to: customerEmail,
+            subject: `MOA Agreement - ${moaData.plantCapacity} Solar Plant | Divyanshi Solar`,
+            htmlContent: emailHtml,
+            fromName: 'Divyanshi Solar',
+            pdfAttachment: { filename: `MOA_Agreement_${moaData.customerName.replace(/\s+/g, '_')}.pdf`, data: pdfBase64 },
+          });
+          if (result.success) sentTo.push(customerEmail);
+          else errors.push(`Customer email failed: ${result.error}`);
+        } catch (e: any) { errors.push(`Customer email error: ${e.message}`); }
+      }
+
+      if (sendToDDP && ddpEmail) {
+        try {
+          const result = await sendGmailEmail({
+            to: ddpEmail,
+            subject: `MOA Agreement - ${moaData.customerName} (${moaData.plantCapacity}) | Divyanshi Solar`,
+            htmlContent: emailHtml,
+            fromName: 'Divyanshi Solar',
+            pdfAttachment: { filename: `MOA_Agreement_${moaData.customerName.replace(/\s+/g, '_')}.pdf`, data: pdfBase64 },
+          });
+          if (result.success) sentTo.push(ddpEmail);
+          else errors.push(`DDP email failed: ${result.error}`);
+        } catch (e: any) { errors.push(`DDP email error: ${e.message}`); }
+      }
+
+      res.json({
+        fileName,
+        sentTo,
+        errors: errors.length > 0 ? errors : undefined,
+        message: sentTo.length > 0 ? `Agreement sent to ${sentTo.join(', ')}` : 'Agreement PDF generated (no emails sent)',
+      });
+    } catch (error: any) {
+      console.error("Send MOA error:", error);
+      res.status(500).json({ message: error.message || "Failed to send agreement" });
+    }
+  });
+
+  app.get("/api/agreements/:fileName", (req, res) => {
+    try {
+      const { fileName } = req.params;
+      if (!fileName.startsWith('moa_agreement_') || !fileName.endsWith('.pdf')) {
+        return res.status(400).json({ message: "Invalid file" });
+      }
+      const filePath = getProposalPath(fileName);
+      if (!filePath) {
+        return res.status(404).json({ message: "Agreement not found" });
+      }
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
+      res.sendFile(filePath);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to serve agreement" });
     }
   });
 
