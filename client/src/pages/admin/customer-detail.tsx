@@ -870,16 +870,23 @@ export default function AdminCustomerDetail() {
               <div className="space-y-1">
                 <Label className="text-xs">Plant Capacity</Label>
                 <Select
-                  value={agreementData.plantCapacity}
+                  value={agreementData.plantCapacity || undefined}
                   onValueChange={(val) => setAgreementData(d => ({ ...d, plantCapacity: val }))}
                 >
                   <SelectTrigger data-testid="select-moa-capacity">
                     <SelectValue placeholder="Select capacity" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="1 kW">1 kW</SelectItem>
+                    <SelectItem value="2 kW">2 kW</SelectItem>
                     <SelectItem value="3 kW">3 kW</SelectItem>
+                    <SelectItem value="4 kW">4 kW</SelectItem>
                     <SelectItem value="5 kW">5 kW</SelectItem>
                     <SelectItem value="6 kW">6 kW</SelectItem>
+                    <SelectItem value="7 kW">7 kW</SelectItem>
+                    <SelectItem value="8 kW">8 kW</SelectItem>
+                    <SelectItem value="9 kW">9 kW</SelectItem>
+                    <SelectItem value="10 kW">10 kW</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -939,12 +946,15 @@ export default function AdminCustomerDetail() {
 
             <Separator />
             <p className="text-sm font-semibold text-muted-foreground">Solar Equipment</p>
+            {(equipmentOptions?.moduleMakes?.length ?? 0) === 0 && (equipmentOptions?.inverterMakes?.length ?? 0) === 0 && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">No equipment options configured yet. Go to Equipment Settings to add solar module and inverter makes/models for dropdown selection, or type manually below.</p>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Solar Module Make</Label>
                 {(equipmentOptions?.moduleMakes?.length ?? 0) > 0 ? (
                   <Select
-                    value={agreementData.solarModuleMake}
+                    value={agreementData.solarModuleMake || undefined}
                     onValueChange={(val) => setAgreementData(d => ({ ...d, solarModuleMake: val, solarModuleModel: "" }))}
                   >
                     <SelectTrigger data-testid="select-moa-module-make">
@@ -972,7 +982,7 @@ export default function AdminCustomerDetail() {
                   const models = selectedMake?.models || [];
                   return models.length > 0 ? (
                     <Select
-                      value={agreementData.solarModuleModel}
+                      value={agreementData.solarModuleModel || undefined}
                       onValueChange={(val) => setAgreementData(d => ({ ...d, solarModuleModel: val }))}
                     >
                       <SelectTrigger data-testid="select-moa-module-model">
@@ -998,7 +1008,7 @@ export default function AdminCustomerDetail() {
                 <Label className="text-xs">Solar Inverter Make</Label>
                 {(equipmentOptions?.inverterMakes?.length ?? 0) > 0 ? (
                   <Select
-                    value={agreementData.solarInverterMake}
+                    value={agreementData.solarInverterMake || undefined}
                     onValueChange={(val) => setAgreementData(d => ({ ...d, solarInverterMake: val, solarInverterModel: "" }))}
                   >
                     <SelectTrigger data-testid="select-moa-inverter-make">
@@ -1026,7 +1036,7 @@ export default function AdminCustomerDetail() {
                   const models = selectedMake?.models || [];
                   return models.length > 0 ? (
                     <Select
-                      value={agreementData.solarInverterModel}
+                      value={agreementData.solarInverterModel || undefined}
                       onValueChange={(val) => setAgreementData(d => ({ ...d, solarInverterModel: val }))}
                     >
                       <SelectTrigger data-testid="select-moa-inverter-model">
