@@ -26,6 +26,7 @@ const ONGRID_RATE_PER_KW = 66000;
 import { CustomerJourneyTracker } from "@/components/customer-journey-tracker";
 import { DocumentManager } from "@/components/document-manager";
 import type { Customer } from "@shared/schema";
+import { roofTypes } from "@shared/schema";
 
 interface PartnerInfo {
   ddpName?: string | null;
@@ -56,6 +57,9 @@ export default function AdminCustomerDetail() {
   const [editIfsc, setEditIfsc] = useState("");
   const [editBankName, setEditBankName] = useState("");
   const [editUpi, setEditUpi] = useState("");
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPhone, setEditPhone] = useState("");
   const [editCapacity, setEditCapacity] = useState("");
   const [editConsumerNumber, setEditConsumerNumber] = useState("");
   const [editLatitude, setEditLatitude] = useState("");
@@ -64,6 +68,14 @@ export default function AdminCustomerDetail() {
   const [editDistrict, setEditDistrict] = useState("");
   const [editState, setEditState] = useState("");
   const [editPincode, setEditPincode] = useState("");
+  const [editElectricityBoard, setEditElectricityBoard] = useState("");
+  const [editSanctionedLoad, setEditSanctionedLoad] = useState("");
+  const [editAvgBill, setEditAvgBill] = useState("");
+  const [editRoofType, setEditRoofType] = useState("");
+  const [editRoofArea, setEditRoofArea] = useState("");
+  const [editPanelType, setEditPanelType] = useState("");
+  const [editCustomerType, setEditCustomerType] = useState("");
+  const [editInverterType, setEditInverterType] = useState("");
   const [showAgreementForm, setShowAgreementForm] = useState(false);
   const [agreementData, setAgreementData] = useState({
     dateOfAgreement: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" }),
@@ -273,6 +285,9 @@ export default function AdminCustomerDetail() {
 
   function openEditDetails() {
     if (!customer) return;
+    setEditName(customer.name || "");
+    setEditEmail(customer.email || "");
+    setEditPhone(customer.phone || "");
     setEditAadhar(customer.aadharNumber || "");
     setEditPan(customer.panNumber || "");
     setEditAccountHolder(customer.accountHolderName || "");
@@ -288,6 +303,14 @@ export default function AdminCustomerDetail() {
     setEditDistrict(customer.district || "");
     setEditState(customer.state || "");
     setEditPincode(customer.pincode || "");
+    setEditElectricityBoard(customer.electricityBoard || "");
+    setEditSanctionedLoad(customer.sanctionedLoad || "");
+    setEditAvgBill(customer.avgMonthlyBill ? String(customer.avgMonthlyBill) : "");
+    setEditRoofType(customer.roofType || "");
+    setEditRoofArea(customer.roofArea ? String(customer.roofArea) : "");
+    setEditPanelType(customer.panelType || "dcr");
+    setEditCustomerType(customer.customerType || "residential");
+    setEditInverterType(customer.inverterType || "hybrid");
     setShowEditDetails(true);
   }
 
@@ -1332,30 +1355,25 @@ export default function AdminCustomerDetail() {
       </Dialog>
 
       <Dialog open={showEditDetails} onOpenChange={setShowEditDetails}>
-        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Customer Details</DialogTitle>
-            <DialogDescription>Update details for {customer.name}</DialogDescription>
+            <DialogDescription>Update all registration details for {customer.name}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Plant & Consumer Details</p>
-            <div className="grid grid-cols-2 gap-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Personal Information</p>
+            <div className="grid grid-cols-3 gap-3">
               <div className="space-y-2">
-                <Label>Plant Capacity (kW)</Label>
-                <Select value={editCapacity || undefined} onValueChange={setEditCapacity}>
-                  <SelectTrigger data-testid="select-edit-capacity">
-                    <SelectValue placeholder="Select capacity" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[1,2,3,4,5,6,7,8,9,10].map(n => (
-                      <SelectItem key={n} value={String(n)}>{n} kW</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Full Name</Label>
+                <Input placeholder="Customer name" value={editName} onChange={(e) => setEditName(e.target.value)} data-testid="input-edit-name" />
               </div>
               <div className="space-y-2">
-                <Label>Consumer Number</Label>
-                <Input placeholder="Consumer number" value={editConsumerNumber} onChange={(e) => setEditConsumerNumber(e.target.value)} data-testid="input-edit-consumer-number" />
+                <Label>Phone</Label>
+                <Input placeholder="10-digit phone" maxLength={10} value={editPhone} onChange={(e) => setEditPhone(e.target.value.replace(/\D/g, ''))} data-testid="input-edit-phone" />
+              </div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input placeholder="email@example.com" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} data-testid="input-edit-email" />
               </div>
             </div>
 
@@ -1377,6 +1395,101 @@ export default function AdminCustomerDetail() {
               <div className="space-y-2">
                 <Label>Pincode</Label>
                 <Input placeholder="6-digit" maxLength={6} value={editPincode} onChange={(e) => setEditPincode(e.target.value.replace(/\D/g, ''))} data-testid="input-edit-pincode" />
+              </div>
+            </div>
+
+            <Separator />
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Electricity Details</p>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <Label>Electricity Board</Label>
+                <Input placeholder="e.g., BSPHCL" value={editElectricityBoard} onChange={(e) => setEditElectricityBoard(e.target.value)} data-testid="input-edit-electricity-board" />
+              </div>
+              <div className="space-y-2">
+                <Label>Consumer Number</Label>
+                <Input placeholder="Consumer number" value={editConsumerNumber} onChange={(e) => setEditConsumerNumber(e.target.value)} data-testid="input-edit-consumer-number" />
+              </div>
+              <div className="space-y-2">
+                <Label>Sanctioned Load (kW)</Label>
+                <Input placeholder="e.g., 3" value={editSanctionedLoad} onChange={(e) => setEditSanctionedLoad(e.target.value)} data-testid="input-edit-sanctioned-load" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Avg Monthly Bill (Rs)</Label>
+              <Input placeholder="e.g., 2500" value={editAvgBill} onChange={(e) => setEditAvgBill(e.target.value.replace(/\D/g, ''))} data-testid="input-edit-avg-bill" />
+            </div>
+
+            <Separator />
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Solar Installation Details</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Customer Type</Label>
+                <Select value={editCustomerType || undefined} onValueChange={setEditCustomerType}>
+                  <SelectTrigger data-testid="select-edit-customer-type">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="residential">Residential</SelectItem>
+                    <SelectItem value="commercial">Commercial</SelectItem>
+                    <SelectItem value="industrial">Industrial</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Plant Capacity (kW)</Label>
+                <Select value={editCapacity || undefined} onValueChange={setEditCapacity}>
+                  <SelectTrigger data-testid="select-edit-capacity">
+                    <SelectValue placeholder="Select capacity" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                      <SelectItem key={n} value={String(n)}>{n} kW</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Panel Type</Label>
+                <Select value={editPanelType || undefined} onValueChange={setEditPanelType}>
+                  <SelectTrigger data-testid="select-edit-panel-type">
+                    <SelectValue placeholder="Select panel type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="dcr">DCR Panel (Domestic Content)</SelectItem>
+                    <SelectItem value="non_dcr">Non-DCR Panel</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Inverter Type</Label>
+                <Select value={editInverterType || undefined} onValueChange={setEditInverterType}>
+                  <SelectTrigger data-testid="select-edit-inverter-type">
+                    <SelectValue placeholder="Select inverter type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="hybrid">3-in-1 Hybrid</SelectItem>
+                    <SelectItem value="ongrid">Ongrid</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Roof Type</Label>
+                <Select value={editRoofType || undefined} onValueChange={setEditRoofType}>
+                  <SelectTrigger data-testid="select-edit-roof-type">
+                    <SelectValue placeholder="Select roof type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roofTypes.map(rt => (
+                      <SelectItem key={rt} value={rt}>{rt}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Roof Area (sq ft)</Label>
+                <Input placeholder="e.g., 500" value={editRoofArea} onChange={(e) => setEditRoofArea(e.target.value.replace(/\D/g, ''))} data-testid="input-edit-roof-area" />
               </div>
             </div>
 
@@ -1435,6 +1548,25 @@ export default function AdminCustomerDetail() {
             <Button variant="outline" onClick={() => setShowEditDetails(false)}>Cancel</Button>
             <Button
               onClick={() => updateDetailsMutation.mutate({
+                name: editName,
+                email: editEmail,
+                phone: editPhone,
+                address: editAddress,
+                district: editDistrict,
+                state: editState,
+                pincode: editPincode,
+                electricityBoard: editElectricityBoard,
+                consumerNumber: editConsumerNumber,
+                sanctionedLoad: editSanctionedLoad,
+                avgMonthlyBill: editAvgBill,
+                roofType: editRoofType,
+                roofArea: editRoofArea,
+                panelType: editPanelType,
+                customerType: editCustomerType,
+                inverterType: editInverterType,
+                proposedCapacity: editCapacity,
+                latitude: editLatitude,
+                longitude: editLongitude,
                 aadharNumber: editAadhar,
                 panNumber: editPan,
                 accountHolderName: editAccountHolder,
@@ -1442,14 +1574,6 @@ export default function AdminCustomerDetail() {
                 ifscCode: editIfsc,
                 bankName: editBankName,
                 upiId: editUpi,
-                proposedCapacity: editCapacity,
-                consumerNumber: editConsumerNumber,
-                latitude: editLatitude,
-                longitude: editLongitude,
-                address: editAddress,
-                district: editDistrict,
-                state: editState,
-                pincode: editPincode,
               })}
               disabled={updateDetailsMutation.isPending}
               data-testid="button-save-details"
