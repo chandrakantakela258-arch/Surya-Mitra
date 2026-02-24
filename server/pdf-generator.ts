@@ -1157,16 +1157,13 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   // Signature blocks - side by side
   const sigColWidth = contentWidth / 2 - 10;
   const rightCol = margin + sigColWidth + 20;
-  
-  // 1st Party (Left)
-  page.drawText('1st Party', { x: margin, y, size: 10, font: fontBold, color: black });
-  page.drawText('2nd Party', { x: rightCol, y, size: 10, font: fontBold, color: black });
-  y -= lineHeight + 2;
-  
-  page.drawText('WITNESS', { x: margin, y, size: 10, font: fontBold, color: black });
-  page.drawText('WITNESS', { x: rightCol, y, size: 10, font: fontBold, color: black });
-  y -= lineHeight + 4;
-  
+
+  // 1st Party / 2nd Party headers
+  page.drawText('1st Party', { x: margin, y, size: 11, font: fontBold, color: black });
+  page.drawText('2nd Party', { x: rightCol, y, size: 11, font: fontBold, color: black });
+  y -= lineHeight + 6;
+
+  // Name of Consumer / Vendor
   page.drawText('Name of Consumer: ', { x: margin, y, size: 9, font, color: black });
   const consLabelW = font.widthOfTextAtSize('Name of Consumer: ', 9);
   page.drawText(data.customerName, { x: margin + consLabelW, y, size: 10, font: fontBold, color: black });
@@ -1174,19 +1171,28 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   page.drawText('Name of Vendor: ', { x: rightCol, y, size: 9, font, color: black });
   const vendLabelW = font.widthOfTextAtSize('Name of Vendor: ', 9);
   page.drawText(data.vendorName, { x: rightCol + vendLabelW, y, size: 10, font: fontBold, color: black });
-  y -= lineHeight;
-  
+  y -= lineHeight + 2;
+
+  // Address lines
   const leftAddrLines = wrapText(`Address: ${data.customerAddress}`, font, 8.5, sigColWidth - 5);
   const rightAddrLines = wrapText(`Address: ${data.vendorAddress}`, font, 8.5, sigColWidth - 5);
   const maxLines = Math.max(leftAddrLines.length, rightAddrLines.length);
-  
+
   for (let i = 0; i < maxLines; i++) {
     if (leftAddrLines[i]) page.drawText(leftAddrLines[i], { x: margin, y, size: 8.5, font, color: black });
     if (rightAddrLines[i]) page.drawText(rightAddrLines[i], { x: rightCol, y, size: 8.5, font, color: black });
     y -= 12;
   }
-  
-  y -= 20;
+
+  // Gap before WITNESS
+  y -= 40;
+
+  // WITNESS headers
+  page.drawText('WITNESS', { x: margin, y, size: 11, font: fontBold, color: black });
+  page.drawText('WITNESS', { x: rightCol, y, size: 11, font: fontBold, color: black });
+  y -= 40;
+
+  // Dotted signature lines
   page.drawText('1. ......................................', { x: margin, y, size: 9, font, color: black });
   page.drawText('......................................', { x: rightCol, y, size: 9, font, color: black });
   
