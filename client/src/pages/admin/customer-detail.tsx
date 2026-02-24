@@ -56,6 +56,14 @@ export default function AdminCustomerDetail() {
   const [editIfsc, setEditIfsc] = useState("");
   const [editBankName, setEditBankName] = useState("");
   const [editUpi, setEditUpi] = useState("");
+  const [editCapacity, setEditCapacity] = useState("");
+  const [editConsumerNumber, setEditConsumerNumber] = useState("");
+  const [editLatitude, setEditLatitude] = useState("");
+  const [editLongitude, setEditLongitude] = useState("");
+  const [editAddress, setEditAddress] = useState("");
+  const [editDistrict, setEditDistrict] = useState("");
+  const [editState, setEditState] = useState("");
+  const [editPincode, setEditPincode] = useState("");
   const [showAgreementForm, setShowAgreementForm] = useState(false);
   const [agreementData, setAgreementData] = useState({
     dateOfAgreement: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" }),
@@ -272,6 +280,14 @@ export default function AdminCustomerDetail() {
     setEditIfsc(customer.ifscCode || "");
     setEditBankName(customer.bankName || "");
     setEditUpi(customer.upiId || "");
+    setEditCapacity(customer.proposedCapacity || "");
+    setEditConsumerNumber(customer.consumerNumber || "");
+    setEditLatitude(customer.latitude || "");
+    setEditLongitude(customer.longitude || "");
+    setEditAddress(customer.address || "");
+    setEditDistrict(customer.district || "");
+    setEditState(customer.state || "");
+    setEditPincode(customer.pincode || "");
     setShowEditDetails(true);
   }
 
@@ -1316,21 +1332,82 @@ export default function AdminCustomerDetail() {
       </Dialog>
 
       <Dialog open={showEditDetails} onOpenChange={setShowEditDetails}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Customer Details</DialogTitle>
-            <DialogDescription>Update Aadhaar, PAN, and Bank details for {customer.name}</DialogDescription>
+            <DialogDescription>Update details for {customer.name}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-orange-600 dark:text-orange-400 font-semibold">Aadhaar Number</Label>
-              <Input placeholder="12-digit Aadhaar number" maxLength={12} value={editAadhar} onChange={(e) => setEditAadhar(e.target.value.replace(/\D/g, ''))} data-testid="input-edit-aadhar" />
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Plant & Consumer Details</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Plant Capacity (kW)</Label>
+                <Select value={editCapacity || undefined} onValueChange={setEditCapacity}>
+                  <SelectTrigger data-testid="select-edit-capacity">
+                    <SelectValue placeholder="Select capacity" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                      <SelectItem key={n} value={String(n)}>{n} kW</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Consumer Number</Label>
+                <Input placeholder="Consumer number" value={editConsumerNumber} onChange={(e) => setEditConsumerNumber(e.target.value)} data-testid="input-edit-consumer-number" />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label className="text-orange-600 dark:text-orange-400 font-semibold">PAN Number</Label>
-              <Input placeholder="e.g., ABCDE1234F" maxLength={10} value={editPan} onChange={(e) => setEditPan(e.target.value.toUpperCase())} data-testid="input-edit-pan" />
-            </div>
+
             <Separator />
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Address</p>
+            <div className="space-y-2">
+              <Label>Address</Label>
+              <Textarea placeholder="Full address" rows={2} value={editAddress} onChange={(e) => setEditAddress(e.target.value)} data-testid="input-edit-address" />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <Label>District</Label>
+                <Input placeholder="District" value={editDistrict} onChange={(e) => setEditDistrict(e.target.value)} data-testid="input-edit-district" />
+              </div>
+              <div className="space-y-2">
+                <Label>State</Label>
+                <Input placeholder="State" value={editState} onChange={(e) => setEditState(e.target.value)} data-testid="input-edit-state" />
+              </div>
+              <div className="space-y-2">
+                <Label>Pincode</Label>
+                <Input placeholder="6-digit" maxLength={6} value={editPincode} onChange={(e) => setEditPincode(e.target.value.replace(/\D/g, ''))} data-testid="input-edit-pincode" />
+              </div>
+            </div>
+
+            <Separator />
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Geo Location</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Latitude</Label>
+                <Input placeholder="e.g., 25.6093" value={editLatitude} onChange={(e) => setEditLatitude(e.target.value)} data-testid="input-edit-latitude" />
+              </div>
+              <div className="space-y-2">
+                <Label>Longitude</Label>
+                <Input placeholder="e.g., 85.1376" value={editLongitude} onChange={(e) => setEditLongitude(e.target.value)} data-testid="input-edit-longitude" />
+              </div>
+            </div>
+
+            <Separator />
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Identity Documents</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label className="text-orange-600 dark:text-orange-400 font-semibold">Aadhaar Number</Label>
+                <Input placeholder="12-digit Aadhaar number" maxLength={12} value={editAadhar} onChange={(e) => setEditAadhar(e.target.value.replace(/\D/g, ''))} data-testid="input-edit-aadhar" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-orange-600 dark:text-orange-400 font-semibold">PAN Number</Label>
+                <Input placeholder="e.g., ABCDE1234F" maxLength={10} value={editPan} onChange={(e) => setEditPan(e.target.value.toUpperCase())} data-testid="input-edit-pan" />
+              </div>
+            </div>
+
+            <Separator />
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Bank Details</p>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Account Holder</Label>
@@ -1365,6 +1442,14 @@ export default function AdminCustomerDetail() {
                 ifscCode: editIfsc,
                 bankName: editBankName,
                 upiId: editUpi,
+                proposedCapacity: editCapacity,
+                consumerNumber: editConsumerNumber,
+                latitude: editLatitude,
+                longitude: editLongitude,
+                address: editAddress,
+                district: editDistrict,
+                state: editState,
+                pincode: editPincode,
               })}
               disabled={updateDetailsMutation.isPending}
               data-testid="button-save-details"

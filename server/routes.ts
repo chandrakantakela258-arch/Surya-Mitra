@@ -2939,7 +2939,7 @@ export async function registerRoutes(
   app.patch("/api/admin/customers/:id/details", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
-      const { aadharNumber, panNumber, accountHolderName, accountNumber, ifscCode, bankName, upiId } = req.body;
+      const { aadharNumber, panNumber, accountHolderName, accountNumber, ifscCode, bankName, upiId, proposedCapacity, consumerNumber, latitude, longitude, address, district, state, pincode } = req.body;
       const updateData: any = {};
       if (aadharNumber !== undefined) updateData.aadharNumber = aadharNumber || null;
       if (panNumber !== undefined) updateData.panNumber = panNumber || null;
@@ -2948,6 +2948,14 @@ export async function registerRoutes(
       if (ifscCode !== undefined) updateData.ifscCode = ifscCode || null;
       if (bankName !== undefined) updateData.bankName = bankName || null;
       if (upiId !== undefined) updateData.upiId = upiId || null;
+      if (proposedCapacity !== undefined) updateData.proposedCapacity = proposedCapacity || null;
+      if (consumerNumber !== undefined) updateData.consumerNumber = consumerNumber || null;
+      if (latitude !== undefined) updateData.latitude = latitude || null;
+      if (longitude !== undefined) updateData.longitude = longitude || null;
+      if (address !== undefined) updateData.address = address || null;
+      if (district !== undefined) updateData.district = district || null;
+      if (state !== undefined) updateData.state = state || null;
+      if (pincode !== undefined) updateData.pincode = pincode || null;
 
       const customer = await storage.updateCustomer(id, updateData);
       if (!customer) {
