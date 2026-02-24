@@ -1167,8 +1167,13 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   page.drawText('WITNESS', { x: rightCol, y, size: 10, font: fontBold, color: black });
   y -= lineHeight + 4;
   
-  page.drawText(`Name of Consumer: ${data.customerName}`, { x: margin, y, size: 9, font, color: black });
-  page.drawText(`Name of Vendor: ${data.vendorName}`, { x: rightCol, y, size: 9, font, color: black });
+  page.drawText('Name of Consumer: ', { x: margin, y, size: 9, font, color: black });
+  const consLabelW = font.widthOfTextAtSize('Name of Consumer: ', 9);
+  page.drawText(data.customerName, { x: margin + consLabelW, y, size: 10, font: fontBold, color: black });
+
+  page.drawText('Name of Vendor: ', { x: rightCol, y, size: 9, font, color: black });
+  const vendLabelW = font.widthOfTextAtSize('Name of Vendor: ', 9);
+  page.drawText(data.vendorName, { x: rightCol + vendLabelW, y, size: 10, font: fontBold, color: black });
   y -= lineHeight;
   
   const leftAddrLines = wrapText(`Address: ${data.customerAddress}`, font, 8.5, sigColWidth - 5);
