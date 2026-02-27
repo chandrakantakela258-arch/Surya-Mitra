@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MessageCircle, X, ChevronRight, Share2, Copy, Check } from 'lucide-react';
+import { MessageCircle, X, ChevronRight, Share2, Copy, Check, Sun, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 
@@ -37,7 +37,7 @@ export function WhatsAppWidget() {
             </button>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                <MessageCircle size={24} className="text-white" />
+                <Sun size={24} className="text-white" />
               </div>
               <div>
                 <h3 className="font-bold text-lg leading-tight">PM Surya Ghar Solar Bot</h3>
@@ -93,7 +93,10 @@ export function WhatsAppWidget() {
         {isOpen ? (
           <X size={28} className="transform transition-transform rotate-90 scale-110 group-hover:rotate-180" />
         ) : (
-          <MessageCircle size={32} className="transform transition-transform group-hover:-translate-y-0.5 group-hover:scale-110" />
+          <div className="relative">
+            <Sun size={34} className="transform transition-transform group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:rotate-90 duration-500" />
+            <Sparkles size={14} className="absolute -top-1 -right-2 text-yellow-300 animate-pulse" />
+          </div>
         )}
         
         {/* Notification Badge */}
