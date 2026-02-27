@@ -9,7 +9,7 @@ export function WhatsAppWidget() {
   const { toast } = useToast();
 
   // Replace with actual WhatsApp Bot Number
-  const botNumber = "919999999999"; 
+  const botNumber = "919801005212"; 
   const waLink = `https://wa.me/${botNumber}?text=Hi`;
 
   const handleCopyLink = () => {
