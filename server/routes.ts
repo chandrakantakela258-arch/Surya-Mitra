@@ -9818,6 +9818,29 @@ export async function registerRoutes(
     }
   });
 
+  // Public route for web widget to save/update a lead
+  app.post('/api/public/web-lead', async (req, res) => {
+    try {
+      const { sessionId, ...data } = req.body;
+      if (!sessionId) return res.status(400).json({ error: "sessionId required" });
+
+      const { db } = require('./db');
+      const { whatsappLeads } = require('@shared/schema');
+      const { eq } = require('drizzle-orm');
+
+      const existing = await db.select().from(whatsappLeads).where(eq(whatsappLeads.phone, `web_${sessionId}`)).limit(1);
+      if (existing.length === 0) {
+        await db.insert(whatsappLeads).values({ phone: `web_${sessionId}`, source: 'web_widget', ...data });
+      } else {
+        await db.update(whatsappLeads).set({ ...data, updatedAt: new Date() }).where(eq(whatsappLeads.phone, `web_${sessionId}`));
+      }
+      res.json({ success: true });
+    } catch(err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+
   // WhatsApp Settings via Admin Panel
   app.get('/api/admin/whatsapp-settings', requireAuth, async (req, res) => {
     try {
