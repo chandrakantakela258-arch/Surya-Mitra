@@ -147,11 +147,13 @@ export default function CrmDashboard() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[200px]">Customer</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Business/Load</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Location Details</TableHead>
+                  <TableHead>Capacity & Roof</TableHead>
+                  <TableHead>Business & Meter</TableHead>
+                  <TableHead>Billing Profile</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead className="text-right">Captured On</TableHead>
                 </TableRow>
               </TableHeader>
@@ -162,58 +164,71 @@ export default function CrmDashboard() {
                   </TableRow>
                 ) : !leads || leads.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                       No leads captured yet.
                     </TableCell>
                   </TableRow>
                 ) : (
                   leads.map((lead: any) => (
                     <TableRow key={lead.id} className="hover:bg-muted/50">
-                      <TableCell className="font-medium">
+                      <TableCell className="font-medium whitespace-nowrap">
                         {lead.name || 'Unknown'}
-                        {lead.proposalStatus && (
-                          <div className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                            {lead.proposalStatus}
-                          </div>
-                        )}
+                        {lead.email && <div className="text-xs text-muted-foreground font-normal">{lead.email}</div>}
                       </TableCell>
                       <TableCell>
-                        <div className="space-y-1 text-sm">
-                          <div className="flex items-center text-foreground">
-                            {/* wa.me link directly to the user */}
-                            <a href={`https://wa.me/${lead.phone.replace(/\\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="hover:underline text-primary flex items-center">
-                              {lead.phone}
-                            </a>
-                          </div>
-                          {lead.email && <div className="text-xs text-muted-foreground">{lead.email}</div>}
-                        </div>
+                        <a href={`https://wa.me/${lead.phone.replace(/\\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="hover:underline text-primary flex items-center whitespace-nowrap">
+                          {lead.phone}
+                        </a>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          <div>{lead.city || '-'}</div>
+                          <div>{lead.city ? `${lead.city}, ` : ''}{lead.district || ''}</div>
                           <div className="text-xs text-muted-foreground">
-                            {lead.district ? `${lead.district}, ` : ''}{lead.state} {lead.pincode}
+                            {lead.state} {lead.pincode}
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          <div className="font-semibold">{lead.plantCapacity || '- kW'}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {lead.businessType || lead.meterType || 'N/A'}
+                          <div className="font-semibold text-primary">{lead.plantCapacity || '- kW'}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            Roof Space: {lead.roofSpace || 'N/A'}
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-center">
-                        <Badge 
-                          variant={
-                            lead.status === 'Closed' ? 'destructive' :
-                            lead.status === 'New' ? 'outline' : 'default'
-                          }
-                          className={lead.status !== 'Closed' && lead.status !== 'New' ? 'bg-green-100 text-green-800 hover:bg-green-100' : ''}
-                        >
-                          {lead.status || 'Active'}
-                        </Badge>
+                      <TableCell>
+                        <div className="text-sm">
+                          <div>{lead.businessType || 'N/A'}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Meter: {lead.meterType || 'N/A'}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          <div>{lead.monthlyBilling || 'N/A'}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {lead.electricityBoard || 'N/A'} {lead.consumerNumber ? `(${lead.consumerNumber})` : ''}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1 items-start">
+                          <Badge 
+                            variant={
+                              lead.status === 'Closed' ? 'destructive' :
+                              lead.status === 'New' ? 'outline' : 'default'
+                            }
+                            className={lead.status !== 'Closed' && lead.status !== 'New' ? 'bg-green-100 text-green-800 hover:bg-green-100 shadow-none' : 'shadow-none'}
+                          >
+                            {lead.status || 'Active'}
+                          </Badge>
+                          {lead.proposalStatus && (
+                            <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded uppercase tracking-wider font-medium">
+                              {lead.proposalStatus}
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right text-sm text-muted-foreground whitespace-nowrap">
                         {lead.createdAt ? format(new Date(lead.createdAt), 'MMM d, yyyy') : '-'}
