@@ -9854,8 +9854,10 @@ export async function registerRoutes(
 
     if (mode === 'subscribe' && token === verifyToken) {
       console.log('Webhook Verification Successful!');
+      // Meta strictly expects the exact challenge string as the response body
       res.status(200).send(challenge);
     } else {
+      console.error(`Webhook verification failed. Expected token: ${verifyToken}, Received: ${token}`);
       res.sendStatus(403);
     }
   });
