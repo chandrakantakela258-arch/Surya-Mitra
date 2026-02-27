@@ -60,7 +60,7 @@ export function WhatsAppWidget() {
   const [lang, setLang] = useState<'en' | 'hi'>('en');
   const [inputText, setInputText] = useState('');
   const [copied, setCopied] = useState(false);
-  const [botNumber, setBotNumber] = useState('15551718841');
+  const [botNumber, setBotNumber] = useState('919211018779');
   const [selectedState, setSelectedState] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [meterType, setMeterType] = useState('');

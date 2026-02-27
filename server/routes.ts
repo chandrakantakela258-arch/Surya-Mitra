@@ -9811,7 +9811,7 @@ export async function registerRoutes(
   // Public WhatsApp Config
   app.get('/api/public/whatsapp-config', async (req, res) => {
     try {
-      const botNumber = await storage.getAdminSetting('WHATSAPP_BOT_NUMBER') || '15551718841';
+      const botNumber = await storage.getAdminSetting('WHATSAPP_BOT_NUMBER') || '919211018779';
       res.json({ botNumber });
     } catch(err) {
       res.status(500).json({ error: "Failed to fetch config" });
