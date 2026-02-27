@@ -9808,13 +9808,51 @@ export async function registerRoutes(
   });
 
   // ==================== WHATSAPP CHATBOT & CRM ROUTES ====================
+  // Public WhatsApp Config
+  app.get('/api/public/whatsapp-config', async (req, res) => {
+    try {
+      const botNumber = await storage.getAdminSetting('WHATSAPP_BOT_NUMBER') || '919801005212';
+      res.json({ botNumber });
+    } catch(err) {
+      res.status(500).json({ error: "Failed to fetch config" });
+    }
+  });
+
+  // WhatsApp Settings via Admin Panel
+  app.get('/api/admin/whatsapp-settings', requireAuth, async (req, res) => {
+    try {
+      const keys = ['VERIFY_TOKEN', 'META_ACCESS_TOKEN', 'PHONE_NUMBER_ID', 'WHATSAPP_BOT_NUMBER'];
+      const settings: Record<string, string> = {};
+      for (const key of keys) {
+        settings[key] = await storage.getAdminSetting(key) || '';
+      }
+      res.json(settings);
+    } catch(err) {
+      res.status(500).json({ error: "Failed to fetch settings" });
+    }
+  });
+
+  app.post('/api/admin/whatsapp-settings', requireAuth, async (req, res) => {
+    try {
+      const settings = req.body;
+      for (const [key, value] of Object.entries(settings)) {
+        await storage.setAdminSetting(key, String(value));
+      }
+      res.json({ success: true });
+    } catch(err) {
+      res.status(500).json({ error: "Failed to save settings" });
+    }
+  });
+
   // Verify Meta Webhook (GET request)
-  app.get('/api/webhook', (req, res) => {
+  app.get('/api/webhook', async (req, res) => {
     const mode = req.query['hub.mode'];
     const token = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
 
-    if (mode === 'subscribe' && token === process.env.VERIFY_TOKEN) {
+    const verifyToken = await storage.getAdminSetting('VERIFY_TOKEN') || process.env.VERIFY_TOKEN;
+
+    if (mode === 'subscribe' && token === verifyToken) {
       console.log('Webhook Verification Successful!');
       res.status(200).send(challenge);
     } else {

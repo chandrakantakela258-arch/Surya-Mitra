@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { db } from './db';
+import { storage } from './storage';
 import { whatsappLeads } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 
@@ -52,12 +53,20 @@ const sendWhatsAppMessage = async (to: string, text: string, buttons: string[] |
   }
 
   try {
+    const phoneNumberId = await storage.getAdminSetting('PHONE_NUMBER_ID') || process.env.PHONE_NUMBER_ID;
+    const accessToken = await storage.getAdminSetting('META_ACCESS_TOKEN') || process.env.META_ACCESS_TOKEN;
+
+    if (!phoneNumberId || !accessToken) {
+      console.warn("Missing Meta WhatsApp API credentials in Admin Settings or Environment Variables.");
+      return;
+    }
+
     await axios.post(
-      `https://graph.facebook.com/v23.0/${process.env.PHONE_NUMBER_ID}/messages`,
+      `https://graph.facebook.com/v23.0/${phoneNumberId}/messages`,
       messageData,
       {
         headers: {
-          'Authorization': `Bearer ${process.env.META_ACCESS_TOKEN}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         }
       }

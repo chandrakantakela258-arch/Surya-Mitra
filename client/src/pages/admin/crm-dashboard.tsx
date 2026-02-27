@@ -1,15 +1,59 @@
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Download, Users, RefreshCw, MessageSquare, Sun, FileText, CheckCircle, Clock } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { Download, Users, RefreshCw, MessageSquare, Sun, FileText, CheckCircle, Clock, Settings, Save } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 
 export default function CrmDashboard() {
+  const { toast } = useToast();
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsForm, setSettingsForm] = useState({
+    VERIFY_TOKEN: '',
+    META_ACCESS_TOKEN: '',
+    PHONE_NUMBER_ID: '',
+    WHATSAPP_BOT_NUMBER: ''
+  });
+
   const { data: leads = [], isLoading, refetch, isFetching } = useQuery<any[]>({
     queryKey: ['/api/leads'],
+  });
+
+  const { data: settingsData } = useQuery({
+    queryKey: ['/api/admin/whatsapp-settings'],
+  });
+
+  useEffect(() => {
+    if (settingsData) {
+      setSettingsForm({
+        VERIFY_TOKEN: settingsData.VERIFY_TOKEN || '',
+        META_ACCESS_TOKEN: settingsData.META_ACCESS_TOKEN || '',
+        PHONE_NUMBER_ID: settingsData.PHONE_NUMBER_ID || '',
+        WHATSAPP_BOT_NUMBER: settingsData.WHATSAPP_BOT_NUMBER || ''
+      });
+    }
+  }, [settingsData]);
+
+  const saveSettingsMutation = useMutation({
+    mutationFn: async (data: typeof settingsForm) => {
+      const res = await apiRequest('POST', '/api/admin/whatsapp-settings', data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/whatsapp-settings'] });
+      setIsSettingsOpen(false);
+      toast({ title: 'Settings Saved', description: 'Meta API configuration updated successfully.' });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to update settings.', variant: 'destructive' });
+    }
   });
 
   const exportToCsv = () => {
@@ -78,6 +122,64 @@ export default function CrmDashboard() {
         </div>
         
         <div className="flex gap-2">
+          <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Settings className="h-4 w-4" />
+                <span className="hidden sm:inline">Settings</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[450px]">
+              <DialogHeader>
+                <DialogTitle>WhatsApp API Configuration</DialogTitle>
+                <DialogDescription>Setup your server connection to Meta's WhatsApp Cloud API.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>Webhook Verify Token</Label>
+                  <Input 
+                    type="password"
+                    placeholder="Enter a custom secure token"
+                    value={settingsForm.VERIFY_TOKEN} 
+                    onChange={e => setSettingsForm(prev => ({...prev, VERIFY_TOKEN: e.target.value}))} 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>System User Access Token</Label>
+                  <Input 
+                    type="password"
+                    placeholder="EAAG... temporary or permanent token"
+                    value={settingsForm.META_ACCESS_TOKEN} 
+                    onChange={e => setSettingsForm(prev => ({...prev, META_ACCESS_TOKEN: e.target.value}))} 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Phone Number ID</Label>
+                  <Input 
+                    placeholder="e.g. 5245812932..."
+                    value={settingsForm.PHONE_NUMBER_ID} 
+                    onChange={e => setSettingsForm(prev => ({...prev, PHONE_NUMBER_ID: e.target.value}))} 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Live Bot Phone Number (For Links)</Label>
+                  <Input 
+                    placeholder="e.g. 919801005212"
+                    value={settingsForm.WHATSAPP_BOT_NUMBER} 
+                    onChange={e => setSettingsForm(prev => ({...prev, WHATSAPP_BOT_NUMBER: e.target.value}))} 
+                  />
+                </div>
+                <Button 
+                  className="w-full mt-2" 
+                  onClick={() => saveSettingsMutation.mutate(settingsForm)}
+                  disabled={saveSettingsMutation.isPending}
+                >
+                  {saveSettingsMutation.isPending ? "Saving..." : "Save Configuration"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+          
           <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw className={`mr-2 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
             Refresh
