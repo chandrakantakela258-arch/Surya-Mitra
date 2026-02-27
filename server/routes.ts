@@ -8,7 +8,9 @@ import path from "path";
 import fs from "fs";
 import { pool } from "./db";
 import { storage, generatePartnerCode, generateCustomerCode } from "./storage";
-import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSchema, updateFeedbackStatusSchema, inverterCommission, insertVendorSchema, vendorStates, insertSiteSurveySchema, insertMeterInstallationReportSchema, insertPortalSubmissionReportSchema, insertRemainingPaymentReportSchema, insertSubsidyApplicationReportSchema, insertSubsidyDisbursementReportSchema, insertProposalLeadSchema, indianStates } from "@shared/schema";
+import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSchema, updateFeedbackStatusSchema, inverterCommission, insertVendorSchema, vendorStates, insertSiteSurveySchema, insertMeterInstallationReportSchema, insertPortalSubmissionReportSchema, insertRemainingPaymentReportSchema, insertSubsidyApplicationReportSchema, insertSubsidyDisbursementReportSchema, insertProposalLeadSchema, indianStates, whatsappLeads } from "@shared/schema";
+import { db } from "./db";
+import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
 import { notificationService } from "./notification-service";
 import { calculateLeadScore, type LeadScoreResult } from "./lead-scoring-service";
@@ -9824,10 +9826,6 @@ export async function registerRoutes(
       const { sessionId, ...data } = req.body;
       if (!sessionId) return res.status(400).json({ error: "sessionId required" });
 
-      const { db } = require('./db');
-      const { whatsappLeads } = require('@shared/schema');
-      const { eq } = require('drizzle-orm');
-
       const existing = await db.select().from(whatsappLeads).where(eq(whatsappLeads.phone, `web_${sessionId}`)).limit(1);
       if (existing.length === 0) {
         await db.insert(whatsappLeads).values({ phone: `web_${sessionId}`, ...data });
@@ -9836,6 +9834,7 @@ export async function registerRoutes(
       }
       res.json({ success: true });
     } catch(err: any) {
+      console.error('[Web Lead Error]', err.message);
       res.status(500).json({ error: err.message });
     }
   });
@@ -9920,13 +9919,10 @@ export async function registerRoutes(
   // Admin CRM API
   app.get('/api/leads', requireAuth, async (req, res) => {
     try {
-      const { db } = require('./db');
-      const { whatsappLeads } = require('@shared/schema');
-      const { desc } = require('drizzle-orm');
-      
       const leads = await db.select().from(whatsappLeads).orderBy(desc(whatsappLeads.createdAt));
       res.json(leads);
     } catch (error: any) {
+      console.error('[Leads API Error]', error.message);
       res.status(500).json({ error: error.message });
     }
   });
