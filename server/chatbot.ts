@@ -7,6 +7,11 @@ import { eq } from 'drizzle-orm';
 // Translations
 const t = (lang: string, en: string, hi: string) => lang === 'hi' ? hi : en;
 
+// Capacity options by type
+const RESIDENTIAL_PLANTS = ["3kW On-Grid", "3kW 3-in-1 Hybrid", "5kW 3-in-1 Hybrid", "6kW On-Grid", "6kW 3-in-1 Hybrid", "6.5kW On-Grid"];
+const BIKE_SHOWROOM_PLANTS = ["3kW On-Grid", "3kW 3-in-1 Hybrid"];
+const GENERAL_CAPACITIES = ["2 kW", "3 kW", "6 kW", "15 kW", "25 kW", "50 kW", "100 kW", "500 kW", "1000 kW"];
+
 // Send WhatsApp text or interactive message
 const sendWhatsAppMessage = async (to: string, text: string, buttons: string[] | null = null, options: string[] | null = null) => {
   let messageData: any = {
@@ -16,14 +21,16 @@ const sendWhatsAppMessage = async (to: string, text: string, buttons: string[] |
   };
 
   if (buttons) {
+    // Meta limits buttons to 3 max, so truncate silently
+    const safeButtons = buttons.slice(0, 3);
     messageData.type = "interactive";
     messageData.interactive = {
       type: "button",
       body: { text: text },
       action: {
-        buttons: buttons.map((btn, index) => ({
+        buttons: safeButtons.map((btn, index) => ({
           type: "reply",
-          reply: { id: `btn_${index}`, title: btn }
+          reply: { id: `btn_${index}`, title: btn.substring(0, 20) }
         }))
       }
     };
@@ -41,7 +48,7 @@ const sendWhatsAppMessage = async (to: string, text: string, buttons: string[] |
             title: "Options List",
             rows: options.map((opt, index) => ({
               id: `opt_${index}`,
-              title: opt.substring(0, 24), // Meta restricts title length
+              title: opt.substring(0, 24),
             }))
           }
         ]
@@ -83,62 +90,56 @@ const getLead = async (phone: string) => {
 
 const createOrUpdateLead = async (phone: string, data: Partial<typeof whatsappLeads.$inferInsert>) => {
   const existing = await getLead(phone);
-  
   if (!existing) {
-    // Create new
     await db.insert(whatsappLeads).values({ ...data, phone });
   } else {
-    // Update
     data.updatedAt = new Date();
     await db.update(whatsappLeads).set(data).where(eq(whatsappLeads.phone, phone));
   }
 };
 
 export const processMessage = async (phone: string, text: string) => {
-  // Fetch user state
   let lead = await getLead(phone);
-  
+
   if (!lead) {
-      // New user, push to DB and send Language prompt
-      await createOrUpdateLead(phone, { currentStep: "0" });
-      await sendWhatsAppMessage(phone, 'Please select your preferred language / कृपया अपनी पसंदीदा भाषा चुनें:', ['English', 'हिन्दी']);
-      return;
+    await createOrUpdateLead(phone, { currentStep: "0" });
+    await sendWhatsAppMessage(phone, 'Please select your preferred language / कृपया अपनी पसंदीदा भाषा चुनें:', ['English', 'हिन्दी']);
+    return;
   }
 
-  let stepStr = lead.currentStep || "0";
-  let step = parseFloat(stepStr);
+  let step = parseFloat(lead.currentStep || "0");
   let lang = lead.language || "en";
 
   switch (step) {
     case 0:
       lang = text === 'हिन्दी' ? 'hi' : 'en';
       await createOrUpdateLead(phone, { language: lang, currentStep: "1" });
-      await sendWhatsAppMessage(phone, t(lang, 'Question 1: What is your Name?', 'प्रश्न 1: आपका नाम क्या है?'));
+      await sendWhatsAppMessage(phone, t(lang, 'Q1: What is your Name?', 'प्रश्न 1: आपका नाम क्या है?'));
       break;
 
     case 1:
       await createOrUpdateLead(phone, { name: text, currentStep: "1.1" });
       await sendWhatsAppMessage(phone, t(lang, 'Please enter your 10-digit Mobile Number:', 'कृपया अपना 10-अंकीय मोबाइल नंबर दर्ज करें:'));
       break;
-      
+
     case 1.1:
       await createOrUpdateLead(phone, { currentStep: "1.2" });
       await sendWhatsAppMessage(phone, t(lang, 'What is your Email ID?', 'आपकी ईमेल आईडी क्या है?'));
       break;
-      
+
     case 1.2:
       await createOrUpdateLead(phone, { email: text, currentStep: "2" });
-      await sendWhatsAppMessage(phone, t(lang, 'Question 2: Where are you located? Please select your State:', 'प्रश्न 2: आप कहाँ स्थित हैं? अपना राज्य चुनें:'), undefined, ["Bihar", "Uttar Pradesh", "Delhi", "Maharashtra", "Other"]);
+      await sendWhatsAppMessage(phone, t(lang, 'Q2: Please type your State name:', 'प्रश्न 2: अपना राज्य टाइप करें:'));
       break;
 
     case 2:
       await createOrUpdateLead(phone, { state: text, currentStep: "2.1" });
-      await sendWhatsAppMessage(phone, t(lang, 'Please select your District:', 'अपना जिला चुनें:'), undefined, ["Patna", "Gaya", "Muzaffarpur", "Other"]);
+      await sendWhatsAppMessage(phone, t(lang, 'Please type your District name:', 'अपना जिला टाइप करें:'));
       break;
 
     case 2.1:
       await createOrUpdateLead(phone, { district: text, currentStep: "2.2" });
-      await sendWhatsAppMessage(phone, t(lang, 'Please select your City/Town:', 'अपना शहर/कस्बा चुनें:'), undefined, ["Patna City", "Danapur", "Other"]);
+      await sendWhatsAppMessage(phone, t(lang, 'Please type your City/Town name:', 'अपना शहर/कस्बा टाइप करें:'));
       break;
 
     case 2.2:
@@ -153,66 +154,100 @@ export const processMessage = async (phone: string, text: string) => {
 
     case 2.4:
       await createOrUpdateLead(phone, { gpsLocation: text, currentStep: "3" });
-      await sendWhatsAppMessage(phone, t(lang, 'Question 3: Select State Electricity Board:', 'प्रश्न 3: राज्य विद्युत बोर्ड चुनें:'), undefined, ["NBPDCL", "SBPDCL", "UPPCL", "Other"]);
+      await sendWhatsAppMessage(phone, t(lang, 'Q3: Select State Electricity Board:', 'प्रश्न 3: राज्य विद्युत बोर्ड चुनें:'), null, ["NBPDCL", "SBPDCL", "UPPCL", "DHBVN", "UHBVN", "JVVNL", "Other"]);
       break;
 
     case 3:
       await createOrUpdateLead(phone, { electricityBoard: text, currentStep: "3.1" });
-      await sendWhatsAppMessage(phone, t(lang, 'Question 3(a): What is your Consumer Number?', 'प्रश्न 3(a): आपका उपभोक्ता नंबर क्या है?'));
+      await sendWhatsAppMessage(phone, t(lang, 'Q3(a): What is your Consumer Number?', 'प्रश्न 3(a): आपका उपभोक्ता नंबर क्या है?'));
       break;
 
     case 3.1:
       await createOrUpdateLead(phone, { consumerNumber: text, currentStep: "4" });
-      await sendWhatsAppMessage(phone, t(lang, 'Question 4: What is your Meter Type?', 'प्रश्न 4: आपका मीटर प्रकार क्या है?'), undefined, ["Residential", "Commercial", "Industrial"]);
+      await sendWhatsAppMessage(phone, t(lang, 'Q4: What is your Connection Type?', 'प्रश्न 4: आपका कनेक्शन प्रकार क्या है?'), null, ["Residential", "Commercial", "Industrial"]);
       break;
 
     case 4:
-      await createOrUpdateLead(phone, { meterType: text, currentStep: "6" });
-      await sendWhatsAppMessage(phone, t(lang, 'Question 6: What is the Available Roof Space on your Roof (in sq ft)?', 'प्रश्न 6: आपकी छत पर कितनी जगह उपलब्ध है (वर्ग फुट में)?'));
+      await createOrUpdateLead(phone, { meterType: text, currentStep: text === 'Residential' ? "4.5" : "6" });
+      if (text === 'Residential') {
+        await sendWhatsAppMessage(phone,
+          t(lang, 'Great! For Residential, here are the recommended solar plants. Please select:', 'बढ़िया! घरेलू कनेक्शन के लिए अनुशंसित सोलर प्लांट चुनें:'),
+          null, RESIDENTIAL_PLANTS
+        );
+      } else {
+        await sendWhatsAppMessage(phone, t(lang, 'Q6: Available Roof Space (in sq ft)?', 'प्रश्न 6: छत पर उपलब्ध जगह (वर्ग फुट में)?'));
+      }
       break;
 
-    case 6:
-      await createOrUpdateLead(phone, { roofSpace: text, currentStep: "7" });
-      await sendWhatsAppMessage(phone, t(lang, 'Question 7: What is your Business Type?', 'प्रश्न 7: आपके व्यवसाय का प्रकार क्या है?'), undefined, ["Aata/Oil Mill", "Bike Showroom", "Tractor Agency", "Packaging", "Rice Mill", "Fabrication", "Other"]);
-      break;
-
-    case 7:
-      await createOrUpdateLead(phone, { businessType: text, currentStep: "7.1" });
-      await sendWhatsAppMessage(phone, t(lang, 'Question 7(a): What is your Monthly Billing Amount?', 'प्रश्न 7(a): आपकी मासिक बिलिंग राशि क्या है?'), undefined, ["Less than 1000", "2000 - 4000", "4000 - 10000", "15000 - 30000", "50000+", "100000+"]);
-      break;
-
-    case 7.1:
-      await createOrUpdateLead(phone, { monthlyBilling: text, currentStep: "7.2" });
-      await sendWhatsAppMessage(phone, t(lang, 'Question 7(b): What Capacity Plant do you want to Install?', 'प्रश्न 7(b): आप कितनी क्षमता का प्लांट लगाना चाहते हैं?'), undefined, ["5 kW", "10 kW", "50 kW", "100 kW", "500 kW", "1000 kW"]);
-      break;
-
-    case 7.2:
+    case 4.5: // Residential plant chosen → go to proposal
       await createOrUpdateLead(phone, { plantCapacity: text, currentStep: "8" });
-      // Simulate sending PDF Link via simple text
-      await sendWhatsAppMessage(phone, t(lang, 'Here is the proposal PDF based on your load selection: https://divyanshisolar.com/solar-proposal.pdf', 'यहाँ आपके लोड चयन के आधार पर प्रस्ताव PDF है: https://divyanshisolar.com/solar-proposal.pdf'));
+      await sendWhatsAppMessage(phone, t(lang, '📄 Here is your Solar Proposal: https://divyanshisolar.com/solar-proposal.pdf\n\nOur team will prepare a detailed customized proposal for you shortly.', '📄 यहाँ आपका सोलर प्रस्ताव है: https://divyanshisolar.com/solar-proposal.pdf'));
       setTimeout(async () => {
         await sendWhatsAppMessage(phone, t(lang, 'Are you interested in proceeding?', 'क्या आप आगे बढ़ने में रुचि रखते हैं?'), [t(lang, 'Interested', 'रुचि है'), t(lang, 'Not Interested', 'रुचि नहीं है'), t(lang, 'Call Later', 'बाद में कॉल करेंगे')]);
       }, 1000);
       break;
 
+    case 6:
+      await createOrUpdateLead(phone, { roofSpace: text, currentStep: "7" });
+      await sendWhatsAppMessage(phone, t(lang, 'Q7: What is your Business Type?', 'प्रश्न 7: आपके व्यवसाय का प्रकार?'), null, [
+        "Bike/Car Showroom", "Aata/Oil/Masala Mill", "Tractor Agency", "RO/Packaging Plant", "Rice Mill", "Fabrication Plant", "Other Industrial Unit"
+      ]);
+      break;
+
+    case 7:
+      await createOrUpdateLead(phone, { businessType: text });
+      const isBikeShowroom = text.toLowerCase().includes('bike') || text.toLowerCase().includes('showroom');
+      await createOrUpdateLead(phone, { currentStep: isBikeShowroom ? "7.5" : "7.1" });
+      if (isBikeShowroom) {
+        await sendWhatsAppMessage(phone,
+          t(lang, 'For Bike/Car Showroom, here are the best suited solar plants. Please select:', 'बाइक/कार शोरूम के लिए अनुशंसित सोलर प्लांट चुनें:'),
+          null, BIKE_SHOWROOM_PLANTS
+        );
+      } else {
+        await sendWhatsAppMessage(phone, t(lang, 'Q7(a): Monthly Electricity Bill Amount?', 'प्रश्न 7(a): मासिक बिजली बिल राशि?'), null, [
+          "Less than 1000", "2000-4000", "4000-10000", "15000-30000", "50000+", "100000+"
+        ]);
+      }
+      break;
+
+    case 7.5: // Bike Showroom plant → proposal
+      await createOrUpdateLead(phone, { plantCapacity: text, currentStep: "8" });
+      await sendWhatsAppMessage(phone, t(lang, '📄 Here is your Solar Proposal: https://divyanshisolar.com/solar-proposal.pdf', '📄 यहाँ आपका सोलर प्रस्ताव: https://divyanshisolar.com/solar-proposal.pdf'));
+      setTimeout(async () => {
+        await sendWhatsAppMessage(phone, t(lang, 'Are you interested in proceeding?', 'क्या आप आगे बढ़ने में रुचि रखते हैं?'), [t(lang, 'Interested', 'रुचि है'), t(lang, 'Not Interested', 'रुचि नहीं है'), t(lang, 'Call Later', 'बाद में')]);
+      }, 1000);
+      break;
+
+    case 7.1:
+      await createOrUpdateLead(phone, { monthlyBilling: text, currentStep: "7.2" });
+      await sendWhatsAppMessage(phone, t(lang, 'Q7(b): What Capacity Plant do you want to Install?', 'प्रश्न 7(b): कितनी क्षमता का प्लांट लगाना चाहते हैं?'), null, GENERAL_CAPACITIES);
+      break;
+
+    case 7.2:
+      await createOrUpdateLead(phone, { plantCapacity: text, currentStep: "8" });
+      await sendWhatsAppMessage(phone, t(lang, '📄 Solar Proposal: https://divyanshisolar.com/solar-proposal.pdf', '📄 सोलर प्रस्ताव: https://divyanshisolar.com/solar-proposal.pdf'));
+      setTimeout(async () => {
+        await sendWhatsAppMessage(phone, t(lang, 'Are you interested in proceeding?', 'क्या आप आगे बढ़ने में रुचि रखते हैं?'), [t(lang, 'Interested', 'रुचि है'), t(lang, 'Not Interested', 'रुचि नहीं है'), t(lang, 'Call Later', 'बाद में')]);
+      }, 1000);
+      break;
+
     case 8:
       await createOrUpdateLead(phone, { proposalStatus: text, currentStep: "9" });
-      if (text.includes('Interest') || text.includes('रुचि')) {
-        await sendWhatsAppMessage(phone, t(lang, 'Great! How would you like to proceed?', 'बहुत बढ़िया! आप कैसे आगे बढ़ना चाहेंगे?'), [t(lang, 'Online Form', 'ऑनलाइन फॉर्म'), t(lang, 'Call Me', 'कॉल पर समझें'), t(lang, 'Home Visit', 'होम विजिट')]);
+      if (text.toLowerCase().includes('interest') || text.includes('रुचि')) {
+        await sendWhatsAppMessage(phone, t(lang, 'Great! How would you like to proceed?', 'बहुत बढ़िया! आप कैसे आगे बढ़ना चाहेंगे?'), [t(lang, 'Online Form', 'ऑनलाइन फॉर्म'), t(lang, 'Call Me', 'कॉल करें'), t(lang, 'Home Visit', 'होम विजिट')]);
       } else {
         await createOrUpdateLead(phone, { currentStep: "10", status: 'Closed' });
-        await sendWhatsAppMessage(phone, t(lang, 'Thank you for your time. Have a great day!', 'आपके समय के लिए धन्यवाद. आपका दिन शुभ हो!'));
+        await sendWhatsAppMessage(phone, t(lang, 'Thank you for your time. Have a great day!', 'आपके समय के लिए धन्यवाद! आपका दिन शुभ हो।'));
       }
       break;
 
     case 9:
       await createOrUpdateLead(phone, { status: text, currentStep: "10" });
-      await sendWhatsAppMessage(phone, t(lang, 'Thank you for choosing Divyanshi Solar! Our team will reach out to you shortly. ☀️', 'दिव्यांशी सोलर को चुनने के लिए धन्यवाद! हमारी टीम जल्द ही आपसे संपर्क करेगी। ☀️'));
+      await sendWhatsAppMessage(phone, t(lang, 'Thank you for choosing Divyanshi Solar! Our team will reach out to you shortly. ☀️', 'दिव्यांशी सोलर को चुनने के लिए धन्यवाद! हमारी टीम जल्द ही संपर्क करेगी। ☀️'));
       break;
-      
+
     default:
-        // Reset or Handle already closed tickets
-        await sendWhatsAppMessage(phone, t(lang, 'You have completed the form. Our team will contact you soon.', 'आपने फॉर्म पूरा कर लिया है। हमारी टीम जल्द ही आपसे संपर्क करेगी।'));
-        break;
+      await sendWhatsAppMessage(phone, t(lang, 'You have already completed the form. Our team will contact you soon.', 'आपने फॉर्म पहले ही पूरा कर लिया है। हमारी टीम जल्द ही संपर्क करेगी।'));
+      break;
   }
 };
