@@ -9830,7 +9830,7 @@ export async function registerRoutes(
 
       const existing = await db.select().from(whatsappLeads).where(eq(whatsappLeads.phone, `web_${sessionId}`)).limit(1);
       if (existing.length === 0) {
-        await db.insert(whatsappLeads).values({ phone: `web_${sessionId}`, source: 'web_widget', ...data });
+        await db.insert(whatsappLeads).values({ phone: `web_${sessionId}`, ...data });
       } else {
         await db.update(whatsappLeads).set({ ...data, updatedAt: new Date() }).where(eq(whatsappLeads.phone, `web_${sessionId}`));
       }
