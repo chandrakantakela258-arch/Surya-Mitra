@@ -8,6 +8,7 @@ import { HeroSlider } from "@/components/hero-slider";
 import { FeedbackDialog } from "@/components/feedback-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { WhatsAppWidget } from "@/components/WhatsAppWidget";
 import {
   Dialog,
   DialogContent,
@@ -1912,6 +1913,7 @@ export default function LandingPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <WhatsAppWidget />
     </div>
   );
 }

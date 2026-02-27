@@ -9807,5 +9807,66 @@ export async function registerRoutes(
     }
   });
 
+  // ==================== WHATSAPP CHATBOT & CRM ROUTES ====================
+  // Verify Meta Webhook (GET request)
+  app.get('/api/webhook', (req, res) => {
+    const mode = req.query['hub.mode'];
+    const token = req.query['hub.verify_token'];
+    const challenge = req.query['hub.challenge'];
+
+    if (mode === 'subscribe' && token === process.env.VERIFY_TOKEN) {
+      console.log('Webhook Verification Successful!');
+      res.status(200).send(challenge);
+    } else {
+      res.sendStatus(403);
+    }
+  });
+
+  // Receive WhatsApp Messages (POST request)
+  app.post('/api/webhook', async (req, res) => {
+    const body = req.body;
+
+    if (body.object) {
+      if (
+        body.entry &&
+        body.entry[0].changes &&
+        body.entry[0].changes[0].value.messages &&
+        body.entry[0].changes[0].value.messages[0]
+      ) {
+        const waId = body.entry[0].changes[0].value.contacts[0].wa_id;
+        const message = body.entry[0].changes[0].value.messages[0];
+        
+        const text = message.text?.body || message.interactive?.button_reply?.title || message.interactive?.list_reply?.title || (message.location ? "📍 GPS Location Shared" : "");
+
+        if (text) {
+          try {
+            const { processMessage } = require('./chatbot');
+            console.log(`Received message from ${waId}: ${text}`);
+            await processMessage(waId, text);
+          } catch (e) {
+            console.error("Error processing WhatsApp message:", e);
+          }
+        }
+      }
+      res.sendStatus(200);
+    } else {
+      res.sendStatus(404);
+    }
+  });
+
+  // Admin CRM API
+  app.get('/api/leads', requireAuth, async (req, res) => {
+    try {
+      const { db } = require('./db');
+      const { whatsappLeads } = require('@shared/schema');
+      const { desc } = require('drizzle-orm');
+      
+      const leads = await db.select().from(whatsappLeads).orderBy(desc(whatsappLeads.createdAt));
+      res.json(leads);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   return httpServer;
 }

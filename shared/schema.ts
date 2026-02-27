@@ -3089,5 +3089,40 @@ export const adminSettings = pgTable("admin_settings", {
 
 export type AdminSetting = typeof adminSettings.$inferSelect;
 
+// WhatsApp Chatbot CRM Leads
+export const whatsappLeads = pgTable("whatsapp_leads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  phone: text("phone").notNull().unique(),
+  name: text("name"),
+  email: text("email"),
+  language: text("language").default("en"),
+  state: text("state"),
+  district: text("district"),
+  city: text("city"),
+  pincode: text("pincode"),
+  gpsLocation: text("gps_location"),
+  electricityBoard: text("electricity_board"),
+  consumerNumber: text("consumer_number"),
+  meterType: text("meter_type"),
+  roofSpace: text("roof_space"),
+  businessType: text("business_type"),
+  monthlyBilling: text("monthly_billing"),
+  plantCapacity: text("plant_capacity"),
+  proposalStatus: text("proposal_status"),
+  status: text("status").notNull().default("New"),
+  currentStep: decimal("current_step").default('0'), // Use decimal for float steps like 1.1
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertWhatsappLeadSchema = createInsertSchema(whatsappLeads).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertWhatsappLead = z.infer<typeof insertWhatsappLeadSchema>;
+export type WhatsappLead = typeof whatsappLeads.$inferSelect;
+
 // Re-export chat models for OpenAI integration
 export * from "./models/chat";

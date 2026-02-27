@@ -65,6 +65,8 @@ import AdminServiceRequests from "@/pages/admin/service-requests";
 import AdminTestimonials from "@/pages/admin/testimonials";
 import AdminVendorPayments from "@/pages/admin/vendor-payments";
 import AdminCustomerLeads from "@/pages/admin/customer-leads";
+import AdminCrmDashboard from "@/pages/admin/crm-dashboard";
+import BotSimulator from "@/pages/bot-simulator";
 import AdminEquipmentSettings from "@/pages/admin/equipment-settings";
 import PartnerServiceRequests from "@/pages/partner-service-requests";
 import ProfilePage from "@/pages/profile";
@@ -231,6 +233,13 @@ function AuthenticatedRoutes() {
         <ProtectedRoute allowedRoles={["admin"]}>
           <DashboardLayout>
             <AdminCustomerLeads />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/crm">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminCrmDashboard />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
@@ -589,6 +598,13 @@ function AuthenticatedRoutes() {
         <ProtectedRoute allowedRoles={["bdp", "ddp", "admin"]}>
           <DashboardLayout>
             <NotificationsPage />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/simulator">
+        <ProtectedRoute>
+          <DashboardLayout>
+            <BotSimulator />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
