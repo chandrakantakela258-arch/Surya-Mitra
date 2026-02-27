@@ -24,7 +24,7 @@ export function WhatsAppWidget() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <div className="fixed bottom-24 right-6 z-50 flex flex-col items-end">
       {/* Popover Content */}
       {isOpen && (
         <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 mb-4 w-[320px] overflow-hidden transform transition-all duration-300 ease-out origin-bottom-right">
@@ -40,7 +40,7 @@ export function WhatsAppWidget() {
                 <MessageCircle size={24} className="text-white" />
               </div>
               <div>
-                <h3 className="font-bold text-lg leading-tight">Divyanshi Solar Bot</h3>
+                <h3 className="font-bold text-lg leading-tight">PM Surya Ghar Solar Bot</h3>
                 <p className="text-green-50 text-sm">Online • Replies instantly</p>
               </div>
             </div>
