@@ -314,9 +314,9 @@ export function registerRoutes(app: Express): Server {
 
       const { sql } = require('drizzle-orm');
 
-      // Force create the whatsapp_leads table
+      // Force create the solar_bot_leads table
       await db.execute(sql`
-        CREATE TABLE IF NOT EXISTS "whatsapp_leads" (
+        CREATE TABLE IF NOT EXISTS "solar_bot_leads" (
           "id" varchar PRIMARY KEY DEFAULT gen_random_uuid(),
           "phone" text NOT NULL UNIQUE,
           "name" text,
