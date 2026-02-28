@@ -653,46 +653,6 @@ export const notificationTemplates = pgTable("notification_templates", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// WhatsApp Chatbot Leads
-export const whatsappLeads = pgTable("whatsapp_leads", {
-    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-    phone: text("phone").notNull().unique(),
-    name: text("name"),
-    mobile: text("mobile"),
-    address: text("address"),
-    district: text("district"),
-    state: text("state"),
-    pincode: text("pincode"),
-    electricityBoard: text("electricity_board"),
-    consumerNumber: text("consumer_number"),
-    sanctionedLoad: text("sanctioned_load"),
-    avgMonthlyBill: text("avg_monthly_bill"),
-    roofType: text("roof_type"),
-    roofArea: text("roof_area"),
-    panelType: text("panel_type"),
-    proposedCapacity: text("proposed_capacity"),
-    customerType: text("customer_type"),
-    unitType: text("unit_type"),
-    language: text("language").default("en"),
-    currentStep: text("current_step").default("0"),
-    isComplete: boolean("is_complete").default(false),
-    syncedToCustomer: boolean("synced_to_customer").default(false),
-    createdAt: timestamp("created_at").defaultNow(),
-    updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-export const insertWhatsappLeadSchema = createInsertSchema(whatsappLeads).omit({
-    id: true,
-    createdAt: true,
-    updatedAt: true,
-});
-
-export type InsertWhatsappLead = z.infer<typeof insertWhatsappLeadSchema>;
-export type WhatsappLead = typeof whatsappLeads.$inferSelect;
-
-
-
-// Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
