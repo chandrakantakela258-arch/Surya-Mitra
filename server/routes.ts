@@ -303,7 +303,7 @@ async function forwardCustomerEmailToState(customer: any) {
   console.log(`Customer details forwarded to ${forwardEmail} for state ${normalizedState}`);
 }
 
-export function registerRoutes(app: Express): Server {
+export function registerRoutes(httpServer: Server, app: Express) {
   // Emergency Unprotected DB Sync Route (creates tables if missing in production)
   // Moved to the very top to bypass ALL middleware and authentication
   app.get('/api/public/force-sync-database', async (req, res) => {
