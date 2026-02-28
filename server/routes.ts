@@ -46,7 +46,7 @@ const upload = multer({
   fileFilter: (req, file, cb) => {
     const allowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/heic"];
     const allowedVideoTypes = ["video/mp4", "video/quicktime", "video/x-msvideo", "video/webm"];
-    
+
     if (allowedImageTypes.includes(file.mimetype) || allowedVideoTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
@@ -85,7 +85,7 @@ const documentUpload = multer({
       "application/vnd.ms-excel",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     ];
-    
+
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
@@ -336,18 +336,18 @@ export async function registerRoutes(
   );
 
   // ==================== AUTH ROUTES ====================
-  
+
   // Register
   app.post("/api/auth/register", async (req, res) => {
     try {
       const data = registerUserSchema.parse(req.body);
-      
+
       // Check if username exists
       const existing = await storage.getUserByUsername(data.username);
       if (existing) {
         return res.status(400).json({ message: "Username already exists" });
       }
-      
+
       // Check if phone number is already registered
       if (data.phone) {
         const existingPhone = await storage.getUserByPhone(data.phone);
@@ -355,7 +355,7 @@ export async function registerRoutes(
           return res.status(400).json({ message: "This mobile number is already registered with another partner account" });
         }
       }
-      
+
       // Check if email is already registered
       if (data.email) {
         const existingEmail = await storage.getUserByEmail(data.email);
@@ -363,38 +363,38 @@ export async function registerRoutes(
           return res.status(400).json({ message: "This email is already registered with another partner account" });
         }
       }
-      
+
       // Hash the password before storing
       const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
-      
+
       // Generate unique partner code for BDP
       let partnerCode: string | undefined;
       if (data.role === "bdp") {
         partnerCode = await generatePartnerCode("bdp");
         console.log("Generated BDP partner code:", partnerCode);
       }
-      
+
       // BDP accounts require admin approval, so set status to pending
       // DDPs registered via this route also start as pending (they should use BDP's add partner endpoint)
-      const user = await storage.createUser({ 
-        ...data, 
+      const user = await storage.createUser({
+        ...data,
         password: hashedPassword,
         status: data.role === "bdp" ? "pending" : "pending", // All self-registrations need approval
         partnerCode,
       });
-      
+
       // For BDP registrations, don't auto-login - they need approval first
       if (data.role === "bdp") {
-        return res.json({ 
+        return res.json({
           user: { ...user, password: undefined },
           pendingApproval: true,
           message: "Your BDP account has been created successfully. Please wait for admin approval before you can access partner features."
         });
       }
-      
+
       // For other roles, proceed with auto-login
       req.session.userId = user.id;
-      
+
       res.json({ user: { ...user, password: undefined } });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -410,7 +410,7 @@ export async function registerRoutes(
     try {
       const data = loginSchema.parse(req.body);
       console.log("Login attempt for:", data.username);
-      
+
       // Try to find user by username first, then by partner code
       let user = await storage.getUserByUsername(data.username);
       if (!user) {
@@ -421,7 +421,7 @@ export async function registerRoutes(
         console.log("Login failed - user not found");
         return res.status(401).json({ message: "Invalid User ID or password" });
       }
-      
+
       // Compare password using bcrypt (supports both hashed and plain text for migration)
       let isValidPassword = false;
       if (user.password.startsWith("$2")) {
@@ -437,36 +437,36 @@ export async function registerRoutes(
           console.log("Upgraded password to bcrypt hash for user:", user.username);
         }
       }
-      
+
       if (!isValidPassword) {
         console.log("Login failed - invalid password");
         return res.status(401).json({ message: "Invalid User ID or password" });
       }
-      
+
       // Check if BDP account is approved before allowing login
       if (user.role === "bdp" && user.status !== "approved") {
         console.log("Login failed - BDP account not approved, status:", user.status);
         if (user.status === "pending") {
-          return res.status(403).json({ 
+          return res.status(403).json({
             message: "Your BDP account is pending approval. Please wait for admin approval before accessing partner features.",
             code: "BDP_PENDING_APPROVAL"
           });
         } else if (user.status === "rejected") {
-          return res.status(403).json({ 
+          return res.status(403).json({
             message: "Your BDP account application has been rejected. Please contact support for more information.",
             code: "BDP_REJECTED"
           });
         } else {
-          return res.status(403).json({ 
+          return res.status(403).json({
             message: "Your account is not active. Please contact support.",
             code: "ACCOUNT_INACTIVE"
           });
         }
       }
-      
+
       req.session.userId = user.id;
       console.log("Login successful, setting userId:", user.id, "sessionId:", req.sessionID);
-      
+
       // Force session save
       req.session.save((err) => {
         if (err) {
@@ -496,38 +496,38 @@ export async function registerRoutes(
   });
 
   // ==================== FORGOT PASSWORD ROUTES ====================
-  
+
   // Send OTP for password reset (uses database storage for persistence)
   app.post("/api/auth/forgot-password/send-otp", async (req, res) => {
     try {
       const { phone } = req.body;
-      
+
       if (!phone) {
         return res.status(400).json({ message: "Phone number is required" });
       }
-      
+
       // Find user by phone
       const user = await storage.getUserByPhone(phone);
       if (!user) {
         return res.status(404).json({ message: "No account found with this phone number" });
       }
-      
+
       // Generate 6-digit OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-      
+
       // Store OTP in database (replaces any existing OTP for this phone)
       await storage.createPasswordResetOtp({
         phone,
         otp,
         expiresAt,
       });
-      
+
       // Send OTP via Twilio SMS
       const twilioSid = process.env.TWILIO_ACCOUNT_SID;
       const twilioToken = process.env.TWILIO_AUTH_TOKEN;
       const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
-      
+
       if (twilioSid && twilioToken && twilioPhone) {
         try {
           const twilio = require("twilio")(twilioSid, twilioToken);
@@ -541,46 +541,46 @@ export async function registerRoutes(
           // Still return success - OTP is stored, user can use it
         }
       }
-      
-      res.json({ 
-        success: true, 
+
+      res.json({
+        success: true,
         userName: user.name,
-        message: "OTP sent successfully" 
+        message: "OTP sent successfully"
       });
     } catch (error) {
       console.error("Send OTP error:", error);
       res.status(500).json({ message: "Failed to send OTP" });
     }
   });
-  
+
   // Verify OTP
   app.post("/api/auth/forgot-password/verify-otp", async (req, res) => {
     try {
       const { phone, otp } = req.body;
-      
+
       if (!phone || !otp) {
         return res.status(400).json({ message: "Phone and OTP are required" });
       }
-      
+
       // Get OTP from database
       const storedOtp = await storage.getPasswordResetOtp(phone);
       if (!storedOtp) {
         return res.status(400).json({ message: "OTP not found. Please request a new one." });
       }
-      
+
       if (new Date() > new Date(storedOtp.expiresAt)) {
         await storage.markPasswordResetOtpUsed(storedOtp.id);
         return res.status(400).json({ message: "OTP has expired. Please request a new one." });
       }
-      
+
       if (storedOtp.otp !== otp) {
         return res.status(400).json({ message: "Invalid OTP. Please try again." });
       }
-      
+
       // Generate reset token and update in database
       const resetToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
       const newExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes for password reset
-      
+
       // Update the OTP record with reset token
       await storage.createPasswordResetOtp({
         phone,
@@ -588,60 +588,60 @@ export async function registerRoutes(
         resetToken,
         expiresAt: newExpiresAt,
       });
-      
-      res.json({ 
-        success: true, 
+
+      res.json({
+        success: true,
         resetToken,
-        message: "OTP verified successfully" 
+        message: "OTP verified successfully"
       });
     } catch (error) {
       console.error("Verify OTP error:", error);
       res.status(500).json({ message: "Failed to verify OTP" });
     }
   });
-  
+
   // Reset password
   app.post("/api/auth/forgot-password/reset", async (req, res) => {
     try {
       const { phone, resetToken, newPassword } = req.body;
-      
+
       if (!phone || !resetToken || !newPassword) {
         return res.status(400).json({ message: "Phone, reset token and new password are required" });
       }
-      
+
       if (newPassword.length < 6) {
         return res.status(400).json({ message: "Password must be at least 6 characters" });
       }
-      
+
       // Get OTP from database and verify reset token
       const storedOtp = await storage.getPasswordResetOtp(phone);
       if (!storedOtp || storedOtp.resetToken !== resetToken) {
         return res.status(400).json({ message: "Invalid reset token. Please start again." });
       }
-      
+
       if (new Date() > new Date(storedOtp.expiresAt)) {
         await storage.markPasswordResetOtpUsed(storedOtp.id);
         return res.status(400).json({ message: "Reset token has expired. Please start again." });
       }
-      
+
       // Find user and update password
       const user = await storage.getUserByPhone(phone);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       // Hash new password
       const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
-      
+
       // Update user password
       await storage.updateUser(user.id, { password: hashedPassword });
-      
+
       // Mark OTP as used
       await storage.markPasswordResetOtpUsed(storedOtp.id);
-      
-      res.json({ 
-        success: true, 
-        message: "Password reset successfully" 
+
+      res.json({
+        success: true,
+        message: "Password reset successfully"
       });
     } catch (error) {
       console.error("Reset password error:", error);
@@ -654,35 +654,35 @@ export async function registerRoutes(
     if (!req.session.userId) {
       return res.status(401).json({ message: "Not authenticated" });
     }
-    
+
     const user = await storage.getUser(req.session.userId);
     if (!user) {
       return res.status(401).json({ message: "User not found" });
     }
-    
+
     res.json({ user: { ...user, password: undefined } });
   });
 
   // ==================== CUSTOMER PORTAL ROUTES ====================
-  
+
   // Check if customer exists and has password set
   app.post("/api/customer-portal/check", async (req, res) => {
     try {
       const { phone } = req.body;
-      
+
       if (!phone) {
         return res.status(400).json({ message: "Phone number is required" });
       }
-      
+
       const customer = await storage.getCustomerByPhone(phone);
       if (!customer) {
         return res.status(404).json({ message: "No customer found with this phone number" });
       }
-      
+
       if (!customer.portalEnabled) {
         return res.status(403).json({ message: "Portal access not enabled. Please contact your DDP." });
       }
-      
+
       res.json({
         success: true,
         customerName: customer.name,
@@ -693,51 +693,51 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to check customer" });
     }
   });
-  
+
   // Customer login with password
   app.post("/api/customer-portal/login", async (req, res) => {
     try {
       const { phone, password } = req.body;
-      
+
       if (!phone || !password) {
         return res.status(400).json({ message: "Phone and password are required" });
       }
-      
+
       const customer = await storage.getCustomerByPhone(phone);
       if (!customer) {
         return res.status(404).json({ message: "No customer found with this phone number" });
       }
-      
+
       if (!customer.portalEnabled) {
         return res.status(403).json({ message: "Portal access not enabled. Please contact your DDP." });
       }
-      
+
       if (!customer.passwordHash) {
         return res.status(400).json({ message: "Password not set. Please set up your password first.", needsSetup: true });
       }
-      
+
       const isValidPassword = await bcrypt.compare(password, customer.passwordHash);
       if (!isValidPassword) {
         return res.status(401).json({ message: "Invalid password" });
       }
-      
+
       // Generate session token
       const crypto = require("crypto");
       const sessionToken = crypto.randomBytes(32).toString("hex");
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-      
+
       // Create customer session
       await storage.createCustomerSession({
         customerId: customer.id,
         sessionToken,
         expiresAt,
       });
-      
+
       // Update last login
       await storage.updateCustomer(customer.id, {
         lastPortalLogin: new Date(),
       });
-      
+
       res.json({
         success: true,
         token: sessionToken,
@@ -753,59 +753,59 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to login" });
     }
   });
-  
+
   // Set up password for first time
   app.post("/api/customer-portal/setup-password", async (req, res) => {
     try {
       const { phone, password, confirmPassword } = req.body;
-      
+
       if (!phone || !password || !confirmPassword) {
         return res.status(400).json({ message: "Phone, password and confirmation are required" });
       }
-      
+
       if (password !== confirmPassword) {
         return res.status(400).json({ message: "Passwords do not match" });
       }
-      
+
       if (password.length < 6) {
         return res.status(400).json({ message: "Password must be at least 6 characters" });
       }
-      
+
       const customer = await storage.getCustomerByPhone(phone);
       if (!customer) {
         return res.status(404).json({ message: "No customer found with this phone number" });
       }
-      
+
       if (!customer.portalEnabled) {
         return res.status(403).json({ message: "Portal access not enabled. Please contact your DDP." });
       }
-      
+
       if (customer.passwordHash) {
         return res.status(400).json({ message: "Password already set. Use forgot password to reset." });
       }
-      
+
       // Hash and save password
       const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
       await storage.updateCustomer(customer.id, {
         passwordHash: hashedPassword,
         passwordSetAt: new Date(),
       });
-      
+
       // Auto-login after setup
       const crypto = require("crypto");
       const sessionToken = crypto.randomBytes(32).toString("hex");
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-      
+
       await storage.createCustomerSession({
         customerId: customer.id,
         sessionToken,
         expiresAt,
       });
-      
+
       await storage.updateCustomer(customer.id, {
         lastPortalLogin: new Date(),
       });
-      
+
       res.json({
         success: true,
         token: sessionToken,
@@ -821,44 +821,44 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to set up password" });
     }
   });
-  
+
   // Request OTP for password reset (keeping for password recovery)
   app.post("/api/customer-portal/request-otp", async (req, res) => {
     try {
       const { phone } = req.body;
-      
+
       if (!phone) {
         return res.status(400).json({ message: "Phone number is required" });
       }
-      
+
       // Find customer by phone with portal access enabled
       const customer = await storage.getCustomerByPhone(phone);
       if (!customer) {
         return res.status(404).json({ message: "No customer found with this phone number" });
       }
-      
+
       if (!customer.portalEnabled) {
         return res.status(403).json({ message: "Portal access not enabled for this customer. Please contact your DDP." });
       }
-      
+
       // Generate 6-digit OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-      
+
       // Hash the OTP before storing
       const hashedOtp = await bcrypt.hash(otp, SALT_ROUNDS);
-      
+
       // Store OTP in customer record
       await storage.updateCustomer(customer.id, {
         otpCode: hashedOtp,
         otpExpiry,
       });
-      
+
       // For development, log the OTP (in production, send via SMS)
       console.log(`[PASSWORD RESET] OTP for ${phone}: ${otp} (expires in 10 minutes)`);
-      
-      res.json({ 
-        success: true, 
+
+      res.json({
+        success: true,
         customerName: customer.name,
         message: "OTP generated for password reset",
         // In development, include OTP in response for testing
@@ -869,44 +869,44 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to send OTP" });
     }
   });
-  
+
   // Reset password with OTP
   app.post("/api/customer-portal/reset-password", async (req, res) => {
     try {
       const { phone, otp, newPassword } = req.body;
-      
+
       if (!phone || !otp || !newPassword) {
         return res.status(400).json({ message: "Phone, OTP and new password are required" });
       }
-      
+
       if (newPassword.length < 6) {
         return res.status(400).json({ message: "Password must be at least 6 characters" });
       }
-      
+
       const customer = await storage.getCustomerByPhone(phone);
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       if (!customer.portalEnabled) {
         return res.status(403).json({ message: "Portal access not enabled" });
       }
-      
+
       // Check OTP expiry
       if (!customer.otpExpiry || new Date(customer.otpExpiry) < new Date()) {
         return res.status(400).json({ message: "OTP has expired. Please request a new one." });
       }
-      
+
       // Verify OTP
       if (!customer.otpCode) {
         return res.status(400).json({ message: "No OTP found. Please request a new one." });
       }
-      
+
       const isValidOtp = await bcrypt.compare(otp, customer.otpCode);
       if (!isValidOtp) {
         return res.status(400).json({ message: "Invalid OTP" });
       }
-      
+
       // Hash and save new password
       const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
       await storage.updateCustomer(customer.id, {
@@ -915,68 +915,68 @@ export async function registerRoutes(
         otpCode: null,
         otpExpiry: null,
       });
-      
+
       res.json({ success: true, message: "Password reset successfully" });
     } catch (error) {
       console.error("Password reset error:", error);
       res.status(500).json({ message: "Failed to reset password" });
     }
   });
-  
+
   // Legacy: Verify OTP (kept for backward compatibility, redirects to login)
   app.post("/api/customer-portal/verify-otp", async (req, res) => {
     try {
       const { phone, otp } = req.body;
-      
+
       if (!phone || !otp) {
         return res.status(400).json({ message: "Phone and OTP are required" });
       }
-      
+
       // Find customer by phone
       const customer = await storage.getCustomerByPhone(phone);
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       if (!customer.portalEnabled) {
         return res.status(403).json({ message: "Portal access not enabled" });
       }
-      
+
       // Check OTP expiry
       if (!customer.otpExpiry || new Date(customer.otpExpiry) < new Date()) {
         return res.status(400).json({ message: "OTP has expired. Please request a new one." });
       }
-      
+
       // Verify OTP
       if (!customer.otpCode) {
         return res.status(400).json({ message: "No OTP found. Please request a new one." });
       }
-      
+
       const isValidOtp = await bcrypt.compare(otp, customer.otpCode);
       if (!isValidOtp) {
         return res.status(400).json({ message: "Invalid OTP" });
       }
-      
+
       // Generate session token
       const crypto = require("crypto");
       const sessionToken = crypto.randomBytes(32).toString("hex");
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-      
+
       // Create customer session
       await storage.createCustomerSession({
         customerId: customer.id,
         sessionToken,
         expiresAt,
       });
-      
+
       // Clear OTP and update last login
       await storage.updateCustomer(customer.id, {
         otpCode: null,
         otpExpiry: null,
         lastPortalLogin: new Date(),
       });
-      
-      res.json({ 
+
+      res.json({
         success: true,
         sessionToken,
         customer: {
@@ -991,7 +991,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to verify OTP" });
     }
   });
-  
+
   // Get customer portal session info
   app.get("/api/customer-portal/me", async (req, res) => {
     try {
@@ -999,19 +999,19 @@ export async function registerRoutes(
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const sessionToken = authHeader.substring(7);
       const session = await storage.getCustomerSessionByToken(sessionToken);
-      
+
       if (!session || new Date(session.expiresAt) < new Date()) {
         return res.status(401).json({ message: "Session expired" });
       }
-      
+
       const customer = await storage.getCustomer(session.customerId);
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       res.json({
         customer: {
           id: customer.id,
@@ -1033,7 +1033,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get customer info" });
     }
   });
-  
+
   // Get customer installation progress (milestones) - alias for frontend
   app.get("/api/customer-portal/progress", async (req, res) => {
     try {
@@ -1041,10 +1041,10 @@ export async function registerRoutes(
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const sessionToken = authHeader.substring(7);
       const session = await storage.getCustomerSessionByToken(sessionToken);
-      
+
       if (!session || new Date(session.expiresAt) < new Date()) {
         // Delete expired session
         if (session) {
@@ -1052,22 +1052,22 @@ export async function registerRoutes(
         }
         return res.status(401).json({ message: "Session expired" });
       }
-      
+
       const customer = await storage.getCustomer(session.customerId);
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       // Initialize and get milestones visible to customer only (server-side filtering)
       const allMilestones = await storage.initializeCustomerMilestones(session.customerId);
       const visibleMilestones = allMilestones.filter(m => m.visibleToCustomer !== false);
-      
+
       // Calculate progress
       const completedMilestones = visibleMilestones.filter(m => m.status === "completed");
       const totalSteps = visibleMilestones.length || 1;
       const currentStep = completedMilestones.length;
       const percentComplete = Math.round((currentStep / totalSteps) * 100);
-      
+
       // Sanitize milestones to hide internal notes
       const sanitizedMilestones = visibleMilestones.map(m => ({
         id: m.id,
@@ -1078,7 +1078,7 @@ export async function registerRoutes(
         visibleToCustomer: m.visibleToCustomer,
         documents: m.documents,
       }));
-      
+
       res.json({
         customer: {
           id: customer.id,
@@ -1117,18 +1117,18 @@ export async function registerRoutes(
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const sessionToken = authHeader.substring(7);
       const session = await storage.getCustomerSessionByToken(sessionToken);
-      
+
       if (!session || new Date(session.expiresAt) < new Date()) {
         return res.status(401).json({ message: "Session expired" });
       }
-      
+
       // Initialize and get milestones visible to customer
       const allMilestones = await storage.initializeCustomerMilestones(session.customerId);
       const visibleMilestones = allMilestones.filter(m => m.visibleToCustomer !== false);
-      
+
       // Hide internal notes from customers
       const sanitizedMilestones = visibleMilestones.map(m => ({
         id: m.id,
@@ -1137,14 +1137,14 @@ export async function registerRoutes(
         completedAt: m.completedAt,
         notes: m.notes, // Public notes only
       }));
-      
+
       res.json({ milestones: sanitizedMilestones });
     } catch (error) {
       console.error("Customer portal progress error:", error);
       res.status(500).json({ message: "Failed to get progress" });
     }
   });
-  
+
   // Customer portal logout
   app.post("/api/customer-portal/logout", async (req, res) => {
     try {
@@ -1167,19 +1167,19 @@ export async function registerRoutes(
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const sessionToken = authHeader.substring(7);
       const session = await storage.getCustomerSessionByToken(sessionToken);
-      
+
       if (!session || new Date(session.expiresAt) < new Date()) {
         return res.status(401).json({ message: "Session expired" });
       }
-      
+
       const { lat, lng } = req.body;
       if (!lat || !lng) {
         return res.status(400).json({ message: "Latitude and longitude required" });
       }
-      
+
       await storage.updateCustomerLocation(session.customerId, lat, lng);
       res.json({ message: "Location updated successfully", lat, lng });
     } catch (error) {
@@ -1195,33 +1195,33 @@ export async function registerRoutes(
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const sessionToken = authHeader.substring(7);
       const session = await storage.getCustomerSessionByToken(sessionToken);
-      
+
       if (!session || new Date(session.expiresAt) < new Date()) {
         return res.status(401).json({ message: "Session expired" });
       }
-      
+
       const customer = await storage.getCustomer(session.customerId);
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       const files = req.files as Express.Multer.File[];
       if (!files || files.length === 0) {
         return res.status(400).json({ message: "No files uploaded" });
       }
-      
+
       // Get existing pictures and combine with new ones
       const existingPictures = customer.sitePictures || [];
       const newPictures = files.map(f => `/uploads/images/${f.filename}`);
       const allPictures = [...existingPictures, ...newPictures].slice(0, 6);
-      
+
       const updated = await storage.updateCustomerSiteMedia(session.customerId, allPictures, undefined);
-      
-      res.json({ 
-        message: "Pictures uploaded successfully", 
+
+      res.json({
+        message: "Pictures uploaded successfully",
         sitePictures: updated?.sitePictures,
         count: updated?.sitePictures?.length || 0
       });
@@ -1238,25 +1238,25 @@ export async function registerRoutes(
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const sessionToken = authHeader.substring(7);
       const session = await storage.getCustomerSessionByToken(sessionToken);
-      
+
       if (!session || new Date(session.expiresAt) < new Date()) {
         return res.status(401).json({ message: "Session expired" });
       }
-      
+
       const file = req.file;
       if (!file) {
         return res.status(400).json({ message: "No video uploaded" });
       }
-      
+
       const videoUrl = `/uploads/videos/${file.filename}`;
       const updated = await storage.updateCustomerSiteMedia(session.customerId, undefined, videoUrl);
-      
-      res.json({ 
-        message: "Video uploaded successfully", 
-        siteVideo: updated?.siteVideo 
+
+      res.json({
+        message: "Video uploaded successfully",
+        siteVideo: updated?.siteVideo
       });
     } catch (error) {
       console.error("Customer portal upload video error:", error);
@@ -1271,19 +1271,19 @@ export async function registerRoutes(
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const sessionToken = authHeader.substring(7);
       const session = await storage.getCustomerSessionByToken(sessionToken);
-      
+
       if (!session || new Date(session.expiresAt) < new Date()) {
         return res.status(401).json({ message: "Session expired" });
       }
-      
+
       const customer = await storage.getCustomer(session.customerId);
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       res.json({
         sitePictures: customer.sitePictures || [],
         siteVideo: customer.siteVideo || null,
@@ -1303,33 +1303,33 @@ export async function registerRoutes(
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const sessionToken = authHeader.substring(7);
       const session = await storage.getCustomerSessionByToken(sessionToken);
-      
+
       if (!session || new Date(session.expiresAt) < new Date()) {
         return res.status(401).json({ message: "Session expired" });
       }
-      
+
       const customer = await storage.getCustomer(session.customerId);
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       const { index } = req.params;
       const pictureIndex = parseInt(index, 10);
       const pictures = customer.sitePictures || [];
-      
+
       if (pictureIndex < 0 || pictureIndex >= pictures.length) {
         return res.status(400).json({ message: "Invalid picture index" });
       }
-      
+
       pictures.splice(pictureIndex, 1);
       const updated = await storage.updateCustomerSiteMedia(session.customerId, pictures, undefined);
-      
-      res.json({ 
-        message: "Picture deleted successfully", 
-        sitePictures: updated?.sitePictures 
+
+      res.json({
+        message: "Picture deleted successfully",
+        sitePictures: updated?.sitePictures
       });
     } catch (error) {
       console.error("Customer portal delete picture error:", error);
@@ -1344,14 +1344,14 @@ export async function registerRoutes(
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      
+
       const sessionToken = authHeader.substring(7);
       const session = await storage.getCustomerSessionByToken(sessionToken);
-      
+
       if (!session || new Date(session.expiresAt) < new Date()) {
         return res.status(401).json({ message: "Session expired" });
       }
-      
+
       await storage.updateCustomerSiteMedia(session.customerId, undefined, "");
       res.json({ message: "Video deleted successfully" });
     } catch (error) {
@@ -1361,7 +1361,7 @@ export async function registerRoutes(
   });
 
   // ==================== BDP ROUTES ====================
-  
+
   // Get BDP stats
   app.get("/api/bdp/stats", requireBDP, async (req, res) => {
     try {
@@ -1391,18 +1391,18 @@ export async function registerRoutes(
     try {
       const user = (req as any).user;
       const partnerId = req.params.id;
-      
+
       // Get the partner
       const partner = await storage.getUser(partnerId);
       if (!partner) {
         return res.status(404).json({ message: "Partner not found" });
       }
-      
+
       // Verify this partner belongs to the BDP
       if (partner.parentId !== user.id && user.role !== "admin") {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       res.json({ ...partner, password: undefined });
     } catch (error) {
       console.error("Get partner details error:", error);
@@ -1415,18 +1415,18 @@ export async function registerRoutes(
     try {
       const user = (req as any).user;
       const partnerId = req.params.id;
-      
+
       // Get the partner to verify access
       const partner = await storage.getUser(partnerId);
       if (!partner) {
         return res.status(404).json({ message: "Partner not found" });
       }
-      
+
       // Verify this partner belongs to the BDP
       if (partner.parentId !== user.id && user.role !== "admin") {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       // Get customers for this partner
       const customers = await storage.getCustomersByDdpId(partnerId);
       res.json(customers);
@@ -1441,13 +1441,13 @@ export async function registerRoutes(
     try {
       const user = (req as any).user;
       const data = registerUserSchema.parse(req.body);
-      
+
       // Check if username exists
       const existing = await storage.getUserByUsername(data.username);
       if (existing) {
         return res.status(400).json({ message: "Username already exists" });
       }
-      
+
       // Check if phone number is already registered with ANY partner
       if (data.phone) {
         const existingPhone = await storage.getUserByPhone(data.phone);
@@ -1455,7 +1455,7 @@ export async function registerRoutes(
           return res.status(400).json({ message: "This mobile number is already registered with another partner account" });
         }
       }
-      
+
       // Check if email is already registered with ANY partner
       if (data.email) {
         const existingEmail = await storage.getUserByEmail(data.email);
@@ -1463,11 +1463,11 @@ export async function registerRoutes(
           return res.status(400).json({ message: "This email is already registered with another partner account" });
         }
       }
-      
+
       // Generate unique partner code for DDP (DSDDP + BDP's 3 digits + sequence)
       const partnerCode = await generatePartnerCode("ddp", user.partnerCode);
       console.log("Generated DDP partner code:", partnerCode, "for BDP:", user.partnerCode);
-      
+
       const partner = await storage.createUser({
         ...data,
         role: "ddp",
@@ -1475,7 +1475,7 @@ export async function registerRoutes(
         status: "approved", // Auto-approve partners added by BDP
         partnerCode,
       });
-      
+
       res.json({ ...partner, password: undefined });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -1499,21 +1499,21 @@ export async function registerRoutes(
   });
 
   // ==================== DDP ROUTES ====================
-  
+
   // Get DDP's parent BDP information
   app.get("/api/ddp/bdp-info", requireDDP, async (req, res) => {
     try {
       const user = (req as any).user;
-      
+
       if (!user.parentId) {
         return res.status(404).json({ message: "No BDP assigned to this partner" });
       }
-      
+
       const bdp = await storage.getUser(user.parentId);
       if (!bdp) {
         return res.status(404).json({ message: "BDP not found" });
       }
-      
+
       // Return BDP info without password
       res.json({
         id: bdp.id,
@@ -1532,7 +1532,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get BDP information" });
     }
   });
-  
+
   // Get DDP stats
   app.get("/api/ddp/stats", requireDDP, async (req, res) => {
     try {
@@ -1562,21 +1562,21 @@ export async function registerRoutes(
     try {
       const user = (req as any).user;
       const data = customerFormSchema.parse(req.body);
-      
+
       // Generate unique customer code (DSCLIENT + DDP's 6 digits + sequence)
       let customerCode: string | undefined;
       if (user.partnerCode) {
         customerCode = await generateCustomerCode(user.partnerCode);
         console.log("Generated customer code:", customerCode, "for DDP:", user.partnerCode);
       }
-      
+
       const customer = await storage.createCustomer({
         ...data,
         ddpId: user.id,
         status: "pending",
         customerCode,
       });
-      
+
       res.json(customer);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -1586,45 +1586,45 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to add customer" });
     }
   });
-  
+
   // Upload site pictures (6 images from all angles) with optional GPS location
   app.post("/api/ddp/customers/:id/site-pictures", requireDDP, upload.array("pictures", 6), async (req, res) => {
     try {
       const user = (req as any).user;
       const { id } = req.params;
       const { latitude, longitude } = req.body;
-      
+
       // Verify customer belongs to this DDP
       const customer = await storage.getCustomer(id);
       if (!customer || customer.ddpId !== user.id) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       const files = req.files as Express.Multer.File[];
       if (!files || files.length === 0) {
         return res.status(400).json({ message: "No files uploaded" });
       }
-      
+
       if (files.length > 6) {
         return res.status(400).json({ message: "Maximum 6 pictures allowed" });
       }
-      
+
       // Get existing pictures and combine with new ones
       const existingPictures = customer.sitePictures || [];
       const newPictures = files.map(f => `/uploads/images/${f.filename}`);
       const allPictures = [...existingPictures, ...newPictures].slice(0, 6);
-      
+
       const updated = await storage.updateCustomerSiteMedia(id, allPictures, undefined);
-      
+
       // Update GPS location if provided and not already set
       let locationUpdated = false;
       if (latitude && longitude && (!customer.latitude || !customer.longitude)) {
         await storage.updateCustomerLocation(id, latitude, longitude);
         locationUpdated = true;
       }
-      
-      res.json({ 
-        message: "Pictures uploaded successfully", 
+
+      res.json({
+        message: "Pictures uploaded successfully",
         sitePictures: updated?.sitePictures,
         count: updated?.sitePictures?.length || 0,
         locationUpdated
@@ -1634,23 +1634,23 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to upload pictures" });
     }
   });
-  
+
   // Update customer GPS location
   app.patch("/api/ddp/customers/:id/location", requireDDP, async (req, res) => {
     try {
       const user = (req as any).user;
       const { id } = req.params;
       const { lat, lng } = req.body;
-      
+
       const customer = await storage.getCustomer(id);
       if (!customer || customer.ddpId !== user.id) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       if (!lat || !lng) {
         return res.status(400).json({ message: "Latitude and longitude required" });
       }
-      
+
       await storage.updateCustomerLocation(id, lat, lng);
       res.json({ message: "Location updated successfully" });
     } catch (error) {
@@ -1658,81 +1658,81 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to update location" });
     }
   });
-  
+
   // Upload site video (9:16 Instagram-style, max 60 seconds)
   app.post("/api/ddp/customers/:id/site-video", requireDDP, upload.single("video"), async (req, res) => {
     try {
       const user = (req as any).user;
       const { id } = req.params;
-      
+
       // Verify customer belongs to this DDP
       const customer = await storage.getCustomer(id);
       if (!customer || customer.ddpId !== user.id) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       const file = req.file;
       if (!file) {
         return res.status(400).json({ message: "No video uploaded" });
       }
-      
+
       const videoUrl = `/uploads/videos/${file.filename}`;
       const updated = await storage.updateCustomerSiteMedia(id, undefined, videoUrl);
-      
-      res.json({ 
-        message: "Video uploaded successfully", 
-        siteVideo: updated?.siteVideo 
+
+      res.json({
+        message: "Video uploaded successfully",
+        siteVideo: updated?.siteVideo
       });
     } catch (error) {
       console.error("Upload site video error:", error);
       res.status(500).json({ message: "Failed to upload video" });
     }
   });
-  
+
   // Delete a site picture
   app.delete("/api/ddp/customers/:id/site-pictures/:index", requireDDP, async (req, res) => {
     try {
       const user = (req as any).user;
       const { id, index } = req.params;
       const pictureIndex = parseInt(index, 10);
-      
+
       // Verify customer belongs to this DDP
       const customer = await storage.getCustomer(id);
       if (!customer || customer.ddpId !== user.id) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       const pictures = customer.sitePictures || [];
       if (pictureIndex < 0 || pictureIndex >= pictures.length) {
         return res.status(400).json({ message: "Invalid picture index" });
       }
-      
+
       // Remove the picture from array
       pictures.splice(pictureIndex, 1);
       const updated = await storage.updateCustomerSiteMedia(id, pictures, undefined);
-      
-      res.json({ 
-        message: "Picture deleted successfully", 
-        sitePictures: updated?.sitePictures 
+
+      res.json({
+        message: "Picture deleted successfully",
+        sitePictures: updated?.sitePictures
       });
     } catch (error) {
       console.error("Delete site picture error:", error);
       res.status(500).json({ message: "Failed to delete picture" });
     }
   });
-  
+
   // Delete site video
   app.delete("/api/ddp/customers/:id/site-video", requireDDP, async (req, res) => {
     try {
       const user = (req as any).user;
       const { id } = req.params;
-      
+
       // Verify customer belongs to this DDP
       const customer = await storage.getCustomer(id);
       if (!customer || customer.ddpId !== user.id) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       const updated = await storage.updateCustomerSiteMedia(id, undefined, "");
       res.json({ message: "Video deleted successfully" });
     } catch (error) {
@@ -1740,28 +1740,28 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to delete video" });
     }
   });
-  
+
   // ==================== LEAD SCORING ROUTES ====================
-  
+
   // Calculate lead score for a specific customer
   app.post("/api/customers/:id/lead-score", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
       const user = (req as any).user;
       console.log("Lead score request for customer:", id);
-      
+
       const customer = await storage.getCustomer(id);
       if (!customer) {
         console.log("Customer not found:", id);
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       // Verify access based on role hierarchy
       if (user.role === "ddp" && customer.ddpId !== user.id) {
         console.log("Access denied for DDP:", user.id);
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       // For BDP, verify customer belongs to their network
       if (user.role === "bdp") {
         const ddp = await storage.getUser(customer.ddpId);
@@ -1770,49 +1770,49 @@ export async function registerRoutes(
           return res.status(403).json({ message: "Access denied" });
         }
       }
-      
+
       console.log("Calculating lead score for:", customer.name);
       // Calculate lead score using AI
       const scoreResult = await calculateLeadScore(customer);
       console.log("Lead score result:", JSON.stringify(scoreResult).substring(0, 200));
-      
+
       // Validate score result before storing
       if (typeof scoreResult.score !== "number" || scoreResult.score < 0 || scoreResult.score > 100) {
         console.log("Invalid score generated:", scoreResult.score);
         return res.status(500).json({ message: "Invalid score generated" });
       }
-      
+
       if (!["hot", "warm", "cold"].includes(scoreResult.tier)) {
         scoreResult.tier = scoreResult.score >= 70 ? "hot" : scoreResult.score >= 40 ? "warm" : "cold";
       }
-      
+
       // Save the score to database
       console.log("Saving lead score to database:", scoreResult.score);
       await storage.updateCustomerLeadScore(id, scoreResult.score, JSON.stringify(scoreResult));
-      
+
       res.json(scoreResult);
     } catch (error) {
       console.error("Lead scoring error:", error);
       res.status(500).json({ message: "Failed to calculate lead score" });
     }
   });
-  
+
   // Get lead score for a customer (without recalculating)
   app.get("/api/customers/:id/lead-score", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
       const user = (req as any).user;
-      
+
       const customer = await storage.getCustomer(id);
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       // Verify access based on role hierarchy
       if (user.role === "ddp" && customer.ddpId !== user.id) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       // For BDP, verify customer belongs to their network
       if (user.role === "bdp") {
         const ddp = await storage.getUser(customer.ddpId);
@@ -1820,14 +1820,14 @@ export async function registerRoutes(
           return res.status(403).json({ message: "Access denied" });
         }
       }
-      
+
       if (!customer.leadScore || !customer.leadScoreDetails) {
-        return res.json({ 
-          score: null, 
-          message: "No lead score calculated yet" 
+        return res.json({
+          score: null,
+          message: "No lead score calculated yet"
         });
       }
-      
+
       try {
         const details = JSON.parse(customer.leadScoreDetails) as LeadScoreResult;
         res.json({
@@ -1835,7 +1835,7 @@ export async function registerRoutes(
           updatedAt: customer.leadScoreUpdatedAt,
         });
       } catch {
-        res.json({ 
+        res.json({
           score: customer.leadScore,
           tier: customer.leadScore >= 70 ? "hot" : customer.leadScore >= 40 ? "warm" : "cold",
           updatedAt: customer.leadScoreUpdatedAt,
@@ -1846,34 +1846,34 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get lead score" });
     }
   });
-  
+
   // Batch calculate lead scores for all customers (admin/BDP only)
   app.post("/api/lead-scores/batch", requireBDP, async (req, res) => {
     try {
       const user = (req as any).user;
       let customers;
-      
+
       if (user.role === "admin") {
         customers = await storage.getAllCustomers();
       } else {
         customers = await storage.getAllCustomersByBdpId(user.id);
       }
-      
+
       // Filter to only unscored or stale scores (older than 7 days)
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      const toScore = customers.filter(c => 
-        !c.leadScore || 
-        !c.leadScoreUpdatedAt || 
+      const toScore = customers.filter(c =>
+        !c.leadScore ||
+        !c.leadScoreUpdatedAt ||
         new Date(c.leadScoreUpdatedAt) < sevenDaysAgo
       );
-      
+
       // Process in background, return immediately
-      res.json({ 
+      res.json({
         message: `Scoring ${toScore.length} customers in background`,
         total: customers.length,
         toScore: toScore.length,
       });
-      
+
       // Process scoring asynchronously
       for (const customer of toScore) {
         try {
@@ -1892,22 +1892,22 @@ export async function registerRoutes(
   });
 
   // ==================== SHARED ROUTES ====================
-  
+
   // Update partner status
   app.patch("/api/partners/:id/status", requireBDP, async (req, res) => {
     try {
       const { id } = req.params;
       const { status } = req.body;
-      
+
       if (!["pending", "approved", "rejected"].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
       }
-      
+
       const user = await storage.updateUserStatus(id, status);
       if (!user) {
         return res.status(404).json({ message: "Partner not found" });
       }
-      
+
       res.json({ ...user, password: undefined });
     } catch (error) {
       console.error("Update partner status error:", error);
@@ -1920,23 +1920,23 @@ export async function registerRoutes(
     try {
       const { id } = req.params;
       const { status } = req.body;
-      
+
       if (!["pending", "verified", "approved", "installation_scheduled", "completed"].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
       }
-      
+
       // Get current customer to track old status
       const existingCustomer = await storage.getCustomer(id);
       if (!existingCustomer) {
         return res.status(404).json({ message: "Customer not found" });
       }
       const oldStatus = existingCustomer.status;
-      
+
       const customer = await storage.updateCustomerStatus(id, status);
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       // Send notifications via WhatsApp, SMS, and Email
       await notificationService.notifyCustomerStatusChange({
         customerId: customer.id,
@@ -1947,7 +1947,7 @@ export async function registerRoutes(
         oldStatus,
         newStatus: status,
       });
-      
+
       // When installation is completed, check if the DDP's referrer should get their reward
       // Partner referral reward is earned when referred partner completes 15 installations
       if (status === "completed" && customer.ddpId) {
@@ -1960,7 +1960,7 @@ export async function registerRoutes(
           console.error("Error checking partner referral:", err);
         }
       }
-      
+
       res.json(customer);
     } catch (error) {
       console.error("Update customer status error:", error);
@@ -1973,11 +1973,11 @@ export async function registerRoutes(
     try {
       const { id } = req.params;
       const customer = await storage.getCustomer(id);
-      
+
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       res.json(customer);
     } catch (error) {
       console.error("Get customer error:", error);
@@ -1986,17 +1986,17 @@ export async function registerRoutes(
   });
 
   // ==================== MILESTONE ROUTES ====================
-  
+
   // Get customer milestones
   app.get("/api/customers/:id/milestones", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
       const customer = await storage.getCustomer(id);
-      
+
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       // Initialize milestones if they don't exist
       const milestones = await storage.initializeCustomerMilestones(id);
       res.json(milestones);
@@ -2011,14 +2011,14 @@ export async function registerRoutes(
     try {
       const { id } = req.params;
       const { notes } = req.body;
-      
+
       const milestone = await storage.completeMilestone(id, notes);
       if (!milestone) {
         return res.status(404).json({ message: "Milestone not found" });
       }
-      
+
       const customer = await storage.getCustomer(milestone.customerId);
-      
+
       // Create notification for milestone completion
       if (customer) {
         const milestoneLabels: Record<string, string> = {
@@ -2032,7 +2032,7 @@ export async function registerRoutes(
           subsidy_applied: "Subsidy Applied",
           subsidy_received: "Subsidy Received",
         };
-        
+
         // Send milestone notification via WhatsApp/Email/In-app
         await notificationService.notifyMilestoneComplete(
           customer.id,
@@ -2042,12 +2042,12 @@ export async function registerRoutes(
           milestoneLabels[milestone.milestone] || milestone.milestone,
           customer.ddpId
         );
-        
+
         // If installation is complete, create commission for the DDP and/or Customer Partner
         // Skip commission for independent/direct website registrations (no referral code)
         // Trigger vendor payments based on milestone completion
         const vendorAssignments = await storage.getVendorAssignmentsByCustomer(customer.id);
-        
+
         // Bank Vendor: Rs 1,500 after bank_loan milestone (disbursement)
         if (milestone.milestone === "bank_loan") {
           const bankVendorAssignment = vendorAssignments.find(a => a.vendorType === "bank_loan_liaison");
@@ -2057,7 +2057,7 @@ export async function registerRoutes(
             const existingBankPayment = existingPayments.find(
               p => p.vendorId === bankVendorAssignment.vendorId && p.milestone === "bank_disbursement"
             );
-            
+
             if (!existingBankPayment) {
               await storage.createVendorPayment({
                 vendorId: bankVendorAssignment.vendorId,
@@ -2070,7 +2070,7 @@ export async function registerRoutes(
             }
           }
         }
-        
+
         // DISCOM Vendor: Rs 1,000 after site_survey milestone (DISCOM survey completed)
         if (milestone.milestone === "site_survey") {
           const discomVendorAssignment = vendorAssignments.find(a => a.vendorType === "discom_net_metering");
@@ -2079,7 +2079,7 @@ export async function registerRoutes(
             const existingDiscomPayment = existingPayments.find(
               p => p.vendorId === discomVendorAssignment.vendorId && p.milestone === "discom_survey_completed"
             );
-            
+
             if (!existingDiscomPayment) {
               await storage.createVendorPayment({
                 vendorId: discomVendorAssignment.vendorId,
@@ -2092,7 +2092,7 @@ export async function registerRoutes(
             }
           }
         }
-        
+
         // DISCOM Vendor: Rs 2,000 after grid_connected milestone
         if (milestone.milestone === "grid_connected") {
           const discomVendorAssignment = vendorAssignments.find(a => a.vendorType === "discom_net_metering");
@@ -2101,7 +2101,7 @@ export async function registerRoutes(
             const existingGridPayment = existingPayments.find(
               p => p.vendorId === discomVendorAssignment.vendorId && p.milestone === "grid_connected"
             );
-            
+
             if (!existingGridPayment) {
               await storage.createVendorPayment({
                 vendorId: discomVendorAssignment.vendorId,
@@ -2114,7 +2114,7 @@ export async function registerRoutes(
             }
           }
         }
-        
+
         // Bank Vendor: Rs 1,500 after subsidy_received milestone (full and final payment)
         if (milestone.milestone === "subsidy_received") {
           const bankVendorAssignment = vendorAssignments.find(a => a.vendorType === "bank_loan_liaison");
@@ -2123,7 +2123,7 @@ export async function registerRoutes(
             const existingFinalPayment = existingPayments.find(
               p => p.vendorId === bankVendorAssignment.vendorId && p.milestone === "full_final_payment"
             );
-            
+
             if (!existingFinalPayment) {
               await storage.createVendorPayment({
                 vendorId: bankVendorAssignment.vendorId,
@@ -2136,12 +2136,12 @@ export async function registerRoutes(
             }
           }
         }
-        
+
         if (milestone.milestone === "installation_complete") {
           // Only create commission if customer was referred (not direct website registration)
           const isIndependentCustomer = customer.source === "website_direct";
           console.log(`[COMMISSION] Customer ${customer.name} - source: ${customer.source}, isIndependent: ${isIndependentCustomer}, ddpId: ${customer.ddpId}`);
-          
+
           if (!isIndependentCustomer) {
             // Check if referred by a Customer Partner
             if (customer.referrerCustomerId) {
@@ -2154,7 +2154,7 @@ export async function registerRoutes(
                 const customerPartner = allUsers.find(
                   u => u.role === "customer_partner" && u.linkedCustomerId === customer.referrerCustomerId
                 );
-                
+
                 if (customerPartner) {
                   // Create Rs 10,000 referral commission for Customer Partner
                   await storage.createCommission({
@@ -2167,7 +2167,7 @@ export async function registerRoutes(
                     status: "pending",
                     commissionType: "customer_referral",
                   });
-                  
+
                   // Notify customer partner
                   await notificationService.notifyCommissionEarned(
                     customerPartner.id,
@@ -2177,12 +2177,12 @@ export async function registerRoutes(
                     "customer referral",
                     customer.name
                   );
-                  
+
                   // Update referral status if exists
                   const referrals = await storage.getReferralsByReferrerId(customerPartner.id);
                   const referral = referrals.find(r => r.referredPhone === customer.phone);
                   if (referral) {
-                    await storage.updateReferral(referral.id, { 
+                    await storage.updateReferral(referral.id, {
                       status: "converted",
                       rewardAmount: 10000,
                     });
@@ -2194,7 +2194,7 @@ export async function registerRoutes(
               console.log(`[COMMISSION] Creating commission for DDP ${customer.ddpId}, capacity: ${customer.proposedCapacity}kW`);
               const commissions = await storage.createCommissionForCustomer(customer.id, customer.ddpId);
               console.log(`[COMMISSION] Created - DDP: ${commissions.ddpCommission?.id || 'none'}, BDP: ${commissions.bdpCommission?.id || 'none'}`);
-              
+
               // Notify about commission earned via WhatsApp/Email
               if (commissions.ddpCommission) {
                 const ddp = await storage.getUser(customer.ddpId);
@@ -2209,7 +2209,7 @@ export async function registerRoutes(
                   );
                 }
               }
-              
+
               // Also notify BDP if exists
               if (commissions.bdpCommission) {
                 const ddp = await storage.getUser(customer.ddpId);
@@ -2230,14 +2230,14 @@ export async function registerRoutes(
             }
           }
         }
-        
+
         // Check if all 14 milestones are now completed - auto-update customer status
         const allMilestones = await storage.getMilestonesByCustomerId(customer.id);
         const completedMilestonesCount = allMilestones.filter(m => m.status === "completed").length;
         const totalMilestones = 14; // 14 installation milestones
-        
+
         console.log(`[STATUS] Customer ${customer.name}: ${completedMilestonesCount}/${totalMilestones} milestones completed, current status: ${customer.status}`);
-        
+
         if (completedMilestonesCount >= totalMilestones && customer.status !== "completed") {
           // Update customer status to completed
           await storage.updateCustomer(customer.id, { status: "completed" });
@@ -2246,7 +2246,7 @@ export async function registerRoutes(
           console.log(`[STATUS] Customer ${customer.name} already marked as completed`);
         }
       }
-      
+
       res.json(milestone);
     } catch (error) {
       console.error("Complete milestone error:", error);
@@ -2255,7 +2255,7 @@ export async function registerRoutes(
   });
 
   // ==================== COMMISSION ROUTES ====================
-  
+
   // Get DDP's commissions
   app.get("/api/ddp/commissions", requireDDP, async (req, res) => {
     try {
@@ -2358,16 +2358,16 @@ export async function registerRoutes(
     try {
       const { id } = req.params;
       const { status } = req.body;
-      
+
       if (!["pending", "approved", "paid"].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
       }
-      
+
       const commission = await storage.updateCommissionStatus(id, status);
       if (!commission) {
         return res.status(404).json({ message: "Commission not found" });
       }
-      
+
       res.json(commission);
     } catch (error) {
       console.error("Update commission status error:", error);
@@ -2400,7 +2400,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get partners" });
     }
   });
-  
+
   // Debug: Check all users in database (public for debugging)
   app.get("/api/debug/users-count", async (req, res) => {
     try {
@@ -2408,8 +2408,8 @@ export async function registerRoutes(
       const partners = await storage.getAllPartners();
       const stats = await storage.getAdminStats();
       console.log("DEBUG - Total users:", allUsers.length, "Partners:", partners.length, "Stats:", stats);
-      res.json({ 
-        totalUsers: allUsers.length, 
+      res.json({
+        totalUsers: allUsers.length,
         totalPartners: partners.length,
         stats: stats,
         users: allUsers.map(u => ({ name: u.name, role: u.role, status: u.status }))
@@ -2447,16 +2447,16 @@ export async function registerRoutes(
     try {
       const { id } = req.params;
       const { status } = req.body;
-      
+
       if (!["pending", "approved", "rejected"].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
       }
-      
+
       const partner = await storage.updateUserStatus(id, status);
       if (!partner) {
         return res.status(404).json({ message: "Partner not found" });
       }
-      
+
       res.json({ ...partner, password: undefined });
     } catch (error) {
       console.error("Update partner status error:", error);
@@ -2468,13 +2468,13 @@ export async function registerRoutes(
   app.post("/api/admin/partners", requireAdmin, async (req, res) => {
     try {
       const data = registerUserSchema.parse(req.body);
-      
+
       // Check if username exists
       const existingUsername = await storage.getUserByUsername(data.username);
       if (existingUsername) {
         return res.status(400).json({ message: "Username already exists" });
       }
-      
+
       // Check if phone number is already registered
       if (data.phone) {
         const existingPhone = await storage.getUserByPhone(data.phone);
@@ -2482,7 +2482,7 @@ export async function registerRoutes(
           return res.status(400).json({ message: "This mobile number is already registered with another partner account" });
         }
       }
-      
+
       // Check if email is already registered
       if (data.email) {
         const existingEmail = await storage.getUserByEmail(data.email);
@@ -2490,10 +2490,10 @@ export async function registerRoutes(
           return res.status(400).json({ message: "This email is already registered with another partner account" });
         }
       }
-      
+
       // Hash password
       const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
-      
+
       // Generate partner code
       let partnerCode: string | undefined;
       if (data.role === "bdp") {
@@ -2507,14 +2507,14 @@ export async function registerRoutes(
           console.log("Admin generated DDP partner code:", partnerCode, "for BDP:", parentBdp.partnerCode);
         }
       }
-      
+
       const partner = await storage.createUser({
         ...data,
         password: hashedPassword,
         status: "approved", // Admin-created partners are auto-approved
         partnerCode,
       });
-      
+
       res.status(201).json({ ...partner, password: undefined });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -2534,11 +2534,11 @@ export async function registerRoutes(
         customerCodesGenerated: 0,
         errors: [] as string[]
       };
-      
+
       // Get all BDPs without partner codes
       const allPartners = await storage.getAllPartners();
       const bdpsWithoutCode = allPartners.filter(p => p.role === "bdp" && !p.partnerCode);
-      
+
       for (const bdp of bdpsWithoutCode) {
         try {
           const code = await generatePartnerCode("bdp");
@@ -2549,10 +2549,10 @@ export async function registerRoutes(
           results.errors.push(`Failed to generate code for BDP ${bdp.name}: ${err}`);
         }
       }
-      
+
       // Get all DDPs without partner codes
       const ddpsWithoutCode = allPartners.filter(p => p.role === "ddp" && !p.partnerCode);
-      
+
       for (const ddp of ddpsWithoutCode) {
         try {
           if (ddp.parentId) {
@@ -2568,11 +2568,11 @@ export async function registerRoutes(
           results.errors.push(`Failed to generate code for DDP ${ddp.name}: ${err}`);
         }
       }
-      
+
       // Get all customers without customer codes
       const allCustomers = await storage.getAllCustomers();
       const customersWithoutCode = allCustomers.filter(c => !c.customerCode);
-      
+
       for (const customer of customersWithoutCode) {
         try {
           if (customer.ddpId) {
@@ -2588,7 +2588,7 @@ export async function registerRoutes(
           results.errors.push(`Failed to generate code for customer ${customer.name}: ${err}`);
         }
       }
-      
+
       res.json({
         message: "Code generation complete",
         ...results
@@ -2608,13 +2608,13 @@ export async function registerRoutes(
         customerCodesRegenerated: 0,
         errors: [] as string[]
       };
-      
+
       // Step 1: Generate all BDP codes in memory first (to calculate sequential numbers)
       const allPartners = await storage.getAllPartners();
-      const allBdps = allPartners.filter(p => p.role === "bdp").sort((a, b) => 
+      const allBdps = allPartners.filter(p => p.role === "bdp").sort((a, b) =>
         new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
       );
-      
+
       // Create BDP code mapping: bdpId -> new code
       const bdpCodeMap = new Map<string, string>();
       let bdpNum = 1;
@@ -2623,7 +2623,7 @@ export async function registerRoutes(
         bdpCodeMap.set(bdp.id, code);
         bdpNum++;
       }
-      
+
       // Update all BDP codes
       for (const bdp of allBdps) {
         try {
@@ -2635,16 +2635,16 @@ export async function registerRoutes(
           results.errors.push(`Failed to regenerate code for BDP ${bdp.name}: ${err}`);
         }
       }
-      
+
       // Step 2: Generate all DDP codes based on their BDP's new code
-      const allDdps = allPartners.filter(p => p.role === "ddp").sort((a, b) => 
+      const allDdps = allPartners.filter(p => p.role === "ddp").sort((a, b) =>
         new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
       );
-      
+
       // Group DDPs by parent BDP and assign sequential numbers
       const ddpCodeMap = new Map<string, string>();
       const ddpCountByBdp = new Map<string, number>();
-      
+
       for (const ddp of allDdps) {
         if (ddp.parentId) {
           const bdpCode = bdpCodeMap.get(ddp.parentId);
@@ -2657,7 +2657,7 @@ export async function registerRoutes(
           }
         }
       }
-      
+
       // Update all DDP codes
       for (const ddp of allDdps) {
         try {
@@ -2673,16 +2673,16 @@ export async function registerRoutes(
           results.errors.push(`Failed to regenerate code for DDP ${ddp.name}: ${err}`);
         }
       }
-      
+
       // Step 3: Generate all customer codes based on their DDP's new code
       const allCustomers = await storage.getAllCustomers();
-      const sortedCustomers = allCustomers.sort((a, b) => 
+      const sortedCustomers = allCustomers.sort((a, b) =>
         new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
       );
-      
+
       // Group customers by DDP and assign sequential numbers
       const customerCountByDdp = new Map<string, number>();
-      
+
       for (const customer of sortedCustomers) {
         try {
           if (customer.ddpId) {
@@ -2705,7 +2705,7 @@ export async function registerRoutes(
           results.errors.push(`Failed to regenerate code for customer ${customer.name}: ${err}`);
         }
       }
-      
+
       res.json({
         message: "All codes regenerated with new format",
         ...results
@@ -2720,18 +2720,18 @@ export async function registerRoutes(
   app.delete("/api/admin/partners/:id", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
-      
+
       // Check if partner exists
       const partner = await storage.getUser(id);
       if (!partner) {
         return res.status(404).json({ message: "Partner not found" });
       }
-      
+
       // Prevent deleting admin accounts
       if (partner.role === "admin") {
         return res.status(403).json({ message: "Cannot delete admin accounts" });
       }
-      
+
       await storage.deleteUser(id);
       res.json({ message: "Partner deleted successfully" });
     } catch (error) {
@@ -2745,29 +2745,29 @@ export async function registerRoutes(
     try {
       const { id } = req.params;
       const customer = await storage.getCustomer(id);
-      
+
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       const milestones = await storage.getMilestonesByCustomerId(id);
       const completedCount = milestones.filter(m => m.status === "completed").length;
       const installationCompleteMilestone = milestones.find(m => m.milestone === "installation_complete" && m.status === "completed");
-      
+
       const result: { statusUpdated: boolean; commissionCreated: boolean; message: string; details: string[] } = {
         statusUpdated: false,
         commissionCreated: false,
         message: "",
         details: []
       };
-      
+
       result.details.push(`Completed milestones: ${completedCount}/14`);
       result.details.push(`Installation complete milestone: ${installationCompleteMilestone ? "Yes" : "No"}`);
       result.details.push(`Customer source: ${customer.source || "partner"}`);
       result.details.push(`Customer DDP: ${customer.ddpId || "None"}`);
       result.details.push(`Proposed capacity: ${customer.proposedCapacity || "NOT SET"}`);
       result.details.push(`Panel type: ${customer.panelType || "NOT SET"}`);
-      
+
       // Check and create commission if installation is complete and not already created
       if (installationCompleteMilestone) {
         // Create commission for any customer with a DDP assigned, regardless of source
@@ -2780,7 +2780,7 @@ export async function registerRoutes(
             // Check if commission already exists
             const existingCommissions = await storage.getCommissionsByPartnerId(customer.ddpId, "ddp");
             const existingCommission = existingCommissions.find(c => c.customerId === customer.id);
-            
+
             if (!existingCommission) {
               console.log(`[REPROCESS] Creating commission for customer ${customer.name}, capacity: ${customer.proposedCapacity}, ddpId: ${customer.ddpId}`);
               const commissions = await storage.createCommissionForCustomer(customer.id, customer.ddpId);
@@ -2801,7 +2801,7 @@ export async function registerRoutes(
           result.details.push("Skipped commission: No DDP assigned");
         }
       }
-      
+
       // Update status if all 14 milestones complete
       if (completedCount >= 14 && customer.status !== "completed") {
         await storage.updateCustomer(id, { status: "completed" });
@@ -2810,11 +2810,11 @@ export async function registerRoutes(
       } else if (customer.status === "completed") {
         result.details.push("Status already 'completed'");
       }
-      
-      result.message = result.statusUpdated || result.commissionCreated 
-        ? "Customer reprocessed successfully" 
+
+      result.message = result.statusUpdated || result.commissionCreated
+        ? "Customer reprocessed successfully"
         : "No updates needed";
-      
+
       console.log(`[REPROCESS] Customer ${customer.name}: ${JSON.stringify(result)}`);
       res.json(result);
     } catch (error) {
@@ -2864,22 +2864,22 @@ export async function registerRoutes(
     try {
       const { id } = req.params;
       const { status } = req.body;
-      
+
       if (!["pending", "verified", "approved", "installation_scheduled", "completed"].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
       }
-      
+
       const existingCustomer = await storage.getCustomer(id);
       if (!existingCustomer) {
         return res.status(404).json({ message: "Customer not found" });
       }
       const oldStatus = existingCustomer.status;
-      
+
       const customer = await storage.updateCustomerStatus(id, status);
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       // Send notifications via WhatsApp, SMS, and Email
       await notificationService.notifyCustomerStatusChange({
         customerId: customer.id,
@@ -2890,7 +2890,7 @@ export async function registerRoutes(
         oldStatus,
         newStatus: status,
       });
-      
+
       if (status === "verified") {
         try { await forwardCustomerEmailToState(customer); } catch (emailErr) { console.error("Error forwarding customer email:", emailErr); }
       }
@@ -2907,7 +2907,7 @@ export async function registerRoutes(
           console.error("Error checking partner referral:", err);
         }
       }
-      
+
       res.json(customer);
     } catch (error) {
       console.error("Admin update customer status error:", error);
@@ -2920,16 +2920,16 @@ export async function registerRoutes(
     try {
       const { id } = req.params;
       const { portalEnabled } = req.body;
-      
+
       if (typeof portalEnabled !== "boolean") {
         return res.status(400).json({ message: "portalEnabled must be a boolean" });
       }
-      
+
       const customer = await storage.updateCustomer(id, { portalEnabled });
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       res.json(customer);
     } catch (error) {
       console.error("Admin toggle customer portal error:", error);
@@ -2981,7 +2981,7 @@ export async function registerRoutes(
   });
 
   // ==================== BANK ACCOUNT ROUTES ====================
-  
+
   // Get partner's bank account
   app.get("/api/bank-account", requireAuth, async (req, res) => {
     try {
@@ -2997,13 +2997,13 @@ export async function registerRoutes(
   app.post("/api/bank-account", requireAuth, async (req, res) => {
     try {
       const { accountHolderName, accountNumber, ifscCode, bankName } = req.body;
-      
+
       if (!accountHolderName || !accountNumber || !ifscCode) {
         return res.status(400).json({ message: "Account holder name, account number, and IFSC code are required" });
       }
-      
+
       const existing = await storage.getBankAccountByPartnerId(req.session.userId!);
-      
+
       if (existing) {
         const updated = await storage.updateBankAccount(req.session.userId!, {
           accountHolderName,
@@ -3036,16 +3036,16 @@ export async function registerRoutes(
   app.post("/api/user/location", requireAuth, async (req, res) => {
     try {
       const { latitude, longitude } = req.body;
-      
+
       if (!latitude || !longitude) {
         return res.status(400).json({ message: "Latitude and longitude are required" });
       }
-      
+
       const updated = await storage.updateUserLocation(req.session.userId!, latitude, longitude);
       if (!updated) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       res.json({ success: true, latitude, longitude });
     } catch (error) {
       console.error("Update location error:", error);
@@ -3082,16 +3082,16 @@ export async function registerRoutes(
     try {
       const { id } = req.params;
       const { status } = req.body;
-      
+
       if (!["pending", "approved", "paid"].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
       }
-      
+
       const commission = await storage.updateCommissionStatus(id, status);
       if (!commission) {
         return res.status(404).json({ message: "Commission not found" });
       }
-      
+
       res.json(commission);
     } catch (error) {
       console.error("Update commission status error:", error);
@@ -3114,33 +3114,33 @@ export async function registerRoutes(
   app.post("/api/admin/payouts/process", requireAdmin, async (req, res) => {
     try {
       const { commissionId, partnerId, amount, mode = "IMPS" } = req.body;
-      
+
       if (!partnerId || !amount) {
         return res.status(400).json({ message: "Partner ID and amount are required" });
       }
-      
+
       // Check if Razorpay keys are configured
       const keyId = process.env.RAZORPAY_KEY_ID;
       const keySecret = process.env.RAZORPAY_KEY_SECRET;
       const accountNumber = process.env.RAZORPAYX_ACCOUNT_NUMBER;
-      
+
       if (!keyId || !keySecret || !accountNumber) {
-        return res.status(500).json({ 
-          message: "Razorpay not configured. Please add RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, and RAZORPAYX_ACCOUNT_NUMBER to secrets." 
+        return res.status(500).json({
+          message: "Razorpay not configured. Please add RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, and RAZORPAYX_ACCOUNT_NUMBER to secrets."
         });
       }
-      
+
       // Get partner and bank account
       const partner = await storage.getUser(partnerId);
       if (!partner) {
         return res.status(404).json({ message: "Partner not found" });
       }
-      
+
       const bankAccount = await storage.getBankAccountByPartnerId(partnerId);
       if (!bankAccount) {
         return res.status(400).json({ message: "Partner has not added bank account details" });
       }
-      
+
       // Create payout record first
       const payout = await storage.createPayout({
         partnerId,
@@ -3154,12 +3154,12 @@ export async function registerRoutes(
         failureReason: null,
         processedAt: null,
       });
-      
+
       try {
         // Use direct HTTP call to Composite Payout API (SDK doesn't support this well)
         const authHeader = 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64');
         const idempotencyKey = `payout_${payout.id}_${Date.now()}`;
-        
+
         const payoutData = {
           account_number: accountNumber,
           amount: Math.round(amount * 100), // Convert to paisa
@@ -3184,7 +3184,7 @@ export async function registerRoutes(
             },
           },
         };
-        
+
         const response = await fetch('https://api.razorpay.com/v1/payouts', {
           method: 'POST',
           headers: {
@@ -3194,14 +3194,14 @@ export async function registerRoutes(
           },
           body: JSON.stringify(payoutData),
         });
-        
+
         const razorpayPayout = await response.json();
-        
+
         if (!response.ok) {
           console.error("Razorpay payout error response:", razorpayPayout);
           throw new Error(razorpayPayout.error?.description || razorpayPayout.message || "Razorpay API error");
         }
-        
+
         // Update payout with Razorpay response
         const updatedPayout = await storage.updatePayout(payout.id, {
           razorpayPayoutId: razorpayPayout.id,
@@ -3210,11 +3210,11 @@ export async function registerRoutes(
           status: razorpayPayout.status === "processed" ? "completed" : "processing",
           processedAt: razorpayPayout.status === "processed" ? new Date() : null,
         });
-        
+
         // Update commission status if provided
         if (commissionId && razorpayPayout.status === "processed") {
           await storage.updateCommissionStatus(commissionId, "paid");
-          
+
           // Auto-populate site expense with commission payment
           const commission = await storage.getCommission(commissionId);
           if (commission?.customerId) {
@@ -3235,14 +3235,14 @@ export async function registerRoutes(
                   parseFloat(siteExpense.referralPayment || "0") + commission.commissionAmount
                 );
               }
-              
+
               if (Object.keys(updateData).length > 0) {
                 await storage.updateSiteExpense(siteExpense.id, updateData);
               }
             }
           }
         }
-        
+
         res.json({
           success: true,
           payout: updatedPayout,
@@ -3254,12 +3254,12 @@ export async function registerRoutes(
           status: "failed",
           failureReason: razorpayError.message || "Razorpay API error",
         });
-        
+
         throw razorpayError;
       }
     } catch (error: any) {
       console.error("Process payout error:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: error.message || "Failed to process payout",
         error: error.error?.description || error.message,
       });
@@ -3270,38 +3270,38 @@ export async function registerRoutes(
   app.get("/api/admin/payouts/:id/status", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
-      
+
       const payout = await storage.getAllPayouts().then(p => p.find(p => p.id === id));
       if (!payout || !payout.razorpayPayoutId) {
         return res.status(404).json({ message: "Payout not found or not processed" });
       }
-      
+
       const keyId = process.env.RAZORPAY_KEY_ID;
       const keySecret = process.env.RAZORPAY_KEY_SECRET;
-      
+
       if (!keyId || !keySecret) {
         return res.status(500).json({ message: "Razorpay not configured" });
       }
-      
+
       const Razorpay = require("razorpay");
       const razorpay = new Razorpay({
         key_id: keyId,
         key_secret: keySecret,
       });
-      
+
       const razorpayPayout = await razorpay.payouts.fetch(payout.razorpayPayoutId);
-      
+
       // Update local payout status
       const updatedPayout = await storage.updatePayout(payout.id, {
         razorpayStatus: razorpayPayout.status,
         utr: razorpayPayout.utr || payout.utr,
-        status: razorpayPayout.status === "processed" ? "completed" : 
-                razorpayPayout.status === "reversed" || razorpayPayout.status === "cancelled" ? "failed" : 
-                "processing",
+        status: razorpayPayout.status === "processed" ? "completed" :
+          razorpayPayout.status === "reversed" || razorpayPayout.status === "cancelled" ? "failed" :
+            "processing",
         processedAt: razorpayPayout.status === "processed" ? new Date() : payout.processedAt,
         failureReason: razorpayPayout.failure_reason || null,
       });
-      
+
       res.json({
         payout: updatedPayout,
         razorpayPayout,
@@ -3324,7 +3324,7 @@ export async function registerRoutes(
   });
 
   // ==================== PRODUCT & PAYMENT ROUTES ====================
-  
+
   // Get all products (public)
   app.get("/api/products", async (req, res) => {
     try {
@@ -3387,7 +3387,7 @@ export async function registerRoutes(
         });
         createdCount++;
       }
-      
+
       console.log(`Admin seeded ${createdCount} products successfully`);
       res.json({ message: `Successfully seeded ${createdCount} products`, count: createdCount });
     } catch (error) {
@@ -3436,37 +3436,37 @@ export async function registerRoutes(
   app.post("/api/orders/create", requireAuth, async (req, res) => {
     try {
       const { items, customerName, customerPhone, customerEmail, customerAddress, notes } = req.body;
-      
+
       if (!items || !items.length) {
         return res.status(400).json({ message: "Order must have at least one item" });
       }
-      
+
       // Calculate total using SERVER-SIDE prices from database (security fix)
       let totalAmount = 0;
-      const orderItems: Array<{productId?: string; productName: string; quantity: number; unitPrice: number; totalPrice: number}> = [];
-      
+      const orderItems: Array<{ productId?: string; productName: string; quantity: number; unitPrice: number; totalPrice: number }> = [];
+
       for (const item of items) {
         if (!item.productId) {
           return res.status(400).json({ message: "Each item must have a valid productId" });
         }
-        
+
         const product = await storage.getProduct(item.productId);
         if (!product) {
           return res.status(400).json({ message: `Product not found: ${item.productId}` });
         }
-        
+
         if (product.isActive !== "active") {
           return res.status(400).json({ message: `Product is not available: ${product.name}` });
         }
-        
+
         // Use SERVER-SIDE price, not client-provided price (security)
         // For solar packages with booking amount, use booking amount instead of full plant cost
-        const unitPrice = (product.category === "solar_package" && product.bookingAmount) 
-          ? product.bookingAmount 
+        const unitPrice = (product.category === "solar_package" && product.bookingAmount)
+          ? product.bookingAmount
           : product.price;
         const quantity = Math.max(1, Math.min(item.quantity || 1, 100)); // Clamp quantity
         const totalPrice = unitPrice * quantity;
-        
+
         orderItems.push({
           productId: item.productId,
           productName: product.name,
@@ -3474,17 +3474,17 @@ export async function registerRoutes(
           unitPrice,
           totalPrice,
         });
-        
+
         totalAmount += totalPrice;
       }
-      
+
       if (totalAmount <= 0) {
         return res.status(400).json({ message: "Order total must be greater than zero" });
       }
-      
+
       // Generate order number
       const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-      
+
       // Create order in database
       const order = await storage.createOrder({
         orderNumber,
@@ -3499,7 +3499,7 @@ export async function registerRoutes(
         ddpId: req.session.userId!,
         notes: notes || null,
       });
-      
+
       // Create order items
       for (const item of orderItems) {
         await storage.createOrderItem({
@@ -3507,21 +3507,21 @@ export async function registerRoutes(
           ...item,
         });
       }
-      
+
       // Create Razorpay order
       const keyId = process.env.RAZORPAY_KEY_ID;
       const keySecret = process.env.RAZORPAY_KEY_SECRET;
-      
+
       if (!keyId || !keySecret) {
         return res.status(500).json({ message: "Razorpay not configured" });
       }
-      
+
       const Razorpay = require("razorpay");
       const razorpay = new Razorpay({
         key_id: keyId,
         key_secret: keySecret,
       });
-      
+
       const razorpayOrder = await razorpay.orders.create({
         amount: totalAmount * 100, // Convert to paise
         currency: "INR",
@@ -3531,12 +3531,12 @@ export async function registerRoutes(
           customerName,
         },
       });
-      
+
       // Update order with Razorpay order ID
       await storage.updateOrder(order.id, {
         razorpayOrderId: razorpayOrder.id,
       });
-      
+
       // Create payment record
       await storage.createPayment({
         orderId: order.id,
@@ -3550,7 +3550,7 @@ export async function registerRoutes(
         failureReason: null,
         paidAt: null,
       });
-      
+
       res.json({
         order,
         razorpayOrderId: razorpayOrder.id,
@@ -3570,84 +3570,84 @@ export async function registerRoutes(
   app.post("/api/orders/verify-payment", requireAuth, async (req, res) => {
     try {
       const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-      
+
       // Validate required fields
       if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
         return res.status(400).json({ message: "Missing required payment verification fields" });
       }
-      
+
       const keySecret = process.env.RAZORPAY_KEY_SECRET;
       if (!keySecret) {
         return res.status(500).json({ message: "Razorpay not configured" });
       }
-      
+
       // Find order by Razorpay order ID FIRST (before verification to ensure it exists)
       const order = await storage.getOrderByRazorpayId(razorpay_order_id);
       if (!order) {
         return res.status(404).json({ message: "Order not found" });
       }
-      
+
       // Verify order belongs to requesting user
       if (order.ddpId !== req.session.userId) {
         return res.status(403).json({ message: "Unauthorized access to order" });
       }
-      
+
       // Check if order is already paid (idempotency)
       if (order.status === "paid") {
         return res.json({ success: true, order, message: "Order already verified" });
       }
-      
+
       // Verify order is in pending state
       if (order.status !== "pending") {
         return res.status(400).json({ message: `Order cannot be verified in ${order.status} state` });
       }
-      
+
       // Find pending payment record
       const existingPayments = await storage.getPaymentsByOrderId(order.id);
       const pendingPayment = existingPayments.find(p => p.status === "pending");
       if (!pendingPayment) {
         return res.status(400).json({ message: "No pending payment found for this order" });
       }
-      
+
       // Verify signature (CRITICAL SECURITY CHECK)
       const crypto = require("crypto");
       const expectedSignature = crypto
         .createHmac("sha256", keySecret)
         .update(`${razorpay_order_id}|${razorpay_payment_id}`)
         .digest("hex");
-      
+
       if (expectedSignature !== razorpay_signature) {
         // Log failed verification attempt
         console.error("Payment signature verification failed", { razorpay_order_id, orderId: order.id });
         return res.status(400).json({ message: "Invalid payment signature" });
       }
-      
+
       // ONLY after successful signature verification, update order and payment status
       await storage.updateOrder(order.id, {
         status: "paid",
       });
-      
+
       await storage.updatePayment(pendingPayment.id, {
         razorpayPaymentId: razorpay_payment_id,
         razorpaySignature: razorpay_signature,
         status: "captured",
         paidAt: new Date(),
       });
-      
+
       // Fetch updated order
       const updatedOrder = await storage.getOrder(order.id);
-      
+
       // Create commissions for SunPunch inverter sales
       const orderItems = await storage.getOrderItems(order.id);
       const ddp = await storage.getUser(order.ddpId);
-      
+
       for (const item of orderItems) {
         // Check if this is a SunPunch inverter product
         if (item.productName && item.productName.toLowerCase().includes("sunpunch")) {
           const quantity = item.quantity || 1;
           const ddpCommissionAmount = inverterCommission.ddp * quantity;
           const bdpCommissionAmount = inverterCommission.bdp * quantity;
-          
+
           // Create DDP commission for inverter sale
           await storage.createCommission({
             partnerId: order.ddpId,
@@ -3659,7 +3659,7 @@ export async function registerRoutes(
             paidAt: null,
             notes: `SunPunch Inverter sale: ${item.productName} x${quantity} (Order #${order.id.slice(-6)})`,
           });
-          
+
           // Create BDP commission if DDP has a parent
           if (ddp?.parentId) {
             await storage.createCommission({
@@ -3675,7 +3675,7 @@ export async function registerRoutes(
           }
         }
       }
-      
+
       res.json({ success: true, order: updatedOrder });
     } catch (error: any) {
       console.error("Verify payment error:", error);
@@ -3700,42 +3700,42 @@ export async function registerRoutes(
       }
 
       const { items, customerName, customerPhone, customerEmail, customerAddress } = req.body;
-      
+
       if (!items || !Array.isArray(items) || items.length === 0 || items.length > 5) {
         return res.status(400).json({ message: "Order must have 1-5 items" });
       }
-      
+
       if (!customerName || typeof customerName !== "string" || customerName.trim().length < 2) {
         return res.status(400).json({ message: "Valid customer name is required" });
       }
-      
+
       if (!customerPhone || typeof customerPhone !== "string" || !/^\d{10}$/.test(customerPhone.replace(/\D/g, '').slice(-10))) {
         return res.status(400).json({ message: "Valid 10-digit phone number is required" });
       }
-      
+
       let totalAmount = 0;
-      const orderItems: Array<{productId?: string; productName: string; quantity: number; unitPrice: number; totalPrice: number}> = [];
-      
+      const orderItems: Array<{ productId?: string; productName: string; quantity: number; unitPrice: number; totalPrice: number }> = [];
+
       for (const item of items) {
         if (!item.productId) {
           return res.status(400).json({ message: "Each item must have a valid productId" });
         }
-        
+
         const product = await storage.getProduct(item.productId);
         if (!product) {
           return res.status(400).json({ message: `Product not found: ${item.productId}` });
         }
-        
+
         if (product.isActive !== "active") {
           return res.status(400).json({ message: `Product is not available: ${product.name}` });
         }
-        
-        const unitPrice = (product.category === "solar_package" && product.bookingAmount) 
-          ? product.bookingAmount 
+
+        const unitPrice = (product.category === "solar_package" && product.bookingAmount)
+          ? product.bookingAmount
           : product.price;
         const quantity = Math.max(1, Math.min(item.quantity || 1, 100));
         const totalPrice = unitPrice * quantity;
-        
+
         orderItems.push({
           productId: item.productId,
           productName: product.name,
@@ -3743,16 +3743,16 @@ export async function registerRoutes(
           unitPrice,
           totalPrice,
         });
-        
+
         totalAmount += totalPrice;
       }
-      
+
       if (totalAmount <= 0) {
         return res.status(400).json({ message: "Order total must be greater than zero" });
       }
-      
+
       const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-      
+
       const order = await storage.createOrder({
         orderNumber,
         customerId: null,
@@ -3766,27 +3766,27 @@ export async function registerRoutes(
         ddpId: "public",
         notes: "Public store purchase",
       });
-      
+
       for (const item of orderItems) {
         await storage.createOrderItem({
           orderId: order.id,
           ...item,
         });
       }
-      
+
       const keyId = process.env.RAZORPAY_KEY_ID;
       const keySecret = process.env.RAZORPAY_KEY_SECRET;
-      
+
       if (!keyId || !keySecret) {
         return res.status(500).json({ message: "Payment gateway not configured" });
       }
-      
+
       const Razorpay = require("razorpay");
       const razorpay = new Razorpay({
         key_id: keyId,
         key_secret: keySecret,
       });
-      
+
       const razorpayOrder = await razorpay.orders.create({
         amount: totalAmount * 100,
         currency: "INR",
@@ -3797,11 +3797,11 @@ export async function registerRoutes(
           source: "public_store",
         },
       });
-      
+
       await storage.updateOrder(order.id, {
         razorpayOrderId: razorpayOrder.id,
       });
-      
+
       await storage.createPayment({
         orderId: order.id,
         razorpayOrderId: razorpayOrder.id,
@@ -3814,7 +3814,7 @@ export async function registerRoutes(
         failureReason: null,
         paidAt: null,
       });
-      
+
       res.json({
         order,
         razorpayOrderId: razorpayOrder.id,
@@ -3832,57 +3832,57 @@ export async function registerRoutes(
   app.post("/api/public/orders/verify-payment", async (req, res) => {
     try {
       const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-      
+
       if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
         return res.status(400).json({ message: "Missing required payment verification fields" });
       }
-      
+
       const keySecret = process.env.RAZORPAY_KEY_SECRET;
       if (!keySecret) {
         return res.status(500).json({ message: "Payment gateway not configured" });
       }
-      
+
       const order = await storage.getOrderByRazorpayId(razorpay_order_id);
       if (!order) {
         return res.status(404).json({ message: "Order not found" });
       }
-      
+
       if (order.status === "paid") {
         return res.json({ success: true, order, message: "Order already verified" });
       }
-      
+
       if (order.status !== "pending") {
         return res.status(400).json({ message: `Order cannot be verified in ${order.status} state` });
       }
-      
+
       const existingPayments = await storage.getPaymentsByOrderId(order.id);
       const pendingPayment = existingPayments.find(p => p.status === "pending");
       if (!pendingPayment) {
         return res.status(400).json({ message: "No pending payment found for this order" });
       }
-      
+
       const crypto = require("crypto");
       const expectedSignature = crypto
         .createHmac("sha256", keySecret)
         .update(`${razorpay_order_id}|${razorpay_payment_id}`)
         .digest("hex");
-      
+
       if (expectedSignature !== razorpay_signature) {
         console.error("Public payment signature verification failed", { razorpay_order_id, orderId: order.id });
         return res.status(400).json({ message: "Invalid payment signature" });
       }
-      
+
       await storage.updateOrder(order.id, {
         status: "paid",
       });
-      
+
       await storage.updatePayment(pendingPayment.id, {
         razorpayPaymentId: razorpay_payment_id,
         razorpaySignature: razorpay_signature,
         status: "captured",
         paidAt: new Date(),
       });
-      
+
       const updatedOrder = await storage.getOrder(order.id);
       res.json({ success: true, order: updatedOrder });
     } catch (error: any) {
@@ -3909,10 +3909,10 @@ export async function registerRoutes(
       if (!order) {
         return res.status(404).json({ message: "Order not found" });
       }
-      
+
       const items = await storage.getOrderItems(order.id);
       const orderPayments = await storage.getPaymentsByOrderId(order.id);
-      
+
       res.json({ order, items, payments: orderPayments });
     } catch (error) {
       console.error("Get order error:", error);
@@ -3961,7 +3961,7 @@ export async function registerRoutes(
   app.post("/api/razorpay/webhook", async (req, res) => {
     try {
       const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
-      
+
       if (webhookSecret) {
         // Verify webhook signature
         const crypto = require("crypto");
@@ -3970,21 +3970,21 @@ export async function registerRoutes(
           .createHmac("sha256", webhookSecret)
           .update(JSON.stringify(req.body))
           .digest("hex");
-        
+
         if (signature !== expectedSignature) {
           return res.status(400).json({ message: "Invalid webhook signature" });
         }
       }
-      
+
       const { event, payload } = req.body;
-      
+
       if (event === "payment.captured") {
         const payment = payload.payment.entity;
         const order = await storage.getOrderByRazorpayId(payment.order_id);
-        
+
         if (order) {
           await storage.updateOrder(order.id, { status: "paid" });
-          
+
           const existingPayments = await storage.getPaymentsByOrderId(order.id);
           if (existingPayments.length > 0) {
             await storage.updatePayment(existingPayments[0].id, {
@@ -3998,7 +3998,7 @@ export async function registerRoutes(
       } else if (event === "payment.failed") {
         const payment = payload.payment.entity;
         const order = await storage.getOrderByRazorpayId(payment.order_id);
-        
+
         if (order) {
           const existingPayments = await storage.getPaymentsByOrderId(order.id);
           if (existingPayments.length > 0) {
@@ -4009,7 +4009,7 @@ export async function registerRoutes(
           }
         }
       }
-      
+
       res.json({ status: "ok" });
     } catch (error) {
       console.error("Webhook error:", error);
@@ -4038,30 +4038,30 @@ export async function registerRoutes(
   });
 
   // ============ PUBLIC CUSTOMER REGISTRATION ============
-  
+
   // Public: Register as a customer (no authentication required)
   app.post("/api/public/customer-registration", async (req, res) => {
     try {
       const { name, phone, email, address, district, state, pincode, roofType, panelType, proposedCapacity, monthlyBill, referralCode } = req.body;
-      
+
       // Validate required fields
       if (!name || !phone || !address || !district || !state || !pincode || !roofType || !panelType || !proposedCapacity) {
         return res.status(400).json({ message: "Please fill all required fields" });
       }
-      
+
       // Check if phone number is valid (10 digits)
       if (!/^\d{10}$/.test(phone.replace(/\D/g, '').slice(-10))) {
         return res.status(400).json({ message: "Invalid phone number" });
       }
-      
+
       // Check if customer used a referral code
       let ddpId: string | null = null;
       let isIndependent = true; // Default: no commission sharing
       let referrerCustomerId: string | null = null; // For customer partner referrals
-      
+
       if (referralCode && referralCode.trim()) {
         const code = referralCode.trim();
-        
+
         // Check if it's a Customer Partner referral code (starts with CP)
         if (code.startsWith("CP")) {
           // Find customer partner with this referral code
@@ -4069,7 +4069,7 @@ export async function registerRoutes(
           if (customerPartner && customerPartner.role === "customer_partner" && customerPartner.linkedCustomerId) {
             isIndependent = false; // Referred by customer partner - commission eligible
             referrerCustomerId = customerPartner.linkedCustomerId;
-            
+
             // Track referral in referrals table
             await storage.createReferral({
               referrerId: customerPartner.id,
@@ -4099,7 +4099,7 @@ export async function registerRoutes(
           }
         }
       }
-      
+
       // For independent customers (no valid referral), assign to designated DDP (Anamika Kumari - DSDDP001001)
       // under BDP Chandrakant Akela for tracking purposes, no commission is generated
       if (!ddpId) {
@@ -4121,7 +4121,7 @@ export async function registerRoutes(
           }
         }
       }
-      
+
       // Create the customer - independent customers have source "website_direct" (no commission)
       // Referred customers have source "website_referral" (commission eligible)
       const customer = await storage.createCustomer({
@@ -4141,10 +4141,10 @@ export async function registerRoutes(
         source: isIndependent ? "website_direct" : "website_referral",
         referrerCustomerId, // For customer partner referrals
       });
-      
-      res.status(201).json({ 
+
+      res.status(201).json({
         message: "Registration successful! Our partner will contact you within 24-48 hours.",
-        customerId: customer.id 
+        customerId: customer.id
       });
     } catch (error) {
       console.error("Public customer registration error:", error);
@@ -4153,17 +4153,17 @@ export async function registerRoutes(
   });
 
   // ============ FEEDBACK ROUTES ============
-  
+
   // Submit feedback (public - for anonymous users and landing page)
   app.post("/api/public/feedback", async (req, res) => {
     try {
       const validatedData = insertFeedbackSchema.parse(req.body);
-      
+
       const feedback = await storage.createFeedback({
         ...validatedData,
         userId: null, // Anonymous submission
       });
-      
+
       res.status(201).json(feedback);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -4173,20 +4173,20 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to submit feedback" });
     }
   });
-  
+
   // Submit feedback (authenticated users)
   app.post("/api/feedback", requireAuth, async (req, res) => {
     try {
       const validatedData = insertFeedbackSchema.omit({ userId: true }).parse(req.body);
       const user = await storage.getUser(req.session.userId!);
-      
+
       const feedback = await storage.createFeedback({
         userId: req.session.userId!,
         userEmail: user?.email,
         userName: user?.name,
         ...validatedData,
       });
-      
+
       res.status(201).json(feedback);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -4196,7 +4196,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to submit feedback" });
     }
   });
-  
+
   // Get user's own feedback
   app.get("/api/feedback", requireAuth, async (req, res) => {
     try {
@@ -4207,7 +4207,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get feedback" });
     }
   });
-  
+
   // Admin: Get all feedback
   app.get("/api/admin/feedback", requireAdmin, async (req, res) => {
     try {
@@ -4218,7 +4218,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get feedback" });
     }
   });
-  
+
   // Admin: Update feedback status
   app.patch("/api/admin/feedback/:id", requireAdmin, async (req, res) => {
     try {
@@ -4238,7 +4238,7 @@ export async function registerRoutes(
   });
 
   // ============ NOTIFICATION ROUTES ============
-  
+
   // Get user's notifications
   app.get("/api/notifications", requireAuth, async (req, res) => {
     try {
@@ -4287,7 +4287,7 @@ export async function registerRoutes(
   });
 
   // ============ USER PREFERENCES ROUTES ============
-  
+
   // Get notification service configuration status (admin only)
   app.get("/api/admin/notification-config", requireAdmin, async (req, res) => {
     try {
@@ -4307,7 +4307,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get notification config" });
     }
   });
-  
+
   // Get user preferences
   app.get("/api/preferences", requireAuth, async (req, res) => {
     try {
@@ -4334,7 +4334,7 @@ export async function registerRoutes(
   });
 
   // ============ PARTNER OF THE MONTH ROUTES ============
-  
+
   // Get current partner of the month
   app.get("/api/partner-of-month", async (req, res) => {
     try {
@@ -4377,7 +4377,7 @@ export async function registerRoutes(
   });
 
   // ============ CHATBOT FAQ ROUTES ============
-  
+
   // Get active FAQs (public)
   app.get("/api/faqs", async (req, res) => {
     try {
@@ -4456,7 +4456,7 @@ export async function registerRoutes(
   });
 
   // ===== NEWS & UPDATES ROUTES =====
-  
+
   // Public: Get published news
   app.get("/api/public/news", async (req, res) => {
     try {
@@ -4552,7 +4552,7 @@ export async function registerRoutes(
   });
 
   // ===== PANEL COMPARISON ROUTES =====
-  
+
   // Public: Get active panel models for comparison
   app.get("/api/public/panels", async (req, res) => {
     try {
@@ -4612,14 +4612,14 @@ export async function registerRoutes(
   });
 
   // ===== LEADERBOARD ROUTES =====
-  
+
   // Public/Partner: Get leaderboard
   app.get("/api/leaderboard", async (req, res) => {
     try {
       const { period = "monthly", year, month } = req.query;
       const currentYear = year ? parseInt(year as string) : new Date().getFullYear();
       const currentMonth = month ? parseInt(month as string) : new Date().getMonth() + 1;
-      
+
       const entries = await storage.getLeaderboard(
         period as string,
         currentYear,
@@ -4638,7 +4638,7 @@ export async function registerRoutes(
       const { period = "monthly" } = req.body;
       const year = new Date().getFullYear();
       const month = new Date().getMonth() + 1;
-      
+
       await storage.updateLeaderboard(period, year, period === "monthly" ? month : undefined);
       res.json({ success: true, message: "Leaderboard refreshed" });
     } catch (error) {
@@ -4648,7 +4648,7 @@ export async function registerRoutes(
   });
 
   // ===== REFERRAL ROUTES =====
-  
+
   // Partner: Get my referrals
   app.get("/api/referrals", requireAuth, async (req, res) => {
     try {
@@ -4667,7 +4667,7 @@ export async function registerRoutes(
       if (user?.referralCode) {
         return res.json({ code: user.referralCode });
       }
-      
+
       // Generate a new code
       const code = await storage.generateReferralCode(req.user!.id);
       await storage.updateUserReferralCode(req.user!.id, code);
@@ -4697,11 +4697,11 @@ export async function registerRoutes(
     try {
       const { referredType, referredCustomerId, referredPartnerId } = req.body;
       const user = await storage.getUser(req.user!.id);
-      
+
       if (!user?.referralCode) {
         return res.status(400).json({ message: "You need a referral code first" });
       }
-      
+
       const referral = await storage.createReferral({
         referrerId: req.user!.id,
         referredType,
@@ -4719,7 +4719,7 @@ export async function registerRoutes(
   });
 
   // ===== MAP VIEW ROUTES =====
-  
+
   // Public: Get installation locations for map (completed only)
   app.get("/api/public/installations-map", async (req, res) => {
     try {
@@ -4745,7 +4745,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get installation locations" });
     }
   });
-  
+
   // Public: Get all installations for interactive map (including ongoing)
   app.get("/api/public/all-installations-map", async (req, res) => {
     try {
@@ -4770,7 +4770,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get installation locations" });
     }
   });
-  
+
   // Public: Get partner network for map visualization
   app.get("/api/public/partner-network-map", async (req, res) => {
     try {
@@ -4820,7 +4820,7 @@ export async function registerRoutes(
   });
 
   // ===== NOTIFICATION TEMPLATE ROUTES =====
-  
+
   // Admin: Get all notification templates
   app.get("/api/admin/notification-templates", requireAdmin, async (req, res) => {
     try {
@@ -4873,13 +4873,13 @@ export async function registerRoutes(
     try {
       console.log("[Test Notification] Request received:", JSON.stringify(req.body));
       const { phone, email, message, templateId, templateParams, imageUrl } = req.body;
-      
+
       if (!message && !templateId) {
         return res.status(400).json({ message: "Message or Template ID is required" });
       }
-      
+
       const results: { sms?: string; whatsapp?: string; email?: string } = {};
-      
+
       if (phone) {
         try {
           const smsSuccess = await notificationService.sendSMS(phone, message || "Test from Divyanshi Solar");
@@ -4891,10 +4891,10 @@ export async function registerRoutes(
           results.sms = "failed";
           console.error("Test SMS error:", err);
         }
-        
+
         try {
           const whatsappSuccess = await notificationService.sendWhatsAppMessage(
-            phone, 
+            phone,
             message || "",
             templateId || undefined,
             templateParams || [],
@@ -4910,7 +4910,7 @@ export async function registerRoutes(
           console.error("Test WhatsApp error:", err);
         }
       }
-      
+
       if (email) {
         try {
           // Use Gmail API for email
@@ -4933,7 +4933,7 @@ export async function registerRoutes(
           console.error("Test email error:", err);
         }
       }
-      
+
       res.json({ success: true, results });
     } catch (error) {
       console.error("Test notification error:", error);
@@ -4946,44 +4946,44 @@ export async function registerRoutes(
     try {
       console.log("[Broadcast] Request received:", JSON.stringify(req.body));
       const { subject, message, sendWhatsApp, sendEmail, partnerType, templateId, templateParams, imageUrl } = req.body;
-      
+
       if (!message && !templateId) {
         return res.status(400).json({ message: "Message or Template ID is required" });
       }
-      
+
       if (!sendWhatsApp && !sendEmail) {
         return res.status(400).json({ message: "Select at least one channel (WhatsApp or Email)" });
       }
-      
+
       // Get all partners (BDPs and DDPs)
       const allPartners = await storage.getAllPartners();
-      
+
       // Filter by partner type if specified
       let partners = allPartners;
       if (partnerType && partnerType !== "all") {
         partners = allPartners.filter(p => p.role === partnerType);
       }
-      
+
       // Filter only active/approved partners with valid contact info
       const approvedPartners = partners.filter(p => p.status === "approved" || p.status === "active");
-      
+
       const results = {
         totalPartners: approvedPartners.length,
         whatsapp: { sent: 0, failed: 0 } as { sent: number; failed: number },
         email: { sent: 0, failed: 0 } as { sent: number; failed: number },
       };
-      
+
       // Send WhatsApp messages
       if (sendWhatsApp) {
         console.log("[Broadcast] All partners count:", allPartners.length);
         console.log("[Broadcast] Approved partners count:", approvedPartners.length);
-        
+
         const whatsAppRecipients = approvedPartners
           .filter(p => p.phone)
           .map(p => ({ phone: p.phone, name: p.name }));
-        
+
         console.log("[Broadcast] WhatsApp recipients:", whatsAppRecipients.length, JSON.stringify(whatsAppRecipients));
-        
+
         if (whatsAppRecipients.length > 0) {
           const whatsAppResult = await notificationService.sendBulkWhatsApp(
             whatsAppRecipients,
@@ -4998,22 +4998,22 @@ export async function registerRoutes(
           console.log("[Broadcast] No WhatsApp recipients found with phone numbers");
         }
       }
-      
+
       // Send Email messages using Gmail API
       if (sendEmail) {
         const emailRecipients = approvedPartners
           .filter(p => p.email)
           .map(p => ({ email: p.email!, name: p.name }));
-        
+
         if (emailRecipients.length > 0) {
           let emailSent = 0;
           let emailFailed = 0;
-          
+
           for (const recipient of emailRecipients) {
             try {
               // Personalize the message
               const personalizedMessage = message.replace(/\{\{name\}\}/g, recipient.name);
-              
+
               const emailResult = await sendGmailEmail({
                 to: recipient.email,
                 subject: subject || "Important Update from Divyanshi Solar",
@@ -5026,14 +5026,14 @@ export async function registerRoutes(
                   <p style="color: #666;">Best regards,<br>Divyanshi Solar Admin Team</p>
                 </div>`
               });
-              
+
               if (emailResult.success) {
                 emailSent++;
               } else {
                 emailFailed++;
                 console.error(`Gmail broadcast failed for ${recipient.email}:`, emailResult.error);
               }
-              
+
               // Rate limiting: 300ms between emails
               await new Promise(resolve => setTimeout(resolve, 300));
             } catch (error) {
@@ -5041,22 +5041,22 @@ export async function registerRoutes(
               console.error(`Gmail broadcast error for ${recipient.email}:`, error);
             }
           }
-          
+
           results.email = { sent: emailSent, failed: emailFailed };
         }
       }
-      
+
       // Log the broadcast
       console.log(`[Admin Broadcast] Sent to ${results.totalPartners} partners:`, {
         whatsapp: results.whatsapp,
         email: results.email,
         by: req.session.userId
       });
-      
-      res.json({ 
-        success: true, 
+
+      res.json({
+        success: true,
         message: `Broadcast sent to ${results.totalPartners} partners`,
-        results 
+        results
       });
     } catch (error) {
       console.error("Broadcast error:", error);
@@ -5065,7 +5065,7 @@ export async function registerRoutes(
   });
 
   // ===== VENDOR REGISTRATION ROUTES =====
-  
+
   // Public: Register as a vendor
   app.post("/api/public/vendors/register", async (req, res) => {
     try {
@@ -5077,27 +5077,27 @@ export async function registerRoutes(
         'bestPriceQuotation', 'experienceYears', 'teamSize', 'supervisorCount', 'helperCount',
         'totalInstallations', 'projectsCompleted'
       ];
-      
+
       const cleanedBody = { ...req.body };
       for (const field of decimalFields) {
         if (cleanedBody[field] === '' || cleanedBody[field] === undefined) {
           cleanedBody[field] = null;
         }
       }
-      
+
       // Validate and parse input using schema (strips disallowed fields like status, notes)
       const validatedData = insertVendorSchema.parse(cleanedBody);
-      
+
       // Verify state is one of the allowed states
       const allowedStates = vendorStates.map(s => s.value);
       if (!allowedStates.includes(validatedData.state)) {
         return res.status(400).json({ message: "Invalid state. Only Bihar, Jharkhand, Uttar Pradesh, and Odisha are accepted." });
       }
-      
+
       const vendor = await storage.createVendor(validatedData);
-      res.status(201).json({ 
+      res.status(201).json({
         message: "Registration successful! We will review your application and contact you soon.",
-        vendor 
+        vendor
       });
     } catch (error) {
       console.error("Vendor registration error:", error);
@@ -5118,7 +5118,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to register vendor", error: errorMessage });
     }
   });
-  
+
   // Admin: Get all vendors
   app.get("/api/admin/vendors", requireAdmin, async (req, res) => {
     try {
@@ -5129,7 +5129,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get vendors" });
     }
   });
-  
+
   // Admin: Update vendor status
   app.patch("/api/admin/vendors/:id/status", requireAdmin, async (req, res) => {
     try {
@@ -5144,7 +5144,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to update vendor status" });
     }
   });
-  
+
   // Admin: Get approved vendors (for assignment dropdown)
   app.get("/api/admin/vendors/approved", requireAdmin, async (req, res) => {
     try {
@@ -5155,7 +5155,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get approved vendors" });
     }
   });
-  
+
   // Admin: Get approved DISCOM vendors (for File Submission milestone)
   app.get("/api/admin/vendors/discom", requireAdmin, async (req, res) => {
     try {
@@ -5215,9 +5215,9 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get Site Erection vendors" });
     }
   });
-  
+
   // ===== VENDOR ASSIGNMENT ROUTES =====
-  
+
   // Admin: Assign vendor to customer job
   app.post("/api/admin/vendor-assignments", requireAdmin, async (req, res) => {
     try {
@@ -5228,12 +5228,12 @@ export async function registerRoutes(
         assignedAt: new Date(),
       };
       const assignment = await storage.createVendorAssignment(assignmentData);
-      
+
       // Send WhatsApp notification to vendor about the job assignment
       try {
         const vendor = await storage.getVendor(assignment.vendorId);
         const customer = await storage.getCustomer(assignment.customerId);
-        
+
         if (vendor && vendor.contactPhone && customer) {
           await notificationService.sendWhatsAppMessage(
             vendor.contactPhone,
@@ -5248,14 +5248,14 @@ export async function registerRoutes(
         console.error("Vendor assignment WhatsApp notification error:", notifError);
         // Don't fail the request if notification fails
       }
-      
+
       res.status(201).json(assignment);
     } catch (error) {
       console.error("Create vendor assignment error:", error);
       res.status(500).json({ message: "Failed to create vendor assignment" });
     }
   });
-  
+
   // Get vendor assignments for a customer
   app.get("/api/customers/:id/vendor-assignments", requireAuth, async (req, res) => {
     try {
@@ -5273,7 +5273,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get vendor assignments" });
     }
   });
-  
+
   // Admin: Update vendor assignment
   app.patch("/api/admin/vendor-assignments/:id", requireAdmin, async (req, res) => {
     try {
@@ -5287,7 +5287,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to update vendor assignment" });
     }
   });
-  
+
   // Admin: Delete vendor assignment
   app.delete("/api/admin/vendor-assignments/:id", requireAdmin, async (req, res) => {
     try {
@@ -5300,7 +5300,7 @@ export async function registerRoutes(
   });
 
   // ===== VENDOR PAYMENT ROUTES =====
-  
+
   // Admin: Get all vendor payments
   app.get("/api/admin/vendor-payments", requireAdmin, async (req, res) => {
     try {
@@ -5311,7 +5311,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get vendor payments" });
     }
   });
-  
+
   // Admin: Get vendor payments by customer
   app.get("/api/admin/customers/:customerId/vendor-payments", requireAdmin, async (req, res) => {
     try {
@@ -5322,7 +5322,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get customer vendor payments" });
     }
   });
-  
+
   // Admin: Create vendor payment (manual or triggered by milestone)
   app.post("/api/admin/vendor-payments", requireAdmin, async (req, res) => {
     try {
@@ -5339,34 +5339,34 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to create vendor payment" });
     }
   });
-  
+
   // Admin: Update vendor payment status
   app.patch("/api/admin/vendor-payments/:id", requireAdmin, async (req, res) => {
     try {
       const user = req.user as any;
       const { status, notes } = req.body;
-      
+
       const updateData: any = { status, notes };
-      
+
       if (status === "ready_for_payout") {
         updateData.payoutApprovedBy = user.id;
         updateData.payoutApprovedAt = new Date();
       } else if (status === "paid") {
         updateData.paidAt = new Date();
       }
-      
+
       const payment = await storage.updateVendorPayment(req.params.id, updateData);
       if (!payment) {
         return res.status(404).json({ message: "Vendor payment not found" });
       }
-      
+
       // Auto-populate site expense when vendor payment is marked as paid
       if (status === "paid" && payment.customerId) {
         const siteExpense = await storage.getSiteExpenseByCustomerId(payment.customerId);
         if (siteExpense) {
           const paymentAmount = parseFloat(payment.amount || "0");
           const updateExpenseData: any = {};
-          
+
           // Map vendor type to expense head
           if (payment.vendorType === "bank_loan_liaison") {
             // Bank vendor payments go to bankLoanApprovalCost
@@ -5389,53 +5389,53 @@ export async function registerRoutes(
               parseFloat(siteExpense.electricianCost || "0") + paymentAmount
             );
           }
-          
+
           if (Object.keys(updateExpenseData).length > 0) {
             await storage.updateSiteExpense(siteExpense.id, updateExpenseData);
           }
         }
       }
-      
+
       res.json(payment);
     } catch (error) {
       console.error("Update vendor payment error:", error);
       res.status(500).json({ message: "Failed to update vendor payment" });
     }
   });
-  
+
   // Admin: Trigger vendor payment for a milestone (when milestone is completed)
   app.post("/api/admin/vendor-payments/trigger", requireAdmin, async (req, res) => {
     try {
       const user = req.user as any;
       const { customerId, vendorType, milestone } = req.body;
-      
+
       // Find the vendor assignment for this customer and vendor type
       const assignments = await storage.getVendorAssignmentsByCustomer(customerId);
       const assignment = assignments.find(a => a.jobRole === vendorType);
-      
+
       if (!assignment) {
         return res.status(404).json({ message: `No ${vendorType} vendor assigned to this customer` });
       }
-      
+
       // Check if payment already exists for this milestone
       const existingPayments = await storage.getVendorPaymentsByCustomer(customerId);
       const existing = existingPayments.find(
         p => p.vendorId === assignment.vendorId && p.milestone === milestone
       );
-      
+
       if (existing) {
         return res.status(400).json({ message: "Payment already created for this milestone", payment: existing });
       }
-      
+
       // Get milestone config
       const { vendorPaymentMilestones } = await import("@shared/schema");
       const milestones = vendorPaymentMilestones[vendorType as keyof typeof vendorPaymentMilestones];
       const milestoneConfig = milestones?.find((m: any) => m.milestone === milestone);
-      
+
       if (!milestoneConfig) {
         return res.status(400).json({ message: "Invalid milestone for vendor type" });
       }
-      
+
       // Create the payment
       const payment = await storage.createVendorPayment({
         customerId,
@@ -5448,7 +5448,7 @@ export async function registerRoutes(
         milestoneCompletedBy: user.id,
         milestoneCompletedAt: new Date(),
       });
-      
+
       res.status(201).json(payment);
     } catch (error) {
       console.error("Trigger vendor payment error:", error);
@@ -5457,7 +5457,7 @@ export async function registerRoutes(
   });
 
   // ===== SITE EXPENSE ROUTES =====
-  
+
   // Admin: Get all site expenses
   app.get("/api/admin/site-expenses", requireAdmin, async (req, res) => {
     try {
@@ -5468,7 +5468,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get site expenses" });
     }
   });
-  
+
   // Admin: Get site expense by ID
   app.get("/api/admin/site-expenses/:id", requireAdmin, async (req, res) => {
     try {
@@ -5482,34 +5482,34 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get site expense" });
     }
   });
-  
+
   // Admin: Create site expense (when customer is approved)
   app.post("/api/admin/site-expenses", requireAdmin, async (req, res) => {
     try {
       const { customerId } = req.body;
-      
+
       // Check if expense already exists for this customer
       const existing = await storage.getSiteExpenseByCustomerId(customerId);
       if (existing) {
         return res.status(400).json({ message: "Site expense already exists for this customer", expense: existing });
       }
-      
+
       // Generate unique site ID
       const siteId = await storage.generateSiteId();
-      
+
       const expense = await storage.createSiteExpense({
         customerId,
         siteId,
         status: "pending",
       });
-      
+
       res.status(201).json(expense);
     } catch (error) {
       console.error("Create site expense error:", error);
       res.status(500).json({ message: "Failed to create site expense" });
     }
   });
-  
+
   // Admin: Update site expense
   app.patch("/api/admin/site-expenses/:id", requireAdmin, async (req, res) => {
     try {
@@ -5523,7 +5523,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to update site expense" });
     }
   });
-  
+
   // Admin: Get site expense by customer ID
   app.get("/api/admin/customers/:customerId/site-expense", requireAdmin, async (req, res) => {
     try {
@@ -5536,7 +5536,7 @@ export async function registerRoutes(
   });
 
   // ==================== CUSTOMER FILE SUBMISSION ROUTES (Step 1 of Customer Journey) ====================
-  
+
   // Admin: Get all customer file submissions
   app.get("/api/admin/customer-file-submissions", requireAdmin, async (req, res) => {
     try {
@@ -5547,7 +5547,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get customer file submissions" });
     }
   });
-  
+
   // Admin: Get customer file submission by ID
   app.get("/api/admin/customer-file-submissions/:id", requireAdmin, async (req, res) => {
     try {
@@ -5561,12 +5561,12 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get customer file submission" });
     }
   });
-  
+
   // Admin: Create customer file submission
   app.post("/api/admin/customer-file-submissions", requireAdmin, async (req, res) => {
     try {
       const { customerId, customerName, consumerNo, billHolderName, loanApplied, submissionDate, remarks } = req.body;
-      
+
       // Validate required fields
       if (!customerName || typeof customerName !== "string" || customerName.trim() === "") {
         return res.status(400).json({ message: "Customer name is required" });
@@ -5580,13 +5580,13 @@ export async function registerRoutes(
       if (!submissionDate) {
         return res.status(400).json({ message: "Submission date is required" });
       }
-      
+
       // Validate date
       const parsedDate = new Date(submissionDate);
       if (isNaN(parsedDate.getTime())) {
         return res.status(400).json({ message: "Invalid submission date format" });
       }
-      
+
       // If customerId is provided, verify customer exists
       if (customerId) {
         const customer = await storage.getCustomer(customerId);
@@ -5594,7 +5594,7 @@ export async function registerRoutes(
           return res.status(404).json({ message: "Customer not found" });
         }
       }
-      
+
       // Properly convert loanApplied to boolean (handles string "false", "0", etc.)
       const parseLoanApplied = (value: any): boolean => {
         if (typeof value === "boolean") return value;
@@ -5604,7 +5604,7 @@ export async function registerRoutes(
         }
         return Boolean(value);
       };
-      
+
       const submission = await storage.createCustomerFileSubmission({
         customerId: customerId || null,
         customerName: customerName.trim(),
@@ -5615,25 +5615,25 @@ export async function registerRoutes(
         remarks: remarks ? String(remarks).trim() : null,
         status: "submitted",
       });
-      
+
       res.status(201).json(submission);
     } catch (error) {
       console.error("Create customer file submission error:", error);
       res.status(500).json({ message: "Failed to create customer file submission" });
     }
   });
-  
+
   // Admin: Update customer file submission
   app.patch("/api/admin/customer-file-submissions/:id", requireAdmin, async (req, res) => {
     try {
       const { customerName, consumerNo, billHolderName, loanApplied, submissionDate, status, remarks } = req.body;
-      
+
       // Valid status values
       const validStatuses = ["submitted", "under_review", "approved", "rejected", "resubmission_required"];
-      
+
       // Build update object with proper type conversions and validation
       const updateData: Record<string, any> = {};
-      
+
       if (customerName !== undefined) {
         if (typeof customerName !== "string" || customerName.trim() === "") {
           return res.status(400).json({ message: "Customer name must be a non-empty string" });
@@ -5680,7 +5680,7 @@ export async function registerRoutes(
       if (remarks !== undefined) {
         updateData.remarks = remarks ? String(remarks).trim() : null;
       }
-      
+
       const submission = await storage.updateCustomerFileSubmission(req.params.id, updateData);
       if (!submission) {
         return res.status(404).json({ message: "Customer file submission not found" });
@@ -5691,7 +5691,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to update customer file submission" });
     }
   });
-  
+
   // Admin: Delete customer file submission
   app.delete("/api/admin/customer-file-submissions/:id", requireAdmin, async (req, res) => {
     try {
@@ -5702,7 +5702,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to delete customer file submission" });
     }
   });
-  
+
   // Admin: Get customer file submissions by customer ID
   app.get("/api/admin/customers/:customerId/customer-file-submissions", requireAdmin, async (req, res) => {
     try {
@@ -5715,7 +5715,7 @@ export async function registerRoutes(
   });
 
   // ==================== BANK LOAN SUBMISSION ROUTES (Step 2 of Customer Journey) ====================
-  
+
   // Admin: Get all bank loan submissions
   app.get("/api/admin/bank-loan-submissions", requireAdmin, async (req, res) => {
     try {
@@ -5726,7 +5726,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get bank loan submissions" });
     }
   });
-  
+
   // Admin: Get bank loan submission by ID
   app.get("/api/admin/bank-loan-submissions/:id", requireAdmin, async (req, res) => {
     try {
@@ -5740,13 +5740,13 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get bank loan submission" });
     }
   });
-  
+
   // Admin: Create bank loan submission
   app.post("/api/admin/bank-loan-submissions", requireAdmin, async (req, res) => {
     try {
       const user = (req as any).user;
       const { customerId, bankName, bankBranch, bankManagerName, bankManagerMobile, submissionDate, loanAmount, remarks } = req.body;
-      
+
       // Validate required fields
       if (!customerId || typeof customerId !== "string") {
         return res.status(400).json({ message: "Customer ID is required" });
@@ -5760,19 +5760,19 @@ export async function registerRoutes(
       if (!submissionDate) {
         return res.status(400).json({ message: "Submission date is required" });
       }
-      
+
       // Validate date
       const parsedDate = new Date(submissionDate);
       if (isNaN(parsedDate.getTime())) {
         return res.status(400).json({ message: "Invalid submission date format" });
       }
-      
+
       // Verify customer exists
       const customer = await storage.getCustomer(customerId);
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       const submission = await storage.createBankLoanSubmission({
         customerId,
         bankName: bankName.trim(),
@@ -5785,25 +5785,25 @@ export async function registerRoutes(
         status: "submitted",
         createdBy: user.id,
       });
-      
+
       res.status(201).json(submission);
     } catch (error) {
       console.error("Create bank loan submission error:", error);
       res.status(500).json({ message: "Failed to create bank loan submission" });
     }
   });
-  
+
   // Admin: Update bank loan submission
   app.patch("/api/admin/bank-loan-submissions/:id", requireAdmin, async (req, res) => {
     try {
       const { bankName, bankBranch, bankManagerName, bankManagerMobile, submissionDate, loanAmount, status, remarks } = req.body;
-      
+
       // Valid status values
       const validStatuses = ["submitted", "processing", "approved", "rejected", "disbursed"];
-      
+
       // Build update object with proper validation
       const updateData: Record<string, any> = {};
-      
+
       if (bankName !== undefined) {
         if (typeof bankName !== "string" || bankName.trim() === "") {
           return res.status(400).json({ message: "Bank name must be a non-empty string" });
@@ -5841,7 +5841,7 @@ export async function registerRoutes(
       if (remarks !== undefined) {
         updateData.remarks = remarks ? String(remarks).trim() : null;
       }
-      
+
       const submission = await storage.updateBankLoanSubmission(req.params.id, updateData);
       if (!submission) {
         return res.status(404).json({ message: "Bank loan submission not found" });
@@ -5852,7 +5852,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to update bank loan submission" });
     }
   });
-  
+
   // Admin: Delete bank loan submission
   app.delete("/api/admin/bank-loan-submissions/:id", requireAdmin, async (req, res) => {
     try {
@@ -5863,7 +5863,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to delete bank loan submission" });
     }
   });
-  
+
   // Admin: Get bank loan submissions by customer ID
   app.get("/api/admin/customers/:customerId/bank-loan-submissions", requireAdmin, async (req, res) => {
     try {
@@ -5876,7 +5876,7 @@ export async function registerRoutes(
   });
 
   // ==================== SITE SURVEYS ROUTES (Step 3: Bank Staff & DISCOM) ====================
-  
+
   // Admin: Get all site surveys
   app.get("/api/admin/site-surveys", requireAdmin, async (req, res) => {
     try {
@@ -5887,7 +5887,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get site surveys" });
     }
   });
-  
+
   // Admin: Get site survey by ID
   app.get("/api/admin/site-surveys/:id", requireAdmin, async (req, res) => {
     try {
@@ -5901,22 +5901,22 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get site survey" });
     }
   });
-  
+
   // Admin: Create site survey
   app.post("/api/admin/site-surveys", requireAdmin, async (req, res) => {
     try {
       const user = (req as any).user;
-      
+
       // Validate request body with Zod schema
       const validationResult = insertSiteSurveySchema.safeParse(req.body);
       if (!validationResult.success) {
         const errors = validationResult.error.errors.map(e => e.message).join(", ");
         return res.status(400).json({ message: errors });
       }
-      
+
       const data = validationResult.data;
       const surveyNumber = await storage.generateSiteSurveyNumber();
-      
+
       const survey = await storage.createSiteSurvey({
         surveyNumber,
         customerId: data.customerId || null,
@@ -5943,18 +5943,18 @@ export async function registerRoutes(
         remarks: data.remarks || null,
         createdBy: user.id,
       });
-      
+
       res.status(201).json(survey);
     } catch (error) {
       console.error("Create site survey error:", error);
       res.status(500).json({ message: "Failed to create site survey" });
     }
   });
-  
+
   // Admin: Update site survey
   app.patch("/api/admin/site-surveys/:id", requireAdmin, async (req, res) => {
     try {
-      const { 
+      const {
         customerName, customerPhone, siteAddress, district, state, pincode,
         scheduledDate, actualDate, surveyTime,
         bankName, bankBranch, bankStaffName, bankStaffDesignation, bankStaffPhone,
@@ -5966,9 +5966,9 @@ export async function registerRoutes(
         roofPhotos, meterPhotos, sitePhotos,
         status, overallRecommendation, recommendedCapacity, specialConditions, rejectionReason, remarks
       } = req.body;
-      
+
       const updateData: Record<string, any> = {};
-      
+
       if (customerName !== undefined) updateData.customerName = customerName;
       if (customerPhone !== undefined) updateData.customerPhone = customerPhone;
       if (siteAddress !== undefined) updateData.siteAddress = siteAddress;
@@ -5978,7 +5978,7 @@ export async function registerRoutes(
       if (scheduledDate !== undefined) updateData.scheduledDate = scheduledDate;
       if (actualDate !== undefined) updateData.actualDate = actualDate;
       if (surveyTime !== undefined) updateData.surveyTime = surveyTime;
-      
+
       // Bank details
       if (bankName !== undefined) updateData.bankName = bankName;
       if (bankBranch !== undefined) updateData.bankBranch = bankBranch;
@@ -5989,7 +5989,7 @@ export async function registerRoutes(
       if (bankSurveyDate !== undefined) updateData.bankSurveyDate = bankSurveyDate;
       if (bankSurveyNotes !== undefined) updateData.bankSurveyNotes = bankSurveyNotes;
       if (bankApprovalStatus !== undefined) updateData.bankApprovalStatus = bankApprovalStatus;
-      
+
       // DISCOM details
       if (discomName !== undefined) updateData.discomName = discomName;
       if (discomDivision !== undefined) updateData.discomDivision = discomDivision;
@@ -6000,7 +6000,7 @@ export async function registerRoutes(
       if (discomSurveyDate !== undefined) updateData.discomSurveyDate = discomSurveyDate;
       if (discomSurveyNotes !== undefined) updateData.discomSurveyNotes = discomSurveyNotes;
       if (discomApprovalStatus !== undefined) updateData.discomApprovalStatus = discomApprovalStatus;
-      
+
       // Site assessment
       if (roofCondition !== undefined) updateData.roofCondition = roofCondition;
       if (roofType !== undefined) updateData.roofType = roofType;
@@ -6008,19 +6008,19 @@ export async function registerRoutes(
       if (shadowAnalysis !== undefined) updateData.shadowAnalysis = shadowAnalysis;
       if (structuralFeasibility !== undefined) updateData.structuralFeasibility = structuralFeasibility;
       if (electricalFeasibility !== undefined) updateData.electricalFeasibility = electricalFeasibility;
-      
+
       // Meter details
       if (existingMeterType !== undefined) updateData.existingMeterType = existingMeterType;
       if (meterLocation !== undefined) updateData.meterLocation = meterLocation;
       if (sanctionedLoad !== undefined) updateData.sanctionedLoad = sanctionedLoad;
       if (proposedCapacity !== undefined) updateData.proposedCapacity = proposedCapacity;
       if (gridConnectionDistance !== undefined) updateData.gridConnectionDistance = gridConnectionDistance;
-      
+
       // Photos
       if (roofPhotos !== undefined) updateData.roofPhotos = roofPhotos;
       if (meterPhotos !== undefined) updateData.meterPhotos = meterPhotos;
       if (sitePhotos !== undefined) updateData.sitePhotos = sitePhotos;
-      
+
       // Outcome
       if (status !== undefined) updateData.status = status;
       if (overallRecommendation !== undefined) updateData.overallRecommendation = overallRecommendation;
@@ -6028,7 +6028,7 @@ export async function registerRoutes(
       if (specialConditions !== undefined) updateData.specialConditions = specialConditions;
       if (rejectionReason !== undefined) updateData.rejectionReason = rejectionReason;
       if (remarks !== undefined) updateData.remarks = remarks;
-      
+
       const survey = await storage.updateSiteSurvey(req.params.id, updateData);
       if (!survey) {
         return res.status(404).json({ message: "Site survey not found" });
@@ -6039,7 +6039,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to update site survey" });
     }
   });
-  
+
   // Admin: Delete site survey
   app.delete("/api/admin/site-surveys/:id", requireAdmin, async (req, res) => {
     try {
@@ -6050,7 +6050,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to delete site survey" });
     }
   });
-  
+
   // Admin: Get site survey by customer ID
   app.get("/api/admin/customers/:customerId/site-surveys", requireAdmin, async (req, res) => {
     try {
@@ -6063,7 +6063,7 @@ export async function registerRoutes(
   });
 
   // ==================== METER INSTALLATION REPORTS (Step 10 - Grid Connected) ====================
-  
+
   // Admin: Get all meter installation reports
   app.get("/api/admin/meter-installation-reports", requireAdmin, async (req, res) => {
     try {
@@ -6074,7 +6074,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get meter installation reports" });
     }
   });
-  
+
   // Admin: Get meter installation report by ID
   app.get("/api/admin/meter-installation-reports/:id", requireAdmin, async (req, res) => {
     try {
@@ -6088,22 +6088,22 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get meter installation report" });
     }
   });
-  
+
   // Admin: Create meter installation report
   app.post("/api/admin/meter-installation-reports", requireAdmin, async (req, res) => {
     try {
       const user = (req as any).user;
-      
+
       // Validate request body with Zod schema
       const validationResult = insertMeterInstallationReportSchema.safeParse(req.body);
       if (!validationResult.success) {
         const errors = validationResult.error.errors.map(e => e.message).join(", ");
         return res.status(400).json({ message: errors });
       }
-      
+
       const data = validationResult.data;
       const reportNumber = await storage.generateMeterInstallationReportNumber();
-      
+
       const report = await storage.createMeterInstallationReport({
         reportNumber,
         customerId: data.customerId,
@@ -6144,14 +6144,14 @@ export async function registerRoutes(
         remarks: data.remarks || null,
         createdBy: user.id,
       });
-      
+
       res.status(201).json(report);
     } catch (error) {
       console.error("Create meter installation report error:", error);
       res.status(500).json({ message: "Failed to create meter installation report" });
     }
   });
-  
+
   // Admin: Update meter installation report
   app.patch("/api/admin/meter-installation-reports/:id", requireAdmin, async (req, res) => {
     try {
@@ -6174,17 +6174,17 @@ export async function registerRoutes(
         'status', 'discomApprovalStatus', 'discomApprovalDate', 'rejectionReason',
         'expectedGeneration', 'warrantyPeriod', 'maintenanceSchedule', 'remarks'
       ];
-      
+
       for (const field of allowedFields) {
         if (req.body[field] !== undefined) {
           updateData[field] = req.body[field];
         }
       }
-      
+
       if (Object.keys(updateData).length === 0) {
         return res.status(400).json({ message: "No valid fields to update" });
       }
-      
+
       const report = await storage.updateMeterInstallationReport(req.params.id, updateData);
       if (!report) {
         return res.status(404).json({ message: "Meter installation report not found" });
@@ -6195,7 +6195,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to update meter installation report" });
     }
   });
-  
+
   // Admin: Delete meter installation report
   app.delete("/api/admin/meter-installation-reports/:id", requireAdmin, async (req, res) => {
     try {
@@ -6206,7 +6206,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to delete meter installation report" });
     }
   });
-  
+
   // Admin: Get meter installation report by customer ID
   app.get("/api/admin/customers/:customerId/meter-installation-reports", requireAdmin, async (req, res) => {
     try {
@@ -6219,7 +6219,7 @@ export async function registerRoutes(
   });
 
   // ==================== PORTAL SUBMISSION REPORT ROUTES (Step 11) ====================
-  
+
   // Admin: Get all portal submission reports
   app.get("/api/admin/portal-submission-reports", requireAdmin, async (req, res) => {
     try {
@@ -6230,7 +6230,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get portal submission reports" });
     }
   });
-  
+
   // Admin: Get portal submission report by ID
   app.get("/api/admin/portal-submission-reports/:id", requireAdmin, async (req, res) => {
     try {
@@ -6244,30 +6244,30 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get portal submission report" });
     }
   });
-  
+
   // Admin: Create portal submission report
   app.post("/api/admin/portal-submission-reports", requireAdmin, async (req, res) => {
     try {
       const user = (req as any).user;
-      
+
       // Validate request body with Zod schema
       const validationResult = insertPortalSubmissionReportSchema.safeParse(req.body);
       if (!validationResult.success) {
-        return res.status(400).json({ 
-          message: "Validation failed", 
-          errors: validationResult.error.errors 
+        return res.status(400).json({
+          message: "Validation failed",
+          errors: validationResult.error.errors
         });
       }
-      
+
       // Generate report number
       const reportNumber = await storage.generatePortalSubmissionReportNumber();
-      
+
       const reportData = {
         ...validationResult.data,
         reportNumber,
         createdBy: user.id,
       };
-      
+
       const report = await storage.createPortalSubmissionReport(reportData);
       res.status(201).json(report);
     } catch (error) {
@@ -6275,7 +6275,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to create portal submission report" });
     }
   });
-  
+
   // Admin: Update portal submission report
   app.patch("/api/admin/portal-submission-reports/:id", requireAdmin, async (req, res) => {
     try {
@@ -6285,7 +6285,7 @@ export async function registerRoutes(
         'portalRegistrationId', 'portalApplicationNumber', 'discomName', 'consumerNumber',
         'installedCapacity', 'panelType', 'inverterCapacity', 'gridConnectionDate', 'netMeterNumber',
         'submissionDate', 'completionCertificateNumber', 'completionCertificateDate', 'completionCertificateUrl',
-        'meterPhotoUrl', 'installationPhotoUrl', 'sitePhotoUrl', 'netMeteringAgreementUrl', 
+        'meterPhotoUrl', 'installationPhotoUrl', 'sitePhotoUrl', 'netMeteringAgreementUrl',
         'bankDetailsProofUrl', 'aadharCardUrl', 'electricityBillUrl',
         'portalAcknowledgmentNumber', 'portalAcknowledgmentDate', 'portalAcknowledgmentUrl',
         'subsidyScheme', 'centralSubsidyAmount', 'stateSubsidyAmount', 'totalSubsidyClaimed',
@@ -6298,13 +6298,13 @@ export async function registerRoutes(
         'status', 'expectedDisbursementDate', 'actualProcessingDays', 'rejectionReason',
         'lastFollowUpDate', 'nextFollowUpDate', 'followUpRemarks', 'portalHelplineTicket', 'remarks'
       ];
-      
+
       for (const field of allowedFields) {
         if (req.body[field] !== undefined) {
           updateData[field] = req.body[field];
         }
       }
-      
+
       const report = await storage.updatePortalSubmissionReport(req.params.id, updateData);
       if (!report) {
         return res.status(404).json({ message: "Portal submission report not found" });
@@ -6315,7 +6315,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to update portal submission report" });
     }
   });
-  
+
   // Admin: Delete portal submission report
   app.delete("/api/admin/portal-submission-reports/:id", requireAdmin, async (req, res) => {
     try {
@@ -6326,7 +6326,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to delete portal submission report" });
     }
   });
-  
+
   // Admin: Get portal submission report by customer ID
   app.get("/api/admin/customers/:customerId/portal-submission-reports", requireAdmin, async (req, res) => {
     try {
@@ -6339,7 +6339,7 @@ export async function registerRoutes(
   });
 
   // ==================== REMAINING PAYMENT REPORT ROUTES (Step 12) ====================
-  
+
   // Admin: Get all remaining payment reports
   app.get("/api/admin/remaining-payment-reports", requireAdmin, async (req, res) => {
     try {
@@ -6350,7 +6350,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get remaining payment reports" });
     }
   });
-  
+
   // Admin: Get overdue remaining payments
   app.get("/api/admin/remaining-payment-reports/overdue", requireAdmin, async (req, res) => {
     try {
@@ -6361,7 +6361,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get overdue payments" });
     }
   });
-  
+
   // Admin: Get remaining payment report by ID
   app.get("/api/admin/remaining-payment-reports/:id", requireAdmin, async (req, res) => {
     try {
@@ -6375,30 +6375,30 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get remaining payment report" });
     }
   });
-  
+
   // Admin: Create remaining payment report
   app.post("/api/admin/remaining-payment-reports", requireAdmin, async (req, res) => {
     try {
       const user = (req as any).user;
-      
+
       // Validate request body with Zod schema
       const validationResult = insertRemainingPaymentReportSchema.safeParse(req.body);
       if (!validationResult.success) {
-        return res.status(400).json({ 
-          message: "Validation failed", 
-          errors: validationResult.error.errors 
+        return res.status(400).json({
+          message: "Validation failed",
+          errors: validationResult.error.errors
         });
       }
-      
+
       // Generate report number
       const reportNumber = await storage.generateRemainingPaymentReportNumber();
-      
+
       const reportData = {
         ...validationResult.data,
         reportNumber,
         createdBy: user.id,
       };
-      
+
       const report = await storage.createRemainingPaymentReport(reportData);
       res.status(201).json(report);
     } catch (error) {
@@ -6406,7 +6406,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to create remaining payment report" });
     }
   });
-  
+
   // Admin: Update remaining payment report
   app.patch("/api/admin/remaining-payment-reports/:id", requireAdmin, async (req, res) => {
     try {
@@ -6424,13 +6424,13 @@ export async function registerRoutes(
         'commissionHeld', 'commissionReleaseDate', 'ddpCommissionAmount', 'bdpCommissionAmount',
         'customerFeedback', 'escalationRequired', 'escalationReason', 'remarks'
       ];
-      
+
       for (const field of allowedFields) {
         if (req.body[field] !== undefined) {
           updateData[field] = req.body[field];
         }
       }
-      
+
       const report = await storage.updateRemainingPaymentReport(req.params.id, updateData);
       if (!report) {
         return res.status(404).json({ message: "Remaining payment report not found" });
@@ -6441,7 +6441,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to update remaining payment report" });
     }
   });
-  
+
   // Admin: Delete remaining payment report
   app.delete("/api/admin/remaining-payment-reports/:id", requireAdmin, async (req, res) => {
     try {
@@ -6452,7 +6452,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to delete remaining payment report" });
     }
   });
-  
+
   // Admin: Get remaining payment report by customer ID
   app.get("/api/admin/customers/:customerId/remaining-payment-reports", requireAdmin, async (req, res) => {
     try {
@@ -6465,7 +6465,7 @@ export async function registerRoutes(
   });
 
   // ==================== SUBSIDY APPLICATION REPORT ROUTES (Step 13) ====================
-  
+
   app.get("/api/admin/subsidy-application-reports", requireAdmin, async (req, res) => {
     try {
       const reports = await storage.getSubsidyApplicationReports();
@@ -6475,7 +6475,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get subsidy application reports" });
     }
   });
-  
+
   app.get("/api/admin/subsidy-application-reports/:id", requireAdmin, async (req, res) => {
     try {
       const report = await storage.getSubsidyApplicationReport(req.params.id);
@@ -6488,7 +6488,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get subsidy application report" });
     }
   });
-  
+
   app.post("/api/admin/subsidy-application-reports", requireAdmin, async (req, res) => {
     try {
       const user = (req as any).user;
@@ -6505,7 +6505,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to create subsidy application report" });
     }
   });
-  
+
   app.patch("/api/admin/subsidy-application-reports/:id", requireAdmin, async (req, res) => {
     try {
       const updateData: Record<string, any> = {};
@@ -6531,7 +6531,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to update subsidy application report" });
     }
   });
-  
+
   app.delete("/api/admin/subsidy-application-reports/:id", requireAdmin, async (req, res) => {
     try {
       await storage.deleteSubsidyApplicationReport(req.params.id);
@@ -6541,7 +6541,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to delete subsidy application report" });
     }
   });
-  
+
   app.get("/api/admin/customers/:customerId/subsidy-application-reports", requireAdmin, async (req, res) => {
     try {
       const report = await storage.getSubsidyApplicationReportByCustomerId(req.params.customerId);
@@ -6553,7 +6553,7 @@ export async function registerRoutes(
   });
 
   // ==================== SUBSIDY DISBURSEMENT REPORT ROUTES (Step 14 - Final) ====================
-  
+
   app.get("/api/admin/subsidy-disbursement-reports", requireAdmin, async (req, res) => {
     try {
       const reports = await storage.getSubsidyDisbursementReports();
@@ -6563,7 +6563,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get subsidy disbursement reports" });
     }
   });
-  
+
   app.get("/api/admin/subsidy-disbursement-reports/:id", requireAdmin, async (req, res) => {
     try {
       const report = await storage.getSubsidyDisbursementReport(req.params.id);
@@ -6576,7 +6576,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get subsidy disbursement report" });
     }
   });
-  
+
   app.post("/api/admin/subsidy-disbursement-reports", requireAdmin, async (req, res) => {
     try {
       const user = (req as any).user;
@@ -6593,7 +6593,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to create subsidy disbursement report" });
     }
   });
-  
+
   app.patch("/api/admin/subsidy-disbursement-reports/:id", requireAdmin, async (req, res) => {
     try {
       const updateData: Record<string, any> = {};
@@ -6619,7 +6619,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to update subsidy disbursement report" });
     }
   });
-  
+
   app.delete("/api/admin/subsidy-disbursement-reports/:id", requireAdmin, async (req, res) => {
     try {
       await storage.deleteSubsidyDisbursementReport(req.params.id);
@@ -6629,7 +6629,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to delete subsidy disbursement report" });
     }
   });
-  
+
   app.get("/api/admin/customers/:customerId/subsidy-disbursement-reports", requireAdmin, async (req, res) => {
     try {
       const report = await storage.getSubsidyDisbursementReportByCustomerId(req.params.customerId);
@@ -6641,7 +6641,7 @@ export async function registerRoutes(
   });
 
   // ==================== BANK LOAN APPROVAL ROUTES (Step 4) ====================
-  
+
   // Admin: Get all bank loan approvals
   app.get("/api/admin/bank-loan-approvals", requireAdmin, async (req, res) => {
     try {
@@ -6652,7 +6652,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get bank loan approvals" });
     }
   });
-  
+
   // Admin: Get bank loan approval by ID
   app.get("/api/admin/bank-loan-approvals/:id", requireAdmin, async (req, res) => {
     try {
@@ -6666,12 +6666,12 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get bank loan approval" });
     }
   });
-  
+
   // Admin: Create bank loan approval
   app.post("/api/admin/bank-loan-approvals", requireAdmin, async (req, res) => {
     try {
       const { customerId, bankLoanSubmissionId, customerName, bankName, bankBranch, approvalDate, approvalTime, approvedAmount, interestRate, loanTenure, remarks } = req.body;
-      
+
       // Validate required fields
       if (!customerName || typeof customerName !== "string" || customerName.trim() === "") {
         return res.status(400).json({ message: "Customer name is required" });
@@ -6682,13 +6682,13 @@ export async function registerRoutes(
       if (!approvalDate) {
         return res.status(400).json({ message: "Approval date is required" });
       }
-      
+
       // Validate date
       const parsedDate = new Date(approvalDate);
       if (isNaN(parsedDate.getTime())) {
         return res.status(400).json({ message: "Invalid approval date format" });
       }
-      
+
       // If customerId is provided, verify customer exists
       if (customerId) {
         const customer = await storage.getCustomer(customerId);
@@ -6696,7 +6696,7 @@ export async function registerRoutes(
           return res.status(404).json({ message: "Customer not found" });
         }
       }
-      
+
       const approval = await storage.createBankLoanApproval({
         customerId: customerId || null,
         bankLoanSubmissionId: bankLoanSubmissionId || null,
@@ -6711,25 +6711,25 @@ export async function registerRoutes(
         status: "approved",
         remarks: remarks ? String(remarks).trim() : null,
       });
-      
+
       res.status(201).json(approval);
     } catch (error) {
       console.error("Create bank loan approval error:", error);
       res.status(500).json({ message: "Failed to create bank loan approval" });
     }
   });
-  
+
   // Admin: Update bank loan approval
   app.patch("/api/admin/bank-loan-approvals/:id", requireAdmin, async (req, res) => {
     try {
       const { customerName, bankName, bankBranch, approvalDate, approvalTime, approvedAmount, interestRate, loanTenure, status, remarks } = req.body;
-      
+
       // Valid status values
       const validStatuses = ["pending", "approved", "conditionally_approved", "rejected"];
-      
+
       // Build update object with proper validation
       const updateData: Record<string, any> = {};
-      
+
       if (customerName !== undefined) {
         if (typeof customerName !== "string" || customerName.trim() === "") {
           return res.status(400).json({ message: "Customer name must be a non-empty string" });
@@ -6773,7 +6773,7 @@ export async function registerRoutes(
       if (remarks !== undefined) {
         updateData.remarks = remarks ? String(remarks).trim() : null;
       }
-      
+
       const approval = await storage.updateBankLoanApproval(req.params.id, updateData);
       if (!approval) {
         return res.status(404).json({ message: "Bank loan approval not found" });
@@ -6784,7 +6784,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to update bank loan approval" });
     }
   });
-  
+
   // Admin: Delete bank loan approval
   app.delete("/api/admin/bank-loan-approvals/:id", requireAdmin, async (req, res) => {
     try {
@@ -6797,7 +6797,7 @@ export async function registerRoutes(
   });
 
   // ==================== LOAN DISBURSEMENT ROUTES (STEP 4) ====================
-  
+
   // Admin: Get all loan disbursements
   app.get("/api/admin/loan-disbursements", requireAdmin, async (req, res) => {
     try {
@@ -6808,7 +6808,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get loan disbursements" });
     }
   });
-  
+
   // Admin: Get loan disbursement by ID
   app.get("/api/admin/loan-disbursements/:id", requireAdmin, async (req, res) => {
     try {
@@ -6822,12 +6822,12 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get loan disbursement" });
     }
   });
-  
+
   // Admin: Create loan disbursement
   app.post("/api/admin/loan-disbursements", requireAdmin, async (req, res) => {
     try {
       const { customerId, bankLoanApprovalId, customerName, bankName, bankBranch, disbursementDate, disbursementTime, disbursedAmount, transactionReference, divyanshiBankAccount, remarks } = req.body;
-      
+
       // Validate required fields
       if (!customerName || typeof customerName !== "string" || customerName.trim() === "") {
         return res.status(400).json({ message: "Customer name is required" });
@@ -6841,13 +6841,13 @@ export async function registerRoutes(
       if (!disbursedAmount || isNaN(parseFloat(disbursedAmount))) {
         return res.status(400).json({ message: "Valid disbursed amount is required" });
       }
-      
+
       // Validate date
       const parsedDate = new Date(disbursementDate);
       if (isNaN(parsedDate.getTime())) {
         return res.status(400).json({ message: "Invalid disbursement date format" });
       }
-      
+
       // If customerId is provided, verify customer exists
       if (customerId) {
         const customer = await storage.getCustomer(customerId);
@@ -6855,7 +6855,7 @@ export async function registerRoutes(
           return res.status(404).json({ message: "Customer not found" });
         }
       }
-      
+
       // If bankLoanApprovalId is provided, verify approval exists
       if (bankLoanApprovalId) {
         const approval = await storage.getBankLoanApproval(bankLoanApprovalId);
@@ -6863,7 +6863,7 @@ export async function registerRoutes(
           return res.status(404).json({ message: "Bank loan approval not found" });
         }
       }
-      
+
       const disbursement = await storage.createLoanDisbursement({
         customerId: customerId || null,
         bankLoanApprovalId: bankLoanApprovalId || null,
@@ -6878,24 +6878,24 @@ export async function registerRoutes(
         status: "received",
         remarks: remarks ? String(remarks).trim() : null,
       });
-      
+
       res.status(201).json(disbursement);
     } catch (error) {
       console.error("Create loan disbursement error:", error);
       res.status(500).json({ message: "Failed to create loan disbursement" });
     }
   });
-  
+
   // Admin: Update loan disbursement
   app.patch("/api/admin/loan-disbursements/:id", requireAdmin, async (req, res) => {
     try {
       const { customerName, bankName, bankBranch, disbursementDate, disbursementTime, disbursedAmount, transactionReference, divyanshiBankAccount, status, remarks } = req.body;
-      
+
       // Valid status values
       const validStatuses = ["pending", "processing", "received", "failed", "partial"];
-      
+
       const updateData: Record<string, any> = {};
-      
+
       if (customerName !== undefined) {
         if (typeof customerName !== "string" || customerName.trim() === "") {
           return res.status(400).json({ message: "Customer name cannot be empty" });
@@ -6942,7 +6942,7 @@ export async function registerRoutes(
       if (remarks !== undefined) {
         updateData.remarks = remarks ? String(remarks).trim() : null;
       }
-      
+
       const disbursement = await storage.updateLoanDisbursement(req.params.id, updateData);
       if (!disbursement) {
         return res.status(404).json({ message: "Loan disbursement not found" });
@@ -6953,7 +6953,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to update loan disbursement" });
     }
   });
-  
+
   // Admin: Delete loan disbursement
   app.delete("/api/admin/loan-disbursements/:id", requireAdmin, async (req, res) => {
     try {
@@ -6966,7 +6966,7 @@ export async function registerRoutes(
   });
 
   // ==================== STEP 5: VENDOR PURCHASE ORDERS ====================
-  
+
   // Admin: Get all vendor purchase orders
   app.get("/api/admin/vendor-purchase-orders", requireAdmin, async (req, res) => {
     try {
@@ -6977,7 +6977,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get vendor purchase orders" });
     }
   });
-  
+
   // Admin: Get vendor purchase order by ID
   app.get("/api/admin/vendor-purchase-orders/:id", requireAdmin, async (req, res) => {
     try {
@@ -6991,7 +6991,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get purchase order" });
     }
   });
-  
+
   // Admin: Generate PO Number
   app.get("/api/admin/vendor-purchase-orders/generate-po-number", requireAdmin, async (req, res) => {
     try {
@@ -7002,20 +7002,20 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to generate PO number" });
     }
   });
-  
+
   // Admin: Create vendor purchase order
   app.post("/api/admin/vendor-purchase-orders", requireAdmin, async (req, res) => {
     try {
-      const { 
+      const {
         customerId, vendorId, loanDisbursementId,
         poNumber, customerName, vendorName, orderDate, expectedDeliveryDate,
         panelType, panelCapacity, inverterType, quantity,
         orderAmount, gstAmount, totalAmount,
         advanceAmount, advanceDate, advanceReference,
         balanceAmount, balancePaidDate, balanceReference,
-        paymentStatus, orderStatus, deliveryDate, deliveryNotes, remarks 
+        paymentStatus, orderStatus, deliveryDate, deliveryNotes, remarks
       } = req.body;
-      
+
       // Validate required fields
       if (!poNumber || typeof poNumber !== "string" || poNumber.trim() === "") {
         return res.status(400).json({ message: "PO Number is required" });
@@ -7035,13 +7035,13 @@ export async function registerRoutes(
       if (!totalAmount || isNaN(parseFloat(totalAmount))) {
         return res.status(400).json({ message: "Valid total amount is required" });
       }
-      
+
       // Validate date
       const parsedOrderDate = new Date(orderDate);
       if (isNaN(parsedOrderDate.getTime())) {
         return res.status(400).json({ message: "Invalid order date format" });
       }
-      
+
       // Validate customer if provided
       if (customerId) {
         const customer = await storage.getCustomer(customerId);
@@ -7049,7 +7049,7 @@ export async function registerRoutes(
           return res.status(404).json({ message: "Customer not found" });
         }
       }
-      
+
       // Validate vendor if provided
       if (vendorId) {
         const vendor = await storage.getVendor(vendorId);
@@ -7057,7 +7057,7 @@ export async function registerRoutes(
           return res.status(404).json({ message: "Vendor not found" });
         }
       }
-      
+
       const order = await storage.createVendorPurchaseOrder({
         customerId: customerId || null,
         vendorId: vendorId || null,
@@ -7086,32 +7086,32 @@ export async function registerRoutes(
         deliveryNotes: deliveryNotes || null,
         remarks: remarks || null,
       });
-      
+
       res.status(201).json(order);
     } catch (error) {
       console.error("Create vendor purchase order error:", error);
       res.status(500).json({ message: "Failed to create purchase order" });
     }
   });
-  
+
   // Admin: Update vendor purchase order
   app.patch("/api/admin/vendor-purchase-orders/:id", requireAdmin, async (req, res) => {
     try {
       const validOrderStatuses = ["draft", "sent", "acknowledged", "in_progress", "delivered", "completed", "cancelled"];
       const validPaymentStatuses = ["pending", "partial", "paid", "refunded"];
-      
+
       const updateData: Record<string, any> = {};
-      
+
       const stringFields = ["poNumber", "customerName", "vendorName", "panelType", "panelCapacity", "inverterType", "advanceReference", "balanceReference", "deliveryNotes", "remarks"];
       const dateFields = ["orderDate", "expectedDeliveryDate", "advanceDate", "balancePaidDate", "deliveryDate"];
       const amountFields = ["orderAmount", "gstAmount", "totalAmount", "advanceAmount", "balanceAmount"];
-      
+
       for (const field of stringFields) {
         if (req.body[field] !== undefined) {
           updateData[field] = req.body[field] ? String(req.body[field]).trim() : null;
         }
       }
-      
+
       for (const field of dateFields) {
         if (req.body[field] !== undefined) {
           if (req.body[field]) {
@@ -7125,7 +7125,7 @@ export async function registerRoutes(
           }
         }
       }
-      
+
       for (const field of amountFields) {
         if (req.body[field] !== undefined) {
           if (req.body[field] && !isNaN(parseFloat(req.body[field]))) {
@@ -7135,30 +7135,30 @@ export async function registerRoutes(
           }
         }
       }
-      
+
       if (req.body.quantity !== undefined) {
         updateData.quantity = req.body.quantity ? parseInt(req.body.quantity) : 1;
       }
-      
+
       if (req.body.orderStatus !== undefined) {
         if (!validOrderStatuses.includes(req.body.orderStatus)) {
           return res.status(400).json({ message: `Invalid order status. Must be one of: ${validOrderStatuses.join(", ")}` });
         }
         updateData.orderStatus = req.body.orderStatus;
       }
-      
+
       if (req.body.paymentStatus !== undefined) {
         if (!validPaymentStatuses.includes(req.body.paymentStatus)) {
           return res.status(400).json({ message: `Invalid payment status. Must be one of: ${validPaymentStatuses.join(", ")}` });
         }
         updateData.paymentStatus = req.body.paymentStatus;
       }
-      
+
       const order = await storage.updateVendorPurchaseOrder(req.params.id, updateData);
       if (!order) {
         return res.status(404).json({ message: "Purchase order not found" });
       }
-      
+
       // Auto-populate site expense when payment status is "paid"
       if (req.body.paymentStatus === "paid" && order.customerId) {
         const siteExpense = await storage.getSiteExpenseByCustomerId(order.customerId);
@@ -7167,7 +7167,7 @@ export async function registerRoutes(
           if (vendor) {
             const paymentAmount = parseFloat(order.totalAmount || "0");
             const updateExpenseData: Record<string, string> = {};
-            
+
             // Map vendor type to expense head
             switch (vendor.vendorType) {
               case "solar_panel_supplier":
@@ -7211,21 +7211,21 @@ export async function registerRoutes(
                 );
                 break;
             }
-            
+
             if (Object.keys(updateExpenseData).length > 0) {
               await storage.updateSiteExpense(siteExpense.id, updateExpenseData);
             }
           }
         }
       }
-      
+
       res.json(order);
     } catch (error) {
       console.error("Update vendor purchase order error:", error);
       res.status(500).json({ message: "Failed to update purchase order" });
     }
   });
-  
+
   // Admin: Delete vendor purchase order
   app.delete("/api/admin/vendor-purchase-orders/:id", requireAdmin, async (req, res) => {
     try {
@@ -7238,7 +7238,7 @@ export async function registerRoutes(
   });
 
   // ==================== STEP 6: GOODS DELIVERY ====================
-  
+
   // Admin: Get all goods deliveries
   app.get("/api/admin/goods-deliveries", requireAdmin, async (req, res) => {
     try {
@@ -7249,7 +7249,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get goods deliveries" });
     }
   });
-  
+
   // Admin: Get goods delivery by ID
   app.get("/api/admin/goods-deliveries/:id", requireAdmin, async (req, res) => {
     try {
@@ -7263,11 +7263,11 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get goods delivery" });
     }
   });
-  
+
   // Admin: Create goods delivery
   app.post("/api/admin/goods-deliveries", requireAdmin, async (req, res) => {
     try {
-      const { 
+      const {
         customerId, purchaseOrderId, vendorId,
         customerName, customerPhone, deliveryAddress, district, state, pincode,
         scheduledDate, scheduledTimeSlot, actualDeliveryDate,
@@ -7277,7 +7277,7 @@ export async function registerRoutes(
         siteVerificationBefore, siteVerificationAfter, verificationNotes,
         poNumber, vendorName, remarks, failureReason, rescheduleReason
       } = req.body;
-      
+
       // Validate required fields
       if (!customerName || typeof customerName !== "string" || customerName.trim() === "") {
         return res.status(400).json({ message: "Customer name is required" });
@@ -7288,19 +7288,19 @@ export async function registerRoutes(
       if (!scheduledDate) {
         return res.status(400).json({ message: "Scheduled date is required" });
       }
-      
+
       // Validate scheduled date
       const parsedScheduledDate = new Date(scheduledDate);
       if (isNaN(parsedScheduledDate.getTime())) {
         return res.status(400).json({ message: "Invalid scheduled date format" });
       }
-      
+
       // Validate status if provided
       const validStatuses = ["scheduled", "in_transit", "delivered", "partially_delivered", "failed", "rescheduled"];
       if (status && !validStatuses.includes(status)) {
         return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
       }
-      
+
       // Validate customer if provided
       if (customerId) {
         const customer = await storage.getCustomer(customerId);
@@ -7308,7 +7308,7 @@ export async function registerRoutes(
           return res.status(404).json({ message: "Customer not found" });
         }
       }
-      
+
       // Validate purchase order if provided
       if (purchaseOrderId) {
         const purchaseOrder = await storage.getVendorPurchaseOrder(purchaseOrderId);
@@ -7316,7 +7316,7 @@ export async function registerRoutes(
           return res.status(404).json({ message: "Purchase order not found" });
         }
       }
-      
+
       const delivery = await storage.createGoodsDelivery({
         customerId: customerId || null,
         purchaseOrderId: purchaseOrderId || null,
@@ -7352,36 +7352,36 @@ export async function registerRoutes(
         failureReason: failureReason || null,
         rescheduleReason: rescheduleReason || null,
       });
-      
+
       res.status(201).json(delivery);
     } catch (error) {
       console.error("Create goods delivery error:", error);
       res.status(500).json({ message: "Failed to create goods delivery" });
     }
   });
-  
+
   // Admin: Update goods delivery
   app.patch("/api/admin/goods-deliveries/:id", requireAdmin, async (req, res) => {
     try {
       const validStatuses = ["scheduled", "in_transit", "delivered", "partially_delivered", "failed", "rescheduled"];
-      
+
       const updateData: Record<string, any> = {};
-      
-      const stringFields = ["customerName", "customerPhone", "deliveryAddress", "district", "state", "pincode", 
-        "scheduledTimeSlot", "deliveredBy", "vehicleNumber", "vehicleType", "panelType", "panelCapacity", 
-        "inverterType", "receiverName", "receiverPhone", "receiverSignature", "verificationNotes", 
+
+      const stringFields = ["customerName", "customerPhone", "deliveryAddress", "district", "state", "pincode",
+        "scheduledTimeSlot", "deliveredBy", "vehicleNumber", "vehicleType", "panelType", "panelCapacity",
+        "inverterType", "receiverName", "receiverPhone", "receiverSignature", "verificationNotes",
         "poNumber", "vendorName", "remarks", "failureReason", "rescheduleReason"];
       const dateFields = ["scheduledDate", "actualDeliveryDate"];
       const arrayFields = ["deliveryPhotos", "siteVerificationBefore", "siteVerificationAfter"];
       const intFields = ["quantityOrdered", "quantityDelivered"];
       const decimalFields = ["logisticRate", "deliveryDistanceKm"];
-      
+
       for (const field of stringFields) {
         if (req.body[field] !== undefined) {
           updateData[field] = req.body[field] ? String(req.body[field]).trim() : null;
         }
       }
-      
+
       for (const field of dateFields) {
         if (req.body[field] !== undefined) {
           if (req.body[field]) {
@@ -7395,19 +7395,19 @@ export async function registerRoutes(
           }
         }
       }
-      
+
       for (const field of arrayFields) {
         if (req.body[field] !== undefined) {
           updateData[field] = req.body[field] || null;
         }
       }
-      
+
       for (const field of intFields) {
         if (req.body[field] !== undefined) {
           updateData[field] = req.body[field] ? parseInt(req.body[field]) : null;
         }
       }
-      
+
       for (const field of decimalFields) {
         if (req.body[field] !== undefined) {
           if (req.body[field] && !isNaN(parseFloat(req.body[field]))) {
@@ -7417,48 +7417,48 @@ export async function registerRoutes(
           }
         }
       }
-      
+
       if (req.body.status !== undefined) {
         if (!validStatuses.includes(req.body.status)) {
           return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
         }
         updateData.status = req.body.status;
       }
-      
+
       // Get current delivery to check for status transition
       const currentDelivery = await storage.getGoodsDelivery(req.params.id);
-      
+
       const delivery = await storage.updateGoodsDelivery(req.params.id, updateData);
       if (!delivery) {
         return res.status(404).json({ message: "Goods delivery not found" });
       }
-      
+
       // Trigger logistic vendor payment when delivery is confirmed
       const user = req.user as any;
       const isNewlyDelivered = req.body.status === "delivered" && currentDelivery?.status !== "delivered";
       const hasReceiverConfirmation = delivery.receiverName && delivery.receiverPhone;
-      
+
       if (isNewlyDelivered && hasReceiverConfirmation && delivery.customerId) {
         try {
           // Find the logistic vendor assignment for this customer
           const assignments = await storage.getVendorAssignmentsByCustomer(delivery.customerId);
           const logisticAssignment = assignments.find(a => a.jobRole === "logistic");
-          
+
           if (logisticAssignment) {
             // Get customer to determine capacity for payment calculation
             const customer = await storage.getCustomer(delivery.customerId);
             const capacityKw = customer?.proposedCapacity ? parseFloat(customer.proposedCapacity) : 0;
             const logisticRate = parseFloat(delivery.logisticRate || "20");
-            
+
             // Calculate payment: rate per kW x capacity x 2 (roundtrip)
             const paymentAmount = logisticRate * capacityKw * 2;
-            
+
             // Check if payment already exists
             const existingPayments = await storage.getVendorPaymentsByCustomer(delivery.customerId);
             const existingLogisticPayment = existingPayments.find(
               p => p.vendorId === logisticAssignment.vendorId && p.milestone === "goods_delivered"
             );
-            
+
             if (!existingLogisticPayment && paymentAmount > 0) {
               await storage.createVendorPayment({
                 customerId: delivery.customerId,
@@ -7478,14 +7478,14 @@ export async function registerRoutes(
           // Don't fail the delivery update if payment creation fails
         }
       }
-      
+
       res.json(delivery);
     } catch (error) {
       console.error("Update goods delivery error:", error);
       res.status(500).json({ message: "Failed to update goods delivery" });
     }
   });
-  
+
   // Admin: Delete goods delivery
   app.delete("/api/admin/goods-deliveries/:id", requireAdmin, async (req, res) => {
     try {
@@ -7498,7 +7498,7 @@ export async function registerRoutes(
   });
 
   // ==================== STEP 7: SITE EXECUTION ORDERS ====================
-  
+
   // Admin: Get all site execution orders
   app.get("/api/admin/site-execution-orders", requireAdmin, async (req, res) => {
     try {
@@ -7509,7 +7509,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get site execution orders" });
     }
   });
-  
+
   // Admin: Get site execution order by ID
   app.get("/api/admin/site-execution-orders/:id", requireAdmin, async (req, res) => {
     try {
@@ -7523,11 +7523,11 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get site execution order" });
     }
   });
-  
+
   // Admin: Create site execution order
   app.post("/api/admin/site-execution-orders", requireAdmin, async (req, res) => {
     try {
-      const { 
+      const {
         customerId, vendorId, purchaseOrderId, deliveryId,
         customerName, customerPhone, siteAddress, district, state, pincode,
         vendorName, vendorContactPerson, vendorPhone,
@@ -7541,7 +7541,7 @@ export async function registerRoutes(
         completionCertificate, completionPhotos, customerSignoff, customerSignoffDate,
         customerFeedback, customerRating, holdReason, cancelReason, remarks
       } = req.body;
-      
+
       // Validate required fields
       if (!customerName || typeof customerName !== "string" || customerName.trim() === "") {
         return res.status(400).json({ message: "Customer name is required" });
@@ -7552,19 +7552,19 @@ export async function registerRoutes(
       if (!scheduledStartDate) {
         return res.status(400).json({ message: "Scheduled start date is required" });
       }
-      
+
       // Validate scheduled start date
       const parsedStartDate = new Date(scheduledStartDate);
       if (isNaN(parsedStartDate.getTime())) {
         return res.status(400).json({ message: "Invalid scheduled start date format" });
       }
-      
+
       // Validate status if provided
       const validStatuses = ["draft", "assigned", "in_progress", "completed", "on_hold", "cancelled"];
       if (status && !validStatuses.includes(status)) {
         return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
       }
-      
+
       // Validate customer if provided
       if (customerId) {
         const customer = await storage.getCustomer(customerId);
@@ -7572,7 +7572,7 @@ export async function registerRoutes(
           return res.status(404).json({ message: "Customer not found" });
         }
       }
-      
+
       // Validate vendor if provided
       if (vendorId) {
         const vendor = await storage.getVendor(vendorId);
@@ -7580,10 +7580,10 @@ export async function registerRoutes(
           return res.status(404).json({ message: "Vendor not found" });
         }
       }
-      
+
       // Generate order number
       const orderNumber = await storage.generateExecutionOrderNumber();
-      
+
       const order = await storage.createSiteExecutionOrder({
         orderNumber,
         customerId: customerId || null,
@@ -7639,19 +7639,19 @@ export async function registerRoutes(
         remarks: remarks || null,
         createdBy: (req as any).user?.id || null,
       });
-      
+
       res.status(201).json(order);
     } catch (error) {
       console.error("Create site execution order error:", error);
       res.status(500).json({ message: "Failed to create site execution order" });
     }
   });
-  
+
   // Admin: Update site execution order
   app.patch("/api/admin/site-execution-orders/:id", requireAdmin, async (req, res) => {
     try {
       const validStatuses = ["draft", "assigned", "in_progress", "completed", "on_hold", "cancelled"];
-      
+
       // Status transition matrix: defines which transitions are allowed
       const statusTransitions: Record<string, string[]> = {
         "draft": ["assigned", "cancelled"],
@@ -7661,32 +7661,32 @@ export async function registerRoutes(
         "completed": [], // Terminal state - no transitions allowed
         "cancelled": [], // Terminal state - no transitions allowed
       };
-      
+
       // Get the existing order first
       const existingOrder = await storage.getSiteExecutionOrder(req.params.id);
       if (!existingOrder) {
         return res.status(404).json({ message: "Site execution order not found" });
       }
-      
+
       const updateData: Record<string, any> = {};
-      
+
       const stringFields = ["customerName", "customerPhone", "siteAddress", "district", "state", "pincode",
         "vendorName", "vendorContactPerson", "vendorPhone", "crewLeadName", "crewLeadPhone",
         "scopeOfWork", "workDescription", "panelType", "panelCapacity", "inverterType",
         "specialInstructions", "safetyNotes", "progressNotes", "qualityCheckNotes", "qualityCheckedBy",
         "completionCertificate", "customerSignoff", "customerFeedback", "holdReason", "cancelReason", "remarks"];
-      const dateFields = ["scheduledStartDate", "scheduledEndDate", "actualStartDate", "actualEndDate", 
+      const dateFields = ["scheduledStartDate", "scheduledEndDate", "actualStartDate", "actualEndDate",
         "qualityCheckDate", "customerSignoffDate"];
       const arrayFields = ["crewMembers", "requiredMaterials", "requiredTools", "permitsRequired", "completionPhotos"];
       const intFields = ["estimatedDuration", "crewSize", "numberOfPanels", "progressPercentage", "customerRating"];
       const boolFields = ["safetyChecklistCompleted", "permitsObtained", "qualityCheckCompleted"];
-      
+
       for (const field of stringFields) {
         if (req.body[field] !== undefined) {
           updateData[field] = req.body[field] ? String(req.body[field]).trim() : null;
         }
       }
-      
+
       for (const field of dateFields) {
         if (req.body[field] !== undefined) {
           if (req.body[field]) {
@@ -7700,47 +7700,47 @@ export async function registerRoutes(
           }
         }
       }
-      
+
       for (const field of arrayFields) {
         if (req.body[field] !== undefined) {
           updateData[field] = req.body[field] || null;
         }
       }
-      
+
       for (const field of intFields) {
         if (req.body[field] !== undefined) {
           updateData[field] = req.body[field] !== null && req.body[field] !== "" ? parseInt(req.body[field]) : null;
         }
       }
-      
+
       for (const field of boolFields) {
         if (req.body[field] !== undefined) {
           updateData[field] = Boolean(req.body[field]);
         }
       }
-      
+
       // Validate status transition if status is being changed
       if (req.body.status !== undefined) {
         if (!validStatuses.includes(req.body.status)) {
           return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
         }
-        
+
         const currentStatus = existingOrder.status || "draft";
         const newStatus = req.body.status;
-        
+
         // Allow staying in the same status (no-op)
         if (currentStatus !== newStatus) {
           const allowedTransitions = statusTransitions[currentStatus] || [];
           if (!allowedTransitions.includes(newStatus)) {
-            return res.status(400).json({ 
-              message: `Invalid status transition from '${currentStatus}' to '${newStatus}'. Allowed transitions: ${allowedTransitions.length > 0 ? allowedTransitions.join(", ") : "none (terminal state)"}` 
+            return res.status(400).json({
+              message: `Invalid status transition from '${currentStatus}' to '${newStatus}'. Allowed transitions: ${allowedTransitions.length > 0 ? allowedTransitions.join(", ") : "none (terminal state)"}`
             });
           }
         }
-        
+
         updateData.status = req.body.status;
       }
-      
+
       const order = await storage.updateSiteExecutionOrder(req.params.id, updateData);
       if (!order) {
         return res.status(404).json({ message: "Site execution order not found" });
@@ -7751,7 +7751,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to update site execution order" });
     }
   });
-  
+
   // Admin: Delete site execution order
   app.delete("/api/admin/site-execution-orders/:id", requireAdmin, async (req, res) => {
     try {
@@ -7764,7 +7764,7 @@ export async function registerRoutes(
   });
 
   // ==================== STEP 8: SITE EXECUTION COMPLETION REPORTS ====================
-  
+
   // Admin: Get all completion reports
   app.get("/api/admin/completion-reports", requireAdmin, async (req, res) => {
     try {
@@ -7775,7 +7775,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to fetch completion reports" });
     }
   });
-  
+
   // Admin: Get single completion report
   app.get("/api/admin/completion-reports/:id", requireAdmin, async (req, res) => {
     try {
@@ -7789,7 +7789,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to fetch completion report" });
     }
   });
-  
+
   // Admin: Get completion report by execution order ID
   app.get("/api/admin/completion-reports/by-order/:orderId", requireAdmin, async (req, res) => {
     try {
@@ -7800,7 +7800,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to fetch completion report" });
     }
   });
-  
+
   // Admin: Create completion report (with file uploads)
   app.post("/api/admin/completion-reports", requireAdmin, upload.fields([
     { name: 'beforePhotos', maxCount: 5 },
@@ -7814,7 +7814,7 @@ export async function registerRoutes(
     try {
       const reportNumber = await storage.generateCompletionReportNumber();
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-      
+
       const reportData = {
         ...req.body,
         reportNumber,
@@ -7840,7 +7840,7 @@ export async function registerRoutes(
         cleanupCompleted: req.body.cleanupCompleted === 'true' || req.body.cleanupCompleted === true,
         customerBriefingDone: req.body.customerBriefingDone === 'true' || req.body.customerBriefingDone === true,
       };
-      
+
       const report = await storage.createCompletionReport(reportData);
       res.status(201).json(report);
     } catch (error) {
@@ -7848,7 +7848,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to create completion report" });
     }
   });
-  
+
   // Admin: Update completion report (with file uploads)
   app.patch("/api/admin/completion-reports/:id", requireAdmin, upload.fields([
     { name: 'beforePhotos', maxCount: 5 },
@@ -7862,11 +7862,11 @@ export async function registerRoutes(
     try {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       const existingReport = await storage.getCompletionReport(req.params.id);
-      
+
       if (!existingReport) {
         return res.status(404).json({ message: "Completion report not found" });
       }
-      
+
       // Status transition validation
       const validTransitions: Record<string, string[]> = {
         draft: ['submitted'],
@@ -7875,18 +7875,18 @@ export async function registerRoutes(
         rejected: ['draft', 'submitted'],
         approved: [], // Terminal state
       };
-      
+
       if (req.body.status && req.body.status !== existingReport.status) {
         const allowed = validTransitions[existingReport.status || 'draft'] || [];
         if (!allowed.includes(req.body.status)) {
-          return res.status(400).json({ 
-            message: `Invalid status transition from '${existingReport.status}' to '${req.body.status}'` 
+          return res.status(400).json({
+            message: `Invalid status transition from '${existingReport.status}' to '${req.body.status}'`
           });
         }
       }
-      
+
       const updateData: any = { ...req.body };
-      
+
       // Handle new file uploads
       if (files?.beforePhotos?.length) {
         updateData.beforePhotos = [...(existingReport.beforePhotos || []), ...files.beforePhotos.map(f => `/uploads/${f.filename}`)];
@@ -7909,33 +7909,33 @@ export async function registerRoutes(
       if (files?.meterPhotos?.length) {
         updateData.meterPhotos = [...(existingReport.meterPhotos || []), ...files.meterPhotos.map(f => `/uploads/${f.filename}`)];
       }
-      
+
       // Handle integer fields
       if (updateData.panelsInstalled) updateData.panelsInstalled = parseInt(updateData.panelsInstalled);
       if (updateData.totalWorkHours) updateData.totalWorkHours = parseInt(updateData.totalWorkHours);
       if (updateData.crewSize) updateData.crewSize = parseInt(updateData.crewSize);
       if (updateData.customerRating) updateData.customerRating = parseInt(updateData.customerRating);
-      
+
       // Handle boolean fields
-      ['wiringCompleted', 'earthingCompleted', 'meterConnected', 'gridSyncCompleted', 
-       'generationTestPassed', 'qualityChecklistCompleted', 'safetyChecklistCompleted', 
-       'cleanupCompleted', 'customerBriefingDone'].forEach(field => {
-        if (field in updateData) {
-          updateData[field] = updateData[field] === 'true' || updateData[field] === true;
-        }
-      });
-      
+      ['wiringCompleted', 'earthingCompleted', 'meterConnected', 'gridSyncCompleted',
+        'generationTestPassed', 'qualityChecklistCompleted', 'safetyChecklistCompleted',
+        'cleanupCompleted', 'customerBriefingDone'].forEach(field => {
+          if (field in updateData) {
+            updateData[field] = updateData[field] === 'true' || updateData[field] === true;
+          }
+        });
+
       // Set review timestamp if status is approved/rejected
       if (req.body.status === 'approved' || req.body.status === 'rejected') {
         updateData.reviewedAt = new Date().toISOString();
         updateData.reviewedBy = req.user?.id;
       }
-      
+
       // Set submit timestamp if status changes to submitted
       if (req.body.status === 'submitted' && existingReport.status !== 'submitted') {
         updateData.submittedAt = new Date().toISOString();
       }
-      
+
       const report = await storage.updateCompletionReport(req.params.id, updateData);
       res.json(report);
     } catch (error) {
@@ -7943,7 +7943,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to update completion report" });
     }
   });
-  
+
   // Admin: Delete completion report
   app.delete("/api/admin/completion-reports/:id", requireAdmin, async (req, res) => {
     try {
@@ -7954,26 +7954,26 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to delete completion report" });
     }
   });
-  
+
   // Admin: Review completion report (approve/reject)
   app.post("/api/admin/completion-reports/:id/review", requireAdmin, async (req, res) => {
     try {
       const { action, notes, rejectionReason } = req.body;
       const report = await storage.getCompletionReport(req.params.id);
-      
+
       if (!report) {
         return res.status(404).json({ message: "Completion report not found" });
       }
-      
+
       if (!['approve', 'reject'].includes(action)) {
         return res.status(400).json({ message: "Action must be 'approve' or 'reject'" });
       }
-      
+
       // Report must be submitted or under_review
       if (!['submitted', 'under_review'].includes(report.status || '')) {
         return res.status(400).json({ message: "Report must be submitted for review first" });
       }
-      
+
       const updateData: any = {
         status: action === 'approve' ? 'approved' : 'rejected',
         reviewedAt: new Date().toISOString(),
@@ -7981,41 +7981,41 @@ export async function registerRoutes(
         reviewNotes: notes || null,
         rejectionReason: action === 'reject' ? rejectionReason : null,
       };
-      
+
       const updated = await storage.updateCompletionReport(req.params.id, updateData);
-      
+
       // If approved, also mark the execution order as completed and trigger site installation payment
       if (action === 'approve' && report.executionOrderId) {
         const executionOrder = await storage.getSiteExecutionOrder(report.executionOrderId);
-        
+
         await storage.updateSiteExecutionOrder(report.executionOrderId, {
           status: 'completed',
           actualEndDate: new Date().toISOString() as any,
           progressPercentage: 100,
         });
-        
+
         // Trigger site_installation vendor payment when completion report is approved
         if (executionOrder && executionOrder.customerId) {
           try {
             const assignments = await storage.getVendorAssignmentsByCustomer(executionOrder.customerId);
             const installationAssignment = assignments.find(a => a.jobRole === "solar_installation");
-            
+
             if (installationAssignment) {
               // Get customer capacity
               const customer = await storage.getCustomer(executionOrder.customerId);
               const capacityKw = customer?.proposedCapacity ? parseFloat(customer.proposedCapacity) : 0;
               const capacityWatts = capacityKw * 1000;
               const ratePerWatt = parseFloat(executionOrder.siteInstallationRate || "2.5");
-              
+
               // Calculate payment: rate per watt x capacity in watts
               const paymentAmount = ratePerWatt * capacityWatts;
-              
+
               // Check if payment already exists
               const existingPayments = await storage.getVendorPaymentsByCustomer(executionOrder.customerId);
               const existingInstallationPayment = existingPayments.find(
                 p => p.vendorId === installationAssignment.vendorId && p.milestone === "site_completion_report"
               );
-              
+
               if (!existingInstallationPayment && paymentAmount > 0) {
                 await storage.createVendorPayment({
                   customerId: executionOrder.customerId,
@@ -8035,7 +8035,7 @@ export async function registerRoutes(
           }
         }
       }
-      
+
       res.json(updated);
     } catch (error) {
       console.error("Review completion report error:", error);
@@ -8044,48 +8044,48 @@ export async function registerRoutes(
   });
 
   // ==================== CUSTOMER PARTNER ROUTES ====================
-  
+
   // Lookup customer eligibility for Customer Partner registration
   app.post("/api/customer-partner/lookup", async (req, res) => {
     try {
       const { phone } = req.body;
-      
+
       if (!phone) {
         return res.status(400).json({ message: "Phone number is required" });
       }
-      
+
       // Find customer by phone who has approved/completed installation
       const allCustomers = await storage.getAllCustomers();
-      const customer = allCustomers.find(c => 
-        c.phone === phone && 
+      const customer = allCustomers.find(c =>
+        c.phone === phone &&
         (c.status === "approved" || c.status === "completed")
       );
-      
+
       if (!customer) {
-        return res.status(404).json({ 
+        return res.status(404).json({
           eligible: false,
-          message: "No eligible customer found. Your solar application must be approved to join the Customer Partner Program." 
+          message: "No eligible customer found. Your solar application must be approved to join the Customer Partner Program."
         });
       }
-      
+
       // Check capacity is at least 3kW
       const capacity = parseInt(customer.proposedCapacity || "0");
       if (capacity < 3) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           eligible: false,
-          message: "Only customers with 3kW or above installations can become Customer Partners." 
+          message: "Only customers with 3kW or above installations can become Customer Partners."
         });
       }
-      
+
       // Check if already registered as customer partner
       const existingUser = await storage.getUserByPhone(phone);
       if (existingUser && existingUser.role === "customer_partner") {
-        return res.status(400).json({ 
+        return res.status(400).json({
           eligible: false,
-          message: "You are already registered as a Customer Partner. Please login instead." 
+          message: "You are already registered as a Customer Partner. Please login instead."
         });
       }
-      
+
       // Return sanitized customer data for auto-population
       res.json({
         eligible: true,
@@ -8106,28 +8106,28 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to verify eligibility" });
     }
   });
-  
+
   // Register as Customer Partner (for independent customers who completed installation)
   app.post("/api/customer-partner/register", async (req, res) => {
     try {
       const { phone, password, email, username } = req.body;
-      
+
       if (!phone || !password || !username) {
         return res.status(400).json({ message: "Phone, username and password are required" });
       }
-      
+
       // Check if username is already taken
       const existingUsername = await storage.getUserByUsername(username);
       if (existingUsername) {
         return res.status(400).json({ message: "Username is already taken. Please choose a different one." });
       }
-      
+
       // Check if phone number is already registered with ANY partner
       const existingPhone = await storage.getUserByPhone(phone);
       if (existingPhone) {
         return res.status(400).json({ message: "This mobile number is already registered with another partner account" });
       }
-      
+
       // Check if email is already registered with ANY partner
       if (email) {
         const existingEmail = await storage.getUserByEmail(email);
@@ -8135,36 +8135,36 @@ export async function registerRoutes(
           return res.status(400).json({ message: "This email is already registered with another partner account" });
         }
       }
-      
+
       // Find customer by phone who has approved/completed installation
       const allCustomers = await storage.getAllCustomers();
-      const customer = allCustomers.find(c => 
-        c.phone === phone && 
+      const customer = allCustomers.find(c =>
+        c.phone === phone &&
         (c.status === "approved" || c.status === "completed")
       );
-      
+
       if (!customer) {
-        return res.status(400).json({ 
-          message: "No eligible customer found. Your solar application must be approved (3kW or above) to join the Customer Partner Program." 
+        return res.status(400).json({
+          message: "No eligible customer found. Your solar application must be approved (3kW or above) to join the Customer Partner Program."
         });
       }
-      
+
       // Check capacity is at least 3kW
       const capacity = parseInt(customer.proposedCapacity || "0");
       if (capacity < 3) {
-        return res.status(400).json({ 
-          message: "Only customers with 3kW or above installations can become Customer Partners." 
+        return res.status(400).json({
+          message: "Only customers with 3kW or above installations can become Customer Partners."
         });
       }
-      
+
       // Generate referral code based on customer name
       const baseCode = customer.name.replace(/\s+/g, "").slice(0, 6).toUpperCase();
       const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
       const referralCode = `CP${baseCode}${randomSuffix}`;
-      
+
       // Hash password
       const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-      
+
       // Create customer partner user
       const newUser = await storage.createUser({
         username: username,
@@ -8180,45 +8180,45 @@ export async function registerRoutes(
         referralCode,
         linkedCustomerId: customer.id,
       });
-      
+
       // Set session
       req.session.userId = newUser.id;
-      
-      res.status(201).json({ 
+
+      res.status(201).json({
         message: "Successfully registered as Customer Partner!",
-        user: { 
-          id: newUser.id, 
-          name: newUser.name, 
+        user: {
+          id: newUser.id,
+          name: newUser.name,
           role: newUser.role,
-          referralCode: newUser.referralCode 
-        } 
+          referralCode: newUser.referralCode
+        }
       });
     } catch (error) {
       console.error("Customer Partner registration error:", error);
       res.status(500).json({ message: "Failed to register as Customer Partner" });
     }
   });
-  
+
   // Get Customer Partner dashboard stats
   app.get("/api/customer-partner/stats", requireCustomerPartner, async (req, res) => {
     try {
       const user = (req as any).user;
-      
+
       // Get referrals made by this customer partner
       const allCustomers = await storage.getAllCustomers();
       const referredCustomers = allCustomers.filter(c => c.referrerCustomerId === user.linkedCustomerId);
-      
+
       // Get commissions for this customer partner
       const commissions = await storage.getCommissionsByPartnerId(user.id, "customer_partner");
-      
+
       const paidEarnings = commissions.reduce((sum, c) => sum + (c.status === "paid" ? c.commissionAmount : 0), 0);
       const pendingEarnings = commissions.reduce((sum, c) => sum + (c.status === "pending" || c.status === "approved" ? c.commissionAmount : 0), 0);
-      
+
       const stats = {
         totalReferrals: referredCustomers.length,
         completedReferrals: referredCustomers.filter(c => c.status === "completed").length,
         pendingReferrals: referredCustomers.filter(c => c.status !== "completed").length,
-        eligibleReferrals: referredCustomers.filter(c => 
+        eligibleReferrals: referredCustomers.filter(c =>
           c.status === "completed" && parseInt(c.proposedCapacity || "0") >= 3
         ).length,
         totalEarnings: paidEarnings + pendingEarnings,
@@ -8226,19 +8226,19 @@ export async function registerRoutes(
         pendingEarnings,
         referralCode: user.referralCode,
       };
-      
+
       res.json(stats);
     } catch (error) {
       console.error("Get Customer Partner stats error:", error);
       res.status(500).json({ message: "Failed to get stats" });
     }
   });
-  
+
   // Get Customer Partner referrals list
   app.get("/api/customer-partner/referrals", requireCustomerPartner, async (req, res) => {
     try {
       const user = (req as any).user;
-      
+
       // Get customers referred by this customer partner
       const allCustomers = await storage.getAllCustomers();
       const referredCustomers = allCustomers
@@ -8255,14 +8255,14 @@ export async function registerRoutes(
           createdAt: c.createdAt,
           isEligibleForReward: c.status === "completed" && parseInt(c.proposedCapacity || "0") >= 3,
         }));
-      
+
       res.json(referredCustomers);
     } catch (error) {
       console.error("Get Customer Partner referrals error:", error);
       res.status(500).json({ message: "Failed to get referrals" });
     }
   });
-  
+
   // Get Customer Partner commissions
   app.get("/api/customer-partner/commissions", requireCustomerPartner, async (req, res) => {
     try {
@@ -8274,18 +8274,18 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get commissions" });
     }
   });
-  
+
   // Get Customer Partner profile
   app.get("/api/customer-partner/profile", requireCustomerPartner, async (req, res) => {
     try {
       const user = (req as any).user;
-      
+
       // Get linked customer record for additional details
       let linkedCustomer = null;
       if (user.linkedCustomerId) {
         linkedCustomer = await storage.getCustomer(user.linkedCustomerId);
       }
-      
+
       res.json({
         id: user.id,
         name: user.name,
@@ -8310,7 +8310,7 @@ export async function registerRoutes(
   // ============================================
   // DOCUMENT MANAGEMENT API
   // ============================================
-  
+
   // Upload document
   app.post("/api/documents/upload", requireAuth, documentUpload.single("file"), async (req, res) => {
     try {
@@ -8326,7 +8326,7 @@ export async function registerRoutes(
       }
 
       const { category, customerId, partnerId, description, tags, expiresAt } = req.body;
-      
+
       if (!category) {
         return res.status(400).json({ message: "Document category is required" });
       }
@@ -8398,12 +8398,12 @@ export async function registerRoutes(
         if (!customer) {
           return res.status(404).json({ message: "Customer not found" });
         }
-        
+
         // DDP can only see their own customers
         if (user.role === "ddp" && customer.ddpId !== userId) {
           return res.status(403).json({ message: "Forbidden" });
         }
-        
+
         // BDP can see customers of their DDPs
         if (user.role === "bdp") {
           const ddp = await storage.getUser(customer.ddpId!);
@@ -8614,7 +8614,7 @@ export async function registerRoutes(
       }
 
       // Build customer address from available fields
-      const customerAddress = customer.address || 
+      const customerAddress = customer.address ||
         [customer.district, customer.state, customer.pincode].filter(Boolean).join(", ") ||
         "Address not available";
 
@@ -8634,7 +8634,7 @@ export async function registerRoutes(
         // Get admin user to notify (first admin found)
         const adminUsers = await storage.getAllUsers();
         const admin = adminUsers.find(u => u.role === "admin");
-        
+
         if (admin && admin.phone) {
           await notificationService.sendWhatsAppMessage(
             admin.phone,
@@ -8645,7 +8645,7 @@ export async function registerRoutes(
           );
           console.log(`[Service Request] WhatsApp sent to admin for new request from ${customer.name}`);
         }
-        
+
         // Also send confirmation to customer
         if (customer.phone) {
           await notificationService.sendWhatsAppMessage(
@@ -9046,7 +9046,7 @@ export async function registerRoutes(
   // Send proposal email to customer (public endpoint for proposal sharing)
   app.post("/api/email/send-proposal", async (req, res) => {
     try {
-      const { 
+      const {
         customerEmail, customerName, capacity, netCost, subsidy,
         totalCost, panelType, inverterType, downPayment, downPaymentPercent,
         loanAmount, selectedEmi, selectedTenure, monthlySavings, annualSavings,
@@ -9623,7 +9623,7 @@ export async function registerRoutes(
         state, partnerName, partnerPhone, installationAddress,
         interestRate, electricityRate, emi36Months, emi48Months, emi60Months, emi72Months, emi84Months, ratePerWatt
       } = req.body;
-      
+
       console.log("[PDF] Received data - capacity:", capacity, "netCost:", netCost, "totalCost:", totalCost);
 
       if (!capacity || netCost === undefined || totalCost === undefined) {
@@ -9670,11 +9670,11 @@ export async function registerRoutes(
       const downloadUrl = `/api/proposal/download/${fileName}`;
       console.log("[PDF] Download URL:", downloadUrl);
 
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         downloadUrl,
         fileName,
-        message: "PDF generated successfully" 
+        message: "PDF generated successfully"
       });
     } catch (error: any) {
       console.error("[PDF] Generate PDF error:", error);
@@ -9687,7 +9687,7 @@ export async function registerRoutes(
     console.log("[PDF Download] Request received for:", req.params.fileName);
     try {
       const { fileName } = req.params;
-      
+
       // Validate filename to prevent path traversal
       if (!fileName || fileName.includes('..') || fileName.includes('/')) {
         console.log("[PDF Download] Invalid filename");
@@ -9696,7 +9696,7 @@ export async function registerRoutes(
 
       const filePath = getProposalPath(fileName);
       console.log("[PDF Download] File path:", filePath);
-      
+
       if (!filePath) {
         console.log("[PDF Download] File not found");
         return res.status(404).json({ message: "PDF not found or expired" });
@@ -9707,7 +9707,7 @@ export async function registerRoutes(
       res.setHeader('Content-Disposition', `attachment; filename="Divyanshi_Solar_Proposal.pdf"`);
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Cache-Control', 'no-cache');
-      
+
       console.log("[PDF Download] Sending file...");
       res.sendFile(filePath);
     } catch (error: any) {
@@ -9728,9 +9728,9 @@ export async function registerRoutes(
       // The file is already saved by multer with the correct filename
       const fileName = req.file.filename;
       console.log("[PDF Upload] Saved as:", fileName);
-      
+
       const downloadUrl = `/api/proposal/download/${fileName}`;
-      
+
       res.json({
         success: true,
         downloadUrl,
@@ -9815,7 +9815,7 @@ export async function registerRoutes(
     try {
       const botNumber = await storage.getAdminSetting('WHATSAPP_BOT_NUMBER') || '919211018779';
       res.json({ botNumber });
-    } catch(err) {
+    } catch (err) {
       res.status(500).json({ error: "Failed to fetch config" });
     }
   });
@@ -9833,7 +9833,7 @@ export async function registerRoutes(
         await db.update(whatsappLeads).set({ ...data, updatedAt: new Date() }).where(eq(whatsappLeads.phone, `web_${sessionId}`));
       }
       res.json({ success: true });
-    } catch(err: any) {
+    } catch (err: any) {
       console.error('[Web Lead Error]', err.message);
       res.status(500).json({ error: err.message });
     }
@@ -9849,7 +9849,7 @@ export async function registerRoutes(
         settings[key] = await storage.getAdminSetting(key) || '';
       }
       res.json(settings);
-    } catch(err) {
+    } catch (err) {
       res.status(500).json({ error: "Failed to fetch settings" });
     }
   });
@@ -9861,8 +9861,9 @@ export async function registerRoutes(
         await storage.setAdminSetting(key, String(value));
       }
       res.json({ success: true });
-    } catch(err) {
-      res.status(500).json({ error: "Failed to save settings" });
+    } catch (err: any) {
+      console.error('[Admin Settings Error]', err.message);
+      res.status(500).json({ error: "Failed to save settings: " + err.message });
     }
   });
 
@@ -9897,7 +9898,7 @@ export async function registerRoutes(
       ) {
         const waId = body.entry[0].changes[0].value.contacts[0].wa_id;
         const message = body.entry[0].changes[0].value.messages[0];
-        
+
         const text = message.text?.body || message.interactive?.button_reply?.title || message.interactive?.list_reply?.title || (message.location ? "📍 GPS Location Shared" : "");
 
         if (text) {
