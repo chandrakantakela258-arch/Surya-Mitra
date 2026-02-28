@@ -43,8 +43,7 @@ export default function CrmDashboard() {
 
   const saveSettingsMutation = useMutation({
     mutationFn: async (data: typeof settingsForm) => {
-      const res = await apiRequest('POST', '/api/admin/whatsapp-settings', data);
-      return res.json();
+      return await apiRequest('POST', '/api/admin/whatsapp-settings', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/whatsapp-settings'] });
