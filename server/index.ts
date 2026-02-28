@@ -233,7 +233,9 @@ app.use((req, res, next) => {
     if (process.env.NODE_ENV === "production") {
       serveStatic(app);
     } else {
-      const { setupVite } = await import("./vite");
+      // Use variable to prevent esbuild from bundling vite dev server into production build
+      const vitePath = "./vite" + "";
+      const { setupVite } = await import(/* @vite-ignore */ vitePath);
       await setupVite(httpServer, app);
     }
 
