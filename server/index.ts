@@ -178,6 +178,7 @@ app.use((req, res, next) => {
         CREATE TABLE IF NOT EXISTS "solar_bot_leads" (
           "id" varchar PRIMARY KEY DEFAULT gen_random_uuid(),
           "phone" text NOT NULL UNIQUE,
+          "mobile_number" text,
           "name" text,
           "email" text,
           "language" text DEFAULT 'en',
@@ -200,6 +201,7 @@ app.use((req, res, next) => {
           "updated_at" timestamp DEFAULT now()
         );
       `);
+      await pool.query(`ALTER TABLE "solar_bot_leads" ADD COLUMN IF NOT EXISTS "mobile_number" text`).catch(() => {});
       console.log("solar_bot_leads table ready");
     } catch (e) {
       console.log("solar_bot_leads table check:", (e as any).message);

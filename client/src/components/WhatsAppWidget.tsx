@@ -105,6 +105,7 @@ export function WhatsAppWidget() {
           saveLead({ name: userReply });
           setStep(1.1); break;
         case 1.1:
+          saveLead({ mobileNumber: userReply });
           setStep(1.2); break;
         case 1.2:
           saveLead({ email: userReply });

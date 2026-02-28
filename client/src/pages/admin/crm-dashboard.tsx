@@ -58,13 +58,13 @@ export default function CrmDashboard() {
   const exportToCsv = () => {
     if (!leads || leads.length === 0) return;
 
-    const headers = ["ID", "Phone", "Name", "Email", "Lang", "State", "District", "City", "Pincode", "Electricity Board", "Consumer No", "Meter Type", "Roof Space(sqft)", "Business Type", "Monthly Billing", "Plant Capacity", "Proposal Reply", "Final Status", "Captured Date"];
+    const headers = ["ID", "Mobile Number", "Name", "Email", "Lang", "State", "District", "City", "Pincode", "Electricity Board", "Consumer No", "Meter Type", "Roof Space(sqft)", "Business Type", "Monthly Billing", "Plant Capacity", "Proposal Reply", "Final Status", "Captured Date"];
 
     const csvRows = [
       headers.join(','),
       ...leads.map((lead: any) => [
         lead.id,
-        "'" + lead.phone,
+        "'" + (lead.mobileNumber || lead.phone),
         `"${lead.name || ''}"`,
         `"${lead.email || ''}"`,
         lead.language || '',
@@ -277,9 +277,13 @@ export default function CrmDashboard() {
                         {lead.email && <div className="text-xs text-muted-foreground font-normal">{lead.email}</div>}
                       </TableCell>
                       <TableCell>
-                        <a href={`https://wa.me/${lead.phone.replace(/\\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="hover:underline text-primary flex items-center whitespace-nowrap">
-                          {lead.phone}
-                        </a>
+                        {lead.mobileNumber ? (
+                          <a href={`tel:${lead.mobileNumber}`} className="hover:underline text-primary flex items-center whitespace-nowrap">
+                            {lead.mobileNumber}
+                          </a>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">{lead.phone}</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">

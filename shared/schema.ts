@@ -3880,6 +3880,7 @@ export const SolarBotLeads = pgTable("solar_bot_leads", {
     .primaryKey()
     .default(sql`gen_random_uuid()`),
   phone: text("phone").notNull().unique(),
+  mobileNumber: text("mobile_number"),
   name: text("name"),
   email: text("email"),
   language: text("language").default("en"),
