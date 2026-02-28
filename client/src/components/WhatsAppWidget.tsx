@@ -286,7 +286,7 @@ export function WhatsAppWidget() {
   };
 
   return (
-    <div className="fixed bottom-24 right-6 z-50 flex flex-col items-end">
+    <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end">
       {isOpen && (
         <div className="bg-[#e5ddd5] rounded-2xl shadow-2xl border border-gray-100 mb-4 w-[350px] overflow-hidden transform transition-all duration-300 ease-out origin-bottom-right">
           {/* Header */}

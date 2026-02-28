@@ -5,7 +5,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { HeroSlider } from "@/components/hero-slider";
-import { FeedbackDialog } from "@/components/feedback-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { WhatsAppWidget } from "@/components/WhatsAppWidget";
@@ -51,7 +50,6 @@ import {
   Headphones,
   AlertTriangle,
   Clock,
-  MessageSquare,
   Map,
   Store,
   Eye,
@@ -1804,18 +1802,6 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* Floating Feedback Button */}
-      <div className="fixed bottom-4 right-4 z-50">
-        <FeedbackDialog
-          isPublic={true}
-          trigger={
-            <Button size="lg" className="gap-2 shadow-lg" data-testid="button-floating-feedback">
-              <MessageSquare className="w-5 h-5" />
-              <span className="hidden sm:inline">Feedback</span>
-            </Button>
-          }
-        />
-      </div>
 
       {/* Checkout Dialog */}
       <Dialog open={showCheckout} onOpenChange={(open) => {
