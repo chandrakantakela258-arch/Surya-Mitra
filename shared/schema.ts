@@ -3121,7 +3121,7 @@ export const insertSolarBotLeadSchema = createInsertSchema(SolarBotLeads).omit({
 });
 
 export type InsertSolarBotLead = z.infer<typeof insertSolarBotLeadSchema>;
-export type SolarBotLead = typeof solarbotLeads.$inferSelect;
+export type SolarBotLead = typeof SolarBotLeads.$inferSelect;
 
 // Re-export chat models for OpenAI integration
 export * from "./models/chat";
