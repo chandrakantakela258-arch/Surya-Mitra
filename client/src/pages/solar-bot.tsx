@@ -125,7 +125,7 @@ export default function SolarBotPage() {
   const t = (en: string, hi: string) => (lang === "hi" ? hi : en);
 
   useEffect(() => {
-    fetch("/api/public/chatbot-nodes")
+    fetch(`/api/public/chatbot-nodes?t=${Date.now()}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
         if (Array.isArray(d)) setNodeConfigs(d);

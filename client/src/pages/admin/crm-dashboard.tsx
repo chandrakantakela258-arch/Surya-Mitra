@@ -1,16 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Download, Users, RefreshCw, MessageSquare, Sun, FileText, CheckCircle, Clock, Settings, Save } from 'lucide-react';
+import { Download, Users, RefreshCw, MessageSquare, Sun, FileText, CheckCircle, Clock, Settings, Save, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+
+const ACTION_OPTIONS = [
+  "Called Customer",
+  "Visited Customer Home",
+  "Sent all Documents to Customer",
+  "Customer has Installed Plant",
+  "Customer has taken two Months Time to install",
+];
 
 export default function CrmDashboard() {
   const { toast } = useToast();
@@ -52,6 +61,32 @@ export default function CrmDashboard() {
     },
     onError: (error: any) => {
       toast({ title: 'Error', description: error.message || 'Failed to update settings.', variant: 'destructive' });
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest('DELETE', `/api/leads/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/leads'] });
+      toast({ title: 'Lead deleted successfully' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Failed to delete lead', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  const actionMutation = useMutation({
+    mutationFn: async ({ id, actionTaken }: { id: string; actionTaken: string }) => {
+      return await apiRequest('PATCH', `/api/leads/${id}/action`, { actionTaken });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/leads'] });
+      toast({ title: 'Action updated' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Failed to update action', description: error.message, variant: 'destructive' });
     }
   });
 
@@ -255,17 +290,19 @@ export default function CrmDashboard() {
                   <TableHead>Business & Meter</TableHead>
                   <TableHead>Billing Profile</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Action Taken</TableHead>
                   <TableHead className="text-right">Captured On</TableHead>
+                  <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">Loading leads...</TableCell>
+                    <TableCell colSpan={10} className="h-24 text-center">Loading leads...</TableCell>
                   </TableRow>
                 ) : !leads || leads.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
                       No leads captured yet.
                     </TableCell>
                   </TableRow>
@@ -335,11 +372,46 @@ export default function CrmDashboard() {
                           )}
                         </div>
                       </TableCell>
+                      <TableCell>
+                        <Select
+                          value={lead.actionTaken || ""}
+                          onValueChange={(val) => actionMutation.mutate({ id: lead.id, actionTaken: val })}
+                        >
+                          <SelectTrigger className="w-[180px] h-8 text-xs" data-testid={`select-action-${lead.id}`}>
+                            <SelectValue placeholder="Select action..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ACTION_OPTIONS.map(action => (
+                              <SelectItem key={action} value={action} className="text-xs">{action}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {lead.actionTaken && (
+                          <Badge variant="outline" className="mt-1 text-[10px] bg-green-50 text-green-700 dark:bg-green-900 dark:text-green-300 border-green-200">
+                            {lead.actionTaken}
+                          </Badge>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right text-sm text-muted-foreground whitespace-nowrap">
                         {lead.createdAt ? format(new Date(lead.createdAt), 'MMM d, yyyy') : '-'}
                         <div className="text-xs opacity-75">
                           {lead.createdAt ? format(new Date(lead.createdAt), 'h:mm a') : ''}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => {
+                            if (confirm(`Delete lead "${lead.name || lead.mobileNumber || 'Unknown'}"?`)) {
+                              deleteMutation.mutate(lead.id);
+                            }
+                          }}
+                          data-testid={`button-delete-lead-${lead.id}`}
+                        >
+                          <Trash2 size={14} />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))

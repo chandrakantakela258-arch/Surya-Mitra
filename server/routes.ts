@@ -10000,7 +10000,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // Admin CRM API (using raw SQL for production reliability)
   app.get('/api/leads', requireAuth, async (req, res) => {
     try {
-      const result = await pool.query(`SELECT id, phone, mobile_number as "mobileNumber", name, email, language, state, district, city, pincode, gps_location as "gpsLocation", electricity_board as "electricityBoard", consumer_number as "consumerNumber", meter_type as "meterType", roof_space as "roofSpace", business_type as "businessType", monthly_billing as "monthlyBilling", plant_capacity as "plantCapacity", proposal_status as "proposalStatus", status, current_step as "currentStep", created_at as "createdAt", updated_at as "updatedAt" FROM solar_bot_leads ORDER BY created_at DESC`);
+      const result = await pool.query(`SELECT id, phone, mobile_number as "mobileNumber", name, email, language, state, district, city, pincode, gps_location as "gpsLocation", electricity_board as "electricityBoard", consumer_number as "consumerNumber", meter_type as "meterType", roof_space as "roofSpace", business_type as "businessType", monthly_billing as "monthlyBilling", plant_capacity as "plantCapacity", proposal_status as "proposalStatus", status, action_taken as "actionTaken", current_step as "currentStep", created_at as "createdAt", updated_at as "updatedAt" FROM solar_bot_leads ORDER BY created_at DESC`);
       console.log(`[Solar Bot Leads] Returning ${result.rows.length} leads`);
       res.json(result.rows);
     } catch (error: any) {
@@ -10014,6 +10014,33 @@ export function registerRoutes(httpServer: Server, app: Express) {
         console.error('[Leads API Fallback Error]', fallbackError.message);
         res.status(500).json({ error: fallbackError.message });
       }
+    }
+  });
+
+  app.delete('/api/leads/:id', requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await pool.query(`DELETE FROM solar_bot_leads WHERE id = $1`, [id]);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('[Delete Lead Error]', error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch('/api/leads/:id/action', requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { actionTaken } = req.body;
+      const result = await pool.query(
+        `UPDATE solar_bot_leads SET action_taken = $1, updated_at = NOW() WHERE id = $2 RETURNING id, action_taken as "actionTaken"`,
+        [actionTaken, id]
+      );
+      if (result.rows.length === 0) return res.status(404).json({ error: "Lead not found" });
+      res.json(result.rows[0]);
+    } catch (error: any) {
+      console.error('[Update Lead Action Error]', error.message);
+      res.status(500).json({ error: error.message });
     }
   });
 

@@ -27,6 +27,22 @@ interface Msg {
   buttons?: string[];
   options?: string[];
   isLocation?: boolean;
+  mediaType?: string | null;
+  mediaUrl?: string | null;
+  mediaTitle?: string | null;
+}
+
+interface NodeConfig {
+  stepId: string;
+  messageEn: string;
+  messageHi: string;
+  inputType: string;
+  options: string | null;
+  mediaType: string | null;
+  mediaUrl: string | null;
+  mediaTitle: string | null;
+  savesField: string | null;
+  isActive: boolean;
 }
 
 const SESSION_ID = Math.random().toString(36).substring(2, 15);
@@ -83,6 +99,7 @@ export function WhatsAppWidget() {
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [meterType, setMeterType] = useState('');
   const [businessType, setBusinessType] = useState('');
+  const [nodeConfigs, setNodeConfigs] = useState<NodeConfig[]>([]);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const t = (en: string, hi: string) => lang === 'hi' ? hi : en;
@@ -92,7 +109,32 @@ export function WhatsAppWidget() {
       .then(r => r.json())
       .then(d => { if (d.botNumber) setBotNumber(d.botNumber); })
       .catch(() => {});
+    fetch(`/api/public/chatbot-nodes?t=${Date.now()}`, { cache: "no-store" })
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d)) setNodeConfigs(d); })
+      .catch(() => {});
   }, []);
+
+  const getNode = (stepId: string): NodeConfig | undefined => {
+    return nodeConfigs.find(n => n.stepId === stepId);
+  };
+
+  const getNodeMessage = (stepId: string, fallbackEn: string, fallbackHi: string) => {
+    const node = getNode(stepId);
+    if (node) return lang === 'hi' ? node.messageHi : node.messageEn;
+    return lang === 'hi' ? fallbackHi : fallbackEn;
+  };
+
+  const getNodeOptions = (stepId: string, fallback: string[]): string[] => {
+    const node = getNode(stepId);
+    if (node?.options) return node.options.split(',').map(o => o.trim());
+    return fallback;
+  };
+
+  const getNodeMedia = (stepId: string) => {
+    const node = getNode(stepId);
+    return { mediaType: node?.mediaType, mediaUrl: node?.mediaUrl, mediaTitle: node?.mediaTitle };
+  };
 
   const whatsappLink = `https://wa.me/${botNumber}?text=Hi`;
   const shareLink = `${window.location.origin}/solar-bot`;
@@ -103,8 +145,8 @@ export function WhatsAppWidget() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const addBotMessage = (text: string, buttons?: string[], options?: string[], isLocation?: boolean) => {
-    setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'bot', text, buttons, options, isLocation }]);
+  const addBotMessage = (text: string, buttons?: string[], options?: string[], isLocation?: boolean, mediaType?: string | null, mediaUrl?: string | null, mediaTitle?: string | null) => {
+    setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'bot', text, buttons, options, isLocation, mediaType, mediaUrl, mediaTitle }]);
   };
 
   const addUserMessage = (text: string) => {
@@ -201,76 +243,89 @@ export function WhatsAppWidget() {
     }, 600);
   };
 
+  const addNodeMsg = (stepId: string, fallbackEn: string, fallbackHi: string, fallbackButtons?: string[], fallbackOptions?: string[], isLoc?: boolean) => {
+    const node = getNode(stepId);
+    const msg = getNodeMessage(stepId, fallbackEn, fallbackHi);
+    const media = getNodeMedia(stepId);
+    if (node) {
+      const opts = node.options ? node.options.split(',').map(o => o.trim()) : (fallbackOptions || fallbackButtons || []);
+      const asButtons = node.inputType === 'buttons' ? opts : fallbackButtons;
+      const asDropdown = node.inputType === 'dropdown' ? opts : fallbackOptions;
+      const asLoc = node.inputType === 'location' ? true : isLoc;
+      addBotMessage(msg, asButtons, asDropdown, asLoc, media.mediaType, media.mediaUrl, media.mediaTitle);
+    } else {
+      addBotMessage(msg, fallbackButtons, fallbackOptions, isLoc);
+    }
+  };
+
   // Init bot on open
   useEffect(() => {
     if (isOpen && messages.length === 0 && step === 0) {
       setTimeout(() => {
-        addBotMessage('Hi! I am the PM Surya Ghar Solar Bot ☀️\nPlease select your language / कृपया भाषा चुनें:', ['English', 'हिन्दी']);
+        addNodeMsg('0', 'Hi! I am the PM Surya Ghar Solar Bot ☀️\nPlease select your language / कृपया भाषा चुनें:', 'Hi! I am the PM Surya Ghar Solar Bot ☀️\nPlease select your language / कृपया भाषा चुनें:', ['English', 'हिन्दी']);
       }, 500);
     }
-  }, [isOpen]);
+  }, [isOpen, nodeConfigs]);
 
   // Step-driven bot messages
   useEffect(() => {
     if (!isOpen) return;
+    if (step === 0) return;
     if (step === 1) {
-      addBotMessage(t('Q1: What is your Name?', 'प्रश्न 1: आपका नाम क्या है?'));
+      addNodeMsg('1', 'Q1: What is your Name?', 'प्रश्न 1: आपका नाम क्या है?');
     } else if (step === 1.1) {
-      addBotMessage(t('Please enter your 10-digit Mobile Number:', 'कृपया अपना 10-अंकीय मोबाइल नंबर दर्ज करें:'));
+      addNodeMsg('1.1', 'Please enter your 10-digit Mobile Number:', 'कृपया अपना 10-अंकीय मोबाइल नंबर दर्ज करें:');
     } else if (step === 1.2) {
-      addBotMessage(t('What is your Email ID?', 'आपकी ईमेल आईडी क्या है?'));
+      addNodeMsg('1.2', 'What is your Email ID?', 'आपकी ईमेल आईडी क्या है?');
     } else if (step === 2) {
-      addBotMessage(t('Q2: Please select your State:', 'प्रश्न 2: अपना राज्य चुनें:'), undefined, ALL_STATES);
+      addNodeMsg('2', 'Q2: Please select your State:', 'प्रश्न 2: अपना राज्य चुनें:', undefined, ALL_STATES);
     } else if (step === 2.1) {
       const districts = DISTRICTS[selectedState] || ["Other"];
-      addBotMessage(t('Please select your District:', 'अपना जिला चुनें:'), undefined, districts);
+      addNodeMsg('2.1', 'Please select your District:', 'अपना जिला चुनें:', undefined, districts);
     } else if (step === 2.2) {
       const cities = CITIES[selectedDistrict] || ["Other"];
-      addBotMessage(t('Please select your City/Town:', 'अपना शहर/कस्बा चुनें:'), undefined, cities);
+      addNodeMsg('2.2', 'Please select your City/Town:', 'अपना शहर/कस्बा चुनें:', undefined, cities);
     } else if (step === 2.3) {
-      addBotMessage(t('What is your Pin Code?', 'आपका पिन कोड क्या है?'));
+      addNodeMsg('2.3', 'What is your Pin Code?', 'आपका पिन कोड क्या है?');
     } else if (step === 2.4) {
-      addBotMessage(t('Please share your GPS Location:', 'अपनी GPS लोकेशन साझा करें:'), [], [], true);
+      addNodeMsg('2.4', 'Please share your GPS Location:', 'अपनी GPS लोकेशन साझा करें:', [], [], true);
     } else if (step === 3) {
-      addBotMessage(t('Q3: Select State Electricity Board:', 'प्रश्न 3: राज्य विद्युत बोर्ड चुनें:'), undefined, ["NBPDCL", "SBPDCL", "UPPCL", "DHBVN", "UHBVN", "JVVNL", "Other"]);
+      addNodeMsg('3', 'Q3: Select State Electricity Board:', 'प्रश्न 3: राज्य विद्युत बोर्ड चुनें:', undefined, ["NBPDCL", "SBPDCL", "UPPCL", "DHBVN", "UHBVN", "JVVNL", "Other"]);
     } else if (step === 3.1) {
-      addBotMessage(t('Q3(a): What is your Consumer Number?', 'प्रश्न 3(a): आपका उपभोक्ता नंबर क्या है?'));
+      addNodeMsg('3.1', 'Q3(a): What is your Consumer Number?', 'प्रश्न 3(a): आपका उपभोक्ता नंबर क्या है?');
     } else if (step === 4) {
-      addBotMessage(t('Q4: What is your Connection Type?', 'प्रश्न 4: आपका कनेक्शन प्रकार क्या है?'), undefined, ["Residential", "Commercial", "Industrial"]);
+      addNodeMsg('4', 'Q4: What is your Connection Type?', 'प्रश्न 4: आपका कनेक्शन प्रकार क्या है?', undefined, ["Residential", "Commercial", "Industrial"]);
     } else if (step === 4.5) {
-      addBotMessage(t('Great! For a Residential connection, here are the recommended solar plants for you. Please select:', 'बढ़िया! आपके घरेलू कनेक्शन के लिए अनुशंसित सोलर प्लांट चुनें:'), undefined, RESIDENTIAL_PLANTS);
+      addNodeMsg('4.5', 'Great! For a Residential connection, here are the recommended solar plants for you. Please select:', 'बढ़िया! आपके घरेलू कनेक्शन के लिए अनुशंसित सोलर प्लांट चुनें:', undefined, RESIDENTIAL_PLANTS);
     } else if (step === 6) {
-      addBotMessage(t('Q6: Available Roof Space (in sq ft)?', 'प्रश्न 6: छत पर उपलब्ध जगह (वर्ग फुट में)?'));
+      addNodeMsg('6', 'Q6: Available Roof Space (in sq ft)?', 'प्रश्न 6: छत पर उपलब्ध जगह (वर्ग फुट में)?');
     } else if (step === 7) {
-      addBotMessage(t('Q7: What is your Business Type?', 'प्रश्न 7: आपके व्यवसाय का प्रकार?'), undefined, [
+      addNodeMsg('7', 'Q7: What is your Business Type?', 'प्रश्न 7: आपके व्यवसाय का प्रकार?', undefined, [
         "Bike/Car Showroom", "Aata/Oil/Masala Mill", "Tractor Agency", "RO/Packaging Plant", "Rice Mill", "Fabrication Plant", "Other Industrial Unit"
       ]);
     } else if (step === 7.5) {
-      addBotMessage(t('For Bike/Car Showroom, here are the best suited solar plants. Please select:', 'बाइक/कार शोरूम के लिए अनुशंसित सोलर प्लांट चुनें:'), undefined, BIKE_SHOWROOM_PLANTS);
+      addNodeMsg('7.5', 'For Bike/Car Showroom, here are the best suited solar plants. Please select:', 'बाइक/कार शोरूम के लिए अनुशंसित सोलर प्लांट चुनें:', undefined, BIKE_SHOWROOM_PLANTS);
     } else if (step === 7.1) {
-      addBotMessage(t('Q7(a): Monthly Electricity Bill Amount?', 'प्रश्न 7(a): मासिक बिजली बिल राशि?'), undefined, [
+      addNodeMsg('7.1', 'Q7(a): Monthly Electricity Bill Amount?', 'प्रश्न 7(a): मासिक बिजली बिल राशि?', undefined, [
         "Less than ₹1,000", "₹2,000 - ₹4,000", "₹4,000 - ₹10,000", "₹15,000 - ₹30,000", "₹50,000+", "₹1,00,000+"
       ]);
     } else if (step === 7.2) {
-      addBotMessage(t('Q7(b): What Capacity Plant do you want to Install?', 'प्रश्न 7(b): कितनी क्षमता का प्लांट लगाना चाहते हैं?'), undefined, GENERAL_CAPACITIES);
+      addNodeMsg('7.2', 'Q7(b): What Capacity Plant do you want to Install?', 'प्रश्न 7(b): कितनी क्षमता का प्लांट लगाना चाहते हैं?', undefined, GENERAL_CAPACITIES);
     } else if (step === 8) {
-      addBotMessage(t('📄 Based on your selection, here is your estimated Solar Proposal: Solar_Proposal.pdf\n\nOur team will prepare a detailed customized proposal for you shortly.', '📄 आपके चयन के आधार पर यहाँ आपका अनुमानित सोलर प्रस्ताव है: Solar_Proposal.pdf\n\nहमारी टीम जल्द ही एक विस्तृत अनुकूलित प्रस्ताव तैयार करेगी।'));
-      setTimeout(() => {
-        addBotMessage(t('Are you interested in proceeding?', 'क्या आप आगे बढ़ने में रुचि रखते हैं?'), [
-          t('Interested', 'रुचि है'),
-          t('Not Interested', 'रुचि नहीं है'),
-          t('Will Call Later', 'बाद में कॉल करेंगे'),
-          t('Install after 2-3 months', '2-3 महीने बाद')
-        ]);
-      }, 800);
+      addNodeMsg('8', '📄 Based on your selection, here is your estimated Solar Proposal.\n\nOur team will prepare a detailed customized proposal for you shortly.\n\nAre you interested in proceeding?', '📄 आपके चयन के आधार पर यहाँ आपका अनुमानित सोलर प्रस्ताव है।\n\nहमारी टीम जल्द ही एक विस्तृत अनुकूलित प्रस्ताव तैयार करेगी।\n\nक्या आप आगे बढ़ने में रुचि रखते हैं?', [
+        t('Interested', 'रुचि है'),
+        t('Not Interested', 'रुचि नहीं है'),
+        t('Will Call Later', 'बाद में कॉल करेंगे'),
+        t('Install after 2-3 months', '2-3 महीने बाद')
+      ]);
     } else if (step === 9) {
-      addBotMessage(t('Great! How would you like to proceed?', 'बहुत बढ़िया! आप कैसे आगे बढ़ना चाहेंगे?'), [
+      addNodeMsg('9', 'Great! How would you like to proceed?', 'बहुत बढ़िया! आप कैसे आगे बढ़ना चाहेंगे?', [
         t('Fill Online Form', 'ऑनलाइन फॉर्म भरें'),
         t('Call for Understanding', 'कॉल पर समझें'),
         t('Schedule Home Visit', 'होम विजिट शेड्यूल करें')
       ]);
     } else if (step === 10) {
-      addBotMessage(t('Thank you for choosing Divyanshi Solar! Our team will contact you soon. ☀️', 'दिव्यांशी सोलर को चुनने के लिए धन्यवाद! हमारी टीम जल्द ही संपर्क करेगी। ☀️'));
+      addNodeMsg('10', 'Thank you for choosing Divyanshi Solar! Our team will contact you soon. ☀️', 'दिव्यांशी सोलर को चुनने के लिए धन्यवाद! हमारी टीम जल्द ही संपर्क करेगी। ☀️');
     }
   }, [step]);
 
@@ -326,6 +381,20 @@ export function WhatsAppWidget() {
                   m.sender === 'user' ? 'bg-[#d9fdd3] rounded-tr-none' : 'bg-white rounded-tl-none'
                 }`} style={{ whiteSpace: 'pre-wrap' }}>
                   {m.text}
+
+                  {m.mediaType && m.mediaUrl && (
+                    <div className="mt-2">
+                      {m.mediaType === 'video' && (
+                        <a href={m.mediaUrl} target="_blank" rel="noopener noreferrer" className="block bg-blue-50 text-blue-600 text-xs py-2 px-3 rounded border border-blue-200 hover:bg-blue-100">▶️ {m.mediaTitle || 'Watch Video'}</a>
+                      )}
+                      {m.mediaType === 'image' && (
+                        <img src={m.mediaUrl} alt={m.mediaTitle || ''} className="rounded max-h-40 w-full object-cover" />
+                      )}
+                      {(m.mediaType === 'pdf' || m.mediaType === 'ppt') && (
+                        <a href={m.mediaUrl} target="_blank" rel="noopener noreferrer" className="block bg-orange-50 text-orange-600 text-xs py-2 px-3 rounded border border-orange-200 hover:bg-orange-100">📄 {m.mediaTitle || 'View Document'}</a>
+                      )}
+                    </div>
+                  )}
 
                   {m.buttons && (
                     <div className="mt-2.5 flex flex-col gap-1.5">
