@@ -9969,11 +9969,5 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-} catch (error: any) {
-  console.error('[Leads API Error]', error.message);
-  res.status(500).json({ error: error.message });
-}
-  });
-
-return httpServer;
+  return httpServer;
 }
