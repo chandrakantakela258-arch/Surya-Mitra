@@ -230,13 +230,13 @@ app.use((req, res, next) => {
     // setting up all the other routes so the catch-all route
     // doesn't interfere with the other routes
     console.log("Setting up static file serving...");
-    if (process.env.NODE_ENV === "production") {
-      serveStatic(app);
-    } else {
+    if (process.env.NODE_ENV === "development") {
       // Use variable to prevent esbuild from bundling vite dev server into production build
       const vitePath = "./vite" + "";
       const { setupVite } = await import(/* @vite-ignore */ vitePath);
       await setupVite(httpServer, app);
+    } else {
+      serveStatic(app);
     }
 
     // ALWAYS serve the app on the port specified in the environment variable PORT
