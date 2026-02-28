@@ -119,6 +119,7 @@ export default function SolarBotPage() {
   const [selectedState, setSelectedState] = useState("");
   const [selectedDistrict, setSelectedDistrict] = useState("");
   const [nodeConfigs, setNodeConfigs] = useState<NodeConfig[]>([]);
+  const [configsLoaded, setConfigsLoaded] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const t = (en: string, hi: string) => (lang === "hi" ? hi : en);
@@ -126,8 +127,13 @@ export default function SolarBotPage() {
   useEffect(() => {
     fetch("/api/public/chatbot-nodes")
       .then((r) => r.json())
-      .then((d) => setNodeConfigs(d))
-      .catch(() => {});
+      .then((d) => {
+        if (Array.isArray(d)) setNodeConfigs(d);
+        setConfigsLoaded(true);
+      })
+      .catch(() => {
+        setConfigsLoaded(true);
+      });
   }, []);
 
   const getNodeConfig = (stepId: string): NodeConfig | undefined => {
@@ -261,8 +267,8 @@ export default function SolarBotPage() {
 
   const initDone = useRef(false);
   useEffect(() => {
+    if (!configsLoaded) return;
     if (initDone.current) return;
-    if (nodeConfigs.length === 0) return;
     initDone.current = true;
     setTimeout(() => {
       const node = getNodeConfig("0");
@@ -273,7 +279,7 @@ export default function SolarBotPage() {
         addBotMessage("Hi! I am the PM Surya Ghar Solar Bot \u2600\uFE0F\nPlease select your language / \u0915\u0943\u092A\u092F\u093E \u092D\u093E\u0937\u093E \u091A\u0941\u0928\u0947\u0902:", ["English", "\u0939\u093F\u0928\u094D\u0926\u0940"]);
       }
     }, 500);
-  }, [nodeConfigs]);
+  }, [configsLoaded]);
 
   useEffect(() => {
     const stepStr = step.toString();
