@@ -3089,7 +3089,7 @@ export const adminSettings = pgTable("admin_settings", {
 export type AdminSetting = typeof adminSettings.$inferSelect;
 
 // Solar Bot CRM Leads
-export const whatsappLeads = pgTable("solar_bot_leads", {
+export const SolarBotLeads = pgTable("solar_bot_leads", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   phone: text("phone").notNull().unique(),
   name: text("name"),
@@ -3114,14 +3114,14 @@ export const whatsappLeads = pgTable("solar_bot_leads", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const insertWhatsappLeadSchema = createInsertSchema(whatsappLeads).omit({
+export const insertSolarBotLeadSchema = createInsertSchema(SolarBotLeads).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 });
 
-export type InsertWhatsappLead = z.infer<typeof insertWhatsappLeadSchema>;
-export type WhatsappLead = typeof whatsappLeads.$inferSelect;
+export type InsertSolarBotLead = z.infer<typeof insertSolarBotLeadSchema>;
+export type SolarBotLead = typeof solarbotLeads.$inferSelect;
 
 // Re-export chat models for OpenAI integration
 export * from "./models/chat";
