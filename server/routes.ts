@@ -9603,11 +9603,12 @@ export function registerRoutes(httpServer: Server, app: Express) {
     }
   });
 
-  // Admin: Get all proposal leads
+  // Admin: Get all proposal leads (using raw SQL for production reliability)
   app.get("/api/admin/proposal-leads", requireAdmin, async (req, res) => {
     try {
-      const leads = await storage.getProposalLeads();
-      res.json(leads);
+      const result = await pool.query(`SELECT id, customer_name as "customerName", phone, email, plant_capacity as "plantCapacity", plant_type as "plantType", inverter_type as "inverterType", address, state, total_cost as "totalCost", net_cost as "netCost", subsidy, source, status, notes, created_at as "createdAt" FROM proposal_leads ORDER BY created_at DESC`);
+      console.log(`[Proposal Leads] Returning ${result.rows.length} leads`);
+      res.json(result.rows);
     } catch (error: any) {
       console.error("Get proposal leads error:", error);
       res.status(500).json({ message: error.message || "Failed to fetch leads" });
@@ -9861,17 +9862,55 @@ export function registerRoutes(httpServer: Server, app: Express) {
     }
   });
 
-  // Public route for web widget to save/update a lead
+  // Public route for web widget to save/update a lead (raw SQL for production reliability)
   app.post('/api/public/web-lead', async (req, res) => {
     try {
       const { sessionId, ...data } = req.body;
       if (!sessionId) return res.status(400).json({ error: "sessionId required" });
 
-      const existing = await db.select().from(whatsappLeads).where(eq(whatsappLeads.phone, `web_${sessionId}`)).limit(1);
-      if (existing.length === 0) {
-        await db.insert(whatsappLeads).values({ phone: `web_${sessionId}`, ...data });
+      const phoneKey = `web_${sessionId}`;
+      const existing = await pool.query(`SELECT id FROM solar_bot_leads WHERE phone = $1 LIMIT 1`, [phoneKey]);
+
+      const columnMap: Record<string, string> = {
+        name: 'name', email: 'email', language: 'language', state: 'state',
+        district: 'district', city: 'city', pincode: 'pincode',
+        gpsLocation: 'gps_location', electricityBoard: 'electricity_board',
+        consumerNumber: 'consumer_number', meterType: 'meter_type',
+        roofSpace: 'roof_space', businessType: 'business_type',
+        monthlyBilling: 'monthly_billing', plantCapacity: 'plant_capacity',
+        proposalStatus: 'proposal_status', status: 'status',
+        mobileNumber: 'mobile_number',
+      };
+
+      if (existing.rows.length === 0) {
+        const cols = ['phone'];
+        const vals = [phoneKey];
+        let idx = 2;
+        for (const [jsKey, dbCol] of Object.entries(columnMap)) {
+          if (data[jsKey] !== undefined) {
+            cols.push(dbCol);
+            vals.push(data[jsKey]);
+            idx++;
+          }
+        }
+        const placeholders = vals.map((_, i) => `$${i + 1}`).join(', ');
+        await pool.query(`INSERT INTO solar_bot_leads (${cols.join(', ')}) VALUES (${placeholders})`, vals);
       } else {
-        await db.update(whatsappLeads).set({ ...data, updatedAt: new Date() }).where(eq(whatsappLeads.phone, `web_${sessionId}`));
+        const setClauses: string[] = [];
+        const vals: any[] = [];
+        let idx = 1;
+        for (const [jsKey, dbCol] of Object.entries(columnMap)) {
+          if (data[jsKey] !== undefined) {
+            setClauses.push(`${dbCol} = $${idx}`);
+            vals.push(data[jsKey]);
+            idx++;
+          }
+        }
+        if (setClauses.length > 0) {
+          setClauses.push(`updated_at = NOW()`);
+          vals.push(phoneKey);
+          await pool.query(`UPDATE solar_bot_leads SET ${setClauses.join(', ')} WHERE phone = $${idx}`, vals);
+        }
       }
       res.json({ success: true });
     } catch (err: any) {
@@ -9958,14 +9997,23 @@ export function registerRoutes(httpServer: Server, app: Express) {
     }
   });
 
-  // Admin CRM API
+  // Admin CRM API (using raw SQL for production reliability)
   app.get('/api/leads', requireAuth, async (req, res) => {
     try {
-      const leads = await db.select().from(whatsappLeads).orderBy(desc(whatsappLeads.createdAt));
-      res.json(leads);
+      const result = await pool.query(`SELECT id, phone, mobile_number as "mobileNumber", name, email, language, state, district, city, pincode, gps_location as "gpsLocation", electricity_board as "electricityBoard", consumer_number as "consumerNumber", meter_type as "meterType", roof_space as "roofSpace", business_type as "businessType", monthly_billing as "monthlyBilling", plant_capacity as "plantCapacity", proposal_status as "proposalStatus", status, current_step as "currentStep", created_at as "createdAt", updated_at as "updatedAt" FROM solar_bot_leads ORDER BY created_at DESC`);
+      console.log(`[Solar Bot Leads] Returning ${result.rows.length} leads`);
+      res.json(result.rows);
     } catch (error: any) {
       console.error('[Leads API Error]', error.message);
-      res.status(500).json({ error: error.message });
+      // If mobile_number column doesn't exist yet, retry without it
+      try {
+        const result = await pool.query(`SELECT id, phone, name, email, language, state, district, city, pincode, gps_location as "gpsLocation", electricity_board as "electricityBoard", consumer_number as "consumerNumber", meter_type as "meterType", roof_space as "roofSpace", business_type as "businessType", monthly_billing as "monthlyBilling", plant_capacity as "plantCapacity", proposal_status as "proposalStatus", status, current_step as "currentStep", created_at as "createdAt", updated_at as "updatedAt" FROM solar_bot_leads ORDER BY created_at DESC`);
+        console.log(`[Solar Bot Leads Fallback] Returning ${result.rows.length} leads`);
+        res.json(result.rows);
+      } catch (fallbackError: any) {
+        console.error('[Leads API Fallback Error]', fallbackError.message);
+        res.status(500).json({ error: fallbackError.message });
+      }
     }
   });
 
