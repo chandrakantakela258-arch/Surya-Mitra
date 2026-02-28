@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Bot, Plus, Pencil, Trash2, Video, FileText, Image, Eye, EyeOff, Copy, ExternalLink, Link, ChevronUp, ChevronDown, ArrowUpDown } from "lucide-react";
+import { Bot, Plus, Pencil, Trash2, Video, FileText, Image, Eye, EyeOff, Copy, ClipboardPaste, ExternalLink, Link, ChevronUp, ChevronDown, ArrowUpDown } from "lucide-react";
 
 interface ChatbotNode {
   id: string;
@@ -51,6 +51,7 @@ export default function AdminChatbotSettings() {
   const [editNode, setEditNode] = useState<Partial<ChatbotNode> | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [sharecopied, setShareCopied] = useState(false);
+  const [copiedNode, setCopiedNode] = useState<ChatbotNode | null>(null);
 
   const { data: nodes = [], isLoading } = useQuery<ChatbotNode[]>({
     queryKey: ["/api/admin/chatbot-nodes"],
@@ -158,6 +159,39 @@ export default function AdminChatbotSettings() {
     setIsDialogOpen(true);
   };
 
+  const copyNode = (node: ChatbotNode) => {
+    setCopiedNode(node);
+    toast({ title: `Copied "${node.labelEn}"`, description: "Click 'Paste Here' between any nodes to insert it" });
+  };
+
+  const pasteNodeAt = (insertAfterIdx: number) => {
+    if (!copiedNode) return;
+    const targetSortOrder = insertAfterIdx < 0
+      ? (nodes.length > 0 ? nodes[0].sortOrder - 1 : 1)
+      : (insertAfterIdx >= nodes.length - 1
+        ? nodes[nodes.length - 1].sortOrder + 1
+        : Math.floor((nodes[insertAfterIdx].sortOrder + nodes[insertAfterIdx + 1].sortOrder) / 2));
+
+    const newStepId = copiedNode.stepId + "_copy";
+    const newNode: Partial<ChatbotNode> = {
+      stepId: newStepId,
+      labelEn: copiedNode.labelEn + " (Copy)",
+      labelHi: copiedNode.labelHi,
+      messageEn: copiedNode.messageEn,
+      messageHi: copiedNode.messageHi,
+      inputType: copiedNode.inputType,
+      options: copiedNode.options,
+      mediaType: copiedNode.mediaType || undefined,
+      mediaUrl: copiedNode.mediaUrl,
+      mediaTitle: copiedNode.mediaTitle,
+      savesField: copiedNode.savesField,
+      sortOrder: targetSortOrder,
+      isActive: copiedNode.isActive,
+    };
+    createMutation.mutate(newNode);
+    setCopiedNode(null);
+  };
+
   const shareLink = `${window.location.origin}/solar-bot`;
 
   const handleCopyShareLink = () => {
@@ -233,12 +267,32 @@ export default function AdminChatbotSettings() {
         <Badge variant="outline" className="ml-auto">{nodes.length} nodes</Badge>
       </div>
 
+      {copiedNode && (
+        <div className="flex items-center justify-between gap-2 p-3 rounded-lg border-2 border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/50">
+          <div className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
+            <ClipboardPaste size={16} />
+            <span>Copied: <strong>{copiedNode.labelEn}</strong> — click "Paste Here" between any nodes to insert</span>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => setCopiedNode(null)} data-testid="button-cancel-copy">Cancel</Button>
+        </div>
+      )}
+
       {isLoading ? (
         <div className="text-center py-10 text-muted-foreground">Loading chatbot nodes...</div>
       ) : (
         <div className="space-y-2">
+          {copiedNode && (
+            <button
+              onClick={() => pasteNodeAt(-1)}
+              className="w-full flex items-center justify-center gap-2 py-1.5 px-3 text-xs rounded-md border-2 border-dashed border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+              data-testid="button-paste-top"
+            >
+              <ClipboardPaste size={12} /> Paste "{copiedNode.labelEn}" here
+            </button>
+          )}
           {nodes.map((node, idx) => (
-            <Card key={node.id} className={`transition-all ${!node.isActive ? 'opacity-40' : ''}`} data-testid={`card-node-${node.stepId}`}>
+            <div key={node.id} className="space-y-2">
+            <Card className={`transition-all ${!node.isActive ? 'opacity-40' : ''} ${copiedNode?.id === node.id ? 'ring-2 ring-blue-400' : ''}`} data-testid={`card-node-${node.stepId}`}>
               <CardContent className="p-3 sm:p-4">
                 <div className="flex items-start gap-2 sm:gap-3">
                   <div className="flex flex-col items-center gap-0.5 pt-0.5 flex-shrink-0">
@@ -286,6 +340,9 @@ export default function AdminChatbotSettings() {
                     )}
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyNode(node)} title="Copy node" data-testid={`button-copy-${node.stepId}`}>
+                      <Copy size={14} />
+                    </Button>
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(node)} data-testid={`button-edit-${node.stepId}`}>
                       <Pencil size={14} />
                     </Button>
@@ -298,6 +355,16 @@ export default function AdminChatbotSettings() {
                 </div>
               </CardContent>
             </Card>
+            {copiedNode && copiedNode.id !== node.id && (
+              <button
+                onClick={() => pasteNodeAt(idx)}
+                className="w-full flex items-center justify-center gap-2 py-1.5 px-3 text-xs rounded-md border-2 border-dashed border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+                data-testid={`button-paste-after-${node.stepId}`}
+              >
+                <ClipboardPaste size={12} /> Paste "{copiedNode.labelEn}" here
+              </button>
+            )}
+            </div>
           ))}
           {nodes.length === 0 && (
             <div className="text-center py-10 text-muted-foreground">
