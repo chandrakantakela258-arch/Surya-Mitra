@@ -76,7 +76,8 @@ export function WhatsAppWidget() {
       .catch(() => {});
   }, []);
 
-  const shareLink = `https://wa.me/${botNumber}?text=Hi`;
+  const whatsappLink = `https://wa.me/${botNumber}?text=Hi`;
+  const shareLink = `${window.location.origin}/solar-bot`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(shareLink);
@@ -287,7 +288,7 @@ export function WhatsAppWidget() {
               </button>
             </div>
             <div className="flex gap-2">
-              <a href={shareLink} target="_blank" rel="noopener noreferrer"
+              <a href={whatsappLink} target="_blank" rel="noopener noreferrer"
                 className="flex-1 bg-white/20 hover:bg-white/30 text-white text-[11px] py-1.5 px-2 rounded-full text-center transition-colors flex items-center justify-center gap-1">
                 <Share2 size={11} /> Chat on WhatsApp
               </a>

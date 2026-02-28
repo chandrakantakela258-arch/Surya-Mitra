@@ -3914,5 +3914,33 @@ export type SolarBotLead = typeof SolarBotLeads.$inferSelect;
 
 export const whatsappLeads = SolarBotLeads;
 
+export const chatbotNodes = pgTable("chatbot_nodes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  stepId: text("step_id").notNull().unique(),
+  labelEn: text("label_en").notNull(),
+  labelHi: text("label_hi").notNull(),
+  messageEn: text("message_en").notNull(),
+  messageHi: text("message_hi").notNull(),
+  inputType: text("input_type").notNull().default("text"),
+  options: text("options"),
+  mediaType: text("media_type"),
+  mediaUrl: text("media_url"),
+  mediaTitle: text("media_title"),
+  savesField: text("saves_field"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertChatbotNodeSchema = createInsertSchema(chatbotNodes).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertChatbotNode = z.infer<typeof insertChatbotNodeSchema>;
+export type ChatbotNode = typeof chatbotNodes.$inferSelect;
+
 // Re-export chat models for OpenAI integration
 export * from "./models/chat";

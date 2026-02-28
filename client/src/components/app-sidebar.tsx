@@ -37,6 +37,7 @@ import {
   Files,
   Phone,
   Settings,
+  Bot,
 } from "lucide-react";
 import { FeedbackDialog } from "@/components/feedback-dialog";
 import { ChatbotAssistant } from "@/components/chatbot-assistant";
@@ -90,6 +91,7 @@ const adminMenuSections: MenuSection[] = [
       { title: "Independent Customers", url: "/admin/independent-customers", icon: UserPlus },
       { title: "Customer Leads", url: "/admin/customer-leads", icon: UserPlus },
       { title: "SOLAR BOT LEAD", url: "/admin/crm", icon: MessageSquare, highlight: true },
+      { title: "Chatbot Settings", url: "/admin/chatbot-settings", icon: Bot },
       { title: "Bot Simulator", url: "/simulator", icon: MessageSquare },
     ],
   },

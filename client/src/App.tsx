@@ -66,7 +66,9 @@ import AdminTestimonials from "@/pages/admin/testimonials";
 import AdminVendorPayments from "@/pages/admin/vendor-payments";
 import AdminCustomerLeads from "@/pages/admin/customer-leads";
 import AdminCrmDashboard from "@/pages/admin/crm-dashboard";
+import AdminChatbotSettings from "@/pages/admin/chatbot-settings";
 import BotSimulator from "@/pages/bot-simulator";
+import SolarBotPage from "@/pages/solar-bot";
 import AdminEquipmentSettings from "@/pages/admin/equipment-settings";
 import PartnerServiceRequests from "@/pages/partner-service-requests";
 import ProfilePage from "@/pages/profile";
@@ -240,6 +242,13 @@ function AuthenticatedRoutes() {
         <ProtectedRoute allowedRoles={["admin"]}>
           <DashboardLayout>
             <AdminCrmDashboard />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/chatbot-settings">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminChatbotSettings />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
@@ -663,6 +672,9 @@ function PublicRouter() {
       </Route>
       <Route path="/map">
         <NetworkMap />
+      </Route>
+      <Route path="/solar-bot">
+        <SolarBotPage />
       </Route>
       <Route path="/vendor-registration">
         <VendorRegistration />

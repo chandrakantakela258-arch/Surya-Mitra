@@ -203,6 +203,28 @@ app.use((req, res, next) => {
       `);
       await pool.query(`ALTER TABLE "solar_bot_leads" ADD COLUMN IF NOT EXISTS "mobile_number" text`).catch(() => {});
       console.log("solar_bot_leads table ready");
+
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "chatbot_nodes" (
+          "id" VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+          "step_id" TEXT NOT NULL UNIQUE,
+          "label_en" TEXT NOT NULL,
+          "label_hi" TEXT NOT NULL,
+          "message_en" TEXT NOT NULL,
+          "message_hi" TEXT NOT NULL,
+          "input_type" TEXT NOT NULL DEFAULT 'text',
+          "options" TEXT,
+          "media_type" TEXT,
+          "media_url" TEXT,
+          "media_title" TEXT,
+          "saves_field" TEXT,
+          "sort_order" INTEGER NOT NULL DEFAULT 0,
+          "is_active" BOOLEAN NOT NULL DEFAULT true,
+          "created_at" TIMESTAMP DEFAULT now(),
+          "updated_at" TIMESTAMP DEFAULT now()
+        );
+      `);
+      console.log("chatbot_nodes table ready");
     } catch (e) {
       console.log("solar_bot_leads table check:", (e as any).message);
     }
