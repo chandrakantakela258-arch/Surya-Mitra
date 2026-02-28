@@ -10,8 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Bot, Plus, Pencil, Trash2, Video, FileText, Image, GripVertical, Eye, EyeOff, Copy, ExternalLink, Link } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Bot, Plus, Pencil, Trash2, Video, FileText, Image, Eye, EyeOff, Copy, ExternalLink, Link, ChevronUp, ChevronDown, ArrowUpDown } from "lucide-react";
 
 interface ChatbotNode {
   id: string;
@@ -39,28 +39,12 @@ const INPUT_TYPES = [
 ];
 
 const MEDIA_TYPES = [
-  { value: "", label: "None" },
+  { value: "none", label: "No Media" },
   { value: "video", label: "Video (YouTube/URL)" },
   { value: "ppt", label: "PPT / Document" },
   { value: "image", label: "Image" },
   { value: "pdf", label: "PDF" },
 ];
-
-const defaultNode: Partial<ChatbotNode> = {
-  stepId: "",
-  labelEn: "",
-  labelHi: "",
-  messageEn: "",
-  messageHi: "",
-  inputType: "text",
-  options: "",
-  mediaType: "",
-  mediaUrl: "",
-  mediaTitle: "",
-  savesField: "",
-  sortOrder: 0,
-  isActive: true,
-};
 
 export default function AdminChatbotSettings() {
   const { toast } = useToast();
@@ -74,7 +58,8 @@ export default function AdminChatbotSettings() {
 
   const createMutation = useMutation({
     mutationFn: async (data: Partial<ChatbotNode>) => {
-      const res = await apiRequest("POST", "/api/admin/chatbot-nodes", data);
+      const payload = { ...data, mediaType: data.mediaType === "none" ? null : data.mediaType };
+      const res = await apiRequest("POST", "/api/admin/chatbot-nodes", payload);
       return res.json();
     },
     onSuccess: () => {
@@ -88,7 +73,8 @@ export default function AdminChatbotSettings() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: Partial<ChatbotNode>) => {
-      const res = await apiRequest("PUT", `/api/admin/chatbot-nodes/${data.id}`, data);
+      const payload = { ...data, mediaType: data.mediaType === "none" ? null : data.mediaType };
+      const res = await apiRequest("PUT", `/api/admin/chatbot-nodes/${data.id}`, payload);
       return res.json();
     },
     onSuccess: () => {
@@ -111,10 +97,28 @@ export default function AdminChatbotSettings() {
     onError: (err: any) => toast({ title: "Failed to delete", description: err.message, variant: "destructive" }),
   });
 
+  const moveNode = async (node: ChatbotNode, direction: "up" | "down") => {
+    const idx = nodes.findIndex(n => n.id === node.id);
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= nodes.length) return;
+
+    const otherNode = nodes[swapIdx];
+    const thisOrder = node.sortOrder;
+    const otherOrder = otherNode.sortOrder;
+
+    try {
+      await apiRequest("PUT", `/api/admin/chatbot-nodes/${node.id}`, { ...node, sortOrder: otherOrder });
+      await apiRequest("PUT", `/api/admin/chatbot-nodes/${otherNode.id}`, { ...otherNode, sortOrder: thisOrder });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/chatbot-nodes"] });
+    } catch (err: any) {
+      toast({ title: "Failed to reorder", description: err.message, variant: "destructive" });
+    }
+  };
+
   const handleSave = () => {
     if (!editNode) return;
     if (!editNode.stepId || !editNode.labelEn || !editNode.messageEn) {
-      toast({ title: "Step ID, Label, and Message are required", variant: "destructive" });
+      toast({ title: "Step ID, Label (English), and Message (English) are required", variant: "destructive" });
       return;
     }
     if (editNode.id) {
@@ -125,13 +129,34 @@ export default function AdminChatbotSettings() {
   };
 
   const openAdd = () => {
-    const maxSort = nodes.length > 0 ? Math.max(...nodes.map(n => n.sortOrder)) + 1 : 0;
-    setEditNode({ ...defaultNode, sortOrder: maxSort });
+    const maxSort = nodes.length > 0 ? Math.max(...nodes.map(n => n.sortOrder)) + 1 : 1;
+    setEditNode({
+      stepId: "",
+      labelEn: "",
+      labelHi: "",
+      messageEn: "",
+      messageHi: "",
+      inputType: "text",
+      options: "",
+      mediaType: "none",
+      mediaUrl: "",
+      mediaTitle: "",
+      savesField: "",
+      sortOrder: maxSort,
+      isActive: true,
+    });
     setIsDialogOpen(true);
   };
 
   const openEdit = (node: ChatbotNode) => {
-    setEditNode({ ...node });
+    setEditNode({
+      ...node,
+      options: node.options || "",
+      mediaType: node.mediaType || "none",
+      mediaUrl: node.mediaUrl || "",
+      mediaTitle: node.mediaTitle || "",
+      savesField: node.savesField || "",
+    });
     setIsDialogOpen(true);
   };
 
@@ -155,11 +180,11 @@ export default function AdminChatbotSettings() {
 
   const getInputBadge = (type: string) => {
     const colors: Record<string, string> = {
-      text: "bg-blue-100 text-blue-700",
-      buttons: "bg-green-100 text-green-700",
-      dropdown: "bg-purple-100 text-purple-700",
-      location: "bg-orange-100 text-orange-700",
-      none: "bg-gray-100 text-gray-600",
+      text: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
+      buttons: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
+      dropdown: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
+      location: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300",
+      none: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
     };
     return <Badge className={`text-[10px] px-1.5 py-0 ${colors[type] || "bg-gray-100"}`}>{type}</Badge>;
   };
@@ -171,7 +196,7 @@ export default function AdminChatbotSettings() {
           <h1 className="text-2xl font-bold flex items-center gap-2" data-testid="text-page-title">
             <Bot className="text-green-600" /> Chatbot Settings
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">Manage chatbot flow nodes, messages, and media attachments</p>
+          <p className="text-sm text-muted-foreground mt-1">Manage chatbot flow — edit messages, add media, reorder or delete steps</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={handleCopyShareLink} data-testid="button-copy-share-link">
@@ -190,9 +215,7 @@ export default function AdminChatbotSettings() {
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base">Shareable Bot Link</CardTitle>
-          </div>
+          <CardTitle className="text-base">Shareable Bot Link</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-2 bg-green-50 dark:bg-green-950 p-3 rounded-lg border border-green-200 dark:border-green-800">
@@ -202,21 +225,32 @@ export default function AdminChatbotSettings() {
               <Copy size={14} />
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">Share this link with anyone. When they open it, the chatbot will capture their data in Solar Bot Leads.</p>
+          <p className="text-xs text-muted-foreground mt-2">Share this link with anyone. When they open it, the chatbot captures their data in Solar Bot Leads.</p>
         </CardContent>
       </Card>
+
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <ArrowUpDown size={14} />
+        <span>Use the up/down arrows to reorder the chatbot flow. Click the pencil icon to edit any node.</span>
+        <Badge variant="outline" className="ml-auto">{nodes.length} nodes</Badge>
+      </div>
 
       {isLoading ? (
         <div className="text-center py-10 text-muted-foreground">Loading chatbot nodes...</div>
       ) : (
         <div className="space-y-2">
           {nodes.map((node, idx) => (
-            <Card key={node.id} className={`transition-all ${!node.isActive ? 'opacity-50' : ''}`} data-testid={`card-node-${node.stepId}`}>
+            <Card key={node.id} className={`transition-all ${!node.isActive ? 'opacity-40' : ''}`} data-testid={`card-node-${node.stepId}`}>
               <CardContent className="p-3 sm:p-4">
-                <div className="flex items-start gap-3">
-                  <div className="flex flex-col items-center gap-1 pt-1">
-                    <GripVertical size={16} className="text-muted-foreground" />
-                    <span className="text-xs font-mono text-muted-foreground">{idx + 1}</span>
+                <div className="flex items-start gap-2 sm:gap-3">
+                  <div className="flex flex-col items-center gap-0.5 pt-0.5 flex-shrink-0">
+                    <Button variant="ghost" size="icon" className="h-6 w-6" disabled={idx === 0} onClick={() => moveNode(node, "up")} data-testid={`button-move-up-${node.stepId}`}>
+                      <ChevronUp size={14} />
+                    </Button>
+                    <span className="text-xs font-mono text-muted-foreground w-5 text-center">{idx + 1}</span>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" disabled={idx === nodes.length - 1} onClick={() => moveNode(node, "down")} data-testid={`button-move-down-${node.stepId}`}>
+                      <ChevronDown size={14} />
+                    </Button>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2 mb-1">
@@ -278,7 +312,7 @@ export default function AdminChatbotSettings() {
       <Dialog open={isDialogOpen} onOpenChange={(o) => { setIsDialogOpen(o); if (!o) setEditNode(null); }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editNode?.id ? "Edit Node" : "Add New Node"}</DialogTitle>
+            <DialogTitle>{editNode?.id ? `Edit Node — Step ${editNode.stepId}` : "Add New Node"}</DialogTitle>
           </DialogHeader>
           {editNode && (
             <div className="space-y-4">
@@ -286,11 +320,12 @@ export default function AdminChatbotSettings() {
                 <div>
                   <Label>Step ID *</Label>
                   <Input value={editNode.stepId || ""} onChange={e => setEditNode({...editNode, stepId: e.target.value})} placeholder="e.g. 1, 1.1, 2" data-testid="input-step-id" />
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Unique identifier for this step</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Unique identifier for this step in the flow</p>
                 </div>
                 <div>
                   <Label>Sort Order</Label>
-                  <Input type="number" value={editNode.sortOrder || 0} onChange={e => setEditNode({...editNode, sortOrder: parseInt(e.target.value) || 0})} data-testid="input-sort-order" />
+                  <Input type="number" value={editNode.sortOrder ?? 0} onChange={e => setEditNode({...editNode, sortOrder: parseInt(e.target.value) || 0})} data-testid="input-sort-order" />
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Lower numbers appear first</p>
                 </div>
               </div>
 
@@ -307,7 +342,7 @@ export default function AdminChatbotSettings() {
 
               <div>
                 <Label>Bot Message (English) *</Label>
-                <Textarea rows={3} value={editNode.messageEn || ""} onChange={e => setEditNode({...editNode, messageEn: e.target.value})} placeholder="The message the bot will display..." data-testid="input-message-en" />
+                <Textarea rows={3} value={editNode.messageEn || ""} onChange={e => setEditNode({...editNode, messageEn: e.target.value})} placeholder="The message the bot will display at this step..." data-testid="input-message-en" />
               </div>
 
               <div>
@@ -328,7 +363,7 @@ export default function AdminChatbotSettings() {
                 <div>
                   <Label>Saves To Field</Label>
                   <Input value={editNode.savesField || ""} onChange={e => setEditNode({...editNode, savesField: e.target.value})} placeholder="e.g. name, email, state" data-testid="input-saves-field" />
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Lead field to save user response</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Lead database field to save user's response</p>
                 </div>
               </div>
 
@@ -336,7 +371,7 @@ export default function AdminChatbotSettings() {
                 <div>
                   <Label>Options (comma-separated)</Label>
                   <Textarea rows={2} value={editNode.options || ""} onChange={e => setEditNode({...editNode, options: e.target.value})} placeholder="Option 1, Option 2, Option 3" data-testid="input-options" />
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Separate options with commas</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Separate each option with a comma</p>
                 </div>
               )}
 
@@ -347,10 +382,10 @@ export default function AdminChatbotSettings() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Media Type</Label>
-                    <Select value={editNode.mediaType || ""} onValueChange={v => setEditNode({...editNode, mediaType: v || null})}>
-                      <SelectTrigger data-testid="select-media-type"><SelectValue placeholder="None" /></SelectTrigger>
+                    <Select value={editNode.mediaType || "none"} onValueChange={v => setEditNode({...editNode, mediaType: v})}>
+                      <SelectTrigger data-testid="select-media-type"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {MEDIA_TYPES.map(t => <SelectItem key={t.value || "none"} value={t.value || "none"}>{t.label}</SelectItem>)}
+                        {MEDIA_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -366,7 +401,8 @@ export default function AdminChatbotSettings() {
                     <p className="text-[10px] text-muted-foreground mt-0.5">
                       {editNode.mediaType === "video" ? "YouTube link or direct video URL" :
                        editNode.mediaType === "ppt" ? "Google Slides link or direct PPT URL" :
-                       "Direct link to the file"}
+                       editNode.mediaType === "pdf" ? "Direct link to PDF file" :
+                       "Direct link to the image file"}
                     </p>
                   </div>
                 )}
@@ -376,7 +412,7 @@ export default function AdminChatbotSettings() {
                 <Switch checked={editNode.isActive !== false} onCheckedChange={v => setEditNode({...editNode, isActive: v})} data-testid="switch-active" />
                 <Label className="flex items-center gap-1.5">
                   {editNode.isActive !== false ? <Eye size={14} /> : <EyeOff size={14} />}
-                  {editNode.isActive !== false ? "Active" : "Disabled"}
+                  {editNode.isActive !== false ? "Active — visible in chatbot" : "Disabled — hidden from chatbot"}
                 </Label>
               </div>
 

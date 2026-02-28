@@ -259,18 +259,20 @@ export default function SolarBotPage() {
     }, 600);
   };
 
+  const initDone = useRef(false);
   useEffect(() => {
-    if (messages.length === 0 && step === 0) {
-      setTimeout(() => {
-        const node = getNodeConfig("0");
-        if (node) {
-          const opts = node.options ? node.options.split(",").map((o) => o.trim()) : ["English", "\u0939\u093F\u0928\u094D\u0926\u0940"];
-          addBotMessage(node.messageEn, node.inputType === "buttons" ? opts : undefined, node.inputType === "dropdown" ? opts : undefined, false, node.mediaType, node.mediaUrl, node.mediaTitle);
-        } else {
-          addBotMessage("Hi! I am the PM Surya Ghar Solar Bot \u2600\uFE0F\nPlease select your language / \u0915\u0943\u092A\u092F\u093E \u092D\u093E\u0937\u093E \u091A\u0941\u0928\u0947\u0902:", ["English", "\u0939\u093F\u0928\u094D\u0926\u0940"]);
-        }
-      }, 500);
-    }
+    if (initDone.current) return;
+    if (nodeConfigs.length === 0) return;
+    initDone.current = true;
+    setTimeout(() => {
+      const node = getNodeConfig("0");
+      if (node) {
+        const opts = node.options ? node.options.split(",").map((o) => o.trim()) : ["English", "\u0939\u093F\u0928\u094D\u0926\u0940"];
+        addBotMessage(node.messageEn, node.inputType === "buttons" ? opts : undefined, node.inputType === "dropdown" ? opts : undefined, false, node.mediaType, node.mediaUrl, node.mediaTitle);
+      } else {
+        addBotMessage("Hi! I am the PM Surya Ghar Solar Bot \u2600\uFE0F\nPlease select your language / \u0915\u0943\u092A\u092F\u093E \u092D\u093E\u0937\u093E \u091A\u0941\u0928\u0947\u0902:", ["English", "\u0939\u093F\u0928\u094D\u0926\u0940"]);
+      }
+    }, 500);
   }, [nodeConfigs]);
 
   useEffect(() => {

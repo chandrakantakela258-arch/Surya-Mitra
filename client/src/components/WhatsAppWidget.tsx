@@ -1,5 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, MapPin, X, Sun, Sparkles, Copy, Check, Share2 } from 'lucide-react';
+import { Send, MapPin, X, Sun, Copy, Check, Share2 } from 'lucide-react';
+
+function SolarPanelIcon({ size = 32, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
+      <rect x="6" y="12" width="36" height="22" rx="2" fill="#1565C0" stroke="white" strokeWidth="1.5" />
+      <line x1="6" y1="23" x2="42" y2="23" stroke="white" strokeWidth="1" opacity="0.6" />
+      <line x1="18" y1="12" x2="18" y2="34" stroke="white" strokeWidth="1" opacity="0.6" />
+      <line x1="30" y1="12" x2="30" y2="34" stroke="white" strokeWidth="1" opacity="0.6" />
+      <line x1="24" y1="34" x2="24" y2="42" stroke="white" strokeWidth="2" />
+      <line x1="18" y1="42" x2="30" y2="42" stroke="white" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="38" cy="8" r="5" fill="#FFD600" opacity="0.9" />
+      <line x1="38" y1="1" x2="38" y2="3" stroke="#FFD600" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="44" y1="5" x2="42.5" y2="6.5" stroke="#FFD600" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="45" y1="8" x2="43" y2="8" stroke="#FFD600" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="33" y1="3" x2="34" y2="4.5" stroke="#FFD600" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
 import '../pages/simulator.css';
 
 interface Msg {
@@ -360,20 +378,25 @@ export function WhatsAppWidget() {
       )}
 
       {/* FAB */}
-      <button onClick={() => setIsOpen(!isOpen)}
-        className="w-16 h-16 bg-[#25D366] text-white rounded-full shadow-lg shadow-green-500/40 flex items-center justify-center hover:scale-105 active:scale-95 transition-all relative group"
-        aria-label="Chat with Solar Bot">
-        {!isOpen && <div className="absolute inset-0 rounded-full border-2 border-green-500/50 animate-ping opacity-75" style={{ animationDuration: '2s' }}></div>}
-        {isOpen ? (
-          <X size={28} className="transform transition-transform rotate-90 scale-110 group-hover:rotate-180" />
-        ) : (
-          <div className="relative">
-            <Sun size={34} className="transform transition-transform group-hover:rotate-90 duration-500" />
-            <Sparkles size={14} className="absolute -top-1 -right-2 text-yellow-300 animate-pulse" />
-          </div>
+      <div className="flex flex-col items-center gap-1">
+        {!isOpen && (
+          <span className="bg-gradient-to-r from-green-600 to-green-700 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-md whitespace-nowrap animate-bounce" style={{ animationDuration: '2s' }}>
+            Apply Solar Plant ☀️
+          </span>
         )}
-        {!isOpen && <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 border-2 border-white rounded-full"></span>}
-      </button>
+        <button onClick={() => setIsOpen(!isOpen)}
+          className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-700 text-white rounded-full shadow-lg shadow-green-500/40 flex items-center justify-center hover:scale-105 active:scale-95 transition-all relative group"
+          aria-label="Apply for Solar Plant"
+          data-testid="button-solar-widget">
+          {!isOpen && <div className="absolute inset-0 rounded-full border-2 border-green-400/50 animate-ping opacity-75" style={{ animationDuration: '2.5s' }}></div>}
+          {isOpen ? (
+            <X size={28} className="transform transition-transform rotate-90 scale-110 group-hover:rotate-180" />
+          ) : (
+            <SolarPanelIcon size={38} className="transform transition-transform group-hover:scale-110 duration-300" />
+          )}
+          {!isOpen && <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 border-2 border-white rounded-full"></span>}
+        </button>
+      </div>
     </div>
   );
 }
