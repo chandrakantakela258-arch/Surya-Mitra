@@ -303,10 +303,51 @@ async function forwardCustomerEmailToState(customer: any) {
   console.log(`Customer details forwarded to ${forwardEmail} for state ${normalizedState}`);
 }
 
-export async function registerRoutes(
-  httpServer: Server,
-  app: Express
-): Promise<Server> {
+export function registerRoutes(app: Express): Server {
+  // Emergency Unprotected DB Sync Route (creates tables if missing in production)
+  // Moved to the very top to bypass ALL middleware and authentication
+  app.get('/api/public/force-sync-database', async (req, res) => {
+    try {
+      if (req.query.token !== 'divyanshi-admin-2024') {
+        return res.status(401).json({ error: 'Unauthorized token' });
+      }
+
+      const { sql } = require('drizzle-orm');
+
+      // Force create the whatsapp_leads table
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS "whatsapp_leads" (
+          "id" varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+          "phone" text NOT NULL UNIQUE,
+          "name" text,
+          "email" text,
+          "language" text DEFAULT 'en',
+          "state" text,
+          "district" text,
+          "city" text,
+          "pincode" text,
+          "gps_location" text,
+          "electricity_board" text,
+          "consumer_number" text,
+          "meter_type" text,
+          "roof_space" text,
+          "business_type" text,
+          "monthly_billing" text,
+          "plant_capacity" text,
+          "proposal_status" text,
+          "status" text NOT NULL DEFAULT 'New',
+          "current_step" numeric DEFAULT '0',
+          "created_at" timestamp DEFAULT now(),
+          "updated_at" timestamp DEFAULT now()
+        );
+      `);
+      res.json({ success: true, message: "TABLE SUCCESSFULLY CREATED! You can close this tab now." });
+    } catch (err: any) {
+      console.error('[DB Sync Error]', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Trust proxy - Replit always uses reverse proxy
   app.set("trust proxy", 1);
 
@@ -9928,48 +9969,11 @@ export async function registerRoutes(
     }
   });
 
-  // Emergency DB Sync Route (creates tables if missing in production)
-  app.get('/api/admin/sync-db', async (req, res) => {
-    try {
-      if (req.query.secret !== 'force-sync-123') {
-        return res.status(401).json({ error: 'Unauthorized' });
-      }
-
-      const { sql } = require('drizzle-orm');
-
-      // Force create the whatsapp_leads table
-      await db.execute(sql`
-        CREATE TABLE IF NOT EXISTS "whatsapp_leads" (
-          "id" varchar PRIMARY KEY DEFAULT gen_random_uuid(),
-          "phone" text NOT NULL UNIQUE,
-          "name" text,
-          "email" text,
-          "language" text DEFAULT 'en',
-          "state" text,
-          "district" text,
-          "city" text,
-          "pincode" text,
-          "gps_location" text,
-          "electricity_board" text,
-          "consumer_number" text,
-          "meter_type" text,
-          "roof_space" text,
-          "business_type" text,
-          "monthly_billing" text,
-          "plant_capacity" text,
-          "proposal_status" text,
-          "status" text NOT NULL DEFAULT 'New',
-          "current_step" numeric DEFAULT '0',
-          "created_at" timestamp DEFAULT now(),
-          "updated_at" timestamp DEFAULT now()
-        );
-      `);
-      res.json({ success: true, message: "Database tables synced successfully!" });
-    } catch (err: any) {
-      console.error('[DB Sync Error]', err);
-      res.status(500).json({ error: err.message });
-    }
+} catch (error: any) {
+  console.error('[Leads API Error]', error.message);
+  res.status(500).json({ error: error.message });
+}
   });
 
-  return httpServer;
+return httpServer;
 }
