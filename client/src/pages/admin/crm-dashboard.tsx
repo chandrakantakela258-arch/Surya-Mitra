@@ -51,18 +51,18 @@ export default function CrmDashboard() {
       setIsSettingsOpen(false);
       toast({ title: 'Settings Saved', description: 'Meta API configuration updated successfully.' });
     },
-    onError: () => {
-      toast({ title: 'Error', description: 'Failed to update settings.', variant: 'destructive' });
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message || 'Failed to update settings.', variant: 'destructive' });
     }
   });
 
   const exportToCsv = () => {
     if (!leads || leads.length === 0) return;
-    
+
     const headers = ["ID", "Phone", "Name", "Email", "Lang", "State", "District", "City", "Pincode", "Electricity Board", "Consumer No", "Meter Type", "Roof Space(sqft)", "Business Type", "Monthly Billing", "Plant Capacity", "Proposal Reply", "Final Status", "Captured Date"];
-    
+
     const csvRows = [
-      headers.join(','), 
+      headers.join(','),
       ...leads.map((lead: any) => [
         lead.id,
         "'" + lead.phone,
@@ -89,11 +89,11 @@ export default function CrmDashboard() {
     const csvData = csvRows.join('\n');
     const blob = new Blob([csvData], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
-    
+
     const a = document.createElement('a');
     a.setAttribute('hidden', '');
     a.setAttribute('href', url);
-    a.setAttribute('download', `Divyanshi_Solar_Bot_Leads_${new Date().toISOString().slice(0,10)}.csv`);
+    a.setAttribute('download', `Divyanshi_Solar_Bot_Leads_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -101,8 +101,8 @@ export default function CrmDashboard() {
 
   const totalLeads = leads?.length || 0;
   const newLeads = leads?.filter((l: any) => l.status === 'New' || !l.status).length || 0;
-  const interestedLeads = leads?.filter((l: any) => 
-    l.proposalStatus === 'रुचि है' || 
+  const interestedLeads = leads?.filter((l: any) =>
+    l.proposalStatus === 'रुचि है' ||
     l.proposalStatus === 'Interested' ||
     l.proposalStatus?.toLowerCase().includes('interested')
   ).length || 0;
@@ -120,7 +120,7 @@ export default function CrmDashboard() {
             <p className="text-muted-foreground">Manage and export leads captured from your WhatsApp Chatbot</p>
           </div>
         </div>
-        
+
         <div className="flex gap-2">
           <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
             <DialogTrigger asChild>
@@ -137,40 +137,40 @@ export default function CrmDashboard() {
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
                   <Label>Webhook Verify Token</Label>
-                  <Input 
+                  <Input
                     type="password"
                     placeholder="Enter a custom secure token"
-                    value={settingsForm.VERIFY_TOKEN} 
-                    onChange={e => setSettingsForm(prev => ({...prev, VERIFY_TOKEN: e.target.value}))} 
+                    value={settingsForm.VERIFY_TOKEN}
+                    onChange={e => setSettingsForm(prev => ({ ...prev, VERIFY_TOKEN: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>System User Access Token</Label>
-                  <Input 
+                  <Input
                     type="password"
                     placeholder="EAAG... temporary or permanent token"
-                    value={settingsForm.META_ACCESS_TOKEN} 
-                    onChange={e => setSettingsForm(prev => ({...prev, META_ACCESS_TOKEN: e.target.value}))} 
+                    value={settingsForm.META_ACCESS_TOKEN}
+                    onChange={e => setSettingsForm(prev => ({ ...prev, META_ACCESS_TOKEN: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Phone Number ID</Label>
-                  <Input 
+                  <Input
                     placeholder="e.g. 5245812932..."
-                    value={settingsForm.PHONE_NUMBER_ID} 
-                    onChange={e => setSettingsForm(prev => ({...prev, PHONE_NUMBER_ID: e.target.value}))} 
+                    value={settingsForm.PHONE_NUMBER_ID}
+                    onChange={e => setSettingsForm(prev => ({ ...prev, PHONE_NUMBER_ID: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Live Bot Phone Number (For Links)</Label>
-                  <Input 
+                  <Input
                     placeholder="e.g. 919801005212"
-                    value={settingsForm.WHATSAPP_BOT_NUMBER} 
-                    onChange={e => setSettingsForm(prev => ({...prev, WHATSAPP_BOT_NUMBER: e.target.value}))} 
+                    value={settingsForm.WHATSAPP_BOT_NUMBER}
+                    onChange={e => setSettingsForm(prev => ({ ...prev, WHATSAPP_BOT_NUMBER: e.target.value }))}
                   />
                 </div>
-                <Button 
-                  className="w-full mt-2" 
+                <Button
+                  className="w-full mt-2"
                   onClick={() => saveSettingsMutation.mutate(settingsForm)}
                   disabled={saveSettingsMutation.isPending}
                 >
@@ -179,7 +179,7 @@ export default function CrmDashboard() {
               </div>
             </DialogContent>
           </Dialog>
-          
+
           <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw className={`mr-2 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
             Refresh
@@ -316,10 +316,10 @@ export default function CrmDashboard() {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1 items-start">
-                          <Badge 
+                          <Badge
                             variant={
                               lead.status === 'Closed' ? 'destructive' :
-                              lead.status === 'New' ? 'outline' : 'default'
+                                lead.status === 'New' ? 'outline' : 'default'
                             }
                             className={lead.status !== 'Closed' && lead.status !== 'New' ? 'bg-green-100 text-green-800 hover:bg-green-100 shadow-none' : 'shadow-none'}
                           >
