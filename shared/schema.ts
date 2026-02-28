@@ -1,11 +1,22 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, decimal, boolean, serial } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  varchar,
+  timestamp,
+  integer,
+  decimal,
+  boolean,
+  serial,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // User roles: admin, bdp (Business Development Partner), ddp (District Development Partner), customer_partner
 export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   name: text("name").notNull(),
@@ -40,7 +51,9 @@ export const usersRelations = relations(users, ({ one, many }) => ({
 
 // Customer data for PM Surya Ghar Yojana
 export const customers = pgTable("customers", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   email: text("email"),
   phone: text("phone").notNull(),
@@ -134,7 +147,9 @@ export const customersRelations = relations(customers, ({ one, many }) => ({
 
 // Customer Journey Milestones
 export const milestones = pgTable("milestones", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   customerId: varchar("customer_id").notNull(),
   milestone: text("milestone").notNull(),
   status: text("status").notNull().default("pending"), // pending, completed
@@ -149,7 +164,9 @@ export const milestones = pgTable("milestones", {
 
 // Customer Portal Sessions (for OTP-based login)
 export const customerSessions = pgTable("customer_sessions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   customerId: varchar("customer_id").notNull(),
   sessionToken: text("session_token").notNull().unique(),
   expiresAt: timestamp("expires_at").notNull(),
@@ -165,7 +182,9 @@ export const milestonesRelations = relations(milestones, ({ one }) => ({
 
 // Partner Bank Details for Razorpay Payouts
 export const bankAccounts = pgTable("bank_accounts", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   partnerId: varchar("partner_id").notNull().unique(),
   accountHolderName: text("account_holder_name").notNull(),
   accountNumber: text("account_number").notNull(),
@@ -188,7 +207,9 @@ export const bankAccountsRelations = relations(bankAccounts, ({ one }) => ({
 
 // Razorpay Payout Transactions
 export const payouts = pgTable("payouts", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   partnerId: varchar("partner_id").notNull(),
   commissionId: varchar("commission_id"), // Link to commission record if applicable
   amount: integer("amount").notNull(), // in INR
@@ -215,7 +236,9 @@ export const payoutsRelations = relations(payouts, ({ one }) => ({
 
 // Products Catalog (Marketing materials, Solar packages, etc.)
 export const products = pgTable("products", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   description: text("description"),
   category: text("category").notNull(), // solar_package, marketing_material, accessory
@@ -230,7 +253,9 @@ export const products = pgTable("products", {
 
 // Orders
 export const orders = pgTable("orders", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   orderNumber: text("order_number").notNull().unique(),
   customerId: varchar("customer_id"), // Optional - for registered customers
   customerName: text("customer_name").notNull(),
@@ -261,7 +286,9 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
 
 // Order Items
 export const orderItems = pgTable("order_items", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   orderId: varchar("order_id").notNull(),
   productId: varchar("product_id"),
   productName: text("product_name").notNull(),
@@ -283,7 +310,9 @@ export const orderItemsRelations = relations(orderItems, ({ one }) => ({
 
 // Payments (Razorpay transactions)
 export const payments = pgTable("payments", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   orderId: varchar("order_id").notNull(),
   razorpayPaymentId: text("razorpay_payment_id"),
   razorpayOrderId: text("razorpay_order_id"),
@@ -306,7 +335,9 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
 
 // Partner Commissions
 export const commissions = pgTable("commissions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   partnerId: varchar("partner_id").notNull(),
   partnerType: text("partner_type").notNull().default("ddp"), // ddp or bdp
   customerId: varchar("customer_id"), // Optional - null for product sales like inverters
@@ -332,7 +363,9 @@ export const commissionsRelations = relations(commissions, ({ one }) => ({
 
 // Notifications for application status updates
 export const notifications = pgTable("notifications", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
   customerId: varchar("customer_id"),
   type: text("type").notNull(), // status_update, milestone_complete, commission_earned, general
@@ -357,7 +390,9 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
 
 // User Preferences for dashboard customization and onboarding
 export const userPreferences = pgTable("user_preferences", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().unique(),
   tutorialCompleted: text("tutorial_completed").default("false"),
   dashboardLayout: text("dashboard_layout"), // JSON string of widget order
@@ -368,16 +403,21 @@ export const userPreferences = pgTable("user_preferences", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const userPreferencesRelations = relations(userPreferences, ({ one }) => ({
-  user: one(users, {
-    fields: [userPreferences.userId],
-    references: [users.id],
+export const userPreferencesRelations = relations(
+  userPreferences,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [userPreferences.userId],
+      references: [users.id],
+    }),
   }),
-}));
+);
 
 // Partner of the Month
 export const partnerOfMonth = pgTable("partner_of_month", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   partnerId: varchar("partner_id").notNull(),
   month: integer("month").notNull(), // 1-12
   year: integer("year").notNull(),
@@ -396,7 +436,9 @@ export const partnerOfMonthRelations = relations(partnerOfMonth, ({ one }) => ({
 
 // Partner Incentive Targets
 export const incentiveTargets = pgTable("incentive_targets", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   partnerId: varchar("partner_id").notNull(),
   partnerType: text("partner_type").notNull().default("ddp"), // ddp or bdp
   month: integer("month").notNull(), // 1-12
@@ -411,16 +453,21 @@ export const incentiveTargets = pgTable("incentive_targets", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const incentiveTargetsRelations = relations(incentiveTargets, ({ one }) => ({
-  partner: one(users, {
-    fields: [incentiveTargets.partnerId],
-    references: [users.id],
+export const incentiveTargetsRelations = relations(
+  incentiveTargets,
+  ({ one }) => ({
+    partner: one(users, {
+      fields: [incentiveTargets.partnerId],
+      references: [users.id],
+    }),
   }),
-}));
+);
 
 // Partner Performance Metrics (monthly snapshots)
 export const performanceMetrics = pgTable("performance_metrics", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   partnerId: varchar("partner_id").notNull(),
   partnerType: text("partner_type").notNull().default("ddp"),
   month: integer("month").notNull(),
@@ -430,24 +477,33 @@ export const performanceMetrics = pgTable("performance_metrics", {
   dcrInstallations: integer("dcr_installations").notNull().default(0),
   nonDcrInstallations: integer("non_dcr_installations").notNull().default(0),
   invertersSold: integer("inverters_sold").notNull().default(0),
-  totalCommissionEarned: integer("total_commission_earned").notNull().default(0),
-  installationCommission: integer("installation_commission").notNull().default(0),
+  totalCommissionEarned: integer("total_commission_earned")
+    .notNull()
+    .default(0),
+  installationCommission: integer("installation_commission")
+    .notNull()
+    .default(0),
   inverterCommission: integer("inverter_commission").notNull().default(0),
   bonusEarned: integer("bonus_earned").notNull().default(0),
   rank: integer("rank"), // Rank among all partners for that month
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const performanceMetricsRelations = relations(performanceMetrics, ({ one }) => ({
-  partner: one(users, {
-    fields: [performanceMetrics.partnerId],
-    references: [users.id],
+export const performanceMetricsRelations = relations(
+  performanceMetrics,
+  ({ one }) => ({
+    partner: one(users, {
+      fields: [performanceMetrics.partnerId],
+      references: [users.id],
+    }),
   }),
-}));
+);
 
 // Chatbot FAQ entries
 export const chatbotFaq = pgTable("chatbot_faq", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   question: text("question").notNull(),
   answer: text("answer").notNull(),
   category: text("category").notNull(), // general, subsidy, installation, payment, partner
@@ -459,7 +515,9 @@ export const chatbotFaq = pgTable("chatbot_faq", {
 
 // User Feedback - for bug reports and feature suggestions
 export const feedback = pgTable("feedback", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   userId: varchar("user_id"), // null if from anonymous visitor
   userEmail: text("user_email"), // for anonymous users or contact email
   userName: text("user_name"), // for anonymous users
@@ -485,7 +543,9 @@ export const feedbackRelations = relations(feedback, ({ one }) => ({
 
 // 1. News & Updates Section
 export const newsPosts = pgTable("news_posts", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
   slug: text("slug").notNull().unique(),
   summary: text("summary").notNull(),
@@ -510,7 +570,9 @@ export const newsPostsRelations = relations(newsPosts, ({ one }) => ({
 
 // 2. Panel Models for Comparison Tool
 export const panelModels = pgTable("panel_models", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   brand: text("brand").notNull(),
   type: text("type").notNull().default("dcr"), // dcr, non_dcr
@@ -532,7 +594,9 @@ export const panelModels = pgTable("panel_models", {
 
 // 3. Partner Leaderboard (uses existing performanceMetrics, add ranking table)
 export const leaderboard = pgTable("leaderboard", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   partnerId: varchar("partner_id").notNull(),
   partnerType: text("partner_type").notNull().default("ddp"),
   period: text("period").notNull(), // monthly, quarterly, yearly
@@ -566,7 +630,9 @@ export const PARTNER_REFERRAL_THRESHOLD = 15; // Installations required for part
 export const MINIMUM_CAPACITY_FOR_REFERRAL = 3; // Minimum 3kW for customer referral reward
 
 export const referrals = pgTable("referrals", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   referrerId: varchar("referrer_id").notNull(), // Partner who made the referral
   referredType: text("referred_type").notNull(), // customer, partner
   referredCustomerId: varchar("referred_customer_id"), // If referral is a customer
@@ -599,7 +665,9 @@ export const referralsRelations = relations(referrals, ({ one }) => ({
 
 // 5. Document Management System for Compliance and Record-keeping
 export const documents = pgTable("documents", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   originalName: text("original_name").notNull(),
   category: text("category").notNull(), // customer_id, customer_address, customer_electricity, site_survey, installation, completion, subsidy, invoice, agreement, other
@@ -641,7 +709,9 @@ export const documentsRelations = relations(documents, ({ one }) => ({
 
 // 6. Notification Templates for automated notifications
 export const notificationTemplates = pgTable("notification_templates", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   trigger: text("trigger").notNull(), // status_change, milestone_complete, referral_converted
   triggerValue: text("trigger_value"), // e.g., "approved", "completed"
@@ -669,7 +739,9 @@ export const insertMilestoneSchema = createInsertSchema(milestones).omit({
   createdAt: true,
 });
 
-export const insertCustomerSessionSchema = createInsertSchema(customerSessions).omit({
+export const insertCustomerSessionSchema = createInsertSchema(
+  customerSessions,
+).omit({
   id: true,
   createdAt: true,
 });
@@ -718,24 +790,32 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
   createdAt: true,
 });
 
-export const insertUserPreferencesSchema = createInsertSchema(userPreferences).omit({
+export const insertUserPreferencesSchema = createInsertSchema(
+  userPreferences,
+).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 });
 
-export const insertPartnerOfMonthSchema = createInsertSchema(partnerOfMonth).omit({
+export const insertPartnerOfMonthSchema = createInsertSchema(
+  partnerOfMonth,
+).omit({
   id: true,
   createdAt: true,
 });
 
-export const insertIncentiveTargetSchema = createInsertSchema(incentiveTargets).omit({
+export const insertIncentiveTargetSchema = createInsertSchema(
+  incentiveTargets,
+).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 });
 
-export const insertPerformanceMetricsSchema = createInsertSchema(performanceMetrics).omit({
+export const insertPerformanceMetricsSchema = createInsertSchema(
+  performanceMetrics,
+).omit({
   id: true,
   createdAt: true,
 });
@@ -768,7 +848,9 @@ export const insertReferralSchema = createInsertSchema(referrals).omit({
   createdAt: true,
 });
 
-export const insertNotificationTemplateSchema = createInsertSchema(notificationTemplates).omit({
+export const insertNotificationTemplateSchema = createInsertSchema(
+  notificationTemplates,
+).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -783,17 +865,19 @@ export const insertDocumentSchema = createInsertSchema(documents).omit({
   verifiedAt: true,
 });
 
-export const insertFeedbackSchema = createInsertSchema(feedback).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-  status: true,
-  adminNotes: true,
-}).extend({
-  type: z.enum(["bug", "suggestion", "complaint", "other"]),
-  subject: z.string().min(5, "Subject must be at least 5 characters"),
-  message: z.string().min(20, "Message must be at least 20 characters"),
-});
+export const insertFeedbackSchema = createInsertSchema(feedback)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+    status: true,
+    adminNotes: true,
+  })
+  .extend({
+    type: z.enum(["bug", "suggestion", "complaint", "other"]),
+    subject: z.string().min(5, "Subject must be at least 5 characters"),
+    message: z.string().min(20, "Message must be at least 20 characters"),
+  });
 
 export const feedbackTypes = [
   { value: "bug", label: "Report a Bug" },
@@ -832,15 +916,32 @@ export const customerFormSchema = insertCustomerSchema
     district: z.string().min(2, "District is required"),
     state: z.string().min(2, "State is required"),
     pincode: z.string().length(6, "Pincode must be 6 digits"),
-    aadharNumber: z.string().optional().or(z.literal("")).refine(val => !val || /^\d{12}$/.test(val), { message: "Aadhaar must be 12 digits" }),
-    panNumber: z.string().optional().or(z.literal("")).refine(val => !val || /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(val), { message: "Invalid PAN format (e.g., ABCDE1234F)" }),
+    aadharNumber: z
+      .string()
+      .optional()
+      .or(z.literal(""))
+      .refine((val) => !val || /^\d{12}$/.test(val), {
+        message: "Aadhaar must be 12 digits",
+      }),
+    panNumber: z
+      .string()
+      .optional()
+      .or(z.literal(""))
+      .refine((val) => !val || /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(val), {
+        message: "Invalid PAN format (e.g., ABCDE1234F)",
+      }),
     // Electricity Details - Required
     electricityBoard: z.string().min(2, "Electricity board is required"),
     consumerNumber: z.string().min(3, "Consumer number is required"),
     sanctionedLoad: z.string().min(1, "Sanctioned load is required"),
     avgMonthlyBill: z.preprocess(
-      (val) => (val === "" || val === null || val === undefined) ? undefined : Number(val),
-      z.number({ required_error: "Monthly bill is required" }).min(1, "Monthly bill must be greater than 0")
+      (val) =>
+        val === "" || val === null || val === undefined
+          ? undefined
+          : Number(val),
+      z
+        .number({ required_error: "Monthly bill is required" })
+        .min(1, "Monthly bill must be greater than 0"),
     ),
     // Location - Required
     latitude: z.string().min(1, "Latitude is required"),
@@ -848,58 +949,105 @@ export const customerFormSchema = insertCustomerSchema
     // Roof Details - Required
     roofType: z.string().min(1, "Roof type is required"),
     roofArea: z.preprocess(
-      (val) => (val === "" || val === null || val === undefined) ? undefined : Number(val),
-      z.number({ required_error: "Roof area is required" }).min(1, "Roof area must be greater than 0")
+      (val) =>
+        val === "" || val === null || val === undefined
+          ? undefined
+          : Number(val),
+      z
+        .number({ required_error: "Roof area is required" })
+        .min(1, "Roof area must be greater than 0"),
     ),
     // Panel and Capacity - Required
-    panelType: z.enum(["dcr", "non_dcr"], { required_error: "Panel type is required" }),
+    panelType: z.enum(["dcr", "non_dcr"], {
+      required_error: "Panel type is required",
+    }),
     proposedCapacity: z.string().min(1, "Proposed capacity is required"),
     // Customer Type
-    customerType: z.enum(["residential", "commercial", "industrial"]).default("residential"),
+    customerType: z
+      .enum(["residential", "commercial", "industrial"])
+      .default("residential"),
     unitType: z.string().optional().nullable(),
     commercialUnitDescription: z.string().optional().nullable(),
     industrialUnitDescription: z.string().optional().nullable(),
     // Payment Details - Required
     accountHolderName: z.string().optional().or(z.literal("")),
     accountNumber: z.string().optional().or(z.literal("")),
-    ifscCode: z.string().optional().or(z.literal("")).refine(val => !val || /^[A-Z]{4}0[A-Z0-9]{6}$/.test(val), { message: "Invalid IFSC format" }),
+    ifscCode: z
+      .string()
+      .optional()
+      .or(z.literal(""))
+      .refine((val) => !val || /^[A-Z]{4}0[A-Z0-9]{6}$/.test(val), {
+        message: "Invalid IFSC format",
+      }),
     bankName: z.string().optional().or(z.literal("")),
     upiId: z.string().optional().nullable(),
     // Documents - Optional (can be uploaded later)
     documents: z.array(z.string()).optional().default([]),
-  }).refine((data) => {
-    if (data.customerType === "commercial" && (!data.commercialUnitDescription || data.commercialUnitDescription.trim() === "")) {
-      return false;
-    }
-    return true;
-  }, {
-    message: "Commercial Unit Description is required for commercial installations",
-    path: ["commercialUnitDescription"],
-  }).refine((data) => {
-    if (data.customerType === "industrial" && (!data.industrialUnitDescription || data.industrialUnitDescription.trim() === "")) {
-      return false;
-    }
-    return true;
-  }, {
-    message: "Industrial Unit Description is required for industrial installations",
-    path: ["industrialUnitDescription"],
-  }).refine((data) => {
-    if (data.customerType === "commercial" && (!data.unitType || data.unitType.trim() === "")) {
-      return false;
-    }
-    return true;
-  }, {
-    message: "Unit type is required for commercial installations",
-    path: ["unitType"],
-  }).refine((data) => {
-    if (data.customerType === "industrial" && (!data.unitType || data.unitType.trim() === "")) {
-      return false;
-    }
-    return true;
-  }, {
-    message: "Unit type is required for industrial installations",
-    path: ["unitType"],
-  });
+  })
+  .refine(
+    (data) => {
+      if (
+        data.customerType === "commercial" &&
+        (!data.commercialUnitDescription ||
+          data.commercialUnitDescription.trim() === "")
+      ) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message:
+        "Commercial Unit Description is required for commercial installations",
+      path: ["commercialUnitDescription"],
+    },
+  )
+  .refine(
+    (data) => {
+      if (
+        data.customerType === "industrial" &&
+        (!data.industrialUnitDescription ||
+          data.industrialUnitDescription.trim() === "")
+      ) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message:
+        "Industrial Unit Description is required for industrial installations",
+      path: ["industrialUnitDescription"],
+    },
+  )
+  .refine(
+    (data) => {
+      if (
+        data.customerType === "commercial" &&
+        (!data.unitType || data.unitType.trim() === "")
+      ) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "Unit type is required for commercial installations",
+      path: ["unitType"],
+    },
+  )
+  .refine(
+    (data) => {
+      if (
+        data.customerType === "industrial" &&
+        (!data.unitType || data.unitType.trim() === "")
+      ) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "Unit type is required for industrial installations",
+      path: ["unitType"],
+    },
+  );
 
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -942,7 +1090,9 @@ export type InsertChatbotFaq = z.infer<typeof insertChatbotFaqSchema>;
 export type ChatbotFaq = typeof chatbotFaq.$inferSelect;
 export type InsertIncentiveTarget = z.infer<typeof insertIncentiveTargetSchema>;
 export type IncentiveTarget = typeof incentiveTargets.$inferSelect;
-export type InsertPerformanceMetrics = z.infer<typeof insertPerformanceMetricsSchema>;
+export type InsertPerformanceMetrics = z.infer<
+  typeof insertPerformanceMetricsSchema
+>;
 export type PerformanceMetrics = typeof performanceMetrics.$inferSelect;
 export type InsertNewsPost = z.infer<typeof insertNewsPostSchema>;
 export type NewsPost = typeof newsPosts.$inferSelect;
@@ -952,7 +1102,9 @@ export type InsertLeaderboard = z.infer<typeof insertLeaderboardSchema>;
 export type Leaderboard = typeof leaderboard.$inferSelect;
 export type InsertReferral = z.infer<typeof insertReferralSchema>;
 export type Referral = typeof referrals.$inferSelect;
-export type InsertNotificationTemplate = z.infer<typeof insertNotificationTemplateSchema>;
+export type InsertNotificationTemplate = z.infer<
+  typeof insertNotificationTemplateSchema
+>;
 export type NotificationTemplate = typeof notificationTemplates.$inferSelect;
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type Document = typeof documents.$inferSelect;
@@ -994,12 +1146,39 @@ export const productCategories = [
 
 // Indian states for dropdown
 export const indianStates = [
-  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
-  "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
-  "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram",
-  "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu",
-  "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
-  "Delhi", "Jammu and Kashmir", "Ladakh", "Puducherry", "Chandigarh"
+  "Andhra Pradesh",
+  "Arunachal Pradesh",
+  "Assam",
+  "Bihar",
+  "Chhattisgarh",
+  "Goa",
+  "Gujarat",
+  "Haryana",
+  "Himachal Pradesh",
+  "Jharkhand",
+  "Karnataka",
+  "Kerala",
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Odisha",
+  "Punjab",
+  "Rajasthan",
+  "Sikkim",
+  "Tamil Nadu",
+  "Telangana",
+  "Tripura",
+  "Uttar Pradesh",
+  "Uttarakhand",
+  "West Bengal",
+  "Delhi",
+  "Jammu and Kashmir",
+  "Ladakh",
+  "Puducherry",
+  "Chandigarh",
 ];
 
 // Customer status options
@@ -1018,25 +1197,95 @@ export const roofTypes = [
   "Tile",
   "Asbestos",
   "Wooden",
-  "Other"
+  "Other",
 ];
 
 // Installation milestones for customer journey (14 steps)
 export const installationMilestones = [
-  { key: "application_submitted", label: "Application Submitted", description: "Customer registration completed", stage: "pre_installation" },
-  { key: "documents_verified", label: "Documents Verified", description: "All required documents verified", stage: "pre_installation" },
-  { key: "file_submission", label: "File Submission", description: "Application file submitted to DISCOM", stage: "pre_installation" },
-  { key: "bank_loan", label: "Bank Loan", description: "Loan application and approval process", stage: "pre_installation" },
-  { key: "site_survey", label: "Site Survey", description: "Technical survey of installation site", stage: "pre_installation" },
-  { key: "discom_approval", label: "DISCOM Approval", description: "DISCOM/Government approval received", stage: "pre_installation" },
-  { key: "material_procurement", label: "Material Procurement", description: "Solar panels and equipment procured", stage: "installation" },
-  { key: "installation_scheduled", label: "Installation Scheduled", description: "Installation date confirmed", stage: "installation" },
-  { key: "installation_complete", label: "Installation Complete", description: "Solar panels installed on roof", stage: "installation" },
-  { key: "wiring_connection", label: "Wiring & Connection", description: "Electrical wiring and inverter connection", stage: "installation" },
-  { key: "net_meter_application", label: "Net Meter Application", description: "Net metering application submitted", stage: "post_installation" },
-  { key: "grid_connected", label: "Grid Connected", description: "System connected to electricity grid", stage: "post_installation" },
-  { key: "subsidy_applied", label: "Subsidy Applied", description: "Subsidy application submitted to portal", stage: "post_installation" },
-  { key: "subsidy_received", label: "Subsidy Received", description: "Subsidy amount credited to account", stage: "post_installation" },
+  {
+    key: "application_submitted",
+    label: "Application Submitted",
+    description: "Customer registration completed",
+    stage: "pre_installation",
+  },
+  {
+    key: "documents_verified",
+    label: "Documents Verified",
+    description: "All required documents verified",
+    stage: "pre_installation",
+  },
+  {
+    key: "file_submission",
+    label: "File Submission",
+    description: "Application file submitted to DISCOM",
+    stage: "pre_installation",
+  },
+  {
+    key: "bank_loan",
+    label: "Bank Loan",
+    description: "Loan application and approval process",
+    stage: "pre_installation",
+  },
+  {
+    key: "site_survey",
+    label: "Site Survey",
+    description: "Technical survey of installation site",
+    stage: "pre_installation",
+  },
+  {
+    key: "discom_approval",
+    label: "DISCOM Approval",
+    description: "DISCOM/Government approval received",
+    stage: "pre_installation",
+  },
+  {
+    key: "material_procurement",
+    label: "Material Procurement",
+    description: "Solar panels and equipment procured",
+    stage: "installation",
+  },
+  {
+    key: "installation_scheduled",
+    label: "Installation Scheduled",
+    description: "Installation date confirmed",
+    stage: "installation",
+  },
+  {
+    key: "installation_complete",
+    label: "Installation Complete",
+    description: "Solar panels installed on roof",
+    stage: "installation",
+  },
+  {
+    key: "wiring_connection",
+    label: "Wiring & Connection",
+    description: "Electrical wiring and inverter connection",
+    stage: "installation",
+  },
+  {
+    key: "net_meter_application",
+    label: "Net Meter Application",
+    description: "Net metering application submitted",
+    stage: "post_installation",
+  },
+  {
+    key: "grid_connected",
+    label: "Grid Connected",
+    description: "System connected to electricity grid",
+    stage: "post_installation",
+  },
+  {
+    key: "subsidy_applied",
+    label: "Subsidy Applied",
+    description: "Subsidy application submitted to portal",
+    stage: "post_installation",
+  },
+  {
+    key: "subsidy_received",
+    label: "Subsidy Received",
+    description: "Subsidy amount credited to account",
+    stage: "post_installation",
+  },
 ];
 
 // Panel types
@@ -1046,10 +1295,11 @@ export const panelTypes = [
 ];
 
 // Fixed commission amounts for DCR panels 3kW and 5kW (in INR)
-export const dcrFixedCommission: Record<number, { ddp: number; bdp: number }> = {
-  3: { ddp: 20000, bdp: 10000 },
-  5: { ddp: 35000, bdp: 15000 },
-};
+export const dcrFixedCommission: Record<number, { ddp: number; bdp: number }> =
+  {
+    3: { ddp: 20000, bdp: 10000 },
+    5: { ddp: 35000, bdp: 15000 },
+  };
 
 // Per-kW commission rates for DCR panels above 5kW (up to 10kW)
 export const dcrPerKwRates = { ddp: 6000, bdp: 3000 };
@@ -1070,7 +1320,11 @@ export const NON_DCR_COMMERCIAL_RATE_PER_WATT = 45;
 export const inverterCommission = { ddp: 4000, bdp: 1000 };
 
 // Calculate DDP commission based on capacity, panel type, and customer type
-export function calculateCommission(capacityKw: number, panelType: string = "dcr", customerType: string = "residential"): number {
+export function calculateCommission(
+  capacityKw: number,
+  panelType: string = "dcr",
+  customerType: string = "residential",
+): number {
   if (panelType === "non_dcr") {
     // All Non-DCR: Rs 2,000 per kW (DDP)
     return capacityKw * nonDcrPerKwRates.ddp;
@@ -1091,7 +1345,11 @@ export function calculateCommission(capacityKw: number, panelType: string = "dcr
 }
 
 // Calculate BDP commission based on capacity, panel type, and customer type
-export function calculateBdpCommission(capacityKw: number, panelType: string = "dcr", customerType: string = "residential"): number {
+export function calculateBdpCommission(
+  capacityKw: number,
+  panelType: string = "dcr",
+  customerType: string = "residential",
+): number {
   if (panelType === "non_dcr") {
     // All Non-DCR: Rs 1,000 per kW (BDP)
     return capacityKw * nonDcrPerKwRates.bdp;
@@ -1116,7 +1374,9 @@ export const commissionSchedule = dcrFixedCommission;
 
 // Site Installation Vendors - Register for solar installation work
 export const vendors = pgTable("vendors", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
 
   // Vendor Type & Code
   vendorType: text("vendor_type").notNull().default("solar_installation"), // logistic, bank_loan_liaison, discom_net_metering, electrical, solar_installation
@@ -1183,20 +1443,38 @@ export const vendors = pgTable("vendors", {
 
   // Vendor-type-specific quotation rates (in INR)
   // Logistic Vendor
-  logisticRatePerKm: decimal("logistic_rate_per_km", { precision: 10, scale: 2 }), // Rate per KM for transportation
+  logisticRatePerKm: decimal("logistic_rate_per_km", {
+    precision: 10,
+    scale: 2,
+  }), // Rate per KM for transportation
 
   // Bank Loan Liaison
-  bankLoanApprovalRate: decimal("bank_loan_approval_rate", { precision: 10, scale: 2 }), // Rate per loan approval
+  bankLoanApprovalRate: decimal("bank_loan_approval_rate", {
+    precision: 10,
+    scale: 2,
+  }), // Rate per loan approval
 
   // Discom Net Metering Liaison
-  gridConnectionRate: decimal("grid_connection_rate", { precision: 10, scale: 2 }), // Rate per grid connection
+  gridConnectionRate: decimal("grid_connection_rate", {
+    precision: 10,
+    scale: 2,
+  }), // Rate per grid connection
 
   // Solar Panel Supplier (Material Supplier)
-  solarPanelRatePerWatt: decimal("solar_panel_rate_per_watt", { precision: 10, scale: 4 }), // Rate per watt for panels
+  solarPanelRatePerWatt: decimal("solar_panel_rate_per_watt", {
+    precision: 10,
+    scale: 4,
+  }), // Rate per watt for panels
 
   // Inverter Supplier
-  ongridInverterRate: decimal("ongrid_inverter_rate", { precision: 10, scale: 2 }), // Rate per ongrid inverter unit
-  hybridInverter3in1Rate: decimal("hybrid_inverter_3in1_rate", { precision: 10, scale: 2 }), // Rate per 3-in-1 hybrid inverter
+  ongridInverterRate: decimal("ongrid_inverter_rate", {
+    precision: 10,
+    scale: 2,
+  }), // Rate per ongrid inverter unit
+  hybridInverter3in1Rate: decimal("hybrid_inverter_3in1_rate", {
+    precision: 10,
+    scale: 2,
+  }), // Rate per 3-in-1 hybrid inverter
 
   // Electrical Supplier (ACDB/DCDB & Electrical)
   acdbRate: decimal("acdb_rate", { precision: 10, scale: 2 }), // Rate per ACDB unit
@@ -1204,10 +1482,16 @@ export const vendors = pgTable("vendors", {
   electricalWireRates: text("electrical_wire_rates"), // JSON: {"1.5mm": rate, "2.5mm": rate, "4mm": rate, "6mm": rate}
 
   // Solar Mounting Supplier
-  solarMountingRatePerWatt: decimal("solar_mounting_rate_per_watt", { precision: 10, scale: 4 }), // Rate per watt
+  solarMountingRatePerWatt: decimal("solar_mounting_rate_per_watt", {
+    precision: 10,
+    scale: 4,
+  }), // Rate per watt
 
   // Site Erection/Installation
-  siteErectionRatePerWatt: decimal("site_erection_rate_per_watt", { precision: 10, scale: 4 }), // Rate per watt for installation
+  siteErectionRatePerWatt: decimal("site_erection_rate_per_watt", {
+    precision: 10,
+    scale: 4,
+  }), // Rate per watt for installation
 
   // Status
   status: text("status").notNull().default("pending"), // pending, approved, rejected
@@ -1229,30 +1513,95 @@ export const insertVendorSchema = createInsertSchema(vendors).omit({
 // Vendor type options with code prefixes
 export const vendorTypeOptions = [
   // Service Vendors
-  { value: "logistic", label: "Logistic Vendor", prefix: "LOG", category: "service" },
-  { value: "bank_loan_liaison", label: "Bank Loan Liaison Service", prefix: "BLN", category: "service" },
-  { value: "discom_net_metering", label: "Discom Net Metering Liaison", prefix: "DNM", category: "service" },
-  { value: "electrical", label: "Electrical Vendor", prefix: "ELC", category: "service" },
-  { value: "solar_installation", label: "Solar Plant Installation & Erection", prefix: "SPI", category: "service" },
+  {
+    value: "logistic",
+    label: "Logistic Vendor",
+    prefix: "LOG",
+    category: "service",
+  },
+  {
+    value: "bank_loan_liaison",
+    label: "Bank Loan Liaison Service",
+    prefix: "BLN",
+    category: "service",
+  },
+  {
+    value: "discom_net_metering",
+    label: "Discom Net Metering Liaison",
+    prefix: "DNM",
+    category: "service",
+  },
+  {
+    value: "electrical",
+    label: "Electrical Vendor",
+    prefix: "ELC",
+    category: "service",
+  },
+  {
+    value: "solar_installation",
+    label: "Solar Plant Installation & Erection",
+    prefix: "SPI",
+    category: "service",
+  },
   // Supplier Vendors
-  { value: "solar_panel_supplier", label: "Solar Panel Supplier", prefix: "SPS", category: "supplier" },
-  { value: "inverter_supplier", label: "Inverter Supplier", prefix: "IVS", category: "supplier" },
-  { value: "solar_mounting_supplier", label: "Solar Mounting Supplier", prefix: "SMS", category: "supplier" },
-  { value: "electrical_supplier", label: "ACDB/DCDB & Electrical Supplier", prefix: "ELS", category: "supplier" },
-  { value: "civil_material_supplier", label: "Civil Material Supplier", prefix: "CMS", category: "supplier" },
-  { value: "accessories_supplier", label: "Other Accessories Supplier", prefix: "OAS", category: "supplier" },
-  { value: "lithium_battery_supplier", label: "Lithium Ion Batteries Supplier", prefix: "LIB", category: "supplier" },
-  { value: "tubular_battery_supplier", label: "Tubular Gel Batteries Supplier", prefix: "TGB", category: "supplier" },
+  {
+    value: "solar_panel_supplier",
+    label: "Solar Panel Supplier",
+    prefix: "SPS",
+    category: "supplier",
+  },
+  {
+    value: "inverter_supplier",
+    label: "Inverter Supplier",
+    prefix: "IVS",
+    category: "supplier",
+  },
+  {
+    value: "solar_mounting_supplier",
+    label: "Solar Mounting Supplier",
+    prefix: "SMS",
+    category: "supplier",
+  },
+  {
+    value: "electrical_supplier",
+    label: "ACDB/DCDB & Electrical Supplier",
+    prefix: "ELS",
+    category: "supplier",
+  },
+  {
+    value: "civil_material_supplier",
+    label: "Civil Material Supplier",
+    prefix: "CMS",
+    category: "supplier",
+  },
+  {
+    value: "accessories_supplier",
+    label: "Other Accessories Supplier",
+    prefix: "OAS",
+    category: "supplier",
+  },
+  {
+    value: "lithium_battery_supplier",
+    label: "Lithium Ion Batteries Supplier",
+    prefix: "LIB",
+    category: "supplier",
+  },
+  {
+    value: "tubular_battery_supplier",
+    label: "Tubular Gel Batteries Supplier",
+    prefix: "TGB",
+    category: "supplier",
+  },
 ];
 
 // Get vendor types by category
 export function getVendorTypesByCategory(category: "service" | "supplier") {
-  return vendorTypeOptions.filter(opt => opt.category === category);
+  return vendorTypeOptions.filter((opt) => opt.category === category);
 }
 
 // Get vendor code prefix by type
 export function getVendorCodePrefix(vendorType: string): string {
-  const option = vendorTypeOptions.find(opt => opt.value === vendorType);
+  const option = vendorTypeOptions.find((opt) => opt.value === vendorType);
   return option?.prefix || "VND";
 }
 
@@ -1260,69 +1609,157 @@ export type InsertVendor = z.infer<typeof insertVendorSchema>;
 export type Vendor = typeof vendors.$inferSelect;
 
 // Vendor quotation configuration by vendor type
-export const vendorQuotationConfig: Record<string, {
-  fields: Array<{ key: string; label: string; unit: string; placeholder: string }>;
-  description: string;
-}> = {
+export const vendorQuotationConfig: Record<
+  string,
+  {
+    fields: Array<{
+      key: string;
+      label: string;
+      unit: string;
+      placeholder: string;
+    }>;
+    description: string;
+  }
+> = {
   logistic: {
-    fields: [{ key: "logisticRatePerKm", label: "Rate per KM", unit: "per KM", placeholder: "e.g., 15" }],
-    description: "Transportation rate per kilometer traveled"
+    fields: [
+      {
+        key: "logisticRatePerKm",
+        label: "Rate per KM",
+        unit: "per KM",
+        placeholder: "e.g., 15",
+      },
+    ],
+    description: "Transportation rate per kilometer traveled",
   },
   bank_loan_liaison: {
-    fields: [{ key: "bankLoanApprovalRate", label: "Bank Loan Approval Rate", unit: "per approval", placeholder: "e.g., 2000" }],
-    description: "Rate charged per successful bank loan approval"
+    fields: [
+      {
+        key: "bankLoanApprovalRate",
+        label: "Bank Loan Approval Rate",
+        unit: "per approval",
+        placeholder: "e.g., 2000",
+      },
+    ],
+    description: "Rate charged per successful bank loan approval",
   },
   discom_net_metering: {
-    fields: [{ key: "gridConnectionRate", label: "Grid Connection Rate", unit: "per connection", placeholder: "e.g., 3000" }],
-    description: "Rate charged per grid connection completion"
+    fields: [
+      {
+        key: "gridConnectionRate",
+        label: "Grid Connection Rate",
+        unit: "per connection",
+        placeholder: "e.g., 3000",
+      },
+    ],
+    description: "Rate charged per grid connection completion",
   },
   solar_panel_supplier: {
-    fields: [{ key: "solarPanelRatePerWatt", label: "Solar Panel Rate", unit: "per watt", placeholder: "e.g., 25" }],
-    description: "Cost per watt for solar panels"
+    fields: [
+      {
+        key: "solarPanelRatePerWatt",
+        label: "Solar Panel Rate",
+        unit: "per watt",
+        placeholder: "e.g., 25",
+      },
+    ],
+    description: "Cost per watt for solar panels",
   },
   inverter_supplier: {
     fields: [
-      { key: "ongridInverterRate", label: "Ongrid Inverter Rate", unit: "per unit", placeholder: "e.g., 25000" },
-      { key: "hybridInverter3in1Rate", label: "3-in-1 Hybrid Inverter Rate", unit: "per unit", placeholder: "e.g., 45000" }
+      {
+        key: "ongridInverterRate",
+        label: "Ongrid Inverter Rate",
+        unit: "per unit",
+        placeholder: "e.g., 25000",
+      },
+      {
+        key: "hybridInverter3in1Rate",
+        label: "3-in-1 Hybrid Inverter Rate",
+        unit: "per unit",
+        placeholder: "e.g., 45000",
+      },
     ],
-    description: "Cost per inverter unit"
+    description: "Cost per inverter unit",
   },
   electrical_supplier: {
     fields: [
-      { key: "acdbRate", label: "ACDB Rate", unit: "per unit", placeholder: "e.g., 1500" },
-      { key: "dcdbRate", label: "DCDB Rate", unit: "per unit", placeholder: "e.g., 1200" },
-      { key: "electricalWireRates", label: "Electrical Wire Rates", unit: "JSON", placeholder: '{"1.5mm": 15, "2.5mm": 25, "4mm": 40, "6mm": 60}' }
+      {
+        key: "acdbRate",
+        label: "ACDB Rate",
+        unit: "per unit",
+        placeholder: "e.g., 1500",
+      },
+      {
+        key: "dcdbRate",
+        label: "DCDB Rate",
+        unit: "per unit",
+        placeholder: "e.g., 1200",
+      },
+      {
+        key: "electricalWireRates",
+        label: "Electrical Wire Rates",
+        unit: "JSON",
+        placeholder: '{"1.5mm": 15, "2.5mm": 25, "4mm": 40, "6mm": 60}',
+      },
     ],
-    description: "Rates for ACDB, DCDB and electrical wires by thickness (per meter)"
+    description:
+      "Rates for ACDB, DCDB and electrical wires by thickness (per meter)",
   },
   solar_mounting_supplier: {
-    fields: [{ key: "solarMountingRatePerWatt", label: "Mounting Rate", unit: "per watt", placeholder: "e.g., 8" }],
-    description: "Cost per watt for solar mounting structure"
+    fields: [
+      {
+        key: "solarMountingRatePerWatt",
+        label: "Mounting Rate",
+        unit: "per watt",
+        placeholder: "e.g., 8",
+      },
+    ],
+    description: "Cost per watt for solar mounting structure",
   },
   solar_installation: {
-    fields: [{ key: "siteErectionRatePerWatt", label: "Site Erection Rate", unit: "per watt", placeholder: "e.g., 3" }],
-    description: "Installation/erection rate per watt"
+    fields: [
+      {
+        key: "siteErectionRatePerWatt",
+        label: "Site Erection Rate",
+        unit: "per watt",
+        placeholder: "e.g., 3",
+      },
+    ],
+    description: "Installation/erection rate per watt",
   },
   electrical: {
-    fields: [{ key: "siteErectionRatePerWatt", label: "Electrical Work Rate", unit: "per watt", placeholder: "e.g., 2" }],
-    description: "Electrical work rate per watt"
-  }
+    fields: [
+      {
+        key: "siteErectionRatePerWatt",
+        label: "Electrical Work Rate",
+        unit: "per watt",
+        placeholder: "e.g., 2",
+      },
+    ],
+    description: "Electrical work rate per watt",
+  },
 };
 
 // Get vendor quotation display for a vendor
 export function getVendorQuotationDisplay(vendor: Vendor): string {
   const config = vendorQuotationConfig[vendor.vendorType];
-  if (!config) return vendor.bestPriceQuotation ? `₹${vendor.bestPriceQuotation} ${vendor.quotationUnit || ''}` : '-';
+  if (!config)
+    return vendor.bestPriceQuotation
+      ? `₹${vendor.bestPriceQuotation} ${vendor.quotationUnit || ""}`
+      : "-";
 
   const parts: string[] = [];
 
   for (const field of config.fields) {
     const value = vendor[field.key as keyof Vendor];
     if (value) {
-      if (field.key === 'electricalWireRates') {
+      if (field.key === "electricalWireRates") {
         try {
           const rates = JSON.parse(value as string);
-          const wireDetails = Object.entries(rates).map(([size, rate]) => `${size}: ₹${rate}/m`).join(', ');
+          const wireDetails = Object.entries(rates)
+            .map(([size, rate]) => `${size}: ₹${rate}/m`)
+            .join(", ");
           parts.push(`Wires: ${wireDetails}`);
         } catch {
           parts.push(`Wires: ${value}`);
@@ -1333,7 +1770,11 @@ export function getVendorQuotationDisplay(vendor: Vendor): string {
     }
   }
 
-  return parts.length > 0 ? parts.join(' | ') : (vendor.bestPriceQuotation ? `₹${vendor.bestPriceQuotation} ${vendor.quotationUnit || ''}` : '-');
+  return parts.length > 0
+    ? parts.join(" | ")
+    : vendor.bestPriceQuotation
+      ? `₹${vendor.bestPriceQuotation} ${vendor.quotationUnit || ""}`
+      : "-";
 }
 
 // Vendor service options
@@ -1394,61 +1835,78 @@ export const vendorStates = [
 ];
 
 // Customer Vendor Assignments - Track vendor job assignments per customer journey
-export const customerVendorAssignments = pgTable("customer_vendor_assignments", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  customerId: varchar("customer_id").notNull().references(() => customers.id),
-  vendorId: varchar("vendor_id").notNull().references(() => vendors.id),
+export const customerVendorAssignments = pgTable(
+  "customer_vendor_assignments",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    customerId: varchar("customer_id")
+      .notNull()
+      .references(() => customers.id),
+    vendorId: varchar("vendor_id")
+      .notNull()
+      .references(() => vendors.id),
 
-  // Job Role matching vendor type
-  jobRole: text("job_role").notNull(), // vendor type value e.g., solar_panel_supplier, logistic, etc.
+    // Job Role matching vendor type
+    jobRole: text("job_role").notNull(), // vendor type value e.g., solar_panel_supplier, logistic, etc.
 
-  // Journey Stage
-  journeyStage: text("journey_stage").notNull().default("installation"), // pre_installation, installation, post_installation
+    // Journey Stage
+    journeyStage: text("journey_stage").notNull().default("installation"), // pre_installation, installation, post_installation
 
-  // Scheduling
-  scheduledDate: timestamp("scheduled_date"),
-  completedDate: timestamp("completed_date"),
+    // Scheduling
+    scheduledDate: timestamp("scheduled_date"),
+    completedDate: timestamp("completed_date"),
 
-  // Status
-  status: text("status").notNull().default("pending"), // pending, assigned, in_progress, completed, cancelled
+    // Status
+    status: text("status").notNull().default("pending"), // pending, assigned, in_progress, completed, cancelled
 
-  // Fulfillment Details
-  notes: text("notes"),
-  amountQuoted: decimal("amount_quoted", { precision: 12, scale: 2 }),
-  amountPaid: decimal("amount_paid", { precision: 12, scale: 2 }),
-  invoiceNumber: text("invoice_number"),
+    // Fulfillment Details
+    notes: text("notes"),
+    amountQuoted: decimal("amount_quoted", { precision: 12, scale: 2 }),
+    amountPaid: decimal("amount_paid", { precision: 12, scale: 2 }),
+    invoiceNumber: text("invoice_number"),
 
-  // Assignment tracking
-  assignedBy: varchar("assigned_by").references(() => users.id),
-  assignedAt: timestamp("assigned_at").defaultNow(),
+    // Assignment tracking
+    assignedBy: varchar("assigned_by").references(() => users.id),
+    assignedAt: timestamp("assigned_at").defaultNow(),
 
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+);
 
-export const customerVendorAssignmentsRelations = relations(customerVendorAssignments, ({ one }) => ({
-  customer: one(customers, {
-    fields: [customerVendorAssignments.customerId],
-    references: [customers.id],
+export const customerVendorAssignmentsRelations = relations(
+  customerVendorAssignments,
+  ({ one }) => ({
+    customer: one(customers, {
+      fields: [customerVendorAssignments.customerId],
+      references: [customers.id],
+    }),
+    vendor: one(vendors, {
+      fields: [customerVendorAssignments.vendorId],
+      references: [vendors.id],
+    }),
+    assignedByUser: one(users, {
+      fields: [customerVendorAssignments.assignedBy],
+      references: [users.id],
+    }),
   }),
-  vendor: one(vendors, {
-    fields: [customerVendorAssignments.vendorId],
-    references: [vendors.id],
-  }),
-  assignedByUser: one(users, {
-    fields: [customerVendorAssignments.assignedBy],
-    references: [users.id],
-  }),
-}));
+);
 
-export const insertCustomerVendorAssignmentSchema = createInsertSchema(customerVendorAssignments).omit({
+export const insertCustomerVendorAssignmentSchema = createInsertSchema(
+  customerVendorAssignments,
+).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 });
 
-export type InsertCustomerVendorAssignment = z.infer<typeof insertCustomerVendorAssignmentSchema>;
-export type CustomerVendorAssignment = typeof customerVendorAssignments.$inferSelect;
+export type InsertCustomerVendorAssignment = z.infer<
+  typeof insertCustomerVendorAssignmentSchema
+>;
+export type CustomerVendorAssignment =
+  typeof customerVendorAssignments.$inferSelect;
 
 // Journey stages for vendor assignment
 export const vendorJourneyStages = [
@@ -1460,18 +1918,50 @@ export const vendorJourneyStages = [
 // Vendor Payment Milestones - Defines when vendors receive payments
 export const vendorPaymentMilestones = {
   bank_loan_liaison: [
-    { milestone: "bank_disbursement", label: "Bank Disbursement", amount: 1500, description: "After bank loan is disbursed" },
-    { milestone: "full_final_payment", label: "Full & Final Payment", amount: 1500, description: "After customer's full payment is completed" },
+    {
+      milestone: "bank_disbursement",
+      label: "Bank Disbursement",
+      amount: 1500,
+      description: "After bank loan is disbursed",
+    },
+    {
+      milestone: "full_final_payment",
+      label: "Full & Final Payment",
+      amount: 1500,
+      description: "After customer's full payment is completed",
+    },
   ],
   discom_net_metering: [
-    { milestone: "discom_survey_completed", label: "DISCOM Survey Completed", amount: 1000, description: "After DISCOM site survey is completed" },
-    { milestone: "grid_connected", label: "Grid Connected", amount: 2000, description: "After successful grid connection" },
+    {
+      milestone: "discom_survey_completed",
+      label: "DISCOM Survey Completed",
+      amount: 1000,
+      description: "After DISCOM site survey is completed",
+    },
+    {
+      milestone: "grid_connected",
+      label: "Grid Connected",
+      amount: 2000,
+      description: "After successful grid connection",
+    },
   ],
   logistic: [
-    { milestone: "goods_delivered", label: "Goods Delivered", ratePerKw: 20, description: "After successful goods delivery confirmation (Rs 20/kW roundtrip)" },
+    {
+      milestone: "goods_delivered",
+      label: "Goods Delivered",
+      ratePerKw: 20,
+      description:
+        "After successful goods delivery confirmation (Rs 20/kW roundtrip)",
+    },
   ],
   site_installation: [
-    { milestone: "site_completion_report", label: "Site Completion Report Submitted", ratePerWatt: 2.5, description: "After site completion report is submitted on PM Surya Ghar Portal (Rs 2.5-3/watt)" },
+    {
+      milestone: "site_completion_report",
+      label: "Site Completion Report Submitted",
+      ratePerWatt: 2.5,
+      description:
+        "After site completion report is submitted on PM Surya Ghar Portal (Rs 2.5-3/watt)",
+    },
   ],
 };
 
@@ -1484,12 +1974,20 @@ export const siteInstallationRates = [
 
 // Vendor Payments - Track milestone-based vendor payments
 export const vendorPayments = pgTable("vendor_payments", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
 
   // References
-  customerId: varchar("customer_id").notNull().references(() => customers.id),
-  vendorId: varchar("vendor_id").notNull().references(() => vendors.id),
-  assignmentId: varchar("assignment_id").references(() => customerVendorAssignments.id),
+  customerId: varchar("customer_id")
+    .notNull()
+    .references(() => customers.id),
+  vendorId: varchar("vendor_id")
+    .notNull()
+    .references(() => vendors.id),
+  assignmentId: varchar("assignment_id").references(
+    () => customerVendorAssignments.id,
+  ),
 
   // Payment Details
   vendorType: text("vendor_type").notNull(), // bank_loan_liaison, discom_net_metering
@@ -1502,7 +2000,9 @@ export const vendorPayments = pgTable("vendor_payments", {
 
   // Milestone completion tracking
   milestoneCompletedAt: timestamp("milestone_completed_at"),
-  milestoneCompletedBy: varchar("milestone_completed_by").references(() => users.id),
+  milestoneCompletedBy: varchar("milestone_completed_by").references(
+    () => users.id,
+  ),
 
   // Payout tracking (Razorpay integration)
   payoutApprovedBy: varchar("payout_approved_by").references(() => users.id),
@@ -1541,7 +2041,9 @@ export const vendorPaymentsRelations = relations(vendorPayments, ({ one }) => ({
   }),
 }));
 
-export const insertVendorPaymentSchema = createInsertSchema(vendorPayments).omit({
+export const insertVendorPaymentSchema = createInsertSchema(
+  vendorPayments,
+).omit({
   id: true,
   status: true,
   milestoneCompletedAt: true,
@@ -1560,39 +2062,86 @@ export type VendorPayment = typeof vendorPayments.$inferSelect;
 
 // Site Installation Expenses - Track all costs and profit per installation
 export const siteExpenses = pgTable("site_expenses", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   customerId: varchar("customer_id").notNull(),
   siteId: text("site_id").notNull().unique(), // Auto-generated Site ID (e.g., DS-2024-0001)
 
   // Customer Payment Received
-  customerPaymentReceived: decimal("customer_payment_received", { precision: 12, scale: 2 }).default("0"),
+  customerPaymentReceived: decimal("customer_payment_received", {
+    precision: 12,
+    scale: 2,
+  }).default("0"),
 
   // Installation Costs
-  solarPanelsCost: decimal("solar_panels_cost", { precision: 12, scale: 2 }).default("0"),
-  inverterCost: decimal("inverter_cost", { precision: 12, scale: 2 }).default("0"),
-  electricalCost: decimal("electrical_cost", { precision: 12, scale: 2 }).default("0"),
-  civilWorkCost: decimal("civil_work_cost", { precision: 12, scale: 2 }).default("0"),
-  electricianCost: decimal("electrician_cost", { precision: 12, scale: 2 }).default("0"),
+  solarPanelsCost: decimal("solar_panels_cost", {
+    precision: 12,
+    scale: 2,
+  }).default("0"),
+  inverterCost: decimal("inverter_cost", { precision: 12, scale: 2 }).default(
+    "0",
+  ),
+  electricalCost: decimal("electrical_cost", {
+    precision: 12,
+    scale: 2,
+  }).default("0"),
+  civilWorkCost: decimal("civil_work_cost", {
+    precision: 12,
+    scale: 2,
+  }).default("0"),
+  electricianCost: decimal("electrician_cost", {
+    precision: 12,
+    scale: 2,
+  }).default("0"),
   meterCost: decimal("meter_cost", { precision: 12, scale: 2 }).default("0"),
-  meterInstallationCost: decimal("meter_installation_cost", { precision: 12, scale: 2 }).default("0"),
-  logisticCost: decimal("logistic_cost", { precision: 12, scale: 2 }).default("0"),
-  bankLoanApprovalCost: decimal("bank_loan_approval_cost", { precision: 12, scale: 2 }).default("0"),
-  discomApprovalCost: decimal("discom_approval_cost", { precision: 12, scale: 2 }).default("0"),
+  meterInstallationCost: decimal("meter_installation_cost", {
+    precision: 12,
+    scale: 2,
+  }).default("0"),
+  logisticCost: decimal("logistic_cost", { precision: 12, scale: 2 }).default(
+    "0",
+  ),
+  bankLoanApprovalCost: decimal("bank_loan_approval_cost", {
+    precision: 12,
+    scale: 2,
+  }).default("0"),
+  discomApprovalCost: decimal("discom_approval_cost", {
+    precision: 12,
+    scale: 2,
+  }).default("0"),
 
   // Commission Payments
-  bdpCommission: decimal("bdp_commission", { precision: 12, scale: 2 }).default("0"),
-  ddpCommission: decimal("ddp_commission", { precision: 12, scale: 2 }).default("0"),
-  referralPayment: decimal("referral_payment", { precision: 12, scale: 2 }).default("0"),
-  incentivePayment: decimal("incentive_payment", { precision: 12, scale: 2 }).default("0"),
+  bdpCommission: decimal("bdp_commission", { precision: 12, scale: 2 }).default(
+    "0",
+  ),
+  ddpCommission: decimal("ddp_commission", { precision: 12, scale: 2 }).default(
+    "0",
+  ),
+  referralPayment: decimal("referral_payment", {
+    precision: 12,
+    scale: 2,
+  }).default("0"),
+  incentivePayment: decimal("incentive_payment", {
+    precision: 12,
+    scale: 2,
+  }).default("0"),
 
   // Other Expenses
-  miscellaneousExpense: decimal("miscellaneous_expense", { precision: 12, scale: 2 }).default("0"),
+  miscellaneousExpense: decimal("miscellaneous_expense", {
+    precision: 12,
+    scale: 2,
+  }).default("0"),
   miscellaneousNotes: text("miscellaneous_notes"),
 
   // Calculated Fields (stored for quick access)
-  totalExpenses: decimal("total_expenses", { precision: 12, scale: 2 }).default("0"),
+  totalExpenses: decimal("total_expenses", { precision: 12, scale: 2 }).default(
+    "0",
+  ),
   profit: decimal("profit", { precision: 12, scale: 2 }).default("0"),
-  profitMargin: decimal("profit_margin", { precision: 5, scale: 2 }).default("0"), // percentage
+  profitMargin: decimal("profit_margin", { precision: 5, scale: 2 }).default(
+    "0",
+  ), // percentage
 
   // Status
   status: text("status").notNull().default("pending"), // pending, approved, completed
@@ -1630,23 +2179,41 @@ export const siteExpenseCategories = [
   { key: "solarPanelsCost", label: "Solar Panels Cost", group: "installation" },
   { key: "inverterCost", label: "Inverter Cost", group: "installation" },
   { key: "electricalCost", label: "Electrical Cost", group: "installation" },
-  { key: "civilWorkCost", label: "Civil Work Execution Cost", group: "installation" },
+  {
+    key: "civilWorkCost",
+    label: "Civil Work Execution Cost",
+    group: "installation",
+  },
   { key: "electricianCost", label: "Electrician Cost", group: "installation" },
   { key: "meterCost", label: "Meter Cost", group: "installation" },
-  { key: "meterInstallationCost", label: "Meter Installation Cost", group: "installation" },
+  {
+    key: "meterInstallationCost",
+    label: "Meter Installation Cost",
+    group: "installation",
+  },
   { key: "logisticCost", label: "Logistic Cost", group: "other" },
-  { key: "bankLoanApprovalCost", label: "Bank Loan Approval Cost", group: "other" },
+  {
+    key: "bankLoanApprovalCost",
+    label: "Bank Loan Approval Cost",
+    group: "other",
+  },
   { key: "discomApprovalCost", label: "DISCOM Approval Cost", group: "other" },
   { key: "bdpCommission", label: "BDP Commission", group: "commission" },
   { key: "ddpCommission", label: "DDP Commission", group: "commission" },
   { key: "referralPayment", label: "Referral Payment", group: "commission" },
   { key: "incentivePayment", label: "Incentive Payment", group: "commission" },
-  { key: "miscellaneousExpense", label: "Miscellaneous Expense", group: "other" },
+  {
+    key: "miscellaneousExpense",
+    label: "Miscellaneous Expense",
+    group: "other",
+  },
 ];
 
 // Bank Loan Submissions - Track bank loan applications for customers
 export const bankLoanSubmissions = pgTable("bank_loan_submissions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   customerId: varchar("customer_id").notNull(),
 
   // Bank Details
@@ -1667,32 +2234,45 @@ export const bankLoanSubmissions = pgTable("bank_loan_submissions", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const bankLoanSubmissionsRelations = relations(bankLoanSubmissions, ({ one }) => ({
-  customer: one(customers, {
-    fields: [bankLoanSubmissions.customerId],
-    references: [customers.id],
+export const bankLoanSubmissionsRelations = relations(
+  bankLoanSubmissions,
+  ({ one }) => ({
+    customer: one(customers, {
+      fields: [bankLoanSubmissions.customerId],
+      references: [customers.id],
+    }),
+    creator: one(users, {
+      fields: [bankLoanSubmissions.createdBy],
+      references: [users.id],
+    }),
   }),
-  creator: one(users, {
-    fields: [bankLoanSubmissions.createdBy],
-    references: [users.id],
-  }),
-}));
+);
 
-export const insertBankLoanSubmissionSchema = createInsertSchema(bankLoanSubmissions).omit({
+export const insertBankLoanSubmissionSchema = createInsertSchema(
+  bankLoanSubmissions,
+).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 });
 
-export type InsertBankLoanSubmission = z.infer<typeof insertBankLoanSubmissionSchema>;
+export type InsertBankLoanSubmission = z.infer<
+  typeof insertBankLoanSubmissionSchema
+>;
 export type BankLoanSubmission = typeof bankLoanSubmissions.$inferSelect;
 
 // Step 3: Site Surveys - Bank Staff and Discom Representative site visits
 export const siteSurveys = pgTable("site_surveys", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   surveyNumber: text("survey_number").notNull().unique(),
-  customerId: varchar("customer_id").references(() => customers.id).notNull(),
-  loanSubmissionId: varchar("loan_submission_id").references(() => bankLoanSubmissions.id),
+  customerId: varchar("customer_id")
+    .references(() => customers.id)
+    .notNull(),
+  loanSubmissionId: varchar("loan_submission_id").references(
+    () => bankLoanSubmissions.id,
+  ),
 
   // Customer & Site Info
   customerName: text("customer_name").notNull(),
@@ -1773,26 +2353,34 @@ export const siteSurveysRelations = relations(siteSurveys, ({ one }) => ({
   }),
 }));
 
-export const insertSiteSurveySchema = createInsertSchema(siteSurveys).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-  scheduledDate: z.string().min(1, "Scheduled date is required"),
-  actualDate: z.string().optional(),
-  bankSurveyDate: z.string().optional(),
-  discomSurveyDate: z.string().optional(),
-});
+export const insertSiteSurveySchema = createInsertSchema(siteSurveys)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    scheduledDate: z.string().min(1, "Scheduled date is required"),
+    actualDate: z.string().optional(),
+    bankSurveyDate: z.string().optional(),
+    discomSurveyDate: z.string().optional(),
+  });
 
 export type InsertSiteSurvey = z.infer<typeof insertSiteSurveySchema>;
 export type SiteSurvey = typeof siteSurveys.$inferSelect;
 
 // Step 10: Meter Installation Completion Reports - Grid Connection
 export const meterInstallationReports = pgTable("meter_installation_reports", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   reportNumber: text("report_number").notNull().unique(),
-  customerId: varchar("customer_id").references(() => customers.id).notNull(),
-  completionReportId: varchar("completion_report_id").references(() => siteExecutionCompletionReports.id),
+  customerId: varchar("customer_id")
+    .references(() => customers.id)
+    .notNull(),
+  completionReportId: varchar("completion_report_id").references(
+    () => siteExecutionCompletionReports.id,
+  ),
 
   // Customer & Site Info
   customerName: text("customer_name").notNull(),
@@ -1846,7 +2434,9 @@ export const meterInstallationReports = pgTable("meter_installation_reports", {
 
   // Safety & Compliance
   earthingCompleted: boolean("earthing_completed").default(false),
-  lightningArresterInstalled: boolean("lightning_arrester_installed").default(false),
+  lightningArresterInstalled: boolean("lightning_arrester_installed").default(
+    false,
+  ),
   acdbInstalled: boolean("acdb_installed").default(false),
   dcdbInstalled: boolean("dcdb_installed").default(false),
   mcbRating: text("mcb_rating"),
@@ -1883,26 +2473,39 @@ export const meterInstallationReports = pgTable("meter_installation_reports", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const insertMeterInstallationReportSchema = createInsertSchema(meterInstallationReports).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-  meterInstallationDate: z.string().optional(),
-  gridConnectionDate: z.string().optional(),
-  synchronizationDate: z.string().optional(),
-  discomApprovalDate: z.string().optional(),
-});
+export const insertMeterInstallationReportSchema = createInsertSchema(
+  meterInstallationReports,
+)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    meterInstallationDate: z.string().optional(),
+    gridConnectionDate: z.string().optional(),
+    synchronizationDate: z.string().optional(),
+    discomApprovalDate: z.string().optional(),
+  });
 
-export type InsertMeterInstallationReport = z.infer<typeof insertMeterInstallationReportSchema>;
-export type MeterInstallationReport = typeof meterInstallationReports.$inferSelect;
+export type InsertMeterInstallationReport = z.infer<
+  typeof insertMeterInstallationReportSchema
+>;
+export type MeterInstallationReport =
+  typeof meterInstallationReports.$inferSelect;
 
 // Step 11: PM Surya Ghar Portal Submission Reports
 export const portalSubmissionReports = pgTable("portal_submission_reports", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   reportNumber: text("report_number").notNull().unique(),
-  customerId: varchar("customer_id").references(() => customers.id).notNull(),
-  meterInstallationReportId: varchar("meter_installation_report_id").references(() => meterInstallationReports.id),
+  customerId: varchar("customer_id")
+    .references(() => customers.id)
+    .notNull(),
+  meterInstallationReportId: varchar("meter_installation_report_id").references(
+    () => meterInstallationReports.id,
+  ),
 
   // Customer Info
   customerName: text("customer_name").notNull(),
@@ -1968,15 +2571,21 @@ export const portalSubmissionReports = pgTable("portal_submission_reports", {
   disbursementRemarks: text("disbursement_remarks"),
 
   // Verification Status
-  documentVerificationStatus: text("document_verification_status").default("pending"), // pending, verified, rejected
+  documentVerificationStatus: text("document_verification_status").default(
+    "pending",
+  ), // pending, verified, rejected
   documentVerificationDate: timestamp("document_verification_date"),
   documentVerificationRemarks: text("document_verification_remarks"),
 
   // Physical Verification (by DISCOM/Govt)
-  physicalVerificationRequired: boolean("physical_verification_required").default(true),
+  physicalVerificationRequired: boolean(
+    "physical_verification_required",
+  ).default(true),
   physicalVerificationDate: timestamp("physical_verification_date"),
   physicalVerificationOfficer: text("physical_verification_officer"),
-  physicalVerificationStatus: text("physical_verification_status").default("pending"), // pending, scheduled, completed, failed
+  physicalVerificationStatus: text("physical_verification_status").default(
+    "pending",
+  ), // pending, scheduled, completed, failed
   physicalVerificationRemarks: text("physical_verification_remarks"),
 
   // Status & Timeline
@@ -1999,29 +2608,38 @@ export const portalSubmissionReports = pgTable("portal_submission_reports", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const insertPortalSubmissionReportSchema = createInsertSchema(portalSubmissionReports).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-  submissionDate: z.string().optional(),
-  gridConnectionDate: z.string().optional(),
-  completionCertificateDate: z.string().optional(),
-  portalAcknowledgmentDate: z.string().optional(),
-  disbursementDate: z.string().optional(),
-  documentVerificationDate: z.string().optional(),
-  physicalVerificationDate: z.string().optional(),
-  expectedDisbursementDate: z.string().optional(),
-  lastFollowUpDate: z.string().optional(),
-  nextFollowUpDate: z.string().optional(),
-});
+export const insertPortalSubmissionReportSchema = createInsertSchema(
+  portalSubmissionReports,
+)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    submissionDate: z.string().optional(),
+    gridConnectionDate: z.string().optional(),
+    completionCertificateDate: z.string().optional(),
+    portalAcknowledgmentDate: z.string().optional(),
+    disbursementDate: z.string().optional(),
+    documentVerificationDate: z.string().optional(),
+    physicalVerificationDate: z.string().optional(),
+    expectedDisbursementDate: z.string().optional(),
+    lastFollowUpDate: z.string().optional(),
+    nextFollowUpDate: z.string().optional(),
+  });
 
-export type InsertPortalSubmissionReport = z.infer<typeof insertPortalSubmissionReportSchema>;
-export type PortalSubmissionReport = typeof portalSubmissionReports.$inferSelect;
+export type InsertPortalSubmissionReport = z.infer<
+  typeof insertPortalSubmissionReportSchema
+>;
+export type PortalSubmissionReport =
+  typeof portalSubmissionReports.$inferSelect;
 
 // Remaining Payment Reports - Step 12: Customer Remaining Payment tracking after portal submission
 export const remainingPaymentReports = pgTable("remaining_payment_reports", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   reportNumber: varchar("report_number").unique(),
 
   // Customer Details
@@ -2041,7 +2659,9 @@ export const remainingPaymentReports = pgTable("remaining_payment_reports", {
   discomName: text("discom_name"),
 
   // Portal Reference
-  portalSubmissionReportId: varchar("portal_submission_report_id").references(() => portalSubmissionReports.id),
+  portalSubmissionReportId: varchar("portal_submission_report_id").references(
+    () => portalSubmissionReports.id,
+  ),
   portalApplicationNumber: text("portal_application_number"),
   completionDate: timestamp("completion_date"),
   subsidyReceivedDate: timestamp("subsidy_received_date"),
@@ -2098,203 +2718,242 @@ export const remainingPaymentReports = pgTable("remaining_payment_reports", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const insertRemainingPaymentReportSchema = createInsertSchema(remainingPaymentReports).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-  completionDate: z.string().optional(),
-  subsidyReceivedDate: z.string().optional(),
-  advancePaymentDate: z.string().optional(),
-  remainingPaymentDueDate: z.string().optional(),
-  reminderSentDate: z.string().optional(),
-  paymentReceivedDate: z.string().optional(),
-  lastFollowUpDate: z.string().optional(),
-  nextFollowUpDate: z.string().optional(),
-  commissionReleaseDate: z.string().optional(),
-});
+export const insertRemainingPaymentReportSchema = createInsertSchema(
+  remainingPaymentReports,
+)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    completionDate: z.string().optional(),
+    subsidyReceivedDate: z.string().optional(),
+    advancePaymentDate: z.string().optional(),
+    remainingPaymentDueDate: z.string().optional(),
+    reminderSentDate: z.string().optional(),
+    paymentReceivedDate: z.string().optional(),
+    lastFollowUpDate: z.string().optional(),
+    nextFollowUpDate: z.string().optional(),
+    commissionReleaseDate: z.string().optional(),
+  });
 
-export type InsertRemainingPaymentReport = z.infer<typeof insertRemainingPaymentReportSchema>;
-export type RemainingPaymentReport = typeof remainingPaymentReports.$inferSelect;
+export type InsertRemainingPaymentReport = z.infer<
+  typeof insertRemainingPaymentReportSchema
+>;
+export type RemainingPaymentReport =
+  typeof remainingPaymentReports.$inferSelect;
 
 // Subsidy Application Reports - Step 13: Subsidy Application on PM Surya Ghar Portal
-export const subsidyApplicationReports = pgTable("subsidy_application_reports", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  reportNumber: varchar("report_number").unique(),
+export const subsidyApplicationReports = pgTable(
+  "subsidy_application_reports",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    reportNumber: varchar("report_number").unique(),
 
-  // Customer Details
-  customerId: varchar("customer_id").references(() => customers.id),
-  customerName: text("customer_name").notNull(),
-  customerPhone: text("customer_phone"),
-  customerEmail: text("customer_email"),
-  siteAddress: text("site_address"),
-  district: text("district"),
-  state: text("state"),
-  pincode: text("pincode"),
+    // Customer Details
+    customerId: varchar("customer_id").references(() => customers.id),
+    customerName: text("customer_name").notNull(),
+    customerPhone: text("customer_phone"),
+    customerEmail: text("customer_email"),
+    siteAddress: text("site_address"),
+    district: text("district"),
+    state: text("state"),
+    pincode: text("pincode"),
 
-  // Installation Details
-  installedCapacity: text("installed_capacity"),
-  panelType: text("panel_type"),
-  consumerNumber: text("consumer_number"),
-  discomName: text("discom_name"),
+    // Installation Details
+    installedCapacity: text("installed_capacity"),
+    panelType: text("panel_type"),
+    consumerNumber: text("consumer_number"),
+    discomName: text("discom_name"),
 
-  // Portal Details
-  portalRegistrationId: text("portal_registration_id"),
-  portalApplicationNumber: text("portal_application_number"),
-  completionCertificateNumber: text("completion_certificate_number"),
-  completionCertificateDate: timestamp("completion_certificate_date"),
-  netMeterNumber: text("net_meter_number"),
-  gridConnectionDate: timestamp("grid_connection_date"),
+    // Portal Details
+    portalRegistrationId: text("portal_registration_id"),
+    portalApplicationNumber: text("portal_application_number"),
+    completionCertificateNumber: text("completion_certificate_number"),
+    completionCertificateDate: timestamp("completion_certificate_date"),
+    netMeterNumber: text("net_meter_number"),
+    gridConnectionDate: timestamp("grid_connection_date"),
 
-  // Subsidy Application Details
-  applicationDate: timestamp("application_date"),
-  subsidyScheme: text("subsidy_scheme").default("pm_surya_ghar"), // pm_surya_ghar, state_subsidy, combined
-  centralSubsidyAmount: integer("central_subsidy_amount"),
-  stateSubsidyAmount: integer("state_subsidy_amount"),
-  totalSubsidyApplied: integer("total_subsidy_applied"),
+    // Subsidy Application Details
+    applicationDate: timestamp("application_date"),
+    subsidyScheme: text("subsidy_scheme").default("pm_surya_ghar"), // pm_surya_ghar, state_subsidy, combined
+    centralSubsidyAmount: integer("central_subsidy_amount"),
+    stateSubsidyAmount: integer("state_subsidy_amount"),
+    totalSubsidyApplied: integer("total_subsidy_applied"),
 
-  // Beneficiary Bank Details
-  beneficiaryName: text("beneficiary_name"),
-  beneficiaryAccountNumber: text("beneficiary_account_number"),
-  beneficiaryIfsc: text("beneficiary_ifsc"),
-  beneficiaryBankName: text("beneficiary_bank_name"),
-  beneficiaryBankBranch: text("beneficiary_bank_branch"),
+    // Beneficiary Bank Details
+    beneficiaryName: text("beneficiary_name"),
+    beneficiaryAccountNumber: text("beneficiary_account_number"),
+    beneficiaryIfsc: text("beneficiary_ifsc"),
+    beneficiaryBankName: text("beneficiary_bank_name"),
+    beneficiaryBankBranch: text("beneficiary_bank_branch"),
 
-  // Document Uploads
-  completionCertificateUrl: text("completion_certificate_url"),
-  netMeteringAgreementUrl: text("net_metering_agreement_url"),
-  bankPassbookUrl: text("bank_passbook_url"),
-  aadharCardUrl: text("aadhar_card_url"),
-  electricityBillUrl: text("electricity_bill_url"),
-  installationPhotosUrl: text("installation_photos_url"),
+    // Document Uploads
+    completionCertificateUrl: text("completion_certificate_url"),
+    netMeteringAgreementUrl: text("net_metering_agreement_url"),
+    bankPassbookUrl: text("bank_passbook_url"),
+    aadharCardUrl: text("aadhar_card_url"),
+    electricityBillUrl: text("electricity_bill_url"),
+    installationPhotosUrl: text("installation_photos_url"),
 
-  // Application Status
-  applicationAcknowledgmentNumber: text("application_acknowledgment_number"),
-  applicationAcknowledgmentDate: timestamp("application_acknowledgment_date"),
-  documentVerificationStatus: text("document_verification_status").default("pending"), // pending, verified, rejected
-  documentVerificationDate: timestamp("document_verification_date"),
-  documentVerificationRemarks: text("document_verification_remarks"),
+    // Application Status
+    applicationAcknowledgmentNumber: text("application_acknowledgment_number"),
+    applicationAcknowledgmentDate: timestamp("application_acknowledgment_date"),
+    documentVerificationStatus: text("document_verification_status").default(
+      "pending",
+    ), // pending, verified, rejected
+    documentVerificationDate: timestamp("document_verification_date"),
+    documentVerificationRemarks: text("document_verification_remarks"),
 
-  // Status & Follow-up
-  status: text("status").default("pending"), // pending, submitted, under_review, docs_verified, approved, rejected
-  rejectionReason: text("rejection_reason"),
-  lastFollowUpDate: timestamp("last_follow_up_date"),
-  nextFollowUpDate: timestamp("next_follow_up_date"),
-  followUpRemarks: text("follow_up_remarks"),
-  portalHelplineTicket: text("portal_helpline_ticket"),
-  remarks: text("remarks"),
+    // Status & Follow-up
+    status: text("status").default("pending"), // pending, submitted, under_review, docs_verified, approved, rejected
+    rejectionReason: text("rejection_reason"),
+    lastFollowUpDate: timestamp("last_follow_up_date"),
+    nextFollowUpDate: timestamp("next_follow_up_date"),
+    followUpRemarks: text("follow_up_remarks"),
+    portalHelplineTicket: text("portal_helpline_ticket"),
+    remarks: text("remarks"),
 
-  createdBy: varchar("created_by").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
+    createdBy: varchar("created_by").references(() => users.id),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+);
 
-export const insertSubsidyApplicationReportSchema = createInsertSchema(subsidyApplicationReports).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-  applicationDate: z.string().optional(),
-  completionCertificateDate: z.string().optional(),
-  gridConnectionDate: z.string().optional(),
-  applicationAcknowledgmentDate: z.string().optional(),
-  documentVerificationDate: z.string().optional(),
-  lastFollowUpDate: z.string().optional(),
-  nextFollowUpDate: z.string().optional(),
-});
+export const insertSubsidyApplicationReportSchema = createInsertSchema(
+  subsidyApplicationReports,
+)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    applicationDate: z.string().optional(),
+    completionCertificateDate: z.string().optional(),
+    gridConnectionDate: z.string().optional(),
+    applicationAcknowledgmentDate: z.string().optional(),
+    documentVerificationDate: z.string().optional(),
+    lastFollowUpDate: z.string().optional(),
+    nextFollowUpDate: z.string().optional(),
+  });
 
-export type InsertSubsidyApplicationReport = z.infer<typeof insertSubsidyApplicationReportSchema>;
-export type SubsidyApplicationReport = typeof subsidyApplicationReports.$inferSelect;
+export type InsertSubsidyApplicationReport = z.infer<
+  typeof insertSubsidyApplicationReportSchema
+>;
+export type SubsidyApplicationReport =
+  typeof subsidyApplicationReports.$inferSelect;
 
 // Subsidy Disbursement Reports - Step 14 (Final): Subsidy Disbursement into Customer Bank Account
-export const subsidyDisbursementReports = pgTable("subsidy_disbursement_reports", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  reportNumber: varchar("report_number").unique(),
+export const subsidyDisbursementReports = pgTable(
+  "subsidy_disbursement_reports",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    reportNumber: varchar("report_number").unique(),
 
-  // Customer Details
-  customerId: varchar("customer_id").references(() => customers.id),
-  customerName: text("customer_name").notNull(),
-  customerPhone: text("customer_phone"),
-  customerEmail: text("customer_email"),
-  siteAddress: text("site_address"),
-  district: text("district"),
-  state: text("state"),
-  pincode: text("pincode"),
+    // Customer Details
+    customerId: varchar("customer_id").references(() => customers.id),
+    customerName: text("customer_name").notNull(),
+    customerPhone: text("customer_phone"),
+    customerEmail: text("customer_email"),
+    siteAddress: text("site_address"),
+    district: text("district"),
+    state: text("state"),
+    pincode: text("pincode"),
 
-  // Installation Details
-  installedCapacity: text("installed_capacity"),
-  panelType: text("panel_type"),
-  consumerNumber: text("consumer_number"),
+    // Installation Details
+    installedCapacity: text("installed_capacity"),
+    panelType: text("panel_type"),
+    consumerNumber: text("consumer_number"),
 
-  // Reference to Subsidy Application
-  subsidyApplicationReportId: varchar("subsidy_application_report_id").references(() => subsidyApplicationReports.id),
-  portalApplicationNumber: text("portal_application_number"),
-  subsidyScheme: text("subsidy_scheme"),
+    // Reference to Subsidy Application
+    subsidyApplicationReportId: varchar(
+      "subsidy_application_report_id",
+    ).references(() => subsidyApplicationReports.id),
+    portalApplicationNumber: text("portal_application_number"),
+    subsidyScheme: text("subsidy_scheme"),
 
-  // Approved Amounts
-  centralSubsidyApproved: integer("central_subsidy_approved"),
-  stateSubsidyApproved: integer("state_subsidy_approved"),
-  totalSubsidyApproved: integer("total_subsidy_approved"),
+    // Approved Amounts
+    centralSubsidyApproved: integer("central_subsidy_approved"),
+    stateSubsidyApproved: integer("state_subsidy_approved"),
+    totalSubsidyApproved: integer("total_subsidy_approved"),
 
-  // Disbursement Details
-  disbursementStatus: text("disbursement_status").default("pending"), // pending, processing, partial, completed, failed
-  disbursementReferenceNumber: text("disbursement_reference_number"),
-  disbursementDate: timestamp("disbursement_date"),
-  disbursementAmount: integer("disbursement_amount"),
-  disbursementMode: text("disbursement_mode"), // neft, rtgs, dbt
+    // Disbursement Details
+    disbursementStatus: text("disbursement_status").default("pending"), // pending, processing, partial, completed, failed
+    disbursementReferenceNumber: text("disbursement_reference_number"),
+    disbursementDate: timestamp("disbursement_date"),
+    disbursementAmount: integer("disbursement_amount"),
+    disbursementMode: text("disbursement_mode"), // neft, rtgs, dbt
 
-  // Beneficiary Bank Details (where subsidy was received)
-  beneficiaryName: text("beneficiary_name"),
-  beneficiaryAccountNumber: text("beneficiary_account_number"),
-  beneficiaryIfsc: text("beneficiary_ifsc"),
-  beneficiaryBankName: text("beneficiary_bank_name"),
+    // Beneficiary Bank Details (where subsidy was received)
+    beneficiaryName: text("beneficiary_name"),
+    beneficiaryAccountNumber: text("beneficiary_account_number"),
+    beneficiaryIfsc: text("beneficiary_ifsc"),
+    beneficiaryBankName: text("beneficiary_bank_name"),
 
-  // Verification
-  disbursementVerified: boolean("disbursement_verified").default(false),
-  verificationDate: timestamp("verification_date"),
-  verificationRemarks: text("verification_remarks"),
-  bankStatementUrl: text("bank_statement_url"),
+    // Verification
+    disbursementVerified: boolean("disbursement_verified").default(false),
+    verificationDate: timestamp("verification_date"),
+    verificationRemarks: text("verification_remarks"),
+    bankStatementUrl: text("bank_statement_url"),
 
-  // Commission Release (50% of remaining commission released after subsidy)
-  commissionReleaseTriggered: boolean("commission_release_triggered").default(false),
-  commissionReleaseDate: timestamp("commission_release_date"),
-  ddpCommissionReleased: integer("ddp_commission_released"),
-  bdpCommissionReleased: integer("bdp_commission_released"),
-  cpCommissionReleased: integer("cp_commission_released"),
+    // Commission Release (50% of remaining commission released after subsidy)
+    commissionReleaseTriggered: boolean("commission_release_triggered").default(
+      false,
+    ),
+    commissionReleaseDate: timestamp("commission_release_date"),
+    ddpCommissionReleased: integer("ddp_commission_released"),
+    bdpCommissionReleased: integer("bdp_commission_released"),
+    cpCommissionReleased: integer("cp_commission_released"),
 
-  // Status & Follow-up
-  status: text("status").default("pending"), // pending, processing, disbursed, verified, completed
-  expectedDisbursementDate: timestamp("expected_disbursement_date"),
-  actualProcessingDays: integer("actual_processing_days"),
-  lastFollowUpDate: timestamp("last_follow_up_date"),
-  nextFollowUpDate: timestamp("next_follow_up_date"),
-  followUpRemarks: text("follow_up_remarks"),
-  remarks: text("remarks"),
+    // Status & Follow-up
+    status: text("status").default("pending"), // pending, processing, disbursed, verified, completed
+    expectedDisbursementDate: timestamp("expected_disbursement_date"),
+    actualProcessingDays: integer("actual_processing_days"),
+    lastFollowUpDate: timestamp("last_follow_up_date"),
+    nextFollowUpDate: timestamp("next_follow_up_date"),
+    followUpRemarks: text("follow_up_remarks"),
+    remarks: text("remarks"),
 
-  createdBy: varchar("created_by").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
+    createdBy: varchar("created_by").references(() => users.id),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+);
 
-export const insertSubsidyDisbursementReportSchema = createInsertSchema(subsidyDisbursementReports).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-  disbursementDate: z.string().optional(),
-  verificationDate: z.string().optional(),
-  commissionReleaseDate: z.string().optional(),
-  expectedDisbursementDate: z.string().optional(),
-  lastFollowUpDate: z.string().optional(),
-  nextFollowUpDate: z.string().optional(),
-});
+export const insertSubsidyDisbursementReportSchema = createInsertSchema(
+  subsidyDisbursementReports,
+)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    disbursementDate: z.string().optional(),
+    verificationDate: z.string().optional(),
+    commissionReleaseDate: z.string().optional(),
+    expectedDisbursementDate: z.string().optional(),
+    lastFollowUpDate: z.string().optional(),
+    nextFollowUpDate: z.string().optional(),
+  });
 
-export type InsertSubsidyDisbursementReport = z.infer<typeof insertSubsidyDisbursementReportSchema>;
-export type SubsidyDisbursementReport = typeof subsidyDisbursementReports.$inferSelect;
+export type InsertSubsidyDisbursementReport = z.infer<
+  typeof insertSubsidyDisbursementReportSchema
+>;
+export type SubsidyDisbursementReport =
+  typeof subsidyDisbursementReports.$inferSelect;
 
 // Password Reset OTPs - Store OTPs for password reset
 export const passwordResetOtps = pgTable("password_reset_otps", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   phone: text("phone").notNull(),
   otp: text("otp").notNull(),
   resetToken: text("reset_token"),
@@ -2303,12 +2962,16 @@ export const passwordResetOtps = pgTable("password_reset_otps", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertPasswordResetOtpSchema = createInsertSchema(passwordResetOtps).omit({
+export const insertPasswordResetOtpSchema = createInsertSchema(
+  passwordResetOtps,
+).omit({
   id: true,
   createdAt: true,
 });
 
-export type InsertPasswordResetOtp = z.infer<typeof insertPasswordResetOtpSchema>;
+export type InsertPasswordResetOtp = z.infer<
+  typeof insertPasswordResetOtpSchema
+>;
 export type PasswordResetOtp = typeof passwordResetOtps.$inferSelect;
 
 // Bank loan submission statuses
@@ -2331,7 +2994,9 @@ export const customerFileStatuses = [
 
 // Customer File Submissions - PM Surya Ghar (Step 1 of Customer Journey)
 export const customerFileSubmissions = pgTable("customer_file_submissions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   customerId: varchar("customer_id").references(() => customers.id),
   customerName: text("customer_name").notNull(),
   consumerNo: text("consumer_no").notNull(),
@@ -2344,14 +3009,19 @@ export const customerFileSubmissions = pgTable("customer_file_submissions", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const insertCustomerFileSubmissionSchema = createInsertSchema(customerFileSubmissions).omit({
+export const insertCustomerFileSubmissionSchema = createInsertSchema(
+  customerFileSubmissions,
+).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 });
 
-export type InsertCustomerFileSubmission = z.infer<typeof insertCustomerFileSubmissionSchema>;
-export type CustomerFileSubmission = typeof customerFileSubmissions.$inferSelect;
+export type InsertCustomerFileSubmission = z.infer<
+  typeof insertCustomerFileSubmissionSchema
+>;
+export type CustomerFileSubmission =
+  typeof customerFileSubmissions.$inferSelect;
 
 // Bank Loan Approval statuses (Step 3 of Customer Journey)
 export const bankLoanApprovalStatuses = [
@@ -2363,9 +3033,13 @@ export const bankLoanApprovalStatuses = [
 
 // Bank Loan Approvals - Track bank loan approval date and time (Step 3 of Customer Journey)
 export const bankLoanApprovals = pgTable("bank_loan_approvals", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   customerId: varchar("customer_id").references(() => customers.id),
-  bankLoanSubmissionId: varchar("bank_loan_submission_id").references(() => bankLoanSubmissions.id),
+  bankLoanSubmissionId: varchar("bank_loan_submission_id").references(
+    () => bankLoanSubmissions.id,
+  ),
   customerName: text("customer_name").notNull(),
   bankName: text("bank_name").notNull(),
   bankBranch: text("bank_branch"),
@@ -2380,24 +3054,31 @@ export const bankLoanApprovals = pgTable("bank_loan_approvals", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const bankLoanApprovalsRelations = relations(bankLoanApprovals, ({ one }) => ({
-  customer: one(customers, {
-    fields: [bankLoanApprovals.customerId],
-    references: [customers.id],
+export const bankLoanApprovalsRelations = relations(
+  bankLoanApprovals,
+  ({ one }) => ({
+    customer: one(customers, {
+      fields: [bankLoanApprovals.customerId],
+      references: [customers.id],
+    }),
+    bankLoanSubmission: one(bankLoanSubmissions, {
+      fields: [bankLoanApprovals.bankLoanSubmissionId],
+      references: [bankLoanSubmissions.id],
+    }),
   }),
-  bankLoanSubmission: one(bankLoanSubmissions, {
-    fields: [bankLoanApprovals.bankLoanSubmissionId],
-    references: [bankLoanSubmissions.id],
-  }),
-}));
+);
 
-export const insertBankLoanApprovalSchema = createInsertSchema(bankLoanApprovals).omit({
+export const insertBankLoanApprovalSchema = createInsertSchema(
+  bankLoanApprovals,
+).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 });
 
-export type InsertBankLoanApproval = z.infer<typeof insertBankLoanApprovalSchema>;
+export type InsertBankLoanApproval = z.infer<
+  typeof insertBankLoanApprovalSchema
+>;
 export type BankLoanApproval = typeof bankLoanApprovals.$inferSelect;
 
 export const loanDisbursementStatuses = [
@@ -2410,15 +3091,22 @@ export const loanDisbursementStatuses = [
 
 // Loan Disbursements - Track loan disbursement into Divyanshi account (Step 4 of Customer Journey)
 export const loanDisbursements = pgTable("loan_disbursements", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   customerId: varchar("customer_id").references(() => customers.id),
-  bankLoanApprovalId: varchar("bank_loan_approval_id").references(() => bankLoanApprovals.id),
+  bankLoanApprovalId: varchar("bank_loan_approval_id").references(
+    () => bankLoanApprovals.id,
+  ),
   customerName: text("customer_name").notNull(),
   bankName: text("bank_name").notNull(),
   bankBranch: text("bank_branch"),
   disbursementDate: timestamp("disbursement_date").notNull(),
   disbursementTime: text("disbursement_time"), // Store time as text like "14:30"
-  disbursedAmount: decimal("disbursed_amount", { precision: 12, scale: 2 }).notNull(),
+  disbursedAmount: decimal("disbursed_amount", {
+    precision: 12,
+    scale: 2,
+  }).notNull(),
   transactionReference: text("transaction_reference"), // UTR/NEFT/RTGS reference number
   divyanshiBankAccount: text("divyanshi_bank_account"), // Receiving account details
   status: text("status").default("received"), // pending, processing, received, failed, partial
@@ -2427,24 +3115,31 @@ export const loanDisbursements = pgTable("loan_disbursements", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const loanDisbursementsRelations = relations(loanDisbursements, ({ one }) => ({
-  customer: one(customers, {
-    fields: [loanDisbursements.customerId],
-    references: [customers.id],
+export const loanDisbursementsRelations = relations(
+  loanDisbursements,
+  ({ one }) => ({
+    customer: one(customers, {
+      fields: [loanDisbursements.customerId],
+      references: [customers.id],
+    }),
+    bankLoanApproval: one(bankLoanApprovals, {
+      fields: [loanDisbursements.bankLoanApprovalId],
+      references: [bankLoanApprovals.id],
+    }),
   }),
-  bankLoanApproval: one(bankLoanApprovals, {
-    fields: [loanDisbursements.bankLoanApprovalId],
-    references: [bankLoanApprovals.id],
-  }),
-}));
+);
 
-export const insertLoanDisbursementSchema = createInsertSchema(loanDisbursements).omit({
+export const insertLoanDisbursementSchema = createInsertSchema(
+  loanDisbursements,
+).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 });
 
-export type InsertLoanDisbursement = z.infer<typeof insertLoanDisbursementSchema>;
+export type InsertLoanDisbursement = z.infer<
+  typeof insertLoanDisbursementSchema
+>;
 export type LoanDisbursement = typeof loanDisbursements.$inferSelect;
 
 // Step 5: Vendor Purchase Orders with Payment tracking
@@ -2466,10 +3161,14 @@ export const vendorPaymentStatuses = [
 ] as const;
 
 export const vendorPurchaseOrders = pgTable("vendor_purchase_orders", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   customerId: varchar("customer_id").references(() => customers.id),
   vendorId: varchar("vendor_id").references(() => vendors.id),
-  loanDisbursementId: varchar("loan_disbursement_id").references(() => loanDisbursements.id),
+  loanDisbursementId: varchar("loan_disbursement_id").references(
+    () => loanDisbursements.id,
+  ),
 
   // Order Details
   poNumber: text("po_number").notNull(), // Purchase Order Number
@@ -2510,39 +3209,48 @@ export const vendorPurchaseOrders = pgTable("vendor_purchase_orders", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const vendorPurchaseOrdersRelations = relations(vendorPurchaseOrders, ({ one }) => ({
-  customer: one(customers, {
-    fields: [vendorPurchaseOrders.customerId],
-    references: [customers.id],
+export const vendorPurchaseOrdersRelations = relations(
+  vendorPurchaseOrders,
+  ({ one }) => ({
+    customer: one(customers, {
+      fields: [vendorPurchaseOrders.customerId],
+      references: [customers.id],
+    }),
+    vendor: one(vendors, {
+      fields: [vendorPurchaseOrders.vendorId],
+      references: [vendors.id],
+    }),
+    loanDisbursement: one(loanDisbursements, {
+      fields: [vendorPurchaseOrders.loanDisbursementId],
+      references: [loanDisbursements.id],
+    }),
   }),
-  vendor: one(vendors, {
-    fields: [vendorPurchaseOrders.vendorId],
-    references: [vendors.id],
-  }),
-  loanDisbursement: one(loanDisbursements, {
-    fields: [vendorPurchaseOrders.loanDisbursementId],
-    references: [loanDisbursements.id],
-  }),
-}));
+);
 
-export const insertVendorPurchaseOrderSchema = createInsertSchema(vendorPurchaseOrders).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-  orderDate: z.string().min(1, "Order date is required"),
-  expectedDeliveryDate: z.string().optional(),
-  advanceDate: z.string().optional(),
-  balancePaidDate: z.string().optional(),
-  deliveryDate: z.string().optional(),
-  orderAmount: z.string().min(1, "Order amount is required"),
-  gstAmount: z.string().optional(),
-  totalAmount: z.string().min(1, "Total amount is required"),
-  advanceAmount: z.string().optional(),
-  balanceAmount: z.string().optional(),
-});
+export const insertVendorPurchaseOrderSchema = createInsertSchema(
+  vendorPurchaseOrders,
+)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    orderDate: z.string().min(1, "Order date is required"),
+    expectedDeliveryDate: z.string().optional(),
+    advanceDate: z.string().optional(),
+    balancePaidDate: z.string().optional(),
+    deliveryDate: z.string().optional(),
+    orderAmount: z.string().min(1, "Order amount is required"),
+    gstAmount: z.string().optional(),
+    totalAmount: z.string().min(1, "Total amount is required"),
+    advanceAmount: z.string().optional(),
+    balanceAmount: z.string().optional(),
+  });
 
-export type InsertVendorPurchaseOrder = z.infer<typeof insertVendorPurchaseOrderSchema>;
+export type InsertVendorPurchaseOrder = z.infer<
+  typeof insertVendorPurchaseOrderSchema
+>;
 export type VendorPurchaseOrder = typeof vendorPurchaseOrders.$inferSelect;
 
 // Step 6: Goods Delivery at Customer Site
@@ -2556,9 +3264,13 @@ export const goodsDeliveryStatuses = [
 ] as const;
 
 export const goodsDeliveries = pgTable("goods_deliveries", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   customerId: varchar("customer_id").references(() => customers.id),
-  purchaseOrderId: varchar("purchase_order_id").references(() => vendorPurchaseOrders.id),
+  purchaseOrderId: varchar("purchase_order_id").references(
+    () => vendorPurchaseOrders.id,
+  ),
   vendorId: varchar("vendor_id").references(() => vendors.id),
 
   // Customer & Delivery Info
@@ -2588,8 +3300,13 @@ export const goodsDeliveries = pgTable("goods_deliveries", {
   quantityDelivered: integer("quantity_delivered"),
 
   // Logistics Pricing
-  logisticRate: decimal("logistic_rate", { precision: 10, scale: 2 }).default("20"), // Rs per kW (default Rs 20)
-  deliveryDistanceKm: decimal("delivery_distance_km", { precision: 10, scale: 2 }), // One-way distance in km
+  logisticRate: decimal("logistic_rate", { precision: 10, scale: 2 }).default(
+    "20",
+  ), // Rs per kW (default Rs 20)
+  deliveryDistanceKm: decimal("delivery_distance_km", {
+    precision: 10,
+    scale: 2,
+  }), // One-way distance in km
 
   // Proof of Delivery
   receiverName: text("receiver_name"),
@@ -2614,29 +3331,34 @@ export const goodsDeliveries = pgTable("goods_deliveries", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const goodsDeliveriesRelations = relations(goodsDeliveries, ({ one }) => ({
-  customer: one(customers, {
-    fields: [goodsDeliveries.customerId],
-    references: [customers.id],
+export const goodsDeliveriesRelations = relations(
+  goodsDeliveries,
+  ({ one }) => ({
+    customer: one(customers, {
+      fields: [goodsDeliveries.customerId],
+      references: [customers.id],
+    }),
+    purchaseOrder: one(vendorPurchaseOrders, {
+      fields: [goodsDeliveries.purchaseOrderId],
+      references: [vendorPurchaseOrders.id],
+    }),
+    vendor: one(vendors, {
+      fields: [goodsDeliveries.vendorId],
+      references: [vendors.id],
+    }),
   }),
-  purchaseOrder: one(vendorPurchaseOrders, {
-    fields: [goodsDeliveries.purchaseOrderId],
-    references: [vendorPurchaseOrders.id],
-  }),
-  vendor: one(vendors, {
-    fields: [goodsDeliveries.vendorId],
-    references: [vendors.id],
-  }),
-}));
+);
 
-export const insertGoodsDeliverySchema = createInsertSchema(goodsDeliveries).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-  scheduledDate: z.string().min(1, "Scheduled date is required"),
-  actualDeliveryDate: z.string().optional(),
-});
+export const insertGoodsDeliverySchema = createInsertSchema(goodsDeliveries)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    scheduledDate: z.string().min(1, "Scheduled date is required"),
+    actualDeliveryDate: z.string().optional(),
+  });
 
 export type InsertGoodsDelivery = z.infer<typeof insertGoodsDeliverySchema>;
 export type GoodsDelivery = typeof goodsDeliveries.$inferSelect;
@@ -2652,11 +3374,15 @@ export const siteExecutionOrderStatuses = [
 ] as const;
 
 export const siteExecutionOrders = pgTable("site_execution_orders", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   orderNumber: text("order_number").notNull().unique(),
   customerId: varchar("customer_id").references(() => customers.id),
   vendorId: varchar("vendor_id").references(() => vendors.id),
-  purchaseOrderId: varchar("purchase_order_id").references(() => vendorPurchaseOrders.id),
+  purchaseOrderId: varchar("purchase_order_id").references(
+    () => vendorPurchaseOrders.id,
+  ),
   deliveryId: varchar("delivery_id").references(() => goodsDeliveries.id),
 
   // Customer & Site Info
@@ -2702,7 +3428,9 @@ export const siteExecutionOrders = pgTable("site_execution_orders", {
   specialInstructions: text("special_instructions"),
 
   // Safety & Compliance
-  safetyChecklistCompleted: boolean("safety_checklist_completed").default(false),
+  safetyChecklistCompleted: boolean("safety_checklist_completed").default(
+    false,
+  ),
   safetyNotes: text("safety_notes"),
   permitsRequired: text("permits_required").array(),
   permitsObtained: boolean("permits_obtained").default(false),
@@ -2736,141 +3464,171 @@ export const siteExecutionOrders = pgTable("site_execution_orders", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const siteExecutionOrdersRelations = relations(siteExecutionOrders, ({ one }) => ({
-  customer: one(customers, {
-    fields: [siteExecutionOrders.customerId],
-    references: [customers.id],
+export const siteExecutionOrdersRelations = relations(
+  siteExecutionOrders,
+  ({ one }) => ({
+    customer: one(customers, {
+      fields: [siteExecutionOrders.customerId],
+      references: [customers.id],
+    }),
+    vendor: one(vendors, {
+      fields: [siteExecutionOrders.vendorId],
+      references: [vendors.id],
+    }),
+    purchaseOrder: one(vendorPurchaseOrders, {
+      fields: [siteExecutionOrders.purchaseOrderId],
+      references: [vendorPurchaseOrders.id],
+    }),
+    delivery: one(goodsDeliveries, {
+      fields: [siteExecutionOrders.deliveryId],
+      references: [goodsDeliveries.id],
+    }),
   }),
-  vendor: one(vendors, {
-    fields: [siteExecutionOrders.vendorId],
-    references: [vendors.id],
-  }),
-  purchaseOrder: one(vendorPurchaseOrders, {
-    fields: [siteExecutionOrders.purchaseOrderId],
-    references: [vendorPurchaseOrders.id],
-  }),
-  delivery: one(goodsDeliveries, {
-    fields: [siteExecutionOrders.deliveryId],
-    references: [goodsDeliveries.id],
-  }),
-}));
+);
 
-export const insertSiteExecutionOrderSchema = createInsertSchema(siteExecutionOrders).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-  scheduledStartDate: z.string().min(1, "Scheduled start date is required"),
-  scheduledEndDate: z.string().optional(),
-  actualStartDate: z.string().optional(),
-  actualEndDate: z.string().optional(),
-  qualityCheckDate: z.string().optional(),
-  customerSignoffDate: z.string().optional(),
-});
+export const insertSiteExecutionOrderSchema = createInsertSchema(
+  siteExecutionOrders,
+)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    scheduledStartDate: z.string().min(1, "Scheduled start date is required"),
+    scheduledEndDate: z.string().optional(),
+    actualStartDate: z.string().optional(),
+    actualEndDate: z.string().optional(),
+    qualityCheckDate: z.string().optional(),
+    customerSignoffDate: z.string().optional(),
+  });
 
-export type InsertSiteExecutionOrder = z.infer<typeof insertSiteExecutionOrderSchema>;
+export type InsertSiteExecutionOrder = z.infer<
+  typeof insertSiteExecutionOrderSchema
+>;
 export type SiteExecutionOrder = typeof siteExecutionOrders.$inferSelect;
 
 // Step 8: Site Execution Completion Reports - Vendor uploads completion report with pictures
-export const siteExecutionCompletionReports = pgTable("site_execution_completion_reports", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  reportNumber: text("report_number").notNull().unique(),
-  executionOrderId: varchar("execution_order_id").references(() => siteExecutionOrders.id).notNull(),
-  vendorId: varchar("vendor_id").references(() => vendors.id),
+export const siteExecutionCompletionReports = pgTable(
+  "site_execution_completion_reports",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    reportNumber: text("report_number").notNull().unique(),
+    executionOrderId: varchar("execution_order_id")
+      .references(() => siteExecutionOrders.id)
+      .notNull(),
+    vendorId: varchar("vendor_id").references(() => vendors.id),
 
-  // Basic Info
-  customerName: text("customer_name").notNull(),
-  siteAddress: text("site_address").notNull(),
-  completionDate: timestamp("completion_date").notNull(),
+    // Basic Info
+    customerName: text("customer_name").notNull(),
+    siteAddress: text("site_address").notNull(),
+    completionDate: timestamp("completion_date").notNull(),
 
-  // Work Summary
-  workSummary: text("work_summary"),
-  scopeCompletedAs: text("scope_completed_as"), // as_planned, with_modifications, partial
-  deviationsNotes: text("deviations_notes"),
+    // Work Summary
+    workSummary: text("work_summary"),
+    scopeCompletedAs: text("scope_completed_as"), // as_planned, with_modifications, partial
+    deviationsNotes: text("deviations_notes"),
 
-  // Materials & Labor
-  materialsUsed: text("materials_used"),
-  extraMaterialsUsed: text("extra_materials_used"),
-  totalWorkHours: integer("total_work_hours"),
-  crewSize: integer("crew_size"),
+    // Materials & Labor
+    materialsUsed: text("materials_used"),
+    extraMaterialsUsed: text("extra_materials_used"),
+    totalWorkHours: integer("total_work_hours"),
+    crewSize: integer("crew_size"),
 
-  // Installation Details
-  panelsInstalled: integer("panels_installed"),
-  inverterInstalled: text("inverter_installed"),
-  wiringCompleted: boolean("wiring_completed").default(false),
-  earthingCompleted: boolean("earthing_completed").default(false),
-  meterConnected: boolean("meter_connected").default(false),
-  gridSyncCompleted: boolean("grid_sync_completed").default(false),
+    // Installation Details
+    panelsInstalled: integer("panels_installed"),
+    inverterInstalled: text("inverter_installed"),
+    wiringCompleted: boolean("wiring_completed").default(false),
+    earthingCompleted: boolean("earthing_completed").default(false),
+    meterConnected: boolean("meter_connected").default(false),
+    gridSyncCompleted: boolean("grid_sync_completed").default(false),
 
-  // Photo Uploads (URLs stored as array)
-  beforePhotos: text("before_photos").array(),
-  duringPhotos: text("during_photos").array(),
-  afterPhotos: text("after_photos").array(),
-  panelPhotos: text("panel_photos").array(),
-  inverterPhotos: text("inverter_photos").array(),
-  wiringPhotos: text("wiring_photos").array(),
-  meterPhotos: text("meter_photos").array(),
+    // Photo Uploads (URLs stored as array)
+    beforePhotos: text("before_photos").array(),
+    duringPhotos: text("during_photos").array(),
+    afterPhotos: text("after_photos").array(),
+    panelPhotos: text("panel_photos").array(),
+    inverterPhotos: text("inverter_photos").array(),
+    wiringPhotos: text("wiring_photos").array(),
+    meterPhotos: text("meter_photos").array(),
 
-  // Energy Readings
-  meterReading: text("meter_reading"),
-  generationTestPassed: boolean("generation_test_passed").default(false),
-  testReadingKw: text("test_reading_kw"),
+    // Energy Readings
+    meterReading: text("meter_reading"),
+    generationTestPassed: boolean("generation_test_passed").default(false),
+    testReadingKw: text("test_reading_kw"),
 
-  // Quality & Safety Checklist
-  qualityChecklistCompleted: boolean("quality_checklist_completed").default(false),
-  safetyChecklistCompleted: boolean("safety_checklist_completed").default(false),
-  cleanupCompleted: boolean("cleanup_completed").default(false),
-  customerBriefingDone: boolean("customer_briefing_done").default(false),
+    // Quality & Safety Checklist
+    qualityChecklistCompleted: boolean("quality_checklist_completed").default(
+      false,
+    ),
+    safetyChecklistCompleted: boolean("safety_checklist_completed").default(
+      false,
+    ),
+    cleanupCompleted: boolean("cleanup_completed").default(false),
+    customerBriefingDone: boolean("customer_briefing_done").default(false),
 
-  // Customer Acknowledgment
-  customerSignature: text("customer_signature"), // base64 or URL
-  customerName2: text("customer_name_signed"),
-  customerPhone: text("customer_phone"),
-  customerFeedback: text("customer_feedback"),
-  customerRating: integer("customer_rating"), // 1-5
+    // Customer Acknowledgment
+    customerSignature: text("customer_signature"), // base64 or URL
+    customerName2: text("customer_name_signed"),
+    customerPhone: text("customer_phone"),
+    customerFeedback: text("customer_feedback"),
+    customerRating: integer("customer_rating"), // 1-5
 
-  // Vendor Acknowledgment
-  vendorRepName: text("vendor_rep_name"),
-  vendorRepPhone: text("vendor_rep_phone"),
-  vendorSignature: text("vendor_signature"), // base64 or URL
+    // Vendor Acknowledgment
+    vendorRepName: text("vendor_rep_name"),
+    vendorRepPhone: text("vendor_rep_phone"),
+    vendorSignature: text("vendor_signature"), // base64 or URL
 
-  // Report Status & Review
-  status: text("status").default("draft"), // draft, submitted, under_review, approved, rejected
-  submittedAt: timestamp("submitted_at"),
-  reviewedAt: timestamp("reviewed_at"),
-  reviewedBy: varchar("reviewed_by"),
-  reviewNotes: text("review_notes"),
-  rejectionReason: text("rejection_reason"),
+    // Report Status & Review
+    status: text("status").default("draft"), // draft, submitted, under_review, approved, rejected
+    submittedAt: timestamp("submitted_at"),
+    reviewedAt: timestamp("reviewed_at"),
+    reviewedBy: varchar("reviewed_by"),
+    reviewNotes: text("review_notes"),
+    rejectionReason: text("rejection_reason"),
 
-  remarks: text("remarks"),
-  createdBy: varchar("created_by"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
+    remarks: text("remarks"),
+    createdBy: varchar("created_by"),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+);
 
-export const siteExecutionCompletionReportsRelations = relations(siteExecutionCompletionReports, ({ one }) => ({
-  executionOrder: one(siteExecutionOrders, {
-    fields: [siteExecutionCompletionReports.executionOrderId],
-    references: [siteExecutionOrders.id],
+export const siteExecutionCompletionReportsRelations = relations(
+  siteExecutionCompletionReports,
+  ({ one }) => ({
+    executionOrder: one(siteExecutionOrders, {
+      fields: [siteExecutionCompletionReports.executionOrderId],
+      references: [siteExecutionOrders.id],
+    }),
+    vendor: one(vendors, {
+      fields: [siteExecutionCompletionReports.vendorId],
+      references: [vendors.id],
+    }),
   }),
-  vendor: one(vendors, {
-    fields: [siteExecutionCompletionReports.vendorId],
-    references: [vendors.id],
-  }),
-}));
+);
 
-export const insertSiteExecutionCompletionReportSchema = createInsertSchema(siteExecutionCompletionReports).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-  completionDate: z.string().min(1, "Completion date is required"),
-  submittedAt: z.string().optional(),
-  reviewedAt: z.string().optional(),
-});
+export const insertSiteExecutionCompletionReportSchema = createInsertSchema(
+  siteExecutionCompletionReports,
+)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    completionDate: z.string().min(1, "Completion date is required"),
+    submittedAt: z.string().optional(),
+    reviewedAt: z.string().optional(),
+  });
 
-export type InsertSiteExecutionCompletionReport = z.infer<typeof insertSiteExecutionCompletionReportSchema>;
-export type SiteExecutionCompletionReport = typeof siteExecutionCompletionReports.$inferSelect;
+export type InsertSiteExecutionCompletionReport = z.infer<
+  typeof insertSiteExecutionCompletionReportSchema
+>;
+export type SiteExecutionCompletionReport =
+  typeof siteExecutionCompletionReports.$inferSelect;
 
 // ===== SERVICE REQUESTS & CUSTOMER TESTIMONIALS =====
 
@@ -2893,7 +3651,9 @@ export const serviceRequestStatuses = [
 
 // Service Requests - Customer can raise service/maintenance requests
 export const serviceRequests = pgTable("service_requests", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   requestNumber: text("request_number").notNull().unique(),
   customerId: varchar("customer_id").notNull(),
 
@@ -2937,43 +3697,50 @@ export const serviceRequests = pgTable("service_requests", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const serviceRequestsRelations = relations(serviceRequests, ({ one }) => ({
-  customer: one(customers, {
-    fields: [serviceRequests.customerId],
-    references: [customers.id],
+export const serviceRequestsRelations = relations(
+  serviceRequests,
+  ({ one }) => ({
+    customer: one(customers, {
+      fields: [serviceRequests.customerId],
+      references: [customers.id],
+    }),
+    assignedVendor: one(vendors, {
+      fields: [serviceRequests.assignedVendorId],
+      references: [vendors.id],
+    }),
   }),
-  assignedVendor: one(vendors, {
-    fields: [serviceRequests.assignedVendorId],
-    references: [vendors.id],
-  }),
-}));
+);
 
-export const insertServiceRequestSchema = createInsertSchema(serviceRequests).omit({
-  id: true,
-  requestNumber: true,
-  status: true,
-  assignedVendorId: true,
-  assignedAt: true,
-  assignedBy: true,
-  scheduledVisitDate: true,
-  actualVisitDate: true,
-  vendorNotes: true,
-  vendorSelfieWithCustomer: true,
-  resolutionNotes: true,
-  resolvedAt: true,
-  resolutionPhotos: true,
-  customerFeedbackRating: true,
-  customerFeedbackText: true,
-  feedbackSubmittedAt: true,
-  adminNotes: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-  issueType: z.enum(["electrical", "inverter", "power_generation", "other"]),
-  issueTitle: z.string().min(5, "Issue title must be at least 5 characters"),
-  issueDescription: z.string().min(20, "Please describe the issue in at least 20 characters"),
-  urgency: z.enum(["low", "normal", "high", "urgent"]).optional(),
-});
+export const insertServiceRequestSchema = createInsertSchema(serviceRequests)
+  .omit({
+    id: true,
+    requestNumber: true,
+    status: true,
+    assignedVendorId: true,
+    assignedAt: true,
+    assignedBy: true,
+    scheduledVisitDate: true,
+    actualVisitDate: true,
+    vendorNotes: true,
+    vendorSelfieWithCustomer: true,
+    resolutionNotes: true,
+    resolvedAt: true,
+    resolutionPhotos: true,
+    customerFeedbackRating: true,
+    customerFeedbackText: true,
+    feedbackSubmittedAt: true,
+    adminNotes: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    issueType: z.enum(["electrical", "inverter", "power_generation", "other"]),
+    issueTitle: z.string().min(5, "Issue title must be at least 5 characters"),
+    issueDescription: z
+      .string()
+      .min(20, "Please describe the issue in at least 20 characters"),
+    urgency: z.enum(["low", "normal", "high", "urgent"]).optional(),
+  });
 
 export const serviceRequestFeedbackSchema = z.object({
   customerFeedbackRating: z.number().min(1).max(5),
@@ -2985,7 +3752,9 @@ export type ServiceRequest = typeof serviceRequests.$inferSelect;
 
 // Customer Testimonials - Written testimonials and video testimonials
 export const customerTestimonials = pgTable("customer_testimonials", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   customerId: varchar("customer_id").notNull(),
 
   // Customer Info
@@ -3022,37 +3791,54 @@ export const customerTestimonials = pgTable("customer_testimonials", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const customerTestimonialsRelations = relations(customerTestimonials, ({ one }) => ({
-  customer: one(customers, {
-    fields: [customerTestimonials.customerId],
-    references: [customers.id],
+export const customerTestimonialsRelations = relations(
+  customerTestimonials,
+  ({ one }) => ({
+    customer: one(customers, {
+      fields: [customerTestimonials.customerId],
+      references: [customers.id],
+    }),
   }),
-}));
+);
 
-export const insertCustomerTestimonialSchema = createInsertSchema(customerTestimonials).omit({
-  id: true,
-  status: true,
-  approvedBy: true,
-  approvedAt: true,
-  sharedOnFacebook: true,
-  sharedOnInstagram: true,
-  facebookShareDate: true,
-  instagramShareDate: true,
-  isFeatured: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-  testimonialText: z.string().min(20, "Testimonial must be at least 20 characters").optional(),
-  rating: z.number().min(1).max(5).optional(),
-  videoDuration: z.number().max(60, "Video must be 60 seconds or less").optional(),
-});
+export const insertCustomerTestimonialSchema = createInsertSchema(
+  customerTestimonials,
+)
+  .omit({
+    id: true,
+    status: true,
+    approvedBy: true,
+    approvedAt: true,
+    sharedOnFacebook: true,
+    sharedOnInstagram: true,
+    facebookShareDate: true,
+    instagramShareDate: true,
+    isFeatured: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    testimonialText: z
+      .string()
+      .min(20, "Testimonial must be at least 20 characters")
+      .optional(),
+    rating: z.number().min(1).max(5).optional(),
+    videoDuration: z
+      .number()
+      .max(60, "Video must be 60 seconds or less")
+      .optional(),
+  });
 
-export type InsertCustomerTestimonial = z.infer<typeof insertCustomerTestimonialSchema>;
+export type InsertCustomerTestimonial = z.infer<
+  typeof insertCustomerTestimonialSchema
+>;
 export type CustomerTestimonial = typeof customerTestimonials.$inferSelect;
 
 // Proposal Leads - captures customer details when proposals are generated
 export const proposalLeads = pgTable("proposal_leads", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   customerName: text("customer_name").notNull(),
   phone: text("phone").notNull(),
   email: text("email"),
@@ -3090,7 +3876,9 @@ export type AdminSetting = typeof adminSettings.$inferSelect;
 
 // Solar Bot CRM Leads
 export const SolarBotLeads = pgTable("solar_bot_leads", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   phone: text("phone").notNull().unique(),
   name: text("name"),
   email: text("email"),
@@ -3109,7 +3897,7 @@ export const SolarBotLeads = pgTable("solar_bot_leads", {
   plantCapacity: text("plant_capacity"),
   proposalStatus: text("proposal_status"),
   status: text("status").notNull().default("New"),
-  currentStep: decimal("current_step").default('0'), // Use decimal for float steps like 1.1
+  currentStep: decimal("current_step").default("0"), // Use decimal for float steps like 1.1
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
