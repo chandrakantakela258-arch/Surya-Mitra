@@ -9928,5 +9928,44 @@ export async function registerRoutes(
     }
   });
 
+  // Emergency DB Sync Route (creates tables if missing in production)
+  app.post('/api/admin/sync-db', requireAuth, async (req, res) => {
+    try {
+      const { sql } = require('drizzle-orm');
+
+      // Force create the whatsapp_leads table
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS "whatsapp_leads" (
+          "id" varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+          "phone" text NOT NULL UNIQUE,
+          "name" text,
+          "email" text,
+          "language" text DEFAULT 'en',
+          "state" text,
+          "district" text,
+          "city" text,
+          "pincode" text,
+          "gps_location" text,
+          "electricity_board" text,
+          "consumer_number" text,
+          "meter_type" text,
+          "roof_space" text,
+          "business_type" text,
+          "monthly_billing" text,
+          "plant_capacity" text,
+          "proposal_status" text,
+          "status" text NOT NULL DEFAULT 'New',
+          "current_step" numeric DEFAULT '0',
+          "created_at" timestamp DEFAULT now(),
+          "updated_at" timestamp DEFAULT now()
+        );
+      `);
+      res.json({ success: true, message: "Database tables synced successfully!" });
+    } catch (err: any) {
+      console.error('[DB Sync Error]', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   return httpServer;
 }
