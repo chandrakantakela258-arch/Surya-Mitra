@@ -59,8 +59,7 @@ export default function AdminChatbotSettings() {
   const createMutation = useMutation({
     mutationFn: async (data: Partial<ChatbotNode>) => {
       const payload = { ...data, mediaType: data.mediaType === "none" ? null : data.mediaType };
-      const res = await apiRequest("POST", "/api/admin/chatbot-nodes", payload);
-      return res.json();
+      return await apiRequest("POST", "/api/admin/chatbot-nodes", payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/chatbot-nodes"] });
@@ -74,8 +73,7 @@ export default function AdminChatbotSettings() {
   const updateMutation = useMutation({
     mutationFn: async (data: Partial<ChatbotNode>) => {
       const payload = { ...data, mediaType: data.mediaType === "none" ? null : data.mediaType };
-      const res = await apiRequest("PUT", `/api/admin/chatbot-nodes/${data.id}`, payload);
-      return res.json();
+      return await apiRequest("PUT", `/api/admin/chatbot-nodes/${data.id}`, payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/chatbot-nodes"] });
