@@ -172,6 +172,39 @@ app.use((req, res, next) => {
       console.log("Continuing server startup - some features may not work");
     }
     
+    // Ensure solar_bot_leads table exists (for WhatsApp lead capture)
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "solar_bot_leads" (
+          "id" varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+          "phone" text NOT NULL UNIQUE,
+          "name" text,
+          "email" text,
+          "language" text DEFAULT 'en',
+          "state" text,
+          "district" text,
+          "city" text,
+          "pincode" text,
+          "gps_location" text,
+          "electricity_board" text,
+          "consumer_number" text,
+          "meter_type" text,
+          "roof_space" text,
+          "business_type" text,
+          "monthly_billing" text,
+          "plant_capacity" text,
+          "proposal_status" text,
+          "status" text NOT NULL DEFAULT 'New',
+          "current_step" decimal DEFAULT '0',
+          "created_at" timestamp DEFAULT now(),
+          "updated_at" timestamp DEFAULT now()
+        );
+      `);
+      console.log("solar_bot_leads table ready");
+    } catch (e) {
+      console.log("solar_bot_leads table check:", (e as any).message);
+    }
+
     // Seed admin user on startup
     console.log("Seeding admin user...");
     await seedAdminUser();
