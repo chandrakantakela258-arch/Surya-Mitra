@@ -48,13 +48,13 @@ export const customers = pgTable("customers", {
   district: text("district").notNull(),
   state: text("state").notNull(),
   pincode: text("pincode").notNull(),
-  
+
   // Electricity details
   electricityBoard: text("electricity_board"),
   consumerNumber: text("consumer_number"),
   sanctionedLoad: text("sanctioned_load"), // in kW
   avgMonthlyBill: integer("avg_monthly_bill"), // in INR
-  
+
   // Roof details
   roofType: text("roof_type"), // RCC, Tin, Tile, etc.
   roofArea: integer("roof_area"), // in sq ft
@@ -64,48 +64,48 @@ export const customers = pgTable("customers", {
   unitType: text("unit_type"), // Type of commercial/industrial unit (hospital, school, hotel, etc.)
   commercialUnitDescription: text("commercial_unit_description"), // Description for commercial units
   industrialUnitDescription: text("industrial_unit_description"), // Description for industrial units
-  
+
   // Application status
   status: text("status").notNull().default("pending"), // pending, verified, approved, installation_scheduled, completed
-  
+
   // Partner who registered this customer
   ddpId: varchar("ddp_id").notNull(),
-  
+
   // Unique Customer Code (DS + first 2 letters of BDP + first 3 letters of DDP + sequence)
   customerCode: text("customer_code").unique(),
-  
+
   // Identity Documents
   aadharNumber: text("aadhar_number"),
   panNumber: text("pan_number"),
-  
+
   // Documents
   documents: text("documents").array(),
-  
+
   // Customer Bank Details for Razorpay Payouts
   accountHolderName: text("account_holder_name"),
   accountNumber: text("account_number"),
   ifscCode: text("ifsc_code"),
   bankName: text("bank_name"),
   upiId: text("upi_id"),
-  
+
   // Location for map view
   latitude: text("latitude"),
   longitude: text("longitude"),
   installationDate: timestamp("installation_date"),
-  
+
   // Site Media (uploaded by DDP)
   sitePictures: text("site_pictures").array(), // 6 pictures from all angles
   siteVideo: text("site_video"), // 9:16 Instagram-style video URL (max 60 seconds)
-  
+
   // AI Lead Scoring
   leadScore: integer("lead_score"), // 0-100 score
   leadScoreDetails: text("lead_score_details"), // JSON with scoring breakdown
   leadScoreUpdatedAt: timestamp("lead_score_updated_at"),
-  
+
   // Customer Source and Referral Tracking
   source: text("source"), // website_direct, website_referral, partner (null means partner-added)
   referrerCustomerId: varchar("referrer_customer_id"), // For customer-to-customer referrals
-  
+
   // Customer Portal Access
   portalEnabled: boolean("portal_enabled").default(false), // Whether customer can access portal
   portalAccessCode: text("portal_access_code"), // UUID for unique portal link
@@ -114,11 +114,11 @@ export const customers = pgTable("customers", {
   otpCode: text("otp_code"), // Hashed OTP for password reset
   otpExpiry: timestamp("otp_expiry"), // OTP expiration time
   lastPortalLogin: timestamp("last_portal_login"),
-  
+
   // State Email Forwarding Tracking
   stateEmailSentAt: timestamp("state_email_sent_at"),
   stateEmailSentTo: text("state_email_sent_to"),
-  
+
   // Timestamps
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -1076,18 +1076,18 @@ export function calculateCommission(capacityKw: number, panelType: string = "dcr
     // All Non-DCR: Rs 2,000 per kW (DDP)
     return capacityKw * nonDcrPerKwRates.ddp;
   }
-  
+
   // DCR Panel logic
   const fixedSchedule = dcrFixedCommission[capacityKw];
   if (fixedSchedule) {
     return fixedSchedule.ddp;
   }
-  
+
   // DCR above 5kW: Rs 6,000 per kW
   if (capacityKw > 5 && capacityKw <= 10) {
     return capacityKw * dcrPerKwRates.ddp;
   }
-  
+
   return 0;
 }
 
@@ -1097,18 +1097,18 @@ export function calculateBdpCommission(capacityKw: number, panelType: string = "
     // All Non-DCR: Rs 1,000 per kW (BDP)
     return capacityKw * nonDcrPerKwRates.bdp;
   }
-  
+
   // DCR Panel logic
   const fixedSchedule = dcrFixedCommission[capacityKw];
   if (fixedSchedule) {
     return fixedSchedule.bdp;
   }
-  
+
   // DCR above 5kW: Rs 3,000 per kW
   if (capacityKw > 5 && capacityKw <= 10) {
     return capacityKw * dcrPerKwRates.bdp;
   }
-  
+
   return 0;
 }
 
@@ -1118,11 +1118,11 @@ export const commissionSchedule = dcrFixedCommission;
 // Site Installation Vendors - Register for solar installation work
 export const vendors = pgTable("vendors", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  
+
   // Vendor Type & Code
   vendorType: text("vendor_type").notNull().default("solar_installation"), // logistic, bank_loan_liaison, discom_net_metering, electrical, solar_installation
   vendorCode: text("vendor_code").unique(), // Auto-generated: LOG-001, BLN-001, DNM-001, ELC-001, SPI-001
-  
+
   // Personal Details
   name: text("name").notNull(),
   fatherName: text("father_name"),
@@ -1130,90 +1130,90 @@ export const vendors = pgTable("vendors", {
   phone: text("phone").notNull(),
   alternatePhone: text("alternate_phone"),
   email: text("email"),
-  
+
   // Company Details
   companyName: text("company_name"),
   companyType: text("company_type"), // proprietorship, partnership, pvt_ltd, llp
-  
+
   // Location
   state: text("state").notNull(), // Bihar, Jharkhand, Uttar Pradesh, Odisha
   district: text("district").notNull(),
   address: text("address").notNull(),
   pincode: text("pincode").notNull(),
-  
+
   // Services offered
   services: text("services").array(), // installation, maintenance, repair, inspection
-  
+
   // Experience Details
   experienceYears: text("experience_years"), // years of experience
   totalInstallations: integer("total_installations"), // number of installations completed
   previousCompanies: text("previous_companies"), // companies worked with before
   projectsCompleted: text("projects_completed"), // description of major projects
   specializations: text("specializations").array(), // rooftop, ground_mount, industrial, residential
-  
+
   // Team Details
   teamSize: integer("team_size"), // number of technicians
   supervisorCount: integer("supervisor_count"),
   helperCount: integer("helper_count"),
-  
+
   // Equipment & Tools
   equipmentOwned: text("equipment_owned").array(), // ladders, safety_gear, multimeter, crimping_tools, etc.
   hasTransportation: boolean("has_transportation").default(false),
   vehicleDetails: text("vehicle_details"),
-  
+
   // Certifications & Training
   certifications: text("certifications").array(), // mnre_certified, skill_india, manufacturer_trained
   trainingDetails: text("training_details"),
-  
+
   // Documents
   aadharNumber: text("aadhar_number"),
   panNumber: text("pan_number"),
   gstNumber: text("gst_number"),
-  
+
   // Bank Details for Payment
   bankAccountName: text("bank_account_name"),
   bankAccountNumber: text("bank_account_number"),
   bankIfsc: text("bank_ifsc"),
   bankName: text("bank_name"),
   upiId: text("upi_id"),
-  
+
   // Best Price Quotation (auto-populated to work orders when approved)
   bestPriceQuotation: text("best_price_quotation"), // Legacy: Rate/price offered by vendor for their services
   quotationUnit: text("quotation_unit"), // Legacy: per_kw, per_watt, per_trip, per_unit, lumpsum
   quotationDescription: text("quotation_description"), // Additional details about the quotation
-  
+
   // Vendor-type-specific quotation rates (in INR)
   // Logistic Vendor
   logisticRatePerKm: decimal("logistic_rate_per_km", { precision: 10, scale: 2 }), // Rate per KM for transportation
-  
+
   // Bank Loan Liaison
   bankLoanApprovalRate: decimal("bank_loan_approval_rate", { precision: 10, scale: 2 }), // Rate per loan approval
-  
+
   // Discom Net Metering Liaison
   gridConnectionRate: decimal("grid_connection_rate", { precision: 10, scale: 2 }), // Rate per grid connection
-  
+
   // Solar Panel Supplier (Material Supplier)
   solarPanelRatePerWatt: decimal("solar_panel_rate_per_watt", { precision: 10, scale: 4 }), // Rate per watt for panels
-  
+
   // Inverter Supplier
   ongridInverterRate: decimal("ongrid_inverter_rate", { precision: 10, scale: 2 }), // Rate per ongrid inverter unit
   hybridInverter3in1Rate: decimal("hybrid_inverter_3in1_rate", { precision: 10, scale: 2 }), // Rate per 3-in-1 hybrid inverter
-  
+
   // Electrical Supplier (ACDB/DCDB & Electrical)
   acdbRate: decimal("acdb_rate", { precision: 10, scale: 2 }), // Rate per ACDB unit
   dcdbRate: decimal("dcdb_rate", { precision: 10, scale: 2 }), // Rate per DCDB unit
   electricalWireRates: text("electrical_wire_rates"), // JSON: {"1.5mm": rate, "2.5mm": rate, "4mm": rate, "6mm": rate}
-  
+
   // Solar Mounting Supplier
   solarMountingRatePerWatt: decimal("solar_mounting_rate_per_watt", { precision: 10, scale: 4 }), // Rate per watt
-  
+
   // Site Erection/Installation
   siteErectionRatePerWatt: decimal("site_erection_rate_per_watt", { precision: 10, scale: 4 }), // Rate per watt for installation
-  
+
   // Status
   status: text("status").notNull().default("pending"), // pending, approved, rejected
   notes: text("notes"),
-  
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -1261,7 +1261,7 @@ export type InsertVendor = z.infer<typeof insertVendorSchema>;
 export type Vendor = typeof vendors.$inferSelect;
 
 // Vendor quotation configuration by vendor type
-export const vendorQuotationConfig: Record<string, { 
+export const vendorQuotationConfig: Record<string, {
   fields: Array<{ key: string; label: string; unit: string; placeholder: string }>;
   description: string;
 }> = {
@@ -1314,9 +1314,9 @@ export const vendorQuotationConfig: Record<string, {
 export function getVendorQuotationDisplay(vendor: Vendor): string {
   const config = vendorQuotationConfig[vendor.vendorType];
   if (!config) return vendor.bestPriceQuotation ? `₹${vendor.bestPriceQuotation} ${vendor.quotationUnit || ''}` : '-';
-  
+
   const parts: string[] = [];
-  
+
   for (const field of config.fields) {
     const value = vendor[field.key as keyof Vendor];
     if (value) {
@@ -1333,7 +1333,7 @@ export function getVendorQuotationDisplay(vendor: Vendor): string {
       }
     }
   }
-  
+
   return parts.length > 0 ? parts.join(' | ') : (vendor.bestPriceQuotation ? `₹${vendor.bestPriceQuotation} ${vendor.quotationUnit || ''}` : '-');
 }
 
@@ -1399,30 +1399,30 @@ export const customerVendorAssignments = pgTable("customer_vendor_assignments", 
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   customerId: varchar("customer_id").notNull().references(() => customers.id),
   vendorId: varchar("vendor_id").notNull().references(() => vendors.id),
-  
+
   // Job Role matching vendor type
   jobRole: text("job_role").notNull(), // vendor type value e.g., solar_panel_supplier, logistic, etc.
-  
+
   // Journey Stage
   journeyStage: text("journey_stage").notNull().default("installation"), // pre_installation, installation, post_installation
-  
+
   // Scheduling
   scheduledDate: timestamp("scheduled_date"),
   completedDate: timestamp("completed_date"),
-  
+
   // Status
   status: text("status").notNull().default("pending"), // pending, assigned, in_progress, completed, cancelled
-  
+
   // Fulfillment Details
   notes: text("notes"),
   amountQuoted: decimal("amount_quoted", { precision: 12, scale: 2 }),
   amountPaid: decimal("amount_paid", { precision: 12, scale: 2 }),
   invoiceNumber: text("invoice_number"),
-  
+
   // Assignment tracking
   assignedBy: varchar("assigned_by").references(() => users.id),
   assignedAt: timestamp("assigned_at").defaultNow(),
-  
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -1486,35 +1486,35 @@ export const siteInstallationRates = [
 // Vendor Payments - Track milestone-based vendor payments
 export const vendorPayments = pgTable("vendor_payments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  
+
   // References
   customerId: varchar("customer_id").notNull().references(() => customers.id),
   vendorId: varchar("vendor_id").notNull().references(() => vendors.id),
   assignmentId: varchar("assignment_id").references(() => customerVendorAssignments.id),
-  
+
   // Payment Details
   vendorType: text("vendor_type").notNull(), // bank_loan_liaison, discom_net_metering
   milestone: text("milestone").notNull(), // bank_disbursement, full_final_payment, discom_survey_completed, grid_connected
   amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
   description: text("description"),
-  
+
   // Status tracking
   status: text("status").notNull().default("pending"), // pending, ready_for_payout, processing, paid, cancelled
-  
+
   // Milestone completion tracking
   milestoneCompletedAt: timestamp("milestone_completed_at"),
   milestoneCompletedBy: varchar("milestone_completed_by").references(() => users.id),
-  
+
   // Payout tracking (Razorpay integration)
   payoutApprovedBy: varchar("payout_approved_by").references(() => users.id),
   payoutApprovedAt: timestamp("payout_approved_at"),
   razorpayPayoutId: text("razorpay_payout_id"),
   razorpayPayoutStatus: text("razorpay_payout_status"),
   paidAt: timestamp("paid_at"),
-  
+
   // Notes
   notes: text("notes"),
-  
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -1564,10 +1564,10 @@ export const siteExpenses = pgTable("site_expenses", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   customerId: varchar("customer_id").notNull(),
   siteId: text("site_id").notNull().unique(), // Auto-generated Site ID (e.g., DS-2024-0001)
-  
+
   // Customer Payment Received
   customerPaymentReceived: decimal("customer_payment_received", { precision: 12, scale: 2 }).default("0"),
-  
+
   // Installation Costs
   solarPanelsCost: decimal("solar_panels_cost", { precision: 12, scale: 2 }).default("0"),
   inverterCost: decimal("inverter_cost", { precision: 12, scale: 2 }).default("0"),
@@ -1579,28 +1579,28 @@ export const siteExpenses = pgTable("site_expenses", {
   logisticCost: decimal("logistic_cost", { precision: 12, scale: 2 }).default("0"),
   bankLoanApprovalCost: decimal("bank_loan_approval_cost", { precision: 12, scale: 2 }).default("0"),
   discomApprovalCost: decimal("discom_approval_cost", { precision: 12, scale: 2 }).default("0"),
-  
+
   // Commission Payments
   bdpCommission: decimal("bdp_commission", { precision: 12, scale: 2 }).default("0"),
   ddpCommission: decimal("ddp_commission", { precision: 12, scale: 2 }).default("0"),
   referralPayment: decimal("referral_payment", { precision: 12, scale: 2 }).default("0"),
   incentivePayment: decimal("incentive_payment", { precision: 12, scale: 2 }).default("0"),
-  
+
   // Other Expenses
   miscellaneousExpense: decimal("miscellaneous_expense", { precision: 12, scale: 2 }).default("0"),
   miscellaneousNotes: text("miscellaneous_notes"),
-  
+
   // Calculated Fields (stored for quick access)
   totalExpenses: decimal("total_expenses", { precision: 12, scale: 2 }).default("0"),
   profit: decimal("profit", { precision: 12, scale: 2 }).default("0"),
   profitMargin: decimal("profit_margin", { precision: 5, scale: 2 }).default("0"), // percentage
-  
+
   // Status
   status: text("status").notNull().default("pending"), // pending, approved, completed
   approvedBy: varchar("approved_by"),
   approvedAt: timestamp("approved_at"),
   notes: text("notes"),
-  
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -1649,19 +1649,19 @@ export const siteExpenseCategories = [
 export const bankLoanSubmissions = pgTable("bank_loan_submissions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   customerId: varchar("customer_id").notNull(),
-  
+
   // Bank Details
   bankName: text("bank_name").notNull(),
   bankBranch: text("bank_branch").notNull(),
   bankManagerName: text("bank_manager_name"),
   bankManagerMobile: text("bank_manager_mobile"),
-  
+
   // Submission Details
   submissionDate: timestamp("submission_date").notNull(),
   status: text("status").notNull().default("submitted"), // submitted, processing, approved, rejected, disbursed
   loanAmount: decimal("loan_amount", { precision: 12, scale: 2 }),
   remarks: text("remarks"),
-  
+
   // Tracking
   createdBy: varchar("created_by").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
@@ -1694,7 +1694,7 @@ export const siteSurveys = pgTable("site_surveys", {
   surveyNumber: text("survey_number").notNull().unique(),
   customerId: varchar("customer_id").references(() => customers.id).notNull(),
   loanSubmissionId: varchar("loan_submission_id").references(() => bankLoanSubmissions.id),
-  
+
   // Customer & Site Info
   customerName: text("customer_name").notNull(),
   customerPhone: text("customer_phone"),
@@ -1702,12 +1702,12 @@ export const siteSurveys = pgTable("site_surveys", {
   district: text("district"),
   state: text("state"),
   pincode: text("pincode"),
-  
+
   // Survey Scheduling
   scheduledDate: timestamp("scheduled_date").notNull(),
   actualDate: timestamp("actual_date"),
   surveyTime: text("survey_time"),
-  
+
   // Bank Staff Details
   bankName: text("bank_name"),
   bankBranch: text("bank_branch"),
@@ -1718,7 +1718,7 @@ export const siteSurveys = pgTable("site_surveys", {
   bankSurveyDate: timestamp("bank_survey_date"),
   bankSurveyNotes: text("bank_survey_notes"),
   bankApprovalStatus: text("bank_approval_status").default("pending"), // pending, approved, rejected
-  
+
   // Discom Representative Details
   discomName: text("discom_name"),
   discomDivision: text("discom_division"),
@@ -1729,7 +1729,7 @@ export const siteSurveys = pgTable("site_surveys", {
   discomSurveyDate: timestamp("discom_survey_date"),
   discomSurveyNotes: text("discom_survey_notes"),
   discomApprovalStatus: text("discom_approval_status").default("pending"), // pending, approved, rejected
-  
+
   // Site Assessment
   roofCondition: text("roof_condition"), // excellent, good, fair, poor
   roofType: text("roof_type"), // RCC, tin, tile, etc.
@@ -1737,26 +1737,26 @@ export const siteSurveys = pgTable("site_surveys", {
   shadowAnalysis: text("shadow_analysis"), // none, minimal, moderate, significant
   structuralFeasibility: text("structural_feasibility"), // feasible, needs_reinforcement, not_feasible
   electricalFeasibility: text("electrical_feasibility"), // feasible, needs_upgrade, not_feasible
-  
+
   // Meter & Connection Details
   existingMeterType: text("existing_meter_type"),
   meterLocation: text("meter_location"),
   sanctionedLoad: text("sanctioned_load"),
   proposedCapacity: text("proposed_capacity"),
   gridConnectionDistance: text("grid_connection_distance"),
-  
+
   // Photo Uploads
   roofPhotos: text("roof_photos").array(),
   meterPhotos: text("meter_photos").array(),
   sitePhotos: text("site_photos").array(),
-  
+
   // Survey Outcome
   status: text("status").default("scheduled"), // scheduled, in_progress, completed, cancelled
   overallRecommendation: text("overall_recommendation"), // approved, conditional, rejected
   recommendedCapacity: text("recommended_capacity"),
   specialConditions: text("special_conditions"),
   rejectionReason: text("rejection_reason"),
-  
+
   remarks: text("remarks"),
   createdBy: varchar("created_by"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -1794,7 +1794,7 @@ export const meterInstallationReports = pgTable("meter_installation_reports", {
   reportNumber: text("report_number").notNull().unique(),
   customerId: varchar("customer_id").references(() => customers.id).notNull(),
   completionReportId: varchar("completion_report_id").references(() => siteExecutionCompletionReports.id),
-  
+
   // Customer & Site Info
   customerName: text("customer_name").notNull(),
   customerPhone: text("customer_phone"),
@@ -1802,13 +1802,13 @@ export const meterInstallationReports = pgTable("meter_installation_reports", {
   district: text("district"),
   state: text("state"),
   pincode: text("pincode"),
-  
+
   // Installation Details
   installedCapacity: text("installed_capacity"), // kW
   panelType: text("panel_type"), // DCR, Non-DCR
   inverterType: text("inverter_type"), // On-grid, Hybrid 3-in-1
   numberOfPanels: integer("number_of_panels"),
-  
+
   // Meter Details
   oldMeterNumber: text("old_meter_number"),
   oldMeterReading: text("old_meter_reading"),
@@ -1820,7 +1820,7 @@ export const meterInstallationReports = pgTable("meter_installation_reports", {
   meterInstallationDate: timestamp("meter_installation_date"),
   initialMeterReading: text("initial_meter_reading"),
   ctRatio: text("ct_ratio"), // Current Transformer ratio if applicable
-  
+
   // Grid Connection Details
   discomName: text("discom_name"),
   discomDivision: text("discom_division"),
@@ -1830,13 +1830,13 @@ export const meterInstallationReports = pgTable("meter_installation_reports", {
   supplyVoltage: text("supply_voltage"), // 230V, 415V
   gridConnectionDate: timestamp("grid_connection_date"),
   synchronizationDate: timestamp("synchronization_date"),
-  
+
   // Discom Representative Details
   discomRepName: text("discom_rep_name"),
   discomRepDesignation: text("discom_rep_designation"),
   discomRepPhone: text("discom_rep_phone"),
   discomRepEmployeeId: text("discom_rep_employee_id"),
-  
+
   // Technical Parameters
   dcCapacity: text("dc_capacity"), // kWp
   acCapacity: text("ac_capacity"), // kW
@@ -1844,7 +1844,7 @@ export const meterInstallationReports = pgTable("meter_installation_reports", {
   tiltAngle: text("tilt_angle"), // degrees
   azimuthAngle: text("azimuth_angle"), // degrees
   arrayConfiguration: text("array_configuration"),
-  
+
   // Safety & Compliance
   earthingCompleted: boolean("earthing_completed").default(false),
   lightningArresterInstalled: boolean("lightning_arrester_installed").default(false),
@@ -1852,33 +1852,33 @@ export const meterInstallationReports = pgTable("meter_installation_reports", {
   dcdbInstalled: boolean("dcdb_installed").default(false),
   mcbRating: text("mcb_rating"),
   spdInstalled: boolean("spd_installed").default(false), // Surge Protection Device
-  
+
   // Testing Results
   gridSyncTestPassed: boolean("grid_sync_test_passed").default(false),
   antiIslandingTestPassed: boolean("anti_islanding_test_passed").default(false),
   powerQualityTestPassed: boolean("power_quality_test_passed").default(false),
   exportLimitSet: boolean("export_limit_set").default(false),
   exportLimitValue: text("export_limit_value"), // kW
-  
+
   // Documentation
   meterPhotos: text("meter_photos").array(), // URLs
   connectionPhotos: text("connection_photos").array(),
   testReportPhotos: text("test_report_photos").array(),
   discomCertificateUrl: text("discom_certificate_url"),
   netMeteringAgreementUrl: text("net_metering_agreement_url"),
-  
+
   // Status & Approval
   status: text("status").default("pending"), // pending, meter_installed, testing, grid_connected, completed, rejected
   discomApprovalStatus: text("discom_approval_status").default("pending"), // pending, approved, rejected
   discomApprovalDate: timestamp("discom_approval_date"),
   rejectionReason: text("rejection_reason"),
-  
+
   // Additional Info
   expectedGeneration: text("expected_generation"), // kWh/year
   warrantyPeriod: text("warranty_period"), // years
   maintenanceSchedule: text("maintenance_schedule"),
   remarks: text("remarks"),
-  
+
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -1904,7 +1904,7 @@ export const portalSubmissionReports = pgTable("portal_submission_reports", {
   reportNumber: text("report_number").notNull().unique(),
   customerId: varchar("customer_id").references(() => customers.id).notNull(),
   meterInstallationReportId: varchar("meter_installation_report_id").references(() => meterInstallationReports.id),
-  
+
   // Customer Info
   customerName: text("customer_name").notNull(),
   customerPhone: text("customer_phone"),
@@ -1913,26 +1913,26 @@ export const portalSubmissionReports = pgTable("portal_submission_reports", {
   district: text("district"),
   state: text("state"),
   pincode: text("pincode"),
-  
+
   // Portal Registration Details
   portalRegistrationId: text("portal_registration_id"), // PM Surya Ghar Portal ID
   portalApplicationNumber: text("portal_application_number"),
   discomName: text("discom_name"),
   consumerNumber: text("consumer_number"),
-  
+
   // System Details (from installation)
   installedCapacity: text("installed_capacity"), // in kW
   panelType: text("panel_type"), // DCR or Non-DCR
   inverterCapacity: text("inverter_capacity"),
   gridConnectionDate: timestamp("grid_connection_date"),
   netMeterNumber: text("net_meter_number"),
-  
+
   // Portal Submission Details
   submissionDate: timestamp("submission_date"),
   completionCertificateNumber: text("completion_certificate_number"),
   completionCertificateDate: timestamp("completion_certificate_date"),
   completionCertificateUrl: text("completion_certificate_url"),
-  
+
   // Documents Uploaded to Portal
   meterPhotoUrl: text("meter_photo_url"),
   installationPhotoUrl: text("installation_photo_url"),
@@ -1941,12 +1941,12 @@ export const portalSubmissionReports = pgTable("portal_submission_reports", {
   bankDetailsProofUrl: text("bank_details_proof_url"),
   aadharCardUrl: text("aadhar_card_url"),
   electricityBillUrl: text("electricity_bill_url"),
-  
+
   // Portal Acknowledgment
   portalAcknowledgmentNumber: text("portal_acknowledgment_number"),
   portalAcknowledgmentDate: timestamp("portal_acknowledgment_date"),
   portalAcknowledgmentUrl: text("portal_acknowledgment_url"),
-  
+
   // Subsidy Details
   subsidyScheme: text("subsidy_scheme").default("pm_surya_ghar"), // pm_surya_ghar, state_subsidy, combined
   centralSubsidyAmount: integer("central_subsidy_amount"), // Central govt subsidy in INR
@@ -1954,47 +1954,47 @@ export const portalSubmissionReports = pgTable("portal_submission_reports", {
   totalSubsidyClaimed: integer("total_subsidy_claimed"), // Total claimed
   subsidyApprovedAmount: integer("subsidy_approved_amount"), // After verification
   subsidyRejectionReason: text("subsidy_rejection_reason"),
-  
+
   // Bank Details for Subsidy Disbursement
   beneficiaryName: text("beneficiary_name"),
   beneficiaryAccountNumber: text("beneficiary_account_number"),
   beneficiaryIfsc: text("beneficiary_ifsc"),
   beneficiaryBankName: text("beneficiary_bank_name"),
-  
+
   // Disbursement Details
   disbursementStatus: text("disbursement_status").default("pending"), // pending, processing, disbursed, failed
   disbursementReferenceNumber: text("disbursement_reference_number"),
   disbursementDate: timestamp("disbursement_date"),
   disbursementAmount: integer("disbursement_amount"),
   disbursementRemarks: text("disbursement_remarks"),
-  
+
   // Verification Status
   documentVerificationStatus: text("document_verification_status").default("pending"), // pending, verified, rejected
   documentVerificationDate: timestamp("document_verification_date"),
   documentVerificationRemarks: text("document_verification_remarks"),
-  
+
   // Physical Verification (by DISCOM/Govt)
   physicalVerificationRequired: boolean("physical_verification_required").default(true),
   physicalVerificationDate: timestamp("physical_verification_date"),
   physicalVerificationOfficer: text("physical_verification_officer"),
   physicalVerificationStatus: text("physical_verification_status").default("pending"), // pending, scheduled, completed, failed
   physicalVerificationRemarks: text("physical_verification_remarks"),
-  
+
   // Status & Timeline
   status: text("status").default("pending"), // pending, submitted, under_review, docs_verified, physical_verified, approved, subsidy_disbursed, rejected
   expectedDisbursementDate: timestamp("expected_disbursement_date"),
   actualProcessingDays: integer("actual_processing_days"),
   rejectionReason: text("rejection_reason"),
-  
+
   // Follow-up & Communication
   lastFollowUpDate: timestamp("last_follow_up_date"),
   nextFollowUpDate: timestamp("next_follow_up_date"),
   followUpRemarks: text("follow_up_remarks"),
   portalHelplineTicket: text("portal_helpline_ticket"),
-  
+
   // Additional Info
   remarks: text("remarks"),
-  
+
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -2024,7 +2024,7 @@ export type PortalSubmissionReport = typeof portalSubmissionReports.$inferSelect
 export const remainingPaymentReports = pgTable("remaining_payment_reports", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   reportNumber: varchar("report_number").unique(),
-  
+
   // Customer Details
   customerId: varchar("customer_id").references(() => customers.id),
   customerName: text("customer_name").notNull(),
@@ -2034,33 +2034,33 @@ export const remainingPaymentReports = pgTable("remaining_payment_reports", {
   district: text("district"),
   state: text("state"),
   pincode: text("pincode"),
-  
+
   // Installation Details
   installedCapacity: text("installed_capacity"),
   panelType: text("panel_type"),
   consumerNumber: text("consumer_number"),
   discomName: text("discom_name"),
-  
+
   // Portal Reference
   portalSubmissionReportId: varchar("portal_submission_report_id").references(() => portalSubmissionReports.id),
   portalApplicationNumber: text("portal_application_number"),
   completionDate: timestamp("completion_date"),
   subsidyReceivedDate: timestamp("subsidy_received_date"),
   subsidyAmount: integer("subsidy_amount"),
-  
+
   // Total System Cost & Payment Breakdown
   totalSystemCost: integer("total_system_cost"),
   advancePaymentReceived: integer("advance_payment_received"),
   advancePaymentDate: timestamp("advance_payment_date"),
   subsidyAdjusted: integer("subsidy_adjusted"),
   remainingPaymentAmount: integer("remaining_payment_amount"),
-  
+
   // Remaining Payment Details
   remainingPaymentDueDate: timestamp("remaining_payment_due_date"),
   paymentReminderSent: boolean("payment_reminder_sent").default(false),
   reminderSentDate: timestamp("reminder_sent_date"),
   reminderCount: integer("reminder_count").default(0),
-  
+
   // Payment Collection
   paymentMode: text("payment_mode"), // cash, upi, neft, rtgs, cheque, razorpay
   paymentReferenceNumber: text("payment_reference_number"),
@@ -2068,32 +2068,32 @@ export const remainingPaymentReports = pgTable("remaining_payment_reports", {
   paymentReceivedAmount: integer("payment_received_amount"),
   paymentReceiptNumber: text("payment_receipt_number"),
   paymentReceiptUrl: text("payment_receipt_url"),
-  
+
   // Partial Payments (if applicable)
   isPartialPayment: boolean("is_partial_payment").default(false),
   partialPayments: text("partial_payments"), // JSON array of partial payment records
   totalReceivedTillDate: integer("total_received_till_date"),
   balanceAmount: integer("balance_amount"),
-  
+
   // Status & Follow-up
   status: text("status").default("pending"), // pending, reminder_sent, partially_paid, paid, overdue, waived
   daysOverdue: integer("days_overdue").default(0),
   lastFollowUpDate: timestamp("last_follow_up_date"),
   nextFollowUpDate: timestamp("next_follow_up_date"),
   followUpRemarks: text("follow_up_remarks"),
-  
+
   // Commission Impact
   commissionHeld: boolean("commission_held").default(true),
   commissionReleaseDate: timestamp("commission_release_date"),
   ddpCommissionAmount: integer("ddp_commission_amount"),
   bdpCommissionAmount: integer("bdp_commission_amount"),
-  
+
   // Additional Info
   customerFeedback: text("customer_feedback"),
   escalationRequired: boolean("escalation_required").default(false),
   escalationReason: text("escalation_reason"),
   remarks: text("remarks"),
-  
+
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -2122,7 +2122,7 @@ export type RemainingPaymentReport = typeof remainingPaymentReports.$inferSelect
 export const subsidyApplicationReports = pgTable("subsidy_application_reports", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   reportNumber: varchar("report_number").unique(),
-  
+
   // Customer Details
   customerId: varchar("customer_id").references(() => customers.id),
   customerName: text("customer_name").notNull(),
@@ -2132,13 +2132,13 @@ export const subsidyApplicationReports = pgTable("subsidy_application_reports", 
   district: text("district"),
   state: text("state"),
   pincode: text("pincode"),
-  
+
   // Installation Details
   installedCapacity: text("installed_capacity"),
   panelType: text("panel_type"),
   consumerNumber: text("consumer_number"),
   discomName: text("discom_name"),
-  
+
   // Portal Details
   portalRegistrationId: text("portal_registration_id"),
   portalApplicationNumber: text("portal_application_number"),
@@ -2146,21 +2146,21 @@ export const subsidyApplicationReports = pgTable("subsidy_application_reports", 
   completionCertificateDate: timestamp("completion_certificate_date"),
   netMeterNumber: text("net_meter_number"),
   gridConnectionDate: timestamp("grid_connection_date"),
-  
+
   // Subsidy Application Details
   applicationDate: timestamp("application_date"),
   subsidyScheme: text("subsidy_scheme").default("pm_surya_ghar"), // pm_surya_ghar, state_subsidy, combined
   centralSubsidyAmount: integer("central_subsidy_amount"),
   stateSubsidyAmount: integer("state_subsidy_amount"),
   totalSubsidyApplied: integer("total_subsidy_applied"),
-  
+
   // Beneficiary Bank Details
   beneficiaryName: text("beneficiary_name"),
   beneficiaryAccountNumber: text("beneficiary_account_number"),
   beneficiaryIfsc: text("beneficiary_ifsc"),
   beneficiaryBankName: text("beneficiary_bank_name"),
   beneficiaryBankBranch: text("beneficiary_bank_branch"),
-  
+
   // Document Uploads
   completionCertificateUrl: text("completion_certificate_url"),
   netMeteringAgreementUrl: text("net_metering_agreement_url"),
@@ -2168,14 +2168,14 @@ export const subsidyApplicationReports = pgTable("subsidy_application_reports", 
   aadharCardUrl: text("aadhar_card_url"),
   electricityBillUrl: text("electricity_bill_url"),
   installationPhotosUrl: text("installation_photos_url"),
-  
+
   // Application Status
   applicationAcknowledgmentNumber: text("application_acknowledgment_number"),
   applicationAcknowledgmentDate: timestamp("application_acknowledgment_date"),
   documentVerificationStatus: text("document_verification_status").default("pending"), // pending, verified, rejected
   documentVerificationDate: timestamp("document_verification_date"),
   documentVerificationRemarks: text("document_verification_remarks"),
-  
+
   // Status & Follow-up
   status: text("status").default("pending"), // pending, submitted, under_review, docs_verified, approved, rejected
   rejectionReason: text("rejection_reason"),
@@ -2184,7 +2184,7 @@ export const subsidyApplicationReports = pgTable("subsidy_application_reports", 
   followUpRemarks: text("follow_up_remarks"),
   portalHelplineTicket: text("portal_helpline_ticket"),
   remarks: text("remarks"),
-  
+
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -2211,7 +2211,7 @@ export type SubsidyApplicationReport = typeof subsidyApplicationReports.$inferSe
 export const subsidyDisbursementReports = pgTable("subsidy_disbursement_reports", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   reportNumber: varchar("report_number").unique(),
-  
+
   // Customer Details
   customerId: varchar("customer_id").references(() => customers.id),
   customerName: text("customer_name").notNull(),
@@ -2221,48 +2221,48 @@ export const subsidyDisbursementReports = pgTable("subsidy_disbursement_reports"
   district: text("district"),
   state: text("state"),
   pincode: text("pincode"),
-  
+
   // Installation Details
   installedCapacity: text("installed_capacity"),
   panelType: text("panel_type"),
   consumerNumber: text("consumer_number"),
-  
+
   // Reference to Subsidy Application
   subsidyApplicationReportId: varchar("subsidy_application_report_id").references(() => subsidyApplicationReports.id),
   portalApplicationNumber: text("portal_application_number"),
   subsidyScheme: text("subsidy_scheme"),
-  
+
   // Approved Amounts
   centralSubsidyApproved: integer("central_subsidy_approved"),
   stateSubsidyApproved: integer("state_subsidy_approved"),
   totalSubsidyApproved: integer("total_subsidy_approved"),
-  
+
   // Disbursement Details
   disbursementStatus: text("disbursement_status").default("pending"), // pending, processing, partial, completed, failed
   disbursementReferenceNumber: text("disbursement_reference_number"),
   disbursementDate: timestamp("disbursement_date"),
   disbursementAmount: integer("disbursement_amount"),
   disbursementMode: text("disbursement_mode"), // neft, rtgs, dbt
-  
+
   // Beneficiary Bank Details (where subsidy was received)
   beneficiaryName: text("beneficiary_name"),
   beneficiaryAccountNumber: text("beneficiary_account_number"),
   beneficiaryIfsc: text("beneficiary_ifsc"),
   beneficiaryBankName: text("beneficiary_bank_name"),
-  
+
   // Verification
   disbursementVerified: boolean("disbursement_verified").default(false),
   verificationDate: timestamp("verification_date"),
   verificationRemarks: text("verification_remarks"),
   bankStatementUrl: text("bank_statement_url"),
-  
+
   // Commission Release (50% of remaining commission released after subsidy)
   commissionReleaseTriggered: boolean("commission_release_triggered").default(false),
   commissionReleaseDate: timestamp("commission_release_date"),
   ddpCommissionReleased: integer("ddp_commission_released"),
   bdpCommissionReleased: integer("bdp_commission_released"),
   cpCommissionReleased: integer("cp_commission_released"),
-  
+
   // Status & Follow-up
   status: text("status").default("pending"), // pending, processing, disbursed, verified, completed
   expectedDisbursementDate: timestamp("expected_disbursement_date"),
@@ -2271,7 +2271,7 @@ export const subsidyDisbursementReports = pgTable("subsidy_disbursement_reports"
   nextFollowUpDate: timestamp("next_follow_up_date"),
   followUpRemarks: text("follow_up_remarks"),
   remarks: text("remarks"),
-  
+
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -2471,41 +2471,41 @@ export const vendorPurchaseOrders = pgTable("vendor_purchase_orders", {
   customerId: varchar("customer_id").references(() => customers.id),
   vendorId: varchar("vendor_id").references(() => vendors.id),
   loanDisbursementId: varchar("loan_disbursement_id").references(() => loanDisbursements.id),
-  
+
   // Order Details
   poNumber: text("po_number").notNull(), // Purchase Order Number
   customerName: text("customer_name").notNull(),
   vendorName: text("vendor_name").notNull(),
   orderDate: timestamp("order_date").notNull(),
   expectedDeliveryDate: timestamp("expected_delivery_date"),
-  
+
   // Product Details
   panelType: text("panel_type"), // DCR, Non-DCR
   panelCapacity: text("panel_capacity"), // 3kW, 5kW, etc.
   inverterType: text("inverter_type"), // On-grid, Hybrid 3-in-1
   quantity: integer("quantity").default(1),
-  
+
   // Order Amount
   orderAmount: decimal("order_amount", { precision: 12, scale: 2 }).notNull(),
   gstAmount: decimal("gst_amount", { precision: 12, scale: 2 }),
   totalAmount: decimal("total_amount", { precision: 12, scale: 2 }).notNull(),
-  
+
   // Payment Details
   advanceAmount: decimal("advance_amount", { precision: 12, scale: 2 }),
   advanceDate: timestamp("advance_date"),
   advanceReference: text("advance_reference"), // UTR/NEFT/RTGS reference
-  
+
   balanceAmount: decimal("balance_amount", { precision: 12, scale: 2 }),
   balancePaidDate: timestamp("balance_paid_date"),
   balanceReference: text("balance_reference"),
-  
+
   paymentStatus: text("payment_status").default("pending"), // pending, partial, paid, refunded
   orderStatus: text("order_status").default("draft"), // draft, sent, acknowledged, in_progress, delivered, completed, cancelled
-  
+
   // Delivery Details
   deliveryDate: timestamp("delivery_date"),
   deliveryNotes: text("delivery_notes"),
-  
+
   remarks: text("remarks"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -2561,7 +2561,7 @@ export const goodsDeliveries = pgTable("goods_deliveries", {
   customerId: varchar("customer_id").references(() => customers.id),
   purchaseOrderId: varchar("purchase_order_id").references(() => vendorPurchaseOrders.id),
   vendorId: varchar("vendor_id").references(() => vendors.id),
-  
+
   // Customer & Delivery Info
   customerName: text("customer_name").notNull(),
   customerPhone: text("customer_phone"),
@@ -2569,48 +2569,48 @@ export const goodsDeliveries = pgTable("goods_deliveries", {
   district: text("district"),
   state: text("state"),
   pincode: text("pincode"),
-  
+
   // Scheduling
   scheduledDate: timestamp("scheduled_date").notNull(),
   scheduledTimeSlot: text("scheduled_time_slot"), // Morning, Afternoon, Evening
   actualDeliveryDate: timestamp("actual_delivery_date"),
-  
+
   // Delivery Details
   status: text("status").default("scheduled"), // scheduled, in_transit, delivered, partially_delivered, failed, rescheduled
   deliveredBy: text("delivered_by"), // Delivery person name
   vehicleNumber: text("vehicle_number"),
   vehicleType: text("vehicle_type"), // Truck, Tempo, etc.
-  
+
   // Product Details
   panelType: text("panel_type"),
   panelCapacity: text("panel_capacity"),
   inverterType: text("inverter_type"),
   quantityOrdered: integer("quantity_ordered").default(1),
   quantityDelivered: integer("quantity_delivered"),
-  
+
   // Logistics Pricing
   logisticRate: decimal("logistic_rate", { precision: 10, scale: 2 }).default("20"), // Rs per kW (default Rs 20)
   deliveryDistanceKm: decimal("delivery_distance_km", { precision: 10, scale: 2 }), // One-way distance in km
-  
+
   // Proof of Delivery
   receiverName: text("receiver_name"),
   receiverPhone: text("receiver_phone"),
   receiverSignature: text("receiver_signature"), // URL or base64
   deliveryPhotos: text("delivery_photos").array(), // Array of photo URLs
-  
+
   // Site Verification
   siteVerificationBefore: text("site_verification_before").array(), // Photos before unloading
   siteVerificationAfter: text("site_verification_after").array(), // Photos after delivery
   verificationNotes: text("verification_notes"),
-  
+
   // Linked PO Details
   poNumber: text("po_number"),
   vendorName: text("vendor_name"),
-  
+
   remarks: text("remarks"),
   failureReason: text("failure_reason"), // If status is failed
   rescheduleReason: text("reschedule_reason"), // If rescheduled
-  
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -2659,7 +2659,7 @@ export const siteExecutionOrders = pgTable("site_execution_orders", {
   vendorId: varchar("vendor_id").references(() => vendors.id),
   purchaseOrderId: varchar("purchase_order_id").references(() => vendorPurchaseOrders.id),
   deliveryId: varchar("delivery_id").references(() => goodsDeliveries.id),
-  
+
   // Customer & Site Info
   customerName: text("customer_name").notNull(),
   customerPhone: text("customer_phone"),
@@ -2667,25 +2667,25 @@ export const siteExecutionOrders = pgTable("site_execution_orders", {
   district: text("district"),
   state: text("state"),
   pincode: text("pincode"),
-  
+
   // Vendor Info
   vendorName: text("vendor_name"),
   vendorContactPerson: text("vendor_contact_person"),
   vendorPhone: text("vendor_phone"),
-  
+
   // Scheduling
   scheduledStartDate: timestamp("scheduled_start_date").notNull(),
   scheduledEndDate: timestamp("scheduled_end_date"),
   actualStartDate: timestamp("actual_start_date"),
   actualEndDate: timestamp("actual_end_date"),
   estimatedDuration: integer("estimated_duration"), // in hours
-  
+
   // Crew Assignment
   crewLeadName: text("crew_lead_name"),
   crewLeadPhone: text("crew_lead_phone"),
   crewSize: integer("crew_size"),
   crewMembers: text("crew_members").array(),
-  
+
   // Scope of Work
   scopeOfWork: text("scope_of_work"),
   workDescription: text("work_description"),
@@ -2693,32 +2693,32 @@ export const siteExecutionOrders = pgTable("site_execution_orders", {
   panelCapacity: text("panel_capacity"),
   inverterType: text("inverter_type"),
   numberOfPanels: integer("number_of_panels"),
-  
+
   // Site Installation Rate (Rs per watt - for erection + electrical work)
   siteInstallationRate: text("site_installation_rate").default("2.5"), // Rs 2.5-3 per watt
-  
+
   // Required Resources
   requiredMaterials: text("required_materials").array(),
   requiredTools: text("required_tools").array(),
   specialInstructions: text("special_instructions"),
-  
+
   // Safety & Compliance
   safetyChecklistCompleted: boolean("safety_checklist_completed").default(false),
   safetyNotes: text("safety_notes"),
   permitsRequired: text("permits_required").array(),
   permitsObtained: boolean("permits_obtained").default(false),
-  
+
   // Status & Progress
   status: text("status").default("draft"), // draft, assigned, in_progress, completed, on_hold, cancelled
   progressPercentage: integer("progress_percentage").default(0),
   progressNotes: text("progress_notes"),
-  
+
   // Quality Checks
   qualityCheckCompleted: boolean("quality_check_completed").default(false),
   qualityCheckNotes: text("quality_check_notes"),
   qualityCheckDate: timestamp("quality_check_date"),
   qualityCheckedBy: text("quality_checked_by"),
-  
+
   // Completion
   completionCertificate: text("completion_certificate"), // URL
   completionPhotos: text("completion_photos").array(),
@@ -2726,11 +2726,11 @@ export const siteExecutionOrders = pgTable("site_execution_orders", {
   customerSignoffDate: timestamp("customer_signoff_date"),
   customerFeedback: text("customer_feedback"),
   customerRating: integer("customer_rating"), // 1-5
-  
+
   // Hold/Cancel Reasons
   holdReason: text("hold_reason"),
   cancelReason: text("cancel_reason"),
-  
+
   remarks: text("remarks"),
   createdBy: varchar("created_by"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -2778,23 +2778,23 @@ export const siteExecutionCompletionReports = pgTable("site_execution_completion
   reportNumber: text("report_number").notNull().unique(),
   executionOrderId: varchar("execution_order_id").references(() => siteExecutionOrders.id).notNull(),
   vendorId: varchar("vendor_id").references(() => vendors.id),
-  
+
   // Basic Info
   customerName: text("customer_name").notNull(),
   siteAddress: text("site_address").notNull(),
   completionDate: timestamp("completion_date").notNull(),
-  
+
   // Work Summary
   workSummary: text("work_summary"),
   scopeCompletedAs: text("scope_completed_as"), // as_planned, with_modifications, partial
   deviationsNotes: text("deviations_notes"),
-  
+
   // Materials & Labor
   materialsUsed: text("materials_used"),
   extraMaterialsUsed: text("extra_materials_used"),
   totalWorkHours: integer("total_work_hours"),
   crewSize: integer("crew_size"),
-  
+
   // Installation Details
   panelsInstalled: integer("panels_installed"),
   inverterInstalled: text("inverter_installed"),
@@ -2802,7 +2802,7 @@ export const siteExecutionCompletionReports = pgTable("site_execution_completion
   earthingCompleted: boolean("earthing_completed").default(false),
   meterConnected: boolean("meter_connected").default(false),
   gridSyncCompleted: boolean("grid_sync_completed").default(false),
-  
+
   // Photo Uploads (URLs stored as array)
   beforePhotos: text("before_photos").array(),
   duringPhotos: text("during_photos").array(),
@@ -2811,30 +2811,30 @@ export const siteExecutionCompletionReports = pgTable("site_execution_completion
   inverterPhotos: text("inverter_photos").array(),
   wiringPhotos: text("wiring_photos").array(),
   meterPhotos: text("meter_photos").array(),
-  
+
   // Energy Readings
   meterReading: text("meter_reading"),
   generationTestPassed: boolean("generation_test_passed").default(false),
   testReadingKw: text("test_reading_kw"),
-  
+
   // Quality & Safety Checklist
   qualityChecklistCompleted: boolean("quality_checklist_completed").default(false),
   safetyChecklistCompleted: boolean("safety_checklist_completed").default(false),
   cleanupCompleted: boolean("cleanup_completed").default(false),
   customerBriefingDone: boolean("customer_briefing_done").default(false),
-  
+
   // Customer Acknowledgment
   customerSignature: text("customer_signature"), // base64 or URL
   customerName2: text("customer_name_signed"),
   customerPhone: text("customer_phone"),
   customerFeedback: text("customer_feedback"),
   customerRating: integer("customer_rating"), // 1-5
-  
+
   // Vendor Acknowledgment
   vendorRepName: text("vendor_rep_name"),
   vendorRepPhone: text("vendor_rep_phone"),
   vendorSignature: text("vendor_signature"), // base64 or URL
-  
+
   // Report Status & Review
   status: text("status").default("draft"), // draft, submitted, under_review, approved, rejected
   submittedAt: timestamp("submitted_at"),
@@ -2842,7 +2842,7 @@ export const siteExecutionCompletionReports = pgTable("site_execution_completion
   reviewedBy: varchar("reviewed_by"),
   reviewNotes: text("review_notes"),
   rejectionReason: text("rejection_reason"),
-  
+
   remarks: text("remarks"),
   createdBy: varchar("created_by"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -2897,43 +2897,43 @@ export const serviceRequests = pgTable("service_requests", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   requestNumber: text("request_number").notNull().unique(),
   customerId: varchar("customer_id").notNull(),
-  
+
   // Issue Details
   issueType: text("issue_type").notNull(), // electrical, inverter, power_generation, other
   issueTitle: text("issue_title").notNull(),
   issueDescription: text("issue_description").notNull(),
   urgency: text("urgency").default("normal"), // low, normal, high, urgent
-  
+
   // Customer Contact
   customerName: text("customer_name").notNull(),
   customerPhone: text("customer_phone").notNull(),
   customerAddress: text("customer_address").notNull(),
-  
+
   // Status & Assignment
   status: text("status").notNull().default("pending"), // pending, assigned, in_progress, resolved, closed
   assignedVendorId: varchar("assigned_vendor_id"),
   assignedAt: timestamp("assigned_at"),
   assignedBy: varchar("assigned_by"),
-  
+
   // Vendor Visit Details
   scheduledVisitDate: timestamp("scheduled_visit_date"),
   actualVisitDate: timestamp("actual_visit_date"),
   vendorNotes: text("vendor_notes"),
   vendorSelfieWithCustomer: text("vendor_selfie_with_customer"), // URL to selfie
-  
+
   // Resolution Details
   resolutionNotes: text("resolution_notes"),
   resolvedAt: timestamp("resolved_at"),
   resolutionPhotos: text("resolution_photos").array(),
-  
+
   // Customer Feedback on Resolution
   customerFeedbackRating: integer("customer_feedback_rating"), // 1-5 stars
   customerFeedbackText: text("customer_feedback_text"),
   feedbackSubmittedAt: timestamp("feedback_submitted_at"),
-  
+
   // Admin Notes
   adminNotes: text("admin_notes"),
-  
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -2988,37 +2988,37 @@ export type ServiceRequest = typeof serviceRequests.$inferSelect;
 export const customerTestimonials = pgTable("customer_testimonials", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   customerId: varchar("customer_id").notNull(),
-  
+
   // Customer Info
   customerName: text("customer_name").notNull(),
   customerDistrict: text("customer_district"),
   customerState: text("customer_state"),
   installedCapacity: text("installed_capacity"), // kW
-  
+
   // Written Testimonial
   testimonialText: text("testimonial_text"),
   rating: integer("rating"), // 1-5 stars
-  
+
   // Video Testimonial (60 seconds Instagram-style)
   videoUrl: text("video_url"),
   videoThumbnail: text("video_thumbnail"),
   videoDuration: integer("video_duration"), // in seconds, max 60
-  
+
   // Solar Plant Photos
   plantPhotos: text("plant_photos").array(),
-  
+
   // Social Sharing
   sharedOnFacebook: boolean("shared_on_facebook").default(false),
   sharedOnInstagram: boolean("shared_on_instagram").default(false),
   facebookShareDate: timestamp("facebook_share_date"),
   instagramShareDate: timestamp("instagram_share_date"),
-  
+
   // Status & Approval
   status: text("status").notNull().default("pending"), // pending, approved, rejected, featured
   approvedBy: varchar("approved_by"),
   approvedAt: timestamp("approved_at"),
   isFeatured: boolean("is_featured").default(false),
-  
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -3089,8 +3089,8 @@ export const adminSettings = pgTable("admin_settings", {
 
 export type AdminSetting = typeof adminSettings.$inferSelect;
 
-// WhatsApp Chatbot CRM Leads
-export const whatsappLeads = pgTable("whatsapp_leads", {
+// Solar Bot CRM Leads
+export const whatsappLeads = pgTable("solar_bot_leads", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   phone: text("phone").notNull().unique(),
   name: text("name"),
