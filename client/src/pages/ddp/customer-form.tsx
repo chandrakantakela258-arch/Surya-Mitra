@@ -2,7 +2,7 @@ import { useState, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation } from "wouter";
-import { Loader2, ArrowLeft, Sun, IndianRupee, TrendingDown, Zap, BatteryCharging, CreditCard, FileText, Upload, X, File, MapPin, Navigation } from "lucide-react";
+import { Loader2, ArrowLeft, Sun, IndianRupee, TrendingDown, Zap, BatteryCharging, CreditCard, FileText, Upload, X, File, MapPin, Navigation, Camera } from "lucide-react";
 import { customerFormSchema, indianStates, roofTypes, panelTypes } from "@shared/schema";
 
 // Unit types for commercial and industrial installations
@@ -16,6 +16,7 @@ const commercialUnitTypes = [
   { value: "restaurant", label: "Restaurant / Cafe" },
   { value: "bank", label: "Bank / Financial Institution" },
   { value: "petrol_pump", label: "Petrol Pump" },
+  { value: "bike_car_tractor", label: "Bike / Car / Tractor Agency" },
   { value: "other_commercial", label: "Other Commercial" },
 ] as const;
 
@@ -24,6 +25,9 @@ const industrialUnitTypes = [
   { value: "rice_mill", label: "Rice Mill" },
   { value: "oil_mill", label: "Oil Mill" },
   { value: "dal_mill", label: "Dal / Pulse Mill" },
+  { value: "chura_mill", label: "Chura Mill" },
+  { value: "masala_mill", label: "Masala Mill" },
+  { value: "ro_plant", label: "RO Plant" },
   { value: "cold_storage", label: "Cold Storage" },
   { value: "warehouse", label: "Warehouse / Godown" },
   { value: "factory", label: "Factory / Manufacturing Plant" },
@@ -48,18 +52,18 @@ import { Switch } from "@/components/ui/switch";
 
 type CustomerFormValues = z.infer<typeof customerFormSchema>;
 
-function SubsidyEstimateCard({ capacity, panelType, customerType = "residential" }: { 
+function SubsidyEstimateCard({ capacity, panelType, customerType = "residential", state = "" }: { 
   capacity: string | null | undefined; 
   panelType: string;
   customerType?: string;
+  state?: string;
 }) {
   const capacityNum = parseFloat(capacity || "0") || 0;
   const isNonDcr = panelType === "non_dcr";
   const customerTypeLabel = customerType === "commercial" ? "Commercial" : customerType === "industrial" ? "Industrial" : "Residential";
   const electricityRate = customerType === "industrial" ? 9 : customerType === "commercial" ? 8 : 7;
   
-  // Calculate subsidy result to get subsidyEligible flag
-  const result = calculateSubsidy(capacityNum, "", panelType, "hybrid", customerType as "residential" | "commercial" | "industrial");
+  const result = calculateSubsidy(capacityNum, state, panelType, "hybrid", customerType as "residential" | "commercial" | "industrial");
   
   if (capacityNum <= 0) {
     return (
@@ -357,6 +361,7 @@ export default function CustomerForm() {
       roofType: "",
       roofArea: undefined,
       panelType: "dcr",
+      inverterType: "hybrid",
       proposedCapacity: "",
       customerType: "residential",
       status: "pending",
@@ -1025,6 +1030,33 @@ export default function CustomerForm() {
 
                 <FormField
                   control={form.control}
+                  name="inverterType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Inverter Type</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || "hybrid"}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-inverter-type">
+                            <SelectValue placeholder="Select inverter type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="hybrid">3-in-1 Hybrid Inverter</SelectItem>
+                          <SelectItem value="ongrid">Ongrid Inverter</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        {(field.value || "hybrid") === "hybrid" 
+                          ? "3-in-1 Hybrid works during power cuts & supports battery" 
+                          : "Ongrid inverter — grid-tied only, no battery support"}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
                   name="proposedCapacity"
                   render={({ field }) => {
                     const panelType = form.watch("panelType") || "dcr";
@@ -1039,7 +1071,7 @@ export default function CustomerForm() {
                       ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
                       : isCommercial 
                         ? [3, 5, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100, 150, 200, 250, 300, 400, 500]
-                        : [5, 10, 15, 20, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
+                        : [3, 5, 10, 15, 20, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
                     
                     const [useCustom, setUseCustom] = useState(false);
                     
@@ -1065,7 +1097,7 @@ export default function CustomerForm() {
                                 data-testid="input-custom-capacity"
                                 value={field.value || ""}
                                 onChange={(e) => field.onChange(e.target.value)}
-                                min={isResidential ? 1 : isCommercial ? 3 : 5}
+                                min={isResidential ? 1 : 3}
                                 max={isResidential ? 10 : isCommercial ? 500 : 1000}
                               />
                             </FormControl>
@@ -1093,7 +1125,7 @@ export default function CustomerForm() {
                               : "Residential: 1-10 kW at Rs 55,000/kW")
                             : isCommercial
                               ? "Commercial: 3-500 kW (no subsidy)"
-                              : "Industrial: 5-1000 kW (no subsidy)"}
+                              : "Industrial: 3-1000 kW (no subsidy)"}
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -1109,6 +1141,7 @@ export default function CustomerForm() {
             capacity={form.watch("proposedCapacity")} 
             panelType={form.watch("panelType") || "dcr"} 
             customerType={form.watch("customerType") || "residential"}
+            state={form.watch("state") || ""}
           />
 
           {/* Bank Account Details */}

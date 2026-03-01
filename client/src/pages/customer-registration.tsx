@@ -132,8 +132,15 @@ function formatINR(amount: number): string {
   }).format(amount);
 }
 
-function calculateSubsidy(capacityKw: number, panelType: string, customerType: string = "residential") {
+const registrationStateSubsidies: Record<string, { ratePerKw: number; maxSubsidy: number; label: string }> = {
+  "Odisha": { ratePerKw: 20000, maxSubsidy: 60000, label: "Odisha State Subsidy" },
+  "Uttar Pradesh": { ratePerKw: 10000, maxSubsidy: 30000, label: "UP State Subsidy" },
+  "Chhattisgarh": { ratePerKw: 10000, maxSubsidy: 30000, label: "Chhattisgarh State Subsidy" },
+};
+
+function calculateSubsidy(capacityKw: number, panelType: string, customerType: string = "residential", state: string = "") {
   let centralSubsidy = 0;
+  let stateSubsidy = 0;
   let totalCost = 0;
   
   if (panelType === "dcr_hybrid") {
@@ -159,18 +166,27 @@ function calculateSubsidy(capacityKw: number, panelType: string, customerType: s
     totalCost = capacityKw * ratePerKw;
     centralSubsidy = 0;
   }
-  
-  const netCost = Math.max(0, totalCost - centralSubsidy);
+
+  const isSubsidyEligible = customerType === "residential" && panelType !== "non_dcr";
+  if (isSubsidyEligible && state && registrationStateSubsidies[state]) {
+    const stateInfo = registrationStateSubsidies[state];
+    const calculated = Math.min(capacityKw, 3) * stateInfo.ratePerKw;
+    stateSubsidy = Math.min(calculated, stateInfo.maxSubsidy);
+  }
+
+  const totalSubsidy = centralSubsidy + stateSubsidy;
+  const netCost = Math.max(0, totalCost - totalSubsidy);
   const dailyGeneration = capacityKw * 4;
   const monthlyGeneration = dailyGeneration * 30;
   const electricityRate = customerType === "industrial" ? 9 : customerType === "commercial" ? 8 : 7;
   const monthlySavings = monthlyGeneration * electricityRate;
   const annualSavings = monthlySavings * 12;
+  const stateSubsidyLabel = state && registrationStateSubsidies[state] ? registrationStateSubsidies[state].label : "";
   
-  return { centralSubsidy, totalCost, netCost, dailyGeneration, monthlyGeneration, monthlySavings, annualSavings };
+  return { centralSubsidy, stateSubsidy, stateSubsidyLabel, totalSubsidy, totalCost, netCost, dailyGeneration, monthlyGeneration, monthlySavings, annualSavings };
 }
 
-function SubsidyPreview({ capacity, panelType, customerType = "residential" }: { capacity: string; panelType: string; customerType?: string }) {
+function SubsidyPreview({ capacity, panelType, customerType = "residential", state = "" }: { capacity: string; panelType: string; customerType?: string; state?: string }) {
   const capacityNum = parseFloat(capacity || "0") || 0;
   const isNonDcr = panelType === "non_dcr";
   
@@ -178,7 +194,7 @@ function SubsidyPreview({ capacity, panelType, customerType = "residential" }: {
     return null;
   }
   
-  const result = calculateSubsidy(capacityNum, panelType, customerType);
+  const result = calculateSubsidy(capacityNum, panelType, customerType, state);
   const ratePerWatt = isNonDcr ? ((customerType === "commercial" || customerType === "industrial") ? 45 : 55) : (panelType === "dcr_hybrid" ? 75 : 66);
   
   return (
@@ -190,17 +206,25 @@ function SubsidyPreview({ capacity, panelType, customerType = "residential" }: {
             <p className="text-lg font-bold">{formatINR(result.totalCost)}</p>
             <p className="text-xs text-muted-foreground">Rs {ratePerWatt}/Watt</p>
           </div>
-          {!isNonDcr && (
+          {!isNonDcr && customerType === "residential" && (
             <div className="p-2 bg-green-100 dark:bg-green-900/50 rounded-lg">
-              <p className="text-sm text-green-600 dark:text-green-400">Subsidy</p>
+              <p className="text-sm text-green-600 dark:text-green-400">Central Subsidy</p>
               <p className="text-lg font-bold text-green-600 dark:text-green-400">
                 - {formatINR(result.centralSubsidy)}
               </p>
             </div>
           )}
+          {result.stateSubsidy > 0 && (
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
+              <p className="text-sm text-blue-600 dark:text-blue-400">{result.stateSubsidyLabel || "State Subsidy"}</p>
+              <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                - {formatINR(result.stateSubsidy)}
+              </p>
+            </div>
+          )}
           <div className="p-2 bg-background rounded-lg">
             <p className="text-sm text-muted-foreground">You Pay</p>
-            <p className="text-lg font-bold text-primary">{formatINR(isNonDcr ? result.totalCost : result.netCost)}</p>
+            <p className="text-lg font-bold text-primary">{formatINR(result.netCost)}</p>
           </div>
           <div className="p-2 bg-background rounded-lg">
             <p className="text-sm text-muted-foreground">Monthly Savings</p>
@@ -300,6 +324,7 @@ export default function CustomerRegistration() {
   const watchCapacity = form.watch("proposedCapacity");
   const watchPanelType = form.watch("panelType");
   const watchCustomerType = form.watch("customerType");
+  const watchState = form.watch("state");
 
   async function onSubmit(data: PublicCustomerFormValues) {
     setIsSubmitting(true);
@@ -997,7 +1022,7 @@ export default function CustomerRegistration() {
                 />
                 
                 {watchCapacity && watchPanelType && (
-                  <SubsidyPreview capacity={watchCapacity} panelType={watchPanelType} customerType={watchCustomerType || "residential"} />
+                  <SubsidyPreview capacity={watchCapacity} panelType={watchPanelType} customerType={watchCustomerType || "residential"} state={watchState || ""} />
                 )}
               </CardContent>
             </Card>

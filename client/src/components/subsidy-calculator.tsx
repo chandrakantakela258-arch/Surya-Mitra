@@ -39,6 +39,7 @@ const loadImageAsBase64 = (imageSrc: string): Promise<string> => {
 const stateSubsidies: Record<string, { ratePerKw: number; maxSubsidy: number; label: string }> = {
   "Odisha": { ratePerKw: 20000, maxSubsidy: 60000, label: "Odisha State Subsidy" },
   "Uttar Pradesh": { ratePerKw: 10000, maxSubsidy: 30000, label: "UP State Subsidy" },
+  "Chhattisgarh": { ratePerKw: 10000, maxSubsidy: 30000, label: "Chhattisgarh State Subsidy" },
 };
 
 // Customer types with capacity limits

@@ -72,6 +72,7 @@ export const customers = pgTable("customers", {
   roofType: text("roof_type"), // RCC, Tin, Tile, etc.
   roofArea: integer("roof_area"), // in sq ft
   panelType: text("panel_type").default("dcr"), // dcr or non_dcr
+  inverterType: text("inverter_type").default("hybrid"), // hybrid (3-in-1), ongrid
   proposedCapacity: text("proposed_capacity"), // in kW
   customerType: text("customer_type").default("residential"), // residential, commercial, industrial
   unitType: text("unit_type"), // Type of commercial/industrial unit (hospital, school, hotel, etc.)
@@ -961,6 +962,7 @@ export const customerFormSchema = insertCustomerSchema
     panelType: z.enum(["dcr", "non_dcr"], {
       required_error: "Panel type is required",
     }),
+    inverterType: z.enum(["hybrid", "ongrid"]).default("hybrid"),
     proposedCapacity: z.string().min(1, "Proposed capacity is required"),
     // Customer Type
     customerType: z
