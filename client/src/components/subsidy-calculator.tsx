@@ -1455,6 +1455,25 @@ export function SubsidyCalculator({
     }
   }, [result, selectedEmiTenure]);
   
+  useEffect(() => {
+    if (inverterType === "hybrid") {
+      if (![3, 5, 6].includes(capacity)) {
+        setCapacity(3);
+        setCustomCapacity("3");
+      }
+    } else if (panelType === "non_dcr" && inverterType === "ongrid") {
+      if (capacity < 8) {
+        setCapacity(8);
+        setCustomCapacity("8");
+      }
+    } else if (panelType === "dcr" && inverterType === "ongrid") {
+      if (capacity < 3) {
+        setCapacity(3);
+        setCustomCapacity("3");
+      }
+    }
+  }, [panelType, inverterType]);
+
   // Capacity options based on customer type, panel type, and inverter type
   const capacityOptions = useMemo(() => {
     if (inverterType === "hybrid") {

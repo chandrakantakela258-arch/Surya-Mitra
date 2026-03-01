@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link as WouterLink, useLocation } from "wouter";
@@ -330,6 +330,26 @@ export default function CustomerRegistration() {
   const watchInverterType = form.watch("inverterType");
   const watchCustomerType = form.watch("customerType");
   const watchState = form.watch("state");
+
+  useEffect(() => {
+    const currentCapacity = parseFloat(form.getValues("proposedCapacity") || "0");
+    const pType = form.getValues("panelType");
+    const iType = form.getValues("inverterType");
+    
+    if (iType === "hybrid") {
+      if (![3, 5, 6].includes(currentCapacity)) {
+        form.setValue("proposedCapacity", "3");
+      }
+    } else if (pType === "non_dcr" && iType === "ongrid") {
+      if (currentCapacity < 8) {
+        form.setValue("proposedCapacity", "8");
+      }
+    } else if (pType === "dcr" && iType === "ongrid") {
+      if (currentCapacity < 3) {
+        form.setValue("proposedCapacity", "3");
+      }
+    }
+  }, [watchPanelType, watchInverterType]);
 
   async function onSubmit(data: PublicCustomerFormValues) {
     setIsSubmitting(true);
