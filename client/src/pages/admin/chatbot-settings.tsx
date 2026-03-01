@@ -11,7 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Bot, Plus, Pencil, Trash2, Video, FileText, Image, Eye, EyeOff, Copy, ClipboardPaste, ExternalLink, Link, ChevronUp, ChevronDown, ArrowUpDown } from "lucide-react";
+import { Bot, Plus, Pencil, Trash2, Video, FileText, Image, Eye, EyeOff, Copy, ClipboardPaste, ExternalLink, Link, ChevronUp, ChevronDown, ArrowUpDown, GitBranch } from "lucide-react";
+
+interface BranchRule {
+  match: string;
+  goToStep: string;
+}
 
 interface ChatbotNode {
   id: string;
@@ -28,6 +33,7 @@ interface ChatbotNode {
   savesField: string | null;
   sortOrder: number;
   isActive: boolean;
+  nextStepRules: BranchRule[] | null;
 }
 
 const INPUT_TYPES = [
@@ -143,6 +149,7 @@ export default function AdminChatbotSettings() {
       savesField: "",
       sortOrder: maxSort,
       isActive: true,
+      nextStepRules: null,
     });
     setIsDialogOpen(true);
   };
@@ -155,6 +162,7 @@ export default function AdminChatbotSettings() {
       mediaUrl: node.mediaUrl || "",
       mediaTitle: node.mediaTitle || "",
       savesField: node.savesField || "",
+      nextStepRules: node.nextStepRules || null,
     });
     setIsDialogOpen(true);
   };
@@ -335,6 +343,16 @@ export default function AdminChatbotSettings() {
                         </a>
                       </div>
                     )}
+                    {node.nextStepRules && node.nextStepRules.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        <GitBranch size={10} className="text-purple-500 mt-0.5" />
+                        {node.nextStepRules.map((rule, ri) => (
+                          <Badge key={ri} variant="outline" className="text-[10px] px-1 py-0 border-purple-300 text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950">
+                            "{rule.match}" → Step {rule.goToStep}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                     {node.savesField && (
                       <p className="text-[10px] text-muted-foreground mt-1">Saves to: <code className="bg-muted px-1 rounded">{node.savesField}</code></p>
                     )}
@@ -471,6 +489,57 @@ export default function AdminChatbotSettings() {
                     </p>
                   </div>
                 )}
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                  <GitBranch size={16} className="text-purple-500" /> Branching Rules
+                </h4>
+                <p className="text-[10px] text-muted-foreground mb-3">When user selects a specific answer, jump to a different step instead of the default next one. Leave empty for sequential flow.</p>
+                {(editNode.nextStepRules || []).map((rule, ri) => (
+                  <div key={ri} className="flex items-center gap-2 mb-2">
+                    <div className="flex-1">
+                      <Input
+                        value={rule.match}
+                        onChange={e => {
+                          const rules = [...(editNode.nextStepRules || [])];
+                          rules[ri] = { ...rules[ri], match: e.target.value };
+                          setEditNode({ ...editNode, nextStepRules: rules });
+                        }}
+                        placeholder="If answer contains..."
+                        className="text-xs h-8"
+                        data-testid={`input-rule-match-${ri}`}
+                      />
+                    </div>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">→ Go to Step</span>
+                    <div className="w-24">
+                      <Input
+                        value={rule.goToStep}
+                        onChange={e => {
+                          const rules = [...(editNode.nextStepRules || [])];
+                          rules[ri] = { ...rules[ri], goToStep: e.target.value };
+                          setEditNode({ ...editNode, nextStepRules: rules });
+                        }}
+                        placeholder="Step ID"
+                        className="text-xs h-8"
+                        data-testid={`input-rule-goto-${ri}`}
+                      />
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => {
+                      const rules = [...(editNode.nextStepRules || [])];
+                      rules.splice(ri, 1);
+                      setEditNode({ ...editNode, nextStepRules: rules.length > 0 ? rules : null });
+                    }} data-testid={`button-remove-rule-${ri}`}>
+                      <Trash2 size={12} />
+                    </Button>
+                  </div>
+                ))}
+                <Button variant="outline" size="sm" className="text-xs" onClick={() => {
+                  const rules = [...(editNode.nextStepRules || []), { match: "", goToStep: "" }];
+                  setEditNode({ ...editNode, nextStepRules: rules });
+                }} data-testid="button-add-rule">
+                  <Plus size={12} className="mr-1" /> Add Branching Rule
+                </Button>
               </div>
 
               <div className="flex items-center gap-2 border-t pt-4">

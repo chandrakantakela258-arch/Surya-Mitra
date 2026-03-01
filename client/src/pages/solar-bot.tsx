@@ -13,6 +13,11 @@ interface Msg {
   mediaTitle?: string | null;
 }
 
+interface BranchRule {
+  match: string;
+  goToStep: string;
+}
+
 interface NodeConfig {
   stepId: string;
   labelEn: string;
@@ -26,6 +31,7 @@ interface NodeConfig {
   mediaTitle: string | null;
   savesField: string | null;
   sortOrder: number;
+  nextStepRules: BranchRule[] | null;
 }
 
 const SESSION_ID = Math.random().toString(36).substring(2, 15);
@@ -140,6 +146,29 @@ export default function SolarBotPage() {
     return nodeConfigs.find((n) => n.stepId === stepId);
   };
 
+  const getNextStepByRules = (currentStepId: string, userReply: string): string | null => {
+    const node = getNodeConfig(currentStepId);
+    if (!node?.nextStepRules || node.nextStepRules.length === 0) return null;
+    for (const rule of node.nextStepRules) {
+      if (rule.match && rule.goToStep) {
+        if (userReply.toLowerCase().includes(rule.match.toLowerCase())) {
+          return rule.goToStep;
+        }
+      }
+    }
+    return null;
+  };
+
+  const getDefaultNextStep = (currentStepId: string): string | null => {
+    const currentNode = getNodeConfig(currentStepId);
+    if (!currentNode) return null;
+    const currentOrder = currentNode.sortOrder;
+    const nextNode = nodeConfigs
+      .filter(n => n.sortOrder > currentOrder)
+      .sort((a, b) => a.sortOrder - b.sortOrder)[0];
+    return nextNode ? nextNode.stepId : null;
+  };
+
   const addBotMessage = (text: string, buttons?: string[], options?: string[], isLocation?: boolean, mediaType?: string | null, mediaUrl?: string | null, mediaTitle?: string | null) => {
     setMessages((prev) => [...prev, { id: Date.now().toString(), sender: "bot", text, buttons, options, isLocation, mediaType, mediaUrl, mediaTitle }]);
   };
@@ -162,105 +191,62 @@ export default function SolarBotPage() {
   const handleNextStep = (userReply: string) => {
     addUserMessage(userReply);
     setTimeout(() => {
+      const stepStr = step.toString();
+      const currentNode = getNodeConfig(stepStr);
+
+      if (currentNode?.savesField) {
+        saveLead({ [currentNode.savesField]: userReply });
+      }
+
+      if (step === 0) {
+        const newLang = userReply === "\u0939\u093F\u0928\u094D\u0926\u0940" ? "hi" : "en";
+        setLang(newLang);
+        saveLead({ language: newLang });
+      }
+      if (step === 2) setSelectedState(userReply);
+      if (step === 2.1) setSelectedDistrict(userReply);
+
+      const ruleNext = getNextStepByRules(stepStr, userReply);
+      if (ruleNext) {
+        setStep(parseFloat(ruleNext));
+        return;
+      }
+
       switch (step) {
-        case 0: {
-          const newLang = userReply === "\u0939\u093F\u0928\u094D\u0926\u0940" ? "hi" : "en";
-          setLang(newLang);
-          saveLead({ language: newLang });
-          setStep(1);
+        case 0: setStep(1); break;
+        case 1: setStep(1.1); break;
+        case 1.1: setStep(1.2); break;
+        case 1.2: setStep(2); break;
+        case 2: setStep(2.1); break;
+        case 2.1: setStep(2.2); break;
+        case 2.2: setStep(2.3); break;
+        case 2.3: setStep(2.4); break;
+        case 2.4: setStep(3); break;
+        case 3: setStep(3.1); break;
+        case 3.1: setStep(4); break;
+        case 4:
+          if (userReply === "Residential") setStep(4.5);
+          else setStep(6);
+          break;
+        case 4.5: setStep(8); break;
+        case 6: setStep(7); break;
+        case 7:
+          if (userReply.toLowerCase().includes("bike") || userReply.toLowerCase().includes("showroom")) setStep(7.5);
+          else setStep(7.1);
+          break;
+        case 7.5: setStep(8); break;
+        case 7.1: setStep(7.2); break;
+        case 7.2: setStep(8); break;
+        case 8:
+          if (userReply === t("Interested", "\u0930\u0941\u091A\u093F \u0939\u0948") || userReply === "Interested") setStep(9);
+          else { saveLead({ status: "Closed" }); setStep(10); }
+          break;
+        case 9: setStep(10); break;
+        default: {
+          const nextStep = getDefaultNextStep(stepStr);
+          if (nextStep) setStep(parseFloat(nextStep));
           break;
         }
-        case 1:
-          saveLead({ name: userReply });
-          setStep(1.1);
-          break;
-        case 1.1:
-          saveLead({ mobileNumber: userReply });
-          setStep(1.2);
-          break;
-        case 1.2:
-          saveLead({ email: userReply });
-          setStep(2);
-          break;
-        case 2:
-          saveLead({ state: userReply });
-          setSelectedState(userReply);
-          setStep(2.1);
-          break;
-        case 2.1:
-          saveLead({ district: userReply });
-          setSelectedDistrict(userReply);
-          setStep(2.2);
-          break;
-        case 2.2:
-          saveLead({ city: userReply });
-          setStep(2.3);
-          break;
-        case 2.3:
-          saveLead({ pincode: userReply });
-          setStep(2.4);
-          break;
-        case 2.4:
-          saveLead({ gpsLocation: userReply });
-          setStep(3);
-          break;
-        case 3:
-          saveLead({ electricityBoard: userReply });
-          setStep(3.1);
-          break;
-        case 3.1:
-          saveLead({ consumerNumber: userReply });
-          setStep(4);
-          break;
-        case 4:
-          saveLead({ meterType: userReply });
-          if (userReply === "Residential") {
-            setStep(4.5);
-          } else {
-            setStep(6);
-          }
-          break;
-        case 4.5:
-          saveLead({ plantCapacity: userReply });
-          setStep(8);
-          break;
-        case 6:
-          saveLead({ roofSpace: userReply });
-          setStep(7);
-          break;
-        case 7:
-          saveLead({ businessType: userReply });
-          if (userReply.toLowerCase().includes("bike") || userReply.toLowerCase().includes("showroom")) {
-            setStep(7.5);
-          } else {
-            setStep(7.1);
-          }
-          break;
-        case 7.5:
-          saveLead({ plantCapacity: userReply });
-          setStep(8);
-          break;
-        case 7.1:
-          saveLead({ monthlyBilling: userReply });
-          setStep(7.2);
-          break;
-        case 7.2:
-          saveLead({ plantCapacity: userReply });
-          setStep(8);
-          break;
-        case 8:
-          saveLead({ proposalStatus: userReply });
-          if (userReply === t("Interested", "\u0930\u0941\u091A\u093F \u0939\u0948") || userReply === "Interested") {
-            setStep(9);
-          } else {
-            saveLead({ status: "Closed" });
-            setStep(10);
-          }
-          break;
-        case 9:
-          saveLead({ status: userReply });
-          setStep(10);
-          break;
       }
     }, 600);
   };

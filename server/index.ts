@@ -225,6 +225,7 @@ app.use((req, res, next) => {
           "updated_at" TIMESTAMP DEFAULT now()
         );
       `);
+      await pool.query(`ALTER TABLE "chatbot_nodes" ADD COLUMN IF NOT EXISTS "next_step_rules" JSONB`).catch(() => {});
       console.log("chatbot_nodes table ready");
 
       const nodeCount = await pool.query(`SELECT COUNT(*) as cnt FROM chatbot_nodes`);

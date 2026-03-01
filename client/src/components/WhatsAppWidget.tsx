@@ -32,6 +32,11 @@ interface Msg {
   mediaTitle?: string | null;
 }
 
+interface BranchRule {
+  match: string;
+  goToStep: string;
+}
+
 interface NodeConfig {
   stepId: string;
   messageEn: string;
@@ -43,6 +48,8 @@ interface NodeConfig {
   mediaTitle: string | null;
   savesField: string | null;
   isActive: boolean;
+  sortOrder: number;
+  nextStepRules: BranchRule[] | null;
 }
 
 const SESSION_ID = Math.random().toString(36).substring(2, 15);
@@ -136,6 +143,29 @@ export function WhatsAppWidget() {
     return { mediaType: node?.mediaType, mediaUrl: node?.mediaUrl, mediaTitle: node?.mediaTitle };
   };
 
+  const getNextStepByRules = (currentStepId: string, userReply: string): string | null => {
+    const node = getNode(currentStepId);
+    if (!node?.nextStepRules || node.nextStepRules.length === 0) return null;
+    for (const rule of node.nextStepRules) {
+      if (rule.match && rule.goToStep) {
+        if (userReply.toLowerCase().includes(rule.match.toLowerCase())) {
+          return rule.goToStep;
+        }
+      }
+    }
+    return null;
+  };
+
+  const getDefaultNextStep = (currentStepId: string): string | null => {
+    const currentNode = getNode(currentStepId);
+    if (!currentNode) return null;
+    const currentOrder = currentNode.sortOrder;
+    const nextNode = nodeConfigs
+      .filter(n => n.sortOrder > currentOrder)
+      .sort((a, b) => a.sortOrder - b.sortOrder)[0];
+    return nextNode ? nextNode.stepId : null;
+  };
+
   const whatsappLink = `https://wa.me/${botNumber}?text=Hi`;
   const shareLink = `${window.location.origin}/solar-bot`;
 
@@ -156,89 +186,64 @@ export function WhatsAppWidget() {
   const handleNextStep = (userReply: string) => {
     addUserMessage(userReply);
     setTimeout(() => {
+      const stepStr = step.toString();
+      const currentNode = getNode(stepStr);
+
+      if (currentNode?.savesField) {
+        saveLead({ [currentNode.savesField]: userReply });
+      }
+
+      if (step === 0) {
+        const newLang = userReply === '\u0939\u093F\u0928\u094D\u0926\u0940' ? 'hi' : 'en';
+        setLang(newLang);
+        saveLead({ language: newLang });
+      }
+      if (step === 2) setSelectedState(userReply);
+      if (step === 2.1) setSelectedDistrict(userReply);
+      if (step === 4) setMeterType(userReply);
+      if (step === 7) setBusinessType(userReply);
+
+      const ruleNext = getNextStepByRules(stepStr, userReply);
+      if (ruleNext) {
+        setStep(parseFloat(ruleNext));
+        return;
+      }
+
       switch (step) {
-        case 0:
-          const newLang = userReply === 'हिन्दी' ? 'hi' : 'en';
-          setLang(newLang);
-          saveLead({ language: newLang });
-          setStep(1); break;
-        case 1:
-          saveLead({ name: userReply });
-          setStep(1.1); break;
-        case 1.1:
-          saveLead({ mobileNumber: userReply });
-          setStep(1.2); break;
-        case 1.2:
-          saveLead({ email: userReply });
-          setStep(2); break;
-        case 2:
-          saveLead({ state: userReply });
-          setSelectedState(userReply);
-          setStep(2.1); break;
-        case 2.1:
-          saveLead({ district: userReply });
-          setSelectedDistrict(userReply);
-          setStep(2.2); break;
-        case 2.2:
-          saveLead({ city: userReply });
-          setStep(2.3); break;
-        case 2.3:
-          saveLead({ pincode: userReply });
-          setStep(2.4); break;
-        case 2.4:
-          saveLead({ gpsLocation: userReply });
-          setStep(3); break;
-        case 3:
-          saveLead({ electricityBoard: userReply });
-          setStep(3.1); break;
-        case 3.1:
-          saveLead({ consumerNumber: userReply });
-          setStep(4); break;
+        case 0: setStep(1); break;
+        case 1: setStep(1.1); break;
+        case 1.1: setStep(1.2); break;
+        case 1.2: setStep(2); break;
+        case 2: setStep(2.1); break;
+        case 2.1: setStep(2.2); break;
+        case 2.2: setStep(2.3); break;
+        case 2.3: setStep(2.4); break;
+        case 2.4: setStep(3); break;
+        case 3: setStep(3.1); break;
+        case 3.1: setStep(4); break;
         case 4:
-          saveLead({ meterType: userReply });
-          setMeterType(userReply);
-          if (userReply === 'Residential') {
-            setStep(4.5); // Residential → show residential plant options
-          } else {
-            setStep(6); // Commercial/Industrial → ask roof space then business type
-          }
+          if (userReply === 'Residential') setStep(4.5);
+          else setStep(6);
           break;
-        case 4.5: // Residential plant selection
-          saveLead({ plantCapacity: userReply });
-          setStep(8); break;
-        case 6:
-          saveLead({ roofSpace: userReply });
-          setStep(7); break;
+        case 4.5: setStep(8); break;
+        case 6: setStep(7); break;
         case 7:
-          saveLead({ businessType: userReply });
-          setBusinessType(userReply);
-          if (userReply.toLowerCase().includes('bike') || userReply.toLowerCase().includes('showroom')) {
-            setStep(7.5); // Bike Showroom → specific plants
-          } else {
-            setStep(7.1); // Others → monthly billing
-          }
+          if (userReply.toLowerCase().includes('bike') || userReply.toLowerCase().includes('showroom')) setStep(7.5);
+          else setStep(7.1);
           break;
-        case 7.5: // Bike Showroom plant selection
-          saveLead({ plantCapacity: userReply });
-          setStep(8); break;
-        case 7.1:
-          saveLead({ monthlyBilling: userReply });
-          setStep(7.2); break;
-        case 7.2:
-          saveLead({ plantCapacity: userReply });
-          setStep(8); break;
+        case 7.5: setStep(8); break;
+        case 7.1: setStep(7.2); break;
+        case 7.2: setStep(8); break;
         case 8:
-          saveLead({ proposalStatus: userReply });
-          if (userReply === t('Interested', 'रुचि है') || userReply === 'Interested') {
-            setStep(9);
-          } else {
-            saveLead({ status: 'Closed' });
-            setStep(10);
-          }
+          if (userReply === t('Interested', '\u0930\u0941\u091A\u093F \u0939\u0948') || userReply === 'Interested') setStep(9);
+          else { saveLead({ status: 'Closed' }); setStep(10); }
           break;
-        case 9:
-          saveLead({ status: userReply });
-          setStep(10); break;
+        case 9: setStep(10); break;
+        default: {
+          const nextStep = getDefaultNextStep(stepStr);
+          if (nextStep) setStep(parseFloat(nextStep));
+          break;
+        }
       }
     }, 600);
   };
@@ -326,6 +331,18 @@ export function WhatsAppWidget() {
       ]);
     } else if (step === 10) {
       addNodeMsg('10', 'Thank you for choosing Divyanshi Solar! Our team will contact you soon. ☀️', 'दिव्यांशी सोलर को चुनने के लिए धन्यवाद! हमारी टीम जल्द ही संपर्क करेगी। ☀️');
+    } else {
+      const stepStr = step.toString();
+      const node = getNode(stepStr);
+      if (node) {
+        const msg = lang === 'hi' ? node.messageHi : node.messageEn;
+        const opts = node.options ? node.options.split(',').map(o => o.trim()) : undefined;
+        const buttons = node.inputType === 'buttons' ? opts : undefined;
+        const dropdown = node.inputType === 'dropdown' ? opts : undefined;
+        const isLoc = node.inputType === 'location';
+        const media = getNodeMedia(stepStr);
+        addBotMessage(msg, buttons, dropdown, isLoc, media.mediaType, media.mediaUrl, media.mediaTitle);
+      }
     }
   }, [step]);
 

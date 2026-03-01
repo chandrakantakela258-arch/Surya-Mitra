@@ -10047,7 +10047,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // ==================== CHATBOT NODE MANAGEMENT ====================
   app.get('/api/public/chatbot-nodes', async (req, res) => {
     try {
-      const result = await pool.query(`SELECT step_id as "stepId", label_en as "labelEn", label_hi as "labelHi", message_en as "messageEn", message_hi as "messageHi", input_type as "inputType", options, media_type as "mediaType", media_url as "mediaUrl", media_title as "mediaTitle", saves_field as "savesField", sort_order as "sortOrder" FROM chatbot_nodes WHERE is_active = true ORDER BY sort_order ASC`);
+      const result = await pool.query(`SELECT step_id as "stepId", label_en as "labelEn", label_hi as "labelHi", message_en as "messageEn", message_hi as "messageHi", input_type as "inputType", options, media_type as "mediaType", media_url as "mediaUrl", media_title as "mediaTitle", saves_field as "savesField", sort_order as "sortOrder", next_step_rules as "nextStepRules" FROM chatbot_nodes WHERE is_active = true ORDER BY sort_order ASC`);
       res.json(result.rows);
     } catch (error: any) {
       console.error('[Chatbot Nodes Error]', error.message);
@@ -10057,7 +10057,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
   app.get('/api/admin/chatbot-nodes', requireAuth, async (req, res) => {
     try {
-      const result = await pool.query(`SELECT id, step_id as "stepId", label_en as "labelEn", label_hi as "labelHi", message_en as "messageEn", message_hi as "messageHi", input_type as "inputType", options, media_type as "mediaType", media_url as "mediaUrl", media_title as "mediaTitle", saves_field as "savesField", sort_order as "sortOrder", is_active as "isActive", created_at as "createdAt", updated_at as "updatedAt" FROM chatbot_nodes ORDER BY sort_order ASC`);
+      const result = await pool.query(`SELECT id, step_id as "stepId", label_en as "labelEn", label_hi as "labelHi", message_en as "messageEn", message_hi as "messageHi", input_type as "inputType", options, media_type as "mediaType", media_url as "mediaUrl", media_title as "mediaTitle", saves_field as "savesField", sort_order as "sortOrder", is_active as "isActive", next_step_rules as "nextStepRules", created_at as "createdAt", updated_at as "updatedAt" FROM chatbot_nodes ORDER BY sort_order ASC`);
       res.json(result.rows);
     } catch (error: any) {
       console.error('[Admin Chatbot Nodes Error]', error.message);
@@ -10067,10 +10067,10 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
   app.post('/api/admin/chatbot-nodes', requireAuth, async (req, res) => {
     try {
-      const { stepId, labelEn, labelHi, messageEn, messageHi, inputType, options, mediaType, mediaUrl, mediaTitle, savesField, sortOrder } = req.body;
+      const { stepId, labelEn, labelHi, messageEn, messageHi, inputType, options, mediaType, mediaUrl, mediaTitle, savesField, sortOrder, nextStepRules } = req.body;
       const result = await pool.query(
-        `INSERT INTO chatbot_nodes (step_id, label_en, label_hi, message_en, message_hi, input_type, options, media_type, media_url, media_title, saves_field, sort_order) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id, step_id as "stepId", label_en as "labelEn", label_hi as "labelHi", message_en as "messageEn", message_hi as "messageHi", input_type as "inputType", options, media_type as "mediaType", media_url as "mediaUrl", media_title as "mediaTitle", saves_field as "savesField", sort_order as "sortOrder", is_active as "isActive"`,
-        [stepId, labelEn, labelHi, messageEn, messageHi, inputType || 'text', options || null, mediaType || null, mediaUrl || null, mediaTitle || null, savesField || null, sortOrder || 0]
+        `INSERT INTO chatbot_nodes (step_id, label_en, label_hi, message_en, message_hi, input_type, options, media_type, media_url, media_title, saves_field, sort_order, next_step_rules) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id, step_id as "stepId", label_en as "labelEn", label_hi as "labelHi", message_en as "messageEn", message_hi as "messageHi", input_type as "inputType", options, media_type as "mediaType", media_url as "mediaUrl", media_title as "mediaTitle", saves_field as "savesField", sort_order as "sortOrder", is_active as "isActive", next_step_rules as "nextStepRules"`,
+        [stepId, labelEn, labelHi, messageEn, messageHi, inputType || 'text', options || null, mediaType || null, mediaUrl || null, mediaTitle || null, savesField || null, sortOrder || 0, nextStepRules ? JSON.stringify(nextStepRules) : null]
       );
       res.json(result.rows[0]);
     } catch (error: any) {
@@ -10082,10 +10082,10 @@ export function registerRoutes(httpServer: Server, app: Express) {
   app.put('/api/admin/chatbot-nodes/:id', requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const { stepId, labelEn, labelHi, messageEn, messageHi, inputType, options, mediaType, mediaUrl, mediaTitle, savesField, sortOrder, isActive } = req.body;
+      const { stepId, labelEn, labelHi, messageEn, messageHi, inputType, options, mediaType, mediaUrl, mediaTitle, savesField, sortOrder, isActive, nextStepRules } = req.body;
       const result = await pool.query(
-        `UPDATE chatbot_nodes SET step_id=$1, label_en=$2, label_hi=$3, message_en=$4, message_hi=$5, input_type=$6, options=$7, media_type=$8, media_url=$9, media_title=$10, saves_field=$11, sort_order=$12, is_active=$13, updated_at=NOW() WHERE id=$14 RETURNING id, step_id as "stepId", label_en as "labelEn", label_hi as "labelHi", message_en as "messageEn", message_hi as "messageHi", input_type as "inputType", options, media_type as "mediaType", media_url as "mediaUrl", media_title as "mediaTitle", saves_field as "savesField", sort_order as "sortOrder", is_active as "isActive"`,
-        [stepId, labelEn, labelHi, messageEn, messageHi, inputType || 'text', options || null, mediaType || null, mediaUrl || null, mediaTitle || null, savesField || null, sortOrder || 0, isActive !== false, id]
+        `UPDATE chatbot_nodes SET step_id=$1, label_en=$2, label_hi=$3, message_en=$4, message_hi=$5, input_type=$6, options=$7, media_type=$8, media_url=$9, media_title=$10, saves_field=$11, sort_order=$12, is_active=$13, next_step_rules=$15, updated_at=NOW() WHERE id=$14 RETURNING id, step_id as "stepId", label_en as "labelEn", label_hi as "labelHi", message_en as "messageEn", message_hi as "messageHi", input_type as "inputType", options, media_type as "mediaType", media_url as "mediaUrl", media_title as "mediaTitle", saves_field as "savesField", sort_order as "sortOrder", is_active as "isActive", next_step_rules as "nextStepRules"`,
+        [stepId, labelEn, labelHi, messageEn, messageHi, inputType || 'text', options || null, mediaType || null, mediaUrl || null, mediaTitle || null, savesField || null, sortOrder || 0, isActive !== false, id, nextStepRules ? JSON.stringify(nextStepRules) : null]
       );
       if (result.rows.length === 0) return res.status(404).json({ error: "Node not found" });
       res.json(result.rows[0]);
