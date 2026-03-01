@@ -3,7 +3,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation } from "wouter";
 import { Loader2, ArrowLeft, Sun, IndianRupee, Zap, CreditCard, FileText, Upload, X, File, MapPin, Navigation, Camera } from "lucide-react";
-import { customerFormSchema, indianStates, roofTypes } from "@shared/schema";
+import { customerFormSchema, roofTypes } from "@shared/schema";
+import { indianStatesData, getDistrictsForState, getCitiesForDistrict, getDiscomsForState } from "@shared/india-data";
 
 // Unit types for commercial and industrial installations
 const commercialUnitTypes = [
@@ -243,6 +244,23 @@ export default function CustomerForm() {
   const watchedInverterType = form.watch("inverterType");
   const watchedCustomerType = form.watch("customerType");
   const watchedCapacity = form.watch("proposedCapacity");
+  const watchedState = form.watch("state");
+  const watchedDistrict = form.watch("district");
+  const [selectedCity, setSelectedCity] = useState("");
+
+  const availableDistricts = useMemo(() => watchedState ? getDistrictsForState(watchedState) : [], [watchedState]);
+  const availableCities = useMemo(() => watchedDistrict ? getCitiesForDistrict(watchedDistrict) : [], [watchedDistrict]);
+  const availableDiscoms = useMemo(() => watchedState ? getDiscomsForState(watchedState) : [], [watchedState]);
+
+  useEffect(() => {
+    form.setValue("district", "");
+    setSelectedCity("");
+    form.setValue("electricityBoard", "");
+  }, [watchedState]);
+
+  useEffect(() => {
+    setSelectedCity("");
+  }, [watchedDistrict]);
 
   useEffect(() => {
     if (watchedCustomerType !== "residential") return;
@@ -471,14 +489,14 @@ export default function CustomerForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>State *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
                         <FormControl>
                           <SelectTrigger data-testid="select-state">
                             <SelectValue placeholder="Select state" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {indianStates.map((state) => (
+                          {indianStatesData.map((state) => (
                             <SelectItem key={state} value={state}>
                               {state}
                             </SelectItem>
@@ -496,17 +514,40 @@ export default function CustomerForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>District *</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="District name" 
-                          data-testid="input-district"
-                          {...field} 
-                        />
-                      </FormControl>
+                      <Select onValueChange={field.onChange} value={field.value || ""} disabled={!watchedState}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-district">
+                            <SelectValue placeholder={watchedState ? "Select district" : "Select state first"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {availableDistricts.map((district) => (
+                            <SelectItem key={district} value={district}>
+                              {district}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
+                <div>
+                  <label className="text-sm font-medium">City</label>
+                  <Select onValueChange={setSelectedCity} value={selectedCity} disabled={!watchedDistrict}>
+                    <SelectTrigger data-testid="select-city">
+                      <SelectValue placeholder={watchedDistrict ? "Select city" : "Select district first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableCities.map((city) => (
+                        <SelectItem key={city} value={city}>
+                          {city}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 <FormField
                   control={form.control}
@@ -618,14 +659,20 @@ export default function CustomerForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Electricity Board/DISCOM *</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="e.g., BSES, MSEDCL, KSEB" 
-                          data-testid="input-electricity-board"
-                          {...field}
-                          value={field.value || ""}
-                        />
-                      </FormControl>
+                      <Select onValueChange={field.onChange} value={field.value || ""} disabled={!watchedState}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-electricity-board">
+                            <SelectValue placeholder={watchedState ? "Select DISCOM" : "Select state first"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {availableDiscoms.map((discom) => (
+                            <SelectItem key={discom} value={discom}>
+                              {discom}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

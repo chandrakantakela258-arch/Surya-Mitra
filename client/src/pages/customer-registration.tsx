@@ -15,16 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { ThemeToggle } from "@/components/theme-toggle";
 import logoImage from "@assets/88720521_logo_1766219255006.png";
-
-const indianStates = [
-  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
-  "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
-  "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram",
-  "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu",
-  "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
-  "Delhi", "Jammu and Kashmir", "Ladakh", "Puducherry", "Chandigarh",
-  "Andaman and Nicobar Islands", "Dadra and Nagar Haveli and Daman and Diu", "Lakshadweep"
-];
+import { indianStatesData, getDistrictsForState, getCitiesForDistrict, getDiscomsForState } from "@shared/india-data";
 
 const roofTypes = ["rcc", "sheet", "tiles", "asbestos", "other"] as const;
 const panelTypes = ["dcr", "non_dcr"] as const;
@@ -65,8 +56,9 @@ const publicCustomerFormSchema = z.object({
   phone: z.string().min(10, "Phone must be at least 10 digits"),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
   address: z.string().min(5, "Address must be at least 5 characters"),
-  district: z.string().min(2, "District is required"),
-  state: z.string().min(2, "State is required"),
+  district: z.string().min(1, "District is required"),
+  state: z.string().min(1, "State is required"),
+  city: z.string().optional().or(z.literal("")),
   pincode: z.string().min(6, "Pincode must be 6 digits").max(6, "Pincode must be 6 digits"),
   aadharNumber: z.string().optional().or(z.literal("")).refine(val => !val || /^\d{12}$/.test(val), { message: "Aadhaar must be 12 digits" }),
   panNumber: z.string().optional().or(z.literal("")).refine(val => !val || /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(val), { message: "Invalid PAN format (e.g., ABCDE1234F)" }),
@@ -257,6 +249,7 @@ export default function CustomerRegistration() {
       address: "",
       district: "",
       state: "",
+      city: "",
       pincode: "",
       aadharNumber: "",
       panNumber: "",
@@ -330,6 +323,25 @@ export default function CustomerRegistration() {
   const watchInverterType = form.watch("inverterType");
   const watchCustomerType = form.watch("customerType");
   const watchState = form.watch("state");
+  const watchDistrict = form.watch("district");
+
+  const availableDistricts = useMemo(() => getDistrictsForState(watchState), [watchState]);
+  const availableCities = useMemo(() => getCitiesForDistrict(watchDistrict), [watchDistrict]);
+  const availableDiscoms = useMemo(() => getDiscomsForState(watchState), [watchState]);
+
+  useEffect(() => {
+    if (watchState) {
+      form.setValue("district", "");
+      form.setValue("city", "");
+      form.setValue("electricityBoard", "");
+    }
+  }, [watchState]);
+
+  useEffect(() => {
+    if (watchDistrict) {
+      form.setValue("city", "");
+    }
+  }, [watchDistrict]);
 
   useEffect(() => {
     const currentCapacity = parseFloat(form.getValues("proposedCapacity") || "0");
@@ -526,21 +538,7 @@ export default function CustomerRegistration() {
                   )}
                 />
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="district"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>District *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="District" {...field} data-testid="input-district" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="state"
@@ -554,8 +552,56 @@ export default function CustomerRegistration() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {indianStates.map((state) => (
+                            {indianStatesData.map((state) => (
                               <SelectItem key={state} value={state}>{state}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="district"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>District *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} disabled={!watchState}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-district">
+                              <SelectValue placeholder={watchState ? "Select district" : "Select state first"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {availableDistricts.map((district) => (
+                              <SelectItem key={district} value={district}>{district}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="city"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>City</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} disabled={!watchDistrict}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-city">
+                              <SelectValue placeholder={watchDistrict ? "Select city" : "Select district first"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {availableCities.map((city) => (
+                              <SelectItem key={city} value={city}>{city}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -698,9 +744,18 @@ export default function CustomerRegistration() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Electricity Board *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., UPPCL, MSEDCL" {...field} data-testid="input-electricity-board" />
-                        </FormControl>
+                        <Select onValueChange={field.onChange} value={field.value} disabled={!watchState}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-electricity-board">
+                              <SelectValue placeholder={watchState ? "Select electricity board" : "Select state first"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {availableDiscoms.map((discom) => (
+                              <SelectItem key={discom} value={discom}>{discom}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}

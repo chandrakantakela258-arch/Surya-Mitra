@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation } from "wouter";
 import { Loader2, ArrowLeft } from "lucide-react";
-import { registerUserSchema, indianStates } from "@shared/schema";
+import { registerUserSchema } from "@shared/schema";
+import { indianStatesData, getDistrictsForState, getCitiesForDistrict } from "@shared/india-data";
 import type { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -24,6 +25,8 @@ export default function PartnerForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
+  const [selectedCity, setSelectedCity] = useState("");
+
   const form = useForm<PartnerFormValues>({
     resolver: zodResolver(partnerFormSchema),
     defaultValues: {
@@ -39,6 +42,21 @@ export default function PartnerForm() {
       status: "pending",
     },
   });
+
+  const watchState = form.watch("state");
+  const watchDistrict = form.watch("district");
+
+  const districts = watchState ? getDistrictsForState(watchState) : [];
+  const cities = watchDistrict ? getCitiesForDistrict(watchDistrict) : [];
+
+  useEffect(() => {
+    form.setValue("district", "");
+    setSelectedCity("");
+  }, [watchState]);
+
+  useEffect(() => {
+    setSelectedCity("");
+  }, [watchDistrict]);
 
   async function onSubmit(data: PartnerFormValues) {
     setIsLoading(true);
@@ -189,14 +207,14 @@ export default function PartnerForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>State</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
                         <FormControl>
                           <SelectTrigger data-testid="select-state">
                             <SelectValue placeholder="Select state" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {indianStates.map((state) => (
+                          {indianStatesData.map((state) => (
                             <SelectItem key={state} value={state}>
                               {state}
                             </SelectItem>
@@ -214,18 +232,43 @@ export default function PartnerForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>District *</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="Enter district name" 
-                          data-testid="input-district"
-                          {...field} 
-                        />
-                      </FormControl>
+                      <Select onValueChange={field.onChange} value={field.value || ""} disabled={!watchState}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-district">
+                            <SelectValue placeholder={watchState ? "Select district" : "Select state first"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {districts.map((district) => (
+                            <SelectItem key={district} value={district}>
+                              {district}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormDescription>The district this partner will cover</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
+                <FormItem>
+                  <FormLabel>City</FormLabel>
+                  <Select onValueChange={setSelectedCity} value={selectedCity} disabled={!watchDistrict}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-city">
+                        <SelectValue placeholder={watchDistrict ? "Select city" : "Select district first"} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {cities.map((city) => (
+                        <SelectItem key={city} value={city}>
+                          {city}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormItem>
               </div>
 
               <FormField
@@ -238,7 +281,8 @@ export default function PartnerForm() {
                       <Input 
                         placeholder="Enter complete address" 
                         data-testid="input-address"
-                        {...field} 
+                        {...field}
+                        value={field.value || ""}
                       />
                     </FormControl>
                     <FormMessage />

@@ -18,6 +18,7 @@ function SolarPanelIcon({ size = 32, className = "" }: { size?: number; classNam
     </svg>
   );
 }
+import { indianStatesData, getDistrictsForState, getCitiesForDistrict, getDiscomsForState } from "@shared/india-data";
 import '../pages/simulator.css';
 
 interface Msg {
@@ -64,30 +65,6 @@ const saveLead = async (data: Record<string, string>) => {
   } catch (e) {}
 };
 
-// State → Districts mapping
-const DISTRICTS: Record<string, string[]> = {
-  "Bihar": ["Patna", "Gaya", "Muzaffarpur", "Bhagalpur", "Darbhanga", "Purnia", "Samastipur", "Nalanda", "Munger", "Sitamarhi", "Saran", "Vaishali", "Begusarai", "Other"],
-  "Uttar Pradesh": ["Lucknow", "Varanasi", "Agra", "Kanpur", "Prayagraj", "Gorakhpur", "Meerut", "Noida/Gautam Buddh Nagar", "Ghaziabad", "Mathura", "Other"],
-  "Delhi": ["Central Delhi", "East Delhi", "New Delhi", "North Delhi", "South Delhi", "West Delhi", "Other"],
-  "Maharashtra": ["Mumbai", "Pune", "Nagpur", "Nashik", "Aurangabad", "Solapur", "Other"],
-  "Rajasthan": ["Jaipur", "Jodhpur", "Udaipur", "Kota", "Bikaner", "Ajmer", "Other"],
-  "Madhya Pradesh": ["Bhopal", "Indore", "Gwalior", "Jabalpur", "Ujjain", "Other"],
-  "Gujarat": ["Ahmedabad", "Surat", "Vadodara", "Rajkot", "Gandhinagar", "Other"],
-  "Haryana": ["Gurugram", "Faridabad", "Panipat", "Ambala", "Hisar", "Other"],
-  "Punjab": ["Ludhiana", "Amritsar", "Chandigarh", "Mohali", "Patiala", "Other"],
-  "Jharkhand": ["Ranchi", "Jamshedpur", "Dhanbad", "Bokaro", "Other"],
-  "Other": ["Other"],
-};
-
-const CITIES: Record<string, string[]> = {
-  "Patna": ["Patna City", "Danapur", "Phulwari Sharif", "Khagaul", "Patna Sahib", "Other"],
-  "Gaya": ["Gaya City", "Bodh Gaya", "Sherghati", "Other"],
-  "Muzaffarpur": ["Muzaffarpur City", "Sitamarhi", "Motihari", "Other"],
-  "Lucknow": ["Lucknow City", "Aliganj", "Gomti Nagar", "Hazratganj", "Other"],
-  "Other": ["Other"],
-};
-
-const ALL_STATES = ["Bihar", "Uttar Pradesh", "Delhi", "Maharashtra", "Rajasthan", "Madhya Pradesh", "Gujarat", "Haryana", "Punjab", "Jharkhand", "Uttarakhand", "West Bengal", "Himachal Pradesh", "Other"];
 
 // Capacity options by meter type
 const RESIDENTIAL_PLANTS = ["3kW On-Grid", "3kW 3-in-1 Hybrid", "5kW 3-in-1 Hybrid", "6kW On-Grid", "6kW 3-in-1 Hybrid", "6.5kW On-Grid"];
@@ -283,19 +260,20 @@ export function WhatsAppWidget() {
     } else if (step === 1.2) {
       addNodeMsg('1.2', 'What is your Email ID?', 'आपकी ईमेल आईडी क्या है?');
     } else if (step === 2) {
-      addNodeMsg('2', 'Q2: Please select your State:', 'प्रश्न 2: अपना राज्य चुनें:', undefined, ALL_STATES);
+      addNodeMsg('2', 'Q2: Please select your State:', 'प्रश्न 2: अपना राज्य चुनें:', undefined, indianStatesData);
     } else if (step === 2.1) {
-      const districts = DISTRICTS[selectedState] || ["Other"];
-      addNodeMsg('2.1', 'Please select your District:', 'अपना जिला चुनें:', undefined, districts);
+      const districts = getDistrictsForState(selectedState);
+      addNodeMsg('2.1', 'Please select your District:', 'अपना जिला चुनें:', undefined, districts.length > 0 ? districts : ["Other"]);
     } else if (step === 2.2) {
-      const cities = CITIES[selectedDistrict] || ["Other"];
-      addNodeMsg('2.2', 'Please select your City/Town:', 'अपना शहर/कस्बा चुनें:', undefined, cities);
+      const cities = getCitiesForDistrict(selectedDistrict);
+      addNodeMsg('2.2', 'Please select your City/Town:', 'अपना शहर/कस्बा चुनें:', undefined, cities.length > 0 ? cities : ["Other"]);
     } else if (step === 2.3) {
       addNodeMsg('2.3', 'What is your Pin Code?', 'आपका पिन कोड क्या है?');
     } else if (step === 2.4) {
       addNodeMsg('2.4', 'Please share your GPS Location:', 'अपनी GPS लोकेशन साझा करें:', [], [], true);
     } else if (step === 3) {
-      addNodeMsg('3', 'Q3: Select State Electricity Board:', 'प्रश्न 3: राज्य विद्युत बोर्ड चुनें:', undefined, ["NBPDCL", "SBPDCL", "UPPCL", "DHBVN", "UHBVN", "JVVNL", "Other"]);
+      const discoms = getDiscomsForState(selectedState);
+      addNodeMsg('3', 'Q3: Select State Electricity Board:', 'प्रश्न 3: राज्य विद्युत बोर्ड चुनें:', undefined, discoms);
     } else if (step === 3.1) {
       addNodeMsg('3.1', 'Q3(a): What is your Consumer Number?', 'प्रश्न 3(a): आपका उपभोक्ता नंबर क्या है?');
     } else if (step === 4) {
