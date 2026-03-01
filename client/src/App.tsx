@@ -67,7 +67,6 @@ import AdminVendorPayments from "@/pages/admin/vendor-payments";
 import AdminCustomerLeads from "@/pages/admin/customer-leads";
 import AdminCrmDashboard from "@/pages/admin/crm-dashboard";
 import AdminChatbotSettings from "@/pages/admin/chatbot-settings";
-import BotSimulator from "@/pages/bot-simulator";
 import SolarBotPage from "@/pages/solar-bot";
 import AdminEquipmentSettings from "@/pages/admin/equipment-settings";
 import PartnerServiceRequests from "@/pages/partner-service-requests";
@@ -607,13 +606,6 @@ function AuthenticatedRoutes() {
         <ProtectedRoute allowedRoles={["bdp", "ddp", "admin"]}>
           <DashboardLayout>
             <NotificationsPage />
-          </DashboardLayout>
-        </ProtectedRoute>
-      </Route>
-      <Route path="/simulator">
-        <ProtectedRoute>
-          <DashboardLayout>
-            <BotSimulator />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>

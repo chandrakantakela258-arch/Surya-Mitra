@@ -19,7 +19,6 @@ function SolarPanelIcon({ size = 32, className = "" }: { size?: number; classNam
   );
 }
 import { indianStatesData, getDistrictsForState, getCitiesForDistrict, getDiscomsForState } from "@shared/india-data";
-import '../pages/simulator.css';
 
 interface Msg {
   id: string;
@@ -65,25 +64,20 @@ const saveLead = async (data: Record<string, string>) => {
   } catch (e) {}
 };
 
-
-// Capacity options by meter type
-const RESIDENTIAL_PLANTS = ["3kW On-Grid", "3kW 3-in-1 Hybrid", "5kW 3-in-1 Hybrid", "6kW On-Grid", "6kW 3-in-1 Hybrid", "6.5kW On-Grid"];
-const BIKE_SHOWROOM_PLANTS = ["3kW On-Grid", "3kW 3-in-1 Hybrid"];
-const GENERAL_CAPACITIES = ["2 kW", "3 kW", "6 kW", "15 kW", "25 kW", "50 kW", "100 kW", "500 kW", "1000 kW"];
+const DYNAMIC_FIELDS = new Set(['state', 'district', 'city', 'electricityBoard']);
 
 export function WhatsAppWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
-  const [step, setStep] = useState(0);
+  const [currentStepId, setCurrentStepId] = useState<string | null>(null);
   const [lang, setLang] = useState<'en' | 'hi'>('en');
   const [inputText, setInputText] = useState('');
   const [copied, setCopied] = useState(false);
   const [botNumber, setBotNumber] = useState('919211018779');
   const [selectedState, setSelectedState] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
-  const [meterType, setMeterType] = useState('');
-  const [businessType, setBusinessType] = useState('');
   const [nodeConfigs, setNodeConfigs] = useState<NodeConfig[]>([]);
+  const [configsLoaded, setConfigsLoaded] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const t = (en: string, hi: string) => lang === 'hi' ? hi : en;
@@ -95,29 +89,14 @@ export function WhatsAppWidget() {
       .catch(() => {});
     fetch(`/api/public/chatbot-nodes?t=${Date.now()}`, { cache: "no-store" })
       .then(r => r.json())
-      .then(d => { if (Array.isArray(d)) setNodeConfigs(d); })
-      .catch(() => {});
+      .then(d => { if (Array.isArray(d)) setNodeConfigs(d); setConfigsLoaded(true); })
+      .catch(() => { setConfigsLoaded(true); });
   }, []);
+
+  const sortedNodes = [...nodeConfigs].sort((a, b) => a.sortOrder - b.sortOrder);
 
   const getNode = (stepId: string): NodeConfig | undefined => {
     return nodeConfigs.find(n => n.stepId === stepId);
-  };
-
-  const getNodeMessage = (stepId: string, fallbackEn: string, fallbackHi: string) => {
-    const node = getNode(stepId);
-    if (node) return lang === 'hi' ? node.messageHi : node.messageEn;
-    return lang === 'hi' ? fallbackHi : fallbackEn;
-  };
-
-  const getNodeOptions = (stepId: string, fallback: string[]): string[] => {
-    const node = getNode(stepId);
-    if (node?.options) return node.options.split(',').map(o => o.trim());
-    return fallback;
-  };
-
-  const getNodeMedia = (stepId: string) => {
-    const node = getNode(stepId);
-    return { mediaType: node?.mediaType, mediaUrl: node?.mediaUrl, mediaTitle: node?.mediaTitle };
   };
 
   const getNextStepByRules = (currentStepId: string, userReply: string): string | null => {
@@ -133,14 +112,33 @@ export function WhatsAppWidget() {
     return null;
   };
 
-  const getDefaultNextStep = (currentStepId: string): string | null => {
-    const currentNode = getNode(currentStepId);
+  const getDefaultNextStep = (stepId: string): string | null => {
+    const currentNode = getNode(stepId);
     if (!currentNode) return null;
     const currentOrder = currentNode.sortOrder;
-    const nextNode = nodeConfigs
-      .filter(n => n.sortOrder > currentOrder)
-      .sort((a, b) => a.sortOrder - b.sortOrder)[0];
+    const nextNode = sortedNodes.find(n => n.sortOrder > currentOrder);
     return nextNode ? nextNode.stepId : null;
+  };
+
+  const getDynamicOptions = (node: NodeConfig): string[] | null => {
+    if (!node.savesField || !DYNAMIC_FIELDS.has(node.savesField)) return null;
+    switch (node.savesField) {
+      case 'state':
+        return indianStatesData;
+      case 'district': {
+        const districts = getDistrictsForState(selectedState);
+        return districts.length > 0 ? districts : ["Other"];
+      }
+      case 'city': {
+        const cities = getCitiesForDistrict(selectedDistrict);
+        return cities.length > 0 ? cities : ["Other"];
+      }
+      case 'electricityBoard': {
+        return getDiscomsForState(selectedState);
+      }
+      default:
+        return null;
+    }
   };
 
   const whatsappLink = `https://wa.me/${botNumber}?text=Hi`;
@@ -160,170 +158,77 @@ export function WhatsAppWidget() {
     setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'user', text }]);
   };
 
+  const showNodeMessage = (node: NodeConfig) => {
+    const msg = lang === 'hi' ? node.messageHi : node.messageEn;
+    const dynamicOpts = getDynamicOptions(node);
+    const nodeOpts = dynamicOpts || (node.options ? node.options.split(',').map(o => o.trim()) : undefined);
+    const buttons = node.inputType === 'buttons' ? nodeOpts : undefined;
+    const dropdown = node.inputType === 'dropdown' ? nodeOpts : undefined;
+    const isLoc = node.inputType === 'location';
+    addBotMessage(msg, buttons, dropdown, isLoc, node.mediaType, node.mediaUrl, node.mediaTitle);
+  };
+
   const handleNextStep = (userReply: string) => {
     addUserMessage(userReply);
     setTimeout(() => {
-      const stepStr = step.toString();
-      const currentNode = getNode(stepStr);
+      if (!currentStepId) return;
+      const currentNode = getNode(currentStepId);
 
       if (currentNode?.savesField) {
         saveLead({ [currentNode.savesField]: userReply });
       }
 
-      if (step === 0) {
-        const newLang = userReply === '\u0939\u093F\u0928\u094D\u0926\u0940' ? 'hi' : 'en';
+      if (currentNode?.savesField === 'language') {
+        const newLang = userReply === 'हिन्दी' ? 'hi' : 'en';
         setLang(newLang);
         saveLead({ language: newLang });
       }
-      if (step === 4) setSelectedState(userReply);
-      if (step === 4.1) setSelectedDistrict(userReply);
-      if (step === 11) setMeterType(userReply);
-      if (step === 11.2) setBusinessType(userReply);
+      if (currentNode?.savesField === 'state') setSelectedState(userReply);
+      if (currentNode?.savesField === 'district') setSelectedDistrict(userReply);
 
-      const ruleNext = getNextStepByRules(stepStr, userReply);
+      const ruleNext = getNextStepByRules(currentStepId, userReply);
       if (ruleNext) {
-        setStep(parseFloat(ruleNext));
+        setCurrentStepId(ruleNext);
         return;
       }
 
-      switch (step) {
-        case 0: setStep(1); break;
-        case 1: setStep(1.1); break;
-        case 2: setStep(1.2); break;
-        case 3: setStep(2); break;
-        case 4: setStep(2.1); break;
-        case 4.1: setStep(2.2); break;
-        case 4.2: setStep(2.3); break;
-        case 4.3: setStep(2.4); break;
-        case 5: setStep(3); break;
-        case 6: setStep(3.1); break;
-        case 3.1: setStep(4); break;
-        case 4:
-          if (userReply === 'Residential') setStep(4.5);
-          else setStep(6);
-          break;
-        case 4.5: setStep(8); break;
-        case 6: setStep(7); break;
-        case 7:
-          if (userReply.toLowerCase().includes('bike') || userReply.toLowerCase().includes('showroom')) setStep(7.5);
-          else setStep(7.1);
-          break;
-        case 7.5: setStep(8); break;
-        case 7.1: setStep(7.2); break;
-        case 7.2: setStep(8); break;
-        case 8:
-          if (userReply === t('Interested', '\u0930\u0941\u091A\u093F \u0939\u0948') || userReply === 'Interested') setStep(9);
-          else { saveLead({ status: 'Closed' }); setStep(10); }
-          break;
-        case 9: setStep(10); break;
-        default: {
-          const nextStep = getDefaultNextStep(stepStr);
-          if (nextStep) setStep(parseFloat(nextStep));
-          break;
-        }
+      const nextStep = getDefaultNextStep(currentStepId);
+      if (nextStep) {
+        setCurrentStepId(nextStep);
       }
     }, 600);
   };
 
-  const addNodeMsg = (stepId: string, fallbackEn: string, fallbackHi: string, fallbackButtons?: string[], fallbackOptions?: string[], isLoc?: boolean) => {
-    const node = getNode(stepId);
-    const msg = getNodeMessage(stepId, fallbackEn, fallbackHi);
-    const media = getNodeMedia(stepId);
-    if (node) {
-      const opts = node.options ? node.options.split(',').map(o => o.trim()) : (fallbackOptions || fallbackButtons || []);
-      const asButtons = node.inputType === 'buttons' ? opts : fallbackButtons;
-      const isDynamicDropdown = ['2', '2.1', '2.2', '3'].includes(stepId);
-      const asDropdown = node.inputType === 'dropdown' ? (isDynamicDropdown ? fallbackOptions : opts) : fallbackOptions;
-      const asLoc = node.inputType === 'location' ? true : isLoc;
-      addBotMessage(msg, asButtons, asDropdown, asLoc, media.mediaType, media.mediaUrl, media.mediaTitle);
-    } else {
-      addBotMessage(msg, fallbackButtons, fallbackOptions, isLoc);
-    }
-  };
-
-  // Init bot on open
+  const initDone = useRef(false);
   useEffect(() => {
-    if (isOpen && messages.length === 0 && step === 0) {
-      setTimeout(() => {
-        addNodeMsg('0', 'Hi! I am the PM Surya Ghar Solar Bot ☀️\nPlease select your language / कृपया भाषा चुनें:', 'Hi! I am the PM Surya Ghar Solar Bot ☀️\nPlease select your language / कृपया भाषा चुनें:', ['English', 'हिन्दी']);
-      }, 500);
-    }
-  }, [isOpen, nodeConfigs]);
+    if (!isOpen || !configsLoaded) return;
+    if (initDone.current) return;
+    if (messages.length > 0) return;
+    initDone.current = true;
 
-  // Step-driven bot messages
-  useEffect(() => {
-    if (!isOpen) return;
-    if (step === 0) return;
-    if (step === 1) {
-      addNodeMsg('1', 'What is your Name?', 'आपका नाम क्या है?');
-    } else if (step === 1.1) {
-      addNodeMsg('2', 'Please enter your 10-digit Mobile Number:', 'कृपया अपना 10-अंकीय मोबाइल नंबर दर्ज करें:');
-    } else if (step === 1.2) {
-      addNodeMsg('3', 'What is your Email ID?', 'आपकी ईमेल आईडी क्या है?');
-    } else if (step === 2) {
-      addNodeMsg('4', 'Q2: Please select your State:', 'प्रश्न 2: अपना राज्य चुनें:', undefined, indianStatesData);
-    } else if (step === 2.1) {
-      const districts = getDistrictsForState(selectedState);
-      addNodeMsg('4.1', 'Please select your District:', 'अपना जिला चुनें:', undefined, districts.length > 0 ? districts : ["Other"]);
-    } else if (step === 2.2) {
-      const cities = getCitiesForDistrict(selectedDistrict);
-      addNodeMsg('4.2', 'Please select your City/Town:', 'अपना शहर/कस्बा चुनें:', undefined, cities.length > 0 ? cities : ["Other"]);
-    } else if (step === 2.3) {
-      addNodeMsg('5', 'What is your Pin Code?', 'आपका पिन कोड क्या है?');
-    } else if (step === 2.4) {
-      addNodeMsg('6', 'Please share your GPS Location:', 'अपनी GPS लोकेशन साझा करें:', [], [], true);
-    } else if (step === 3) {
-      const discoms = getDiscomsForState(selectedState);
-      addNodeMsg('7', 'Q3: Select State Electricity Board:', 'प्रश्न 3: राज्य विद्युत बोर्ड चुनें:', undefined, discoms);
-    } else if (step === 3.1) {
-      addNodeMsg('8', 'Q3(a): What is your Consumer Number?', 'प्रश्न 3(a): आपका उपभोक्ता नंबर क्या है?');
-    } else if (step === 4) {
-      addNodeMsg('11', 'Q4: What is your Connection Type?', 'प्रश्न 4: आपका कनेक्शन प्रकार क्या है?', undefined, ["Residential", "Commercial", "Industrial"]);
-    } else if (step === 4.5) {
-      addNodeMsg('4.5', 'Great! For a Residential connection, here are the recommended solar plants for you. Please select:', 'बढ़िया! आपके घरेलू कनेक्शन के लिए अनुशंसित सोलर प्लांट चुनें:', undefined, RESIDENTIAL_PLANTS);
-    } else if (step === 6) {
-      addNodeMsg('6', 'Q6: Available Roof Space (in sq ft)?', 'प्रश्न 6: छत पर उपलब्ध जगह (वर्ग फुट में)?');
-    } else if (step === 7) {
-      addNodeMsg('7', 'Q7: What is your Business Type?', 'प्रश्न 7: आपके व्यवसाय का प्रकार?', undefined, [
-        "Bike/Car Showroom", "Aata/Oil/Masala Mill", "Tractor Agency", "RO/Packaging Plant", "Rice Mill", "Fabrication Plant", "Other Industrial Unit"
-      ]);
-    } else if (step === 7.5) {
-      addNodeMsg('7.5', 'For Bike/Car Showroom, here are the best suited solar plants. Please select:', 'बाइक/कार शोरूम के लिए अनुशंसित सोलर प्लांट चुनें:', undefined, BIKE_SHOWROOM_PLANTS);
-    } else if (step === 7.1) {
-      addNodeMsg('7.1', 'Q7(a): Monthly Electricity Bill Amount?', 'प्रश्न 7(a): मासिक बिजली बिल राशि?', undefined, [
-        "Less than ₹1,000", "₹2,000 - ₹4,000", "₹4,000 - ₹10,000", "₹15,000 - ₹30,000", "₹50,000+", "₹1,00,000+"
-      ]);
-    } else if (step === 7.2) {
-      addNodeMsg('7.2', 'Q7(b): What Capacity Plant do you want to Install?', 'प्रश्न 7(b): कितनी क्षमता का प्लांट लगाना चाहते हैं?', undefined, GENERAL_CAPACITIES);
-    } else if (step === 8) {
-      addNodeMsg('8', '📄 Based on your selection, here is your estimated Solar Proposal.\n\nOur team will prepare a detailed customized proposal for you shortly.\n\nAre you interested in proceeding?', '📄 आपके चयन के आधार पर यहाँ आपका अनुमानित सोलर प्रस्ताव है।\n\nहमारी टीम जल्द ही एक विस्तृत अनुकूलित प्रस्ताव तैयार करेगी।\n\nक्या आप आगे बढ़ने में रुचि रखते हैं?', [
-        t('Interested', 'रुचि है'),
-        t('Not Interested', 'रुचि नहीं है'),
-        t('Will Call Later', 'बाद में कॉल करेंगे'),
-        t('Install after 2-3 months', '2-3 महीने बाद')
-      ]);
-    } else if (step === 9) {
-      addNodeMsg('9', 'Great! How would you like to proceed?', 'बहुत बढ़िया! आप कैसे आगे बढ़ना चाहेंगे?', [
-        t('Fill Online Form', 'ऑनलाइन फॉर्म भरें'),
-        t('Call for Understanding', 'कॉल पर समझें'),
-        t('Schedule Home Visit', 'होम विजिट शेड्यूल करें')
-      ]);
-    } else if (step === 10) {
-      addNodeMsg('10', 'Thank you for choosing Divyanshi Solar! Our team will contact you soon. ☀️', 'दिव्यांशी सोलर को चुनने के लिए धन्यवाद! हमारी टीम जल्द ही संपर्क करेगी। ☀️');
-    } else {
-      const stepStr = step.toString();
-      const node = getNode(stepStr);
-      if (node) {
-        const msg = lang === 'hi' ? node.messageHi : node.messageEn;
-        const opts = node.options ? node.options.split(',').map(o => o.trim()) : undefined;
-        const buttons = node.inputType === 'buttons' ? opts : undefined;
-        const dropdown = node.inputType === 'dropdown' ? opts : undefined;
-        const isLoc = node.inputType === 'location';
-        const media = getNodeMedia(stepStr);
-        addBotMessage(msg, buttons, dropdown, isLoc, media.mediaType, media.mediaUrl, media.mediaTitle);
+    setTimeout(() => {
+      const firstNode = sortedNodes[0];
+      if (firstNode) {
+        setCurrentStepId(firstNode.stepId);
+        showNodeMessage(firstNode);
+      } else {
+        addBotMessage('Hi! I am the PM Surya Ghar Solar Bot ☀️\nPlease select your language / कृपया भाषा चुनें:', ['English', 'हिन्दी']);
+        setCurrentStepId('0');
       }
+    }, 500);
+  }, [isOpen, configsLoaded]);
+
+  useEffect(() => {
+    if (!isOpen || !currentStepId) return;
+    if (messages.length === 0) return;
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg.sender !== 'user') return;
+
+    const node = getNode(currentStepId);
+    if (node) {
+      showNodeMessage(node);
     }
-  }, [step]);
+  }, [currentStepId]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -340,7 +245,6 @@ export function WhatsAppWidget() {
     <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end">
       {isOpen && (
         <div className="bg-[#e5ddd5] rounded-2xl shadow-2xl border border-gray-100 mb-4 w-[350px] overflow-hidden transform transition-all duration-300 ease-out origin-bottom-right">
-          {/* Header */}
           <div className="bg-gradient-to-r from-green-600 to-green-700 p-3 text-white">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
@@ -369,7 +273,6 @@ export function WhatsAppWidget() {
             </div>
           </div>
 
-          {/* Chat Body */}
           <div className="h-[370px] overflow-y-auto p-3 flex flex-col gap-2.5 bg-[#e5ddd5]">
             {messages.map((m) => (
               <div key={m.id} className={`flex w-full ${m.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -431,7 +334,6 @@ export function WhatsAppWidget() {
             <div ref={chatEndRef} />
           </div>
 
-          {/* Footer */}
           <div className="p-2.5 bg-[#f0f2f5]">
             <form onSubmit={handleSubmit} className="flex gap-2">
               <input type="text" placeholder="Type a message..."
@@ -445,7 +347,6 @@ export function WhatsAppWidget() {
         </div>
       )}
 
-      {/* FAB */}
       <div className="flex flex-col items-center gap-1">
         {!isOpen && (
           <span className="bg-gradient-to-r from-green-600 to-green-700 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-md whitespace-nowrap animate-bounce" style={{ animationDuration: '2s' }}>

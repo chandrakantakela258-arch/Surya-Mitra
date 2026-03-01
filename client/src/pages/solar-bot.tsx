@@ -47,6 +47,7 @@ const saveLead = async (data: Record<string, string>) => {
   } catch (e) {}
 };
 
+const DYNAMIC_FIELDS = new Set(["state", "district", "city", "electricityBoard"]);
 
 function getYouTubeEmbedUrl(url: string): string | null {
   const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
@@ -83,7 +84,7 @@ function MediaBlock({ mediaType, mediaUrl, mediaTitle }: { mediaType: string; me
   }
 
   if (mediaType === "ppt" || mediaType === "pdf") {
-    const Icon = mediaType === "pdf" ? FileText : FileText;
+    const Icon = FileText;
     const color = mediaType === "pdf" ? "red" : "orange";
     return (
       <a href={mediaUrl} target="_blank" rel="noopener noreferrer" className={`mt-2 flex items-center gap-2 bg-${color}-50 text-${color}-700 p-2 rounded-lg border border-${color}-200 text-xs hover:bg-${color}-100 transition-colors`}>
@@ -105,7 +106,7 @@ function MediaBlock({ mediaType, mediaUrl, mediaTitle }: { mediaType: string; me
 
 export default function SolarBotPage() {
   const [messages, setMessages] = useState<Msg[]>([]);
-  const [step, setStep] = useState(0);
+  const [currentStepId, setCurrentStepId] = useState<string | null>(null);
   const [lang, setLang] = useState<"en" | "hi">("en");
   const [inputText, setInputText] = useState("");
   const [selectedState, setSelectedState] = useState("");
@@ -128,12 +129,14 @@ export default function SolarBotPage() {
       });
   }, []);
 
+  const sortedNodes = [...nodeConfigs].sort((a, b) => a.sortOrder - b.sortOrder);
+
   const getNodeConfig = (stepId: string): NodeConfig | undefined => {
     return nodeConfigs.find((n) => n.stepId === stepId);
   };
 
-  const getNextStepByRules = (currentStepId: string, userReply: string): string | null => {
-    const node = getNodeConfig(currentStepId);
+  const getNextStepByRules = (stepId: string, userReply: string): string | null => {
+    const node = getNodeConfig(stepId);
     if (!node?.nextStepRules || node.nextStepRules.length === 0) return null;
     for (const rule of node.nextStepRules) {
       if (rule.match && rule.goToStep) {
@@ -145,14 +148,33 @@ export default function SolarBotPage() {
     return null;
   };
 
-  const getDefaultNextStep = (currentStepId: string): string | null => {
-    const currentNode = getNodeConfig(currentStepId);
+  const getDefaultNextStep = (stepId: string): string | null => {
+    const currentNode = getNodeConfig(stepId);
     if (!currentNode) return null;
     const currentOrder = currentNode.sortOrder;
-    const nextNode = nodeConfigs
-      .filter(n => n.sortOrder > currentOrder)
-      .sort((a, b) => a.sortOrder - b.sortOrder)[0];
+    const nextNode = sortedNodes.find(n => n.sortOrder > currentOrder);
     return nextNode ? nextNode.stepId : null;
+  };
+
+  const getDynamicOptions = (node: NodeConfig): string[] | null => {
+    if (!node.savesField || !DYNAMIC_FIELDS.has(node.savesField)) return null;
+    switch (node.savesField) {
+      case "state":
+        return indianStatesData;
+      case "district": {
+        const districts = getDistrictsForState(selectedState);
+        return districts.length > 0 ? districts : ["Other"];
+      }
+      case "city": {
+        const cities = getCitiesForDistrict(selectedDistrict);
+        return cities.length > 0 ? cities : ["Other"];
+      }
+      case "electricityBoard": {
+        return getDiscomsForState(selectedState);
+      }
+      default:
+        return null;
+    }
   };
 
   const addBotMessage = (text: string, buttons?: string[], options?: string[], isLocation?: boolean, mediaType?: string | null, mediaUrl?: string | null, mediaTitle?: string | null) => {
@@ -163,13 +185,12 @@ export default function SolarBotPage() {
     setMessages((prev) => [...prev, { id: Date.now().toString(), sender: "user", text }]);
   };
 
-  const addNodeMessage = (stepId: string, dynamicOptions?: string[]) => {
-    const node = getNodeConfig(stepId);
-    if (!node) return;
+  const showNodeMessage = (node: NodeConfig) => {
     const msg = lang === "hi" ? node.messageHi : node.messageEn;
-    const opts = dynamicOptions || (node.options ? node.options.split(",").map((o) => o.trim()) : undefined);
-    const buttons = node.inputType === "buttons" ? opts : undefined;
-    const dropdown = node.inputType === "dropdown" ? opts : undefined;
+    const dynamicOpts = getDynamicOptions(node);
+    const nodeOpts = dynamicOpts || (node.options ? node.options.split(",").map((o) => o.trim()) : undefined);
+    const buttons = node.inputType === "buttons" ? nodeOpts : undefined;
+    const dropdown = node.inputType === "dropdown" ? nodeOpts : undefined;
     const isLoc = node.inputType === "location";
     addBotMessage(msg, buttons, dropdown, isLoc, node.mediaType, node.mediaUrl, node.mediaTitle);
   };
@@ -177,62 +198,30 @@ export default function SolarBotPage() {
   const handleNextStep = (userReply: string) => {
     addUserMessage(userReply);
     setTimeout(() => {
-      const stepStr = step.toString();
-      const currentNode = getNodeConfig(stepStr);
+      if (!currentStepId) return;
+      const currentNode = getNodeConfig(currentStepId);
 
       if (currentNode?.savesField) {
         saveLead({ [currentNode.savesField]: userReply });
       }
 
-      if (step === 0) {
+      if (currentNode?.savesField === "language") {
         const newLang = userReply === "\u0939\u093F\u0928\u094D\u0926\u0940" ? "hi" : "en";
         setLang(newLang);
         saveLead({ language: newLang });
       }
-      if (step === 2) setSelectedState(userReply);
-      if (step === 2.1) setSelectedDistrict(userReply);
+      if (currentNode?.savesField === "state") setSelectedState(userReply);
+      if (currentNode?.savesField === "district") setSelectedDistrict(userReply);
 
-      const ruleNext = getNextStepByRules(stepStr, userReply);
+      const ruleNext = getNextStepByRules(currentStepId, userReply);
       if (ruleNext) {
-        setStep(parseFloat(ruleNext));
+        setCurrentStepId(ruleNext);
         return;
       }
 
-      switch (step) {
-        case 0: setStep(1); break;
-        case 1: setStep(1.1); break;
-        case 1.1: setStep(1.2); break;
-        case 1.2: setStep(2); break;
-        case 2: setStep(2.1); break;
-        case 2.1: setStep(2.2); break;
-        case 2.2: setStep(2.3); break;
-        case 2.3: setStep(2.4); break;
-        case 2.4: setStep(3); break;
-        case 3: setStep(3.1); break;
-        case 3.1: setStep(4); break;
-        case 4:
-          if (userReply === "Residential") setStep(4.5);
-          else setStep(6);
-          break;
-        case 4.5: setStep(8); break;
-        case 6: setStep(7); break;
-        case 7:
-          if (userReply.toLowerCase().includes("bike") || userReply.toLowerCase().includes("showroom")) setStep(7.5);
-          else setStep(7.1);
-          break;
-        case 7.5: setStep(8); break;
-        case 7.1: setStep(7.2); break;
-        case 7.2: setStep(8); break;
-        case 8:
-          if (userReply === t("Interested", "\u0930\u0941\u091A\u093F \u0939\u0948") || userReply === "Interested") setStep(9);
-          else { saveLead({ status: "Closed" }); setStep(10); }
-          break;
-        case 9: setStep(10); break;
-        default: {
-          const nextStep = getDefaultNextStep(stepStr);
-          if (nextStep) setStep(parseFloat(nextStep));
-          break;
-        }
+      const nextStep = getDefaultNextStep(currentStepId);
+      if (nextStep) {
+        setCurrentStepId(nextStep);
       }
     }, 600);
   };
@@ -243,48 +232,28 @@ export default function SolarBotPage() {
     if (initDone.current) return;
     initDone.current = true;
     setTimeout(() => {
-      const node = getNodeConfig("0");
-      if (node) {
-        const opts = node.options ? node.options.split(",").map((o) => o.trim()) : ["English", "\u0939\u093F\u0928\u094D\u0926\u0940"];
-        addBotMessage(node.messageEn, node.inputType === "buttons" ? opts : undefined, node.inputType === "dropdown" ? opts : undefined, false, node.mediaType, node.mediaUrl, node.mediaTitle);
+      const firstNode = sortedNodes[0];
+      if (firstNode) {
+        setCurrentStepId(firstNode.stepId);
+        showNodeMessage(firstNode);
       } else {
         addBotMessage("Hi! I am the PM Surya Ghar Solar Bot \u2600\uFE0F\nPlease select your language / \u0915\u0943\u092A\u092F\u093E \u092D\u093E\u0937\u093E \u091A\u0941\u0928\u0947\u0902:", ["English", "\u0939\u093F\u0928\u094D\u0926\u0940"]);
+        setCurrentStepId("0");
       }
     }, 500);
   }, [configsLoaded]);
 
   useEffect(() => {
-    const stepStr = step.toString();
-    if (step === 0) return;
+    if (!currentStepId) return;
+    if (messages.length === 0) return;
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg.sender !== "user") return;
 
-    if (stepStr === "2") {
-      addNodeMessage("2", indianStatesData);
-    } else if (stepStr === "2.1") {
-      const districts = getDistrictsForState(selectedState);
-      addNodeMessage("2.1", districts.length > 0 ? districts : ["Other"]);
-    } else if (stepStr === "2.2") {
-      const cities = getCitiesForDistrict(selectedDistrict);
-      addNodeMessage("2.2", cities.length > 0 ? cities : ["Other"]);
-    } else if (stepStr === "3") {
-      const discoms = getDiscomsForState(selectedState);
-      addNodeMessage("3", discoms);
-    } else {
-      const node = getNodeConfig(stepStr);
-      if (node) {
-        addNodeMessage(stepStr);
-      } else {
-        const fallbackMessages: Record<string, [string, string]> = {
-          "1": ["Q1: What is your Name?", "\u092A\u094D\u0930\u0936\u094D\u0928 1: \u0906\u092A\u0915\u093E \u0928\u093E\u092E \u0915\u094D\u092F\u093E \u0939\u0948?"],
-          "1.1": ["Please enter your 10-digit Mobile Number:", "\u0915\u0943\u092A\u092F\u093E \u0905\u092A\u0928\u093E 10-\u0905\u0902\u0915\u0940\u092F \u092E\u094B\u092C\u093E\u0907\u0932 \u0928\u0902\u092C\u0930 \u0926\u0930\u094D\u091C \u0915\u0930\u0947\u0902:"],
-          "1.2": ["What is your Email ID?", "\u0906\u092A\u0915\u0940 \u0908\u092E\u0947\u0932 \u0906\u0908\u0921\u0940 \u0915\u094D\u092F\u093E \u0939\u0948?"],
-          "2.3": ["What is your Pin Code?", "\u0906\u092A\u0915\u093E \u092A\u093F\u0928 \u0915\u094B\u0921 \u0915\u094D\u092F\u093E \u0939\u0948?"],
-          "10": ["Thank you for choosing Divyanshi Solar! Our team will contact you soon. \u2600\uFE0F", "\u0926\u093F\u0935\u094D\u092F\u093E\u0902\u0936\u0940 \u0938\u094B\u0932\u0930 \u0915\u094B \u091A\u0941\u0928\u0928\u0947 \u0915\u0947 \u0932\u093F\u090F \u0927\u0928\u094D\u092F\u0935\u093E\u0926! \u0939\u092E\u093E\u0930\u0940 \u091F\u0940\u092E \u091C\u0932\u094D\u0926 \u0939\u0940 \u0938\u0902\u092A\u0930\u094D\u0915 \u0915\u0930\u0947\u0917\u0940\u0964 \u2600\uFE0F"],
-        };
-        const fb = fallbackMessages[stepStr];
-        if (fb) addBotMessage(t(fb[0], fb[1]));
-      }
+    const node = getNodeConfig(currentStepId);
+    if (node) {
+      showNodeMessage(node);
     }
-  }, [step]);
+  }, [currentStepId]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -317,7 +286,7 @@ export default function SolarBotPage() {
               </div>
               <div>
                 <h3 className="font-bold text-sm" data-testid="text-bot-title">PM Surya Ghar Solar Bot</h3>
-                <p className="text-green-100 text-[10px]">Online \u2022 Replies instantly</p>
+                <p className="text-green-100 text-[10px]">Online • Replies instantly</p>
               </div>
             </div>
           </div>

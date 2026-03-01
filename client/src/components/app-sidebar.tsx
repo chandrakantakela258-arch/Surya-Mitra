@@ -92,7 +92,6 @@ const adminMenuSections: MenuSection[] = [
       { title: "Customer Leads", url: "/admin/customer-leads", icon: UserPlus },
       { title: "SOLAR BOT LEAD", url: "/admin/crm", icon: MessageSquare, highlight: true },
       { title: "Chatbot Settings", url: "/admin/chatbot-settings", icon: Bot },
-      { title: "Bot Simulator", url: "/simulator", icon: MessageSquare },
     ],
   },
   {
