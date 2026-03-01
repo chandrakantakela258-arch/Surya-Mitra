@@ -117,53 +117,53 @@ export const processMessage = async (phone: string, text: string) => {
       await sendWhatsAppMessage(phone, t(lang, 'What is your Name?', 'आपका नाम क्या है?'));
       break;
 
-    case 1:
-      await createOrUpdateLead(phone, { name: text, currentStep: "1.1" });
+    case 2:
+      await createOrUpdateLead(phone, { name: text, currentStep: "2" });
       await sendWhatsAppMessage(phone, t(lang, 'Please enter your 10-digit Mobile Number:', 'कृपया अपना 10-अंकीय मोबाइल नंबर दर्ज करें:'));
       break;
 
-    case 1.1:
-      await createOrUpdateLead(phone, { currentStep: "1.2" });
+    case 3:
+      await createOrUpdateLead(phone, { currentStep: "3" });
       await sendWhatsAppMessage(phone, t(lang, 'What is your Email ID?', 'आपकी ईमेल आईडी क्या है?'));
       break;
 
-    case 1.2:
-      await createOrUpdateLead(phone, { email: text, currentStep: "2" });
+    case 4:
+      await createOrUpdateLead(phone, { email: text, currentStep: "4" });
       await sendWhatsAppMessage(phone, t(lang, 'Q2: Please type your State name:', 'प्रश्न 2: अपना राज्य टाइप करें:'));
       break;
 
-    case 2:
-      await createOrUpdateLead(phone, { state: text, currentStep: "2.1" });
+    case 4.1:
+      await createOrUpdateLead(phone, { state: text, currentStep: "4.1" });
       await sendWhatsAppMessage(phone, t(lang, 'Please type your District name:', 'अपना जिला टाइप करें:'));
       break;
 
-    case 2.1:
-      await createOrUpdateLead(phone, { district: text, currentStep: "2.2" });
+    case 4.2:
+      await createOrUpdateLead(phone, { district: text, currentStep: "4.3" });
       await sendWhatsAppMessage(phone, t(lang, 'Please type your City/Town name:', 'अपना शहर/कस्बा टाइप करें:'));
       break;
 
-    case 2.2:
-      await createOrUpdateLead(phone, { city: text, currentStep: "2.3" });
+    case 5:
+      await createOrUpdateLead(phone, { city: text, currentStep: "5" });
       await sendWhatsAppMessage(phone, t(lang, 'What is your Pin Code?', 'आपका पिन कोड क्या है?'));
       break;
 
-    case 2.3:
-      await createOrUpdateLead(phone, { pincode: text, currentStep: "2.4" });
+    case 6:
+      await createOrUpdateLead(phone, { pincode: text, currentStep: "6" });
       await sendWhatsAppMessage(phone, t(lang, 'Please tap the + icon and share your GPS Location:', 'कृपया + आइकन पर टैप करें और अपना GPS स्थान साझा करें:'));
       break;
 
-    case 2.4:
-      await createOrUpdateLead(phone, { gpsLocation: text, currentStep: "3" });
+    case 7:
+      await createOrUpdateLead(phone, { gpsLocation: text, currentStep: "7" });
       await sendWhatsAppMessage(phone, t(lang, 'Select State Electricity Board:', 'राज्य विद्युत बोर्ड चुनें:'), null, ["NBPDCL", "SBPDCL", "UPPCL", "DHBVN", "UHBVN", "JVVNL", "Other"]);
       break;
 
-    case 3:
-      await createOrUpdateLead(phone, { electricityBoard: text, currentStep: "3.1" });
+    case 8:
+      await createOrUpdateLead(phone, { electricityBoard: text, currentStep: "8" });
       await sendWhatsAppMessage(phone, t(lang, 'What is your Consumer Number?', 'आपका उपभोक्ता नंबर क्या है?'));
       break;
 
-    case 3.1:
-      await createOrUpdateLead(phone, { consumerNumber: text, currentStep: "4" });
+    case 11:
+      await createOrUpdateLead(phone, { consumerNumber: text, currentStep: "11" });
       await sendWhatsAppMessage(phone, t(lang, 'What is your Connection Type?', 'आपका कनेक्शन प्रकार क्या है?'), null, ["Residential", "Commercial", "Industrial"]);
       break;
 
@@ -179,7 +179,7 @@ export const processMessage = async (phone: string, text: string) => {
       }
       break;
 
-    case 4.5: // Residential plant chosen → go to proposal
+    case 11.1: // Residential plant chosen → go to proposal
       await createOrUpdateLead(phone, { plantCapacity: text, currentStep: "8" });
       await sendWhatsAppMessage(phone, t(lang, '📄 Here is your Solar Proposal: https://divyanshisolar.com/solar-proposal.pdf\n\nOur team will prepare a detailed customized proposal for you shortly.', '📄 यहाँ आपका सोलर प्रस्ताव है: https://divyanshisolar.com/solar-proposal.pdf'));
       setTimeout(async () => {
