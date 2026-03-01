@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/empty-state";
 import { PartnerOfMonthCard } from "@/components/partner-of-month";
 import { DashboardCustomizer, useDashboardWidgets } from "@/components/dashboard-widgets";
 import { useAuth } from "@/lib/auth";
+import { SubsidyCalculator } from "@/components/subsidy-calculator";
 import type { User as UserType, Customer } from "@shared/schema";
 import { ExpandableSiteProgress } from "@/components/customer-journey-tracker";
 import { cn } from "@/lib/utils";
@@ -323,6 +324,20 @@ export default function BDPDashboard() {
               </TableBody>
             </Table>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Subsidy Calculator */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5" />
+            Check Subsidy Calculator
+          </CardTitle>
+          <CardDescription>Calculate subsidy and savings for your customers</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SubsidyCalculator showCommission="bdp" />
         </CardContent>
       </Card>
     </div>

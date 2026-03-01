@@ -13,6 +13,7 @@ import { PartnerOfMonthCard } from "@/components/partner-of-month";
 import { DashboardCustomizer, useDashboardWidgets } from "@/components/dashboard-widgets";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth";
+import { SubsidyCalculator } from "@/components/subsidy-calculator";
 import type { Customer } from "@shared/schema";
 
 interface DDPStats {
@@ -293,6 +294,20 @@ export default function DDPDashboard() {
               </TableBody>
             </Table>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Subsidy Calculator */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5" />
+            Check Subsidy Calculator
+          </CardTitle>
+          <CardDescription>Calculate subsidy and savings for your customers</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SubsidyCalculator showCommission="ddp" />
         </CardContent>
       </Card>
     </div>

@@ -8,6 +8,7 @@ import { HeroSlider } from "@/components/hero-slider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { WhatsAppWidget } from "@/components/WhatsAppWidget";
+import { SubsidyCalculator } from "@/components/subsidy-calculator";
 import {
   Dialog,
   DialogContent,
@@ -493,12 +494,12 @@ export default function LandingPage() {
               and reduce your electricity bills to zero.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <WouterLink href="/subsidy-calculator">
+              <a href="#check-subsidy">
                 <Button size="lg" className="gap-2 w-full sm:w-auto" data-testid="hero-subsidy-button">
                   <Calculator className="w-5 h-5" />
                   Check Your Subsidy
                 </Button>
-              </WouterLink>
+              </a>
               <WouterLink href="/register">
                 <Button size="lg" variant="outline" className="gap-2 w-full sm:w-auto" data-testid="hero-partner-button">
                   Join Divyanshi Solar Partner Network
@@ -514,6 +515,13 @@ export default function LandingPage() {
         <div className="mt-12">
           <HeroSlider />
         </div>
+
+        {/* Subsidy Calculator Section */}
+        <section id="check-subsidy" className="mt-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <SubsidyCalculator showCommission="none" />
+          </div>
+        </section>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
