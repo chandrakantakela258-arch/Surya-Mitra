@@ -175,10 +175,10 @@ export function WhatsAppWidget() {
         setLang(newLang);
         saveLead({ language: newLang });
       }
-      if (step === 2) setSelectedState(userReply);
-      if (step === 2.1) setSelectedDistrict(userReply);
-      if (step === 4) setMeterType(userReply);
-      if (step === 7) setBusinessType(userReply);
+      if (step === 4) setSelectedState(userReply);
+      if (step === 4.1) setSelectedDistrict(userReply);
+      if (step === 11) setMeterType(userReply);
+      if (step === 11.2) setBusinessType(userReply);
 
       const ruleNext = getNextStepByRules(stepStr, userReply);
       if (ruleNext) {
@@ -189,14 +189,14 @@ export function WhatsAppWidget() {
       switch (step) {
         case 0: setStep(1); break;
         case 1: setStep(1.1); break;
-        case 1.1: setStep(1.2); break;
-        case 1.2: setStep(2); break;
-        case 2: setStep(2.1); break;
-        case 2.1: setStep(2.2); break;
-        case 2.2: setStep(2.3); break;
-        case 2.3: setStep(2.4); break;
-        case 2.4: setStep(3); break;
-        case 3: setStep(3.1); break;
+        case 2: setStep(1.2); break;
+        case 3: setStep(2); break;
+        case 4: setStep(2.1); break;
+        case 4.1: setStep(2.2); break;
+        case 4.2: setStep(2.3); break;
+        case 4.3: setStep(2.4); break;
+        case 5: setStep(3); break;
+        case 6: setStep(3.1); break;
         case 3.1: setStep(4); break;
         case 4:
           if (userReply === 'Residential') setStep(4.5);
@@ -255,30 +255,30 @@ export function WhatsAppWidget() {
     if (!isOpen) return;
     if (step === 0) return;
     if (step === 1) {
-      addNodeMsg('1', 'Q1: What is your Name?', 'प्रश्न 1: आपका नाम क्या है?');
+      addNodeMsg('1', 'What is your Name?', 'आपका नाम क्या है?');
     } else if (step === 1.1) {
-      addNodeMsg('1.1', 'Please enter your 10-digit Mobile Number:', 'कृपया अपना 10-अंकीय मोबाइल नंबर दर्ज करें:');
+      addNodeMsg('2', 'Please enter your 10-digit Mobile Number:', 'कृपया अपना 10-अंकीय मोबाइल नंबर दर्ज करें:');
     } else if (step === 1.2) {
-      addNodeMsg('1.2', 'What is your Email ID?', 'आपकी ईमेल आईडी क्या है?');
+      addNodeMsg('3', 'What is your Email ID?', 'आपकी ईमेल आईडी क्या है?');
     } else if (step === 2) {
-      addNodeMsg('2', 'Q2: Please select your State:', 'प्रश्न 2: अपना राज्य चुनें:', undefined, indianStatesData);
+      addNodeMsg('4', 'Q2: Please select your State:', 'प्रश्न 2: अपना राज्य चुनें:', undefined, indianStatesData);
     } else if (step === 2.1) {
       const districts = getDistrictsForState(selectedState);
-      addNodeMsg('2.1', 'Please select your District:', 'अपना जिला चुनें:', undefined, districts.length > 0 ? districts : ["Other"]);
+      addNodeMsg('4.1', 'Please select your District:', 'अपना जिला चुनें:', undefined, districts.length > 0 ? districts : ["Other"]);
     } else if (step === 2.2) {
       const cities = getCitiesForDistrict(selectedDistrict);
-      addNodeMsg('2.2', 'Please select your City/Town:', 'अपना शहर/कस्बा चुनें:', undefined, cities.length > 0 ? cities : ["Other"]);
+      addNodeMsg('4.2', 'Please select your City/Town:', 'अपना शहर/कस्बा चुनें:', undefined, cities.length > 0 ? cities : ["Other"]);
     } else if (step === 2.3) {
-      addNodeMsg('2.3', 'What is your Pin Code?', 'आपका पिन कोड क्या है?');
+      addNodeMsg('5', 'What is your Pin Code?', 'आपका पिन कोड क्या है?');
     } else if (step === 2.4) {
-      addNodeMsg('2.4', 'Please share your GPS Location:', 'अपनी GPS लोकेशन साझा करें:', [], [], true);
+      addNodeMsg('6', 'Please share your GPS Location:', 'अपनी GPS लोकेशन साझा करें:', [], [], true);
     } else if (step === 3) {
       const discoms = getDiscomsForState(selectedState);
-      addNodeMsg('3', 'Q3: Select State Electricity Board:', 'प्रश्न 3: राज्य विद्युत बोर्ड चुनें:', undefined, discoms);
+      addNodeMsg('7', 'Q3: Select State Electricity Board:', 'प्रश्न 3: राज्य विद्युत बोर्ड चुनें:', undefined, discoms);
     } else if (step === 3.1) {
-      addNodeMsg('3.1', 'Q3(a): What is your Consumer Number?', 'प्रश्न 3(a): आपका उपभोक्ता नंबर क्या है?');
+      addNodeMsg('8', 'Q3(a): What is your Consumer Number?', 'प्रश्न 3(a): आपका उपभोक्ता नंबर क्या है?');
     } else if (step === 4) {
-      addNodeMsg('4', 'Q4: What is your Connection Type?', 'प्रश्न 4: आपका कनेक्शन प्रकार क्या है?', undefined, ["Residential", "Commercial", "Industrial"]);
+      addNodeMsg('11', 'Q4: What is your Connection Type?', 'प्रश्न 4: आपका कनेक्शन प्रकार क्या है?', undefined, ["Residential", "Commercial", "Industrial"]);
     } else if (step === 4.5) {
       addNodeMsg('4.5', 'Great! For a Residential connection, here are the recommended solar plants for you. Please select:', 'बढ़िया! आपके घरेलू कनेक्शन के लिए अनुशंसित सोलर प्लांट चुनें:', undefined, RESIDENTIAL_PLANTS);
     } else if (step === 6) {
