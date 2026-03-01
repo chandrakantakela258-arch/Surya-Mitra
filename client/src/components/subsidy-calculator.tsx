@@ -176,21 +176,13 @@ function calculateSubsidy(
   customRatePerWatt: number | null = null
 ): SubsidyResult {
   let ratePerWatt: number;
-  const nonDcrDefaultRate = inverterType === "hybrid" ? NON_DCR_HYBRID_RATE_PER_WATT : NON_DCR_ONGRID_RATE_PER_WATT;
+  const defaultRate = panelType === "dcr"
+    ? (inverterType === "hybrid" ? DCR_HYBRID_RATE_PER_WATT : DCR_ONGRID_RATE_PER_WATT)
+    : (inverterType === "hybrid" ? NON_DCR_HYBRID_RATE_PER_WATT : NON_DCR_ONGRID_RATE_PER_WATT);
   if (customRatePerWatt !== null && customRatePerWatt > 0) {
-    if (panelType === "dcr") {
-      const minRate = inverterType === "hybrid" ? DCR_HYBRID_RATE_PER_WATT : DCR_ONGRID_RATE_PER_WATT;
-      ratePerWatt = Math.max(customRatePerWatt, minRate);
-    } else {
-      const minRate = (customerType === "commercial" || customerType === "industrial") ? NON_DCR_COMMERCIAL_RATE_PER_WATT : nonDcrDefaultRate;
-      ratePerWatt = Math.max(customRatePerWatt, minRate);
-    }
-  } else if (panelType === "dcr") {
-    ratePerWatt = inverterType === "hybrid" ? DCR_HYBRID_RATE_PER_WATT : DCR_ONGRID_RATE_PER_WATT;
-  } else if ((customerType === "commercial" || customerType === "industrial") && panelType !== "dcr") {
-    ratePerWatt = NON_DCR_COMMERCIAL_RATE_PER_WATT;
+    ratePerWatt = Math.max(customRatePerWatt, defaultRate);
   } else {
-    ratePerWatt = nonDcrDefaultRate;
+    ratePerWatt = defaultRate;
   }
   
   const totalCost = capacityKW * ratePerWatt * 1000;

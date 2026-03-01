@@ -27,7 +27,8 @@ const indianStates = [
 ];
 
 const roofTypes = ["rcc", "sheet", "tiles", "asbestos", "other"] as const;
-const panelTypes = ["dcr_hybrid", "dcr_ongrid", "non_dcr"] as const;
+const panelTypes = ["dcr", "non_dcr"] as const;
+const inverterTypes = ["hybrid", "ongrid"] as const;
 const customerTypes = ["residential", "commercial", "industrial"] as const;
 
 // Unit types for commercial and industrial installations
@@ -84,7 +85,6 @@ const publicCustomerFormSchema = z.object({
   customerType: z.enum(customerTypes).default("residential"),
   unitType: z.string().optional().or(z.literal("")),
   commercialUnitDescription: z.string().optional().or(z.literal("")),
-  industrialUnitDescription: z.string().optional().or(z.literal("")),
   // Roof Details - Required
   roofType: z.enum(roofTypes),
   roofArea: z.preprocess(
@@ -93,6 +93,7 @@ const publicCustomerFormSchema = z.object({
   ),
   // Panel and Capacity - Required
   panelType: z.enum(panelTypes),
+  inverterType: z.enum(inverterTypes).default("hybrid"),
   proposedCapacity: z.string().min(1, "Capacity is required"),
   // Payment Details - Required
   accountHolderName: z.string().optional().or(z.literal("")),
@@ -138,36 +139,39 @@ const registrationStateSubsidies: Record<string, { ratePerKw: number; maxSubsidy
   "Chhattisgarh": { ratePerKw: 10000, maxSubsidy: 30000, label: "Chhattisgarh State Subsidy" },
 };
 
-function calculateSubsidy(capacityKw: number, panelType: string, customerType: string = "residential", state: string = "") {
+function calculateSubsidy(capacityKw: number, panelType: string, inverterType: string = "hybrid", customerType: string = "residential", state: string = "") {
   let centralSubsidy = 0;
   let stateSubsidy = 0;
   let totalCost = 0;
-  
-  if (panelType === "dcr_hybrid") {
-    totalCost = capacityKw * 75000;
-    if (capacityKw <= 2) {
-      centralSubsidy = capacityKw * 30000;
-    } else if (capacityKw === 3) {
-      centralSubsidy = 78000;
+  let ratePerKw = 0;
+
+  if (panelType === "dcr") {
+    if (inverterType === "hybrid") {
+      ratePerKw = 75000;
     } else {
-      centralSubsidy = 78000;
+      ratePerKw = 66000;
     }
-  } else if (panelType === "dcr_ongrid") {
-    totalCost = capacityKw * 66000;
-    if (capacityKw <= 2) {
-      centralSubsidy = capacityKw * 30000;
-    } else if (capacityKw === 3) {
-      centralSubsidy = 78000;
-    } else {
-      centralSubsidy = 78000;
+    totalCost = capacityKw * ratePerKw;
+    if (customerType === "residential") {
+      if (capacityKw <= 2) {
+        centralSubsidy = capacityKw * 30000;
+      } else if (capacityKw <= 3) {
+        centralSubsidy = 78000;
+      } else {
+        centralSubsidy = 78000;
+      }
     }
   } else {
-    const ratePerKw = (customerType === "commercial" || customerType === "industrial") ? 45000 : 55000;
+    if (inverterType === "hybrid") {
+      ratePerKw = 55000;
+    } else {
+      ratePerKw = 45000;
+    }
     totalCost = capacityKw * ratePerKw;
     centralSubsidy = 0;
   }
 
-  const isSubsidyEligible = customerType === "residential" && panelType !== "non_dcr";
+  const isSubsidyEligible = customerType === "residential" && panelType === "dcr";
   if (isSubsidyEligible && state && registrationStateSubsidies[state]) {
     const stateInfo = registrationStateSubsidies[state];
     const calculated = Math.min(capacityKw, 3) * stateInfo.ratePerKw;
@@ -182,11 +186,12 @@ function calculateSubsidy(capacityKw: number, panelType: string, customerType: s
   const monthlySavings = monthlyGeneration * electricityRate;
   const annualSavings = monthlySavings * 12;
   const stateSubsidyLabel = state && registrationStateSubsidies[state] ? registrationStateSubsidies[state].label : "";
+  const ratePerWatt = ratePerKw / 1000;
   
-  return { centralSubsidy, stateSubsidy, stateSubsidyLabel, totalSubsidy, totalCost, netCost, dailyGeneration, monthlyGeneration, monthlySavings, annualSavings };
+  return { centralSubsidy, stateSubsidy, stateSubsidyLabel, totalSubsidy, totalCost, netCost, dailyGeneration, monthlyGeneration, monthlySavings, annualSavings, ratePerWatt };
 }
 
-function SubsidyPreview({ capacity, panelType, customerType = "residential", state = "" }: { capacity: string; panelType: string; customerType?: string; state?: string }) {
+function SubsidyPreview({ capacity, panelType, inverterType = "hybrid", customerType = "residential", state = "" }: { capacity: string; panelType: string; inverterType?: string; customerType?: string; state?: string }) {
   const capacityNum = parseFloat(capacity || "0") || 0;
   const isNonDcr = panelType === "non_dcr";
   
@@ -194,8 +199,7 @@ function SubsidyPreview({ capacity, panelType, customerType = "residential", sta
     return null;
   }
   
-  const result = calculateSubsidy(capacityNum, panelType, customerType, state);
-  const ratePerWatt = isNonDcr ? ((customerType === "commercial" || customerType === "industrial") ? 45 : 55) : (panelType === "dcr_hybrid" ? 75 : 66);
+  const result = calculateSubsidy(capacityNum, panelType, inverterType, customerType, state);
   
   return (
     <Card className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
@@ -204,7 +208,7 @@ function SubsidyPreview({ capacity, panelType, customerType = "residential", sta
           <div className="p-2 bg-background rounded-lg">
             <p className="text-sm text-muted-foreground">System Cost</p>
             <p className="text-lg font-bold">{formatINR(result.totalCost)}</p>
-            <p className="text-xs text-muted-foreground">Rs {ratePerWatt}/Watt</p>
+            <p className="text-xs text-muted-foreground">Rs {result.ratePerWatt}/Watt</p>
           </div>
           {!isNonDcr && customerType === "residential" && (
             <div className="p-2 bg-green-100 dark:bg-green-900/50 rounded-lg">
@@ -268,12 +272,12 @@ export default function CustomerRegistration() {
       customerType: "residential",
       unitType: "",
       commercialUnitDescription: "",
-      industrialUnitDescription: "",
       // Roof Details
       roofType: "rcc",
       roofArea: undefined,
       // Panel and Capacity
-      panelType: "dcr_hybrid",
+      panelType: "dcr",
+      inverterType: "hybrid",
       proposedCapacity: "3",
       // Payment Details
       accountHolderName: "",
@@ -323,6 +327,7 @@ export default function CustomerRegistration() {
 
   const watchCapacity = form.watch("proposedCapacity");
   const watchPanelType = form.watch("panelType");
+  const watchInverterType = form.watch("inverterType");
   const watchCustomerType = form.watch("customerType");
   const watchState = form.watch("state");
 
@@ -900,55 +905,62 @@ export default function CustomerRegistration() {
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      control={form.control}
-                      name="industrialUnitDescription"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Industrial Unit Description *</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              placeholder="Provide additional details about the industrial facility" 
-                              data-testid="input-industrial-description"
-                              {...field}
-                              value={field.value || ""}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Additional details about the industrial facility for installation
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                   </>
                 )}
                 
-                <FormField
-                  control={form.control}
-                  name="panelType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Panel Type *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-panel-type">
-                            <SelectValue placeholder="Select panel type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="dcr_hybrid">DCR with 3-in-1 Hybrid Inverter (Rs 75/W) - Subsidy Eligible</SelectItem>
-                          <SelectItem value="dcr_ongrid">DCR with Ongrid Inverter (Rs 66/W) - Subsidy Eligible</SelectItem>
-                          <SelectItem value="non_dcr">Non-DCR Panels - No Subsidy</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        DCR panels are eligible for government subsidy under PM Surya Ghar Yojana
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="panelType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Panel Type *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-panel-type">
+                              <SelectValue placeholder="Select panel type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="dcr">DCR Panel - Subsidy Eligible</SelectItem>
+                            <SelectItem value="non_dcr">Non-DCR Panel - No Subsidy</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          DCR panels are eligible for government subsidy
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="inverterType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Inverter Type *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-inverter-type">
+                              <SelectValue placeholder="Select inverter type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="hybrid">3-in-1 Hybrid Inverter (3, 5, 6 kW)</SelectItem>
+                            <SelectItem value="ongrid">Ongrid Inverter</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          {watchPanelType === "dcr" 
+                            ? (watchInverterType === "hybrid" ? "Rs 75/Watt" : "Rs 66/Watt (2-10 kW)")
+                            : (watchInverterType === "hybrid" ? "Rs 55/Watt (3, 5, 6 kW)" : "Rs 45/Watt")}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
                 
                 <FormField
                   control={form.control}
@@ -1022,7 +1034,7 @@ export default function CustomerRegistration() {
                 />
                 
                 {watchCapacity && watchPanelType && (
-                  <SubsidyPreview capacity={watchCapacity} panelType={watchPanelType} customerType={watchCustomerType || "residential"} state={watchState || ""} />
+                  <SubsidyPreview capacity={watchCapacity} panelType={watchPanelType} inverterType={watchInverterType || "hybrid"} customerType={watchCustomerType || "residential"} state={watchState || ""} />
                 )}
               </CardContent>
             </Card>
