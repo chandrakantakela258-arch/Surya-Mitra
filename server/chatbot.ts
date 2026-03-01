@@ -114,7 +114,7 @@ export const processMessage = async (phone: string, text: string) => {
     case 0:
       lang = text === 'हिन्दी' ? 'hi' : 'en';
       await createOrUpdateLead(phone, { language: lang, currentStep: "1" });
-      await sendWhatsAppMessage(phone, t(lang, 'Q1: What is your Name?', 'प्रश्न 1: आपका नाम क्या है?'));
+      await sendWhatsAppMessage(phone, t(lang, 'What is your Name?', 'आपका नाम क्या है?'));
       break;
 
     case 1:
@@ -154,17 +154,17 @@ export const processMessage = async (phone: string, text: string) => {
 
     case 2.4:
       await createOrUpdateLead(phone, { gpsLocation: text, currentStep: "3" });
-      await sendWhatsAppMessage(phone, t(lang, 'Q3: Select State Electricity Board:', 'प्रश्न 3: राज्य विद्युत बोर्ड चुनें:'), null, ["NBPDCL", "SBPDCL", "UPPCL", "DHBVN", "UHBVN", "JVVNL", "Other"]);
+      await sendWhatsAppMessage(phone, t(lang, 'Select State Electricity Board:', 'राज्य विद्युत बोर्ड चुनें:'), null, ["NBPDCL", "SBPDCL", "UPPCL", "DHBVN", "UHBVN", "JVVNL", "Other"]);
       break;
 
     case 3:
       await createOrUpdateLead(phone, { electricityBoard: text, currentStep: "3.1" });
-      await sendWhatsAppMessage(phone, t(lang, 'Q3(a): What is your Consumer Number?', 'प्रश्न 3(a): आपका उपभोक्ता नंबर क्या है?'));
+      await sendWhatsAppMessage(phone, t(lang, 'What is your Consumer Number?', 'आपका उपभोक्ता नंबर क्या है?'));
       break;
 
     case 3.1:
       await createOrUpdateLead(phone, { consumerNumber: text, currentStep: "4" });
-      await sendWhatsAppMessage(phone, t(lang, 'Q4: What is your Connection Type?', 'प्रश्न 4: आपका कनेक्शन प्रकार क्या है?'), null, ["Residential", "Commercial", "Industrial"]);
+      await sendWhatsAppMessage(phone, t(lang, 'What is your Connection Type?', 'आपका कनेक्शन प्रकार क्या है?'), null, ["Residential", "Commercial", "Industrial"]);
       break;
 
     case 4:
@@ -175,7 +175,7 @@ export const processMessage = async (phone: string, text: string) => {
           null, RESIDENTIAL_PLANTS
         );
       } else {
-        await sendWhatsAppMessage(phone, t(lang, 'Q6: Available Roof Space (in sq ft)?', 'प्रश्न 6: छत पर उपलब्ध जगह (वर्ग फुट में)?'));
+        await sendWhatsAppMessage(phone, t(lang, 'Available Roof Space (in sq ft)?', 'छत पर उपलब्ध जगह (वर्ग फुट में)?'));
       }
       break;
 
@@ -189,7 +189,7 @@ export const processMessage = async (phone: string, text: string) => {
 
     case 6:
       await createOrUpdateLead(phone, { roofSpace: text, currentStep: "7" });
-      await sendWhatsAppMessage(phone, t(lang, 'Q7: What is your Business Type?', 'प्रश्न 7: आपके व्यवसाय का प्रकार?'), null, [
+      await sendWhatsAppMessage(phone, t(lang, 'What is your Business Type?', 'आपके व्यवसाय का प्रकार?'), null, [
         "Bike/Car Showroom", "Aata/Oil/Masala Mill", "Tractor Agency", "RO/Packaging Plant", "Rice Mill", "Fabrication Plant", "Other Industrial Unit"
       ]);
       break;
@@ -204,7 +204,7 @@ export const processMessage = async (phone: string, text: string) => {
           null, BIKE_SHOWROOM_PLANTS
         );
       } else {
-        await sendWhatsAppMessage(phone, t(lang, 'Q7(a): Monthly Electricity Bill Amount?', 'प्रश्न 7(a): मासिक बिजली बिल राशि?'), null, [
+        await sendWhatsAppMessage(phone, t(lang, 'Monthly Electricity Bill Amount?', 'मासिक बिजली बिल राशि?'), null, [
           "Less than 1000", "2000-4000", "4000-10000", "15000-30000", "50000+", "100000+"
         ]);
       }
@@ -220,7 +220,7 @@ export const processMessage = async (phone: string, text: string) => {
 
     case 7.1:
       await createOrUpdateLead(phone, { monthlyBilling: text, currentStep: "7.2" });
-      await sendWhatsAppMessage(phone, t(lang, 'Q7(b): What Capacity Plant do you want to Install?', 'प्रश्न 7(b): कितनी क्षमता का प्लांट लगाना चाहते हैं?'), null, GENERAL_CAPACITIES);
+      await sendWhatsAppMessage(phone, t(lang, 'What Capacity Plant do you want to Install?', 'कितनी क्षमता का प्लांट लगाना चाहते हैं?'), null, GENERAL_CAPACITIES);
       break;
 
     case 7.2:
