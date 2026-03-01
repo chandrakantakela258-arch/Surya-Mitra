@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Send, MapPin, Sun, Sparkles, Video, FileText, Image as ImageIcon, ExternalLink } from "lucide-react";
+import { indianStatesData, getDistrictsForState, getCitiesForDistrict, getDiscomsForState } from "@shared/india-data";
 
 interface Msg {
   id: string;
@@ -46,29 +47,6 @@ const saveLead = async (data: Record<string, string>) => {
   } catch (e) {}
 };
 
-const DISTRICTS: Record<string, string[]> = {
-  Bihar: ["Patna", "Gaya", "Muzaffarpur", "Bhagalpur", "Darbhanga", "Purnia", "Samastipur", "Nalanda", "Munger", "Sitamarhi", "Saran", "Vaishali", "Begusarai", "Other"],
-  "Uttar Pradesh": ["Lucknow", "Varanasi", "Agra", "Kanpur", "Prayagraj", "Gorakhpur", "Meerut", "Noida/Gautam Buddh Nagar", "Ghaziabad", "Mathura", "Other"],
-  Delhi: ["Central Delhi", "East Delhi", "New Delhi", "North Delhi", "South Delhi", "West Delhi", "Other"],
-  Maharashtra: ["Mumbai", "Pune", "Nagpur", "Nashik", "Aurangabad", "Solapur", "Other"],
-  Rajasthan: ["Jaipur", "Jodhpur", "Udaipur", "Kota", "Bikaner", "Ajmer", "Other"],
-  "Madhya Pradesh": ["Bhopal", "Indore", "Gwalior", "Jabalpur", "Ujjain", "Other"],
-  Gujarat: ["Ahmedabad", "Surat", "Vadodara", "Rajkot", "Gandhinagar", "Other"],
-  Haryana: ["Gurugram", "Faridabad", "Panipat", "Ambala", "Hisar", "Other"],
-  Punjab: ["Ludhiana", "Amritsar", "Chandigarh", "Mohali", "Patiala", "Other"],
-  Jharkhand: ["Ranchi", "Jamshedpur", "Dhanbad", "Bokaro", "Other"],
-  Other: ["Other"],
-};
-
-const CITIES: Record<string, string[]> = {
-  Patna: ["Patna City", "Danapur", "Phulwari Sharif", "Khagaul", "Patna Sahib", "Other"],
-  Gaya: ["Gaya City", "Bodh Gaya", "Sherghati", "Other"],
-  Muzaffarpur: ["Muzaffarpur City", "Sitamarhi", "Motihari", "Other"],
-  Lucknow: ["Lucknow City", "Aliganj", "Gomti Nagar", "Hazratganj", "Other"],
-  Other: ["Other"],
-};
-
-const ALL_STATES = ["Bihar", "Uttar Pradesh", "Delhi", "Maharashtra", "Rajasthan", "Madhya Pradesh", "Gujarat", "Haryana", "Punjab", "Jharkhand", "Uttarakhand", "West Bengal", "Himachal Pradesh", "Other"];
 
 function getYouTubeEmbedUrl(url: string): string | null {
   const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
@@ -280,11 +258,16 @@ export default function SolarBotPage() {
     if (step === 0) return;
 
     if (stepStr === "2") {
-      addNodeMessage("2", ALL_STATES);
+      addNodeMessage("2", indianStatesData);
     } else if (stepStr === "2.1") {
-      addNodeMessage("2.1", DISTRICTS[selectedState] || ["Other"]);
+      const districts = getDistrictsForState(selectedState);
+      addNodeMessage("2.1", districts.length > 0 ? districts : ["Other"]);
     } else if (stepStr === "2.2") {
-      addNodeMessage("2.2", CITIES[selectedDistrict] || ["Other"]);
+      const cities = getCitiesForDistrict(selectedDistrict);
+      addNodeMessage("2.2", cities.length > 0 ? cities : ["Other"]);
+    } else if (stepStr === "3") {
+      const discoms = getDiscomsForState(selectedState);
+      addNodeMessage("3", discoms);
     } else {
       const node = getNodeConfig(stepStr);
       if (node) {
@@ -361,7 +344,7 @@ export default function SolarBotPage() {
 
                   {m.options && (
                     <div className="mt-2.5">
-                      <select className="w-full border border-gray-200 bg-gray-50 text-gray-700 rounded-md p-1.5 text-xs focus:ring-2 focus:ring-green-500 outline-none" onChange={(e) => { if (e.target.value) handleNextStep(e.target.value); }} defaultValue="" data-testid="select-option">
+                      <select className="w-full border border-gray-200 bg-white text-gray-900 rounded-md p-1.5 text-xs focus:ring-2 focus:ring-green-500 outline-none" onChange={(e) => { if (e.target.value) handleNextStep(e.target.value); }} defaultValue="" data-testid="select-option">
                         <option value="" disabled>Select an option...</option>
                         {m.options.map((o) => <option key={o} value={o}>{o}</option>)}
                       </select>
@@ -386,7 +369,7 @@ export default function SolarBotPage() {
 
           <div className="p-2.5 bg-[#f0f2f5]">
             <form onSubmit={handleSubmit} className="flex gap-2">
-              <input type="text" placeholder="Type a message..." className="flex-1 rounded-full border-none px-4 py-2 outline-none focus:ring-2 focus:ring-green-500 text-sm shadow-sm" value={inputText} onChange={(e) => setInputText(e.target.value)} data-testid="input-chat-message" />
+              <input type="text" placeholder="Type a message..." className="flex-1 rounded-full border-none px-4 py-2 outline-none focus:ring-2 focus:ring-green-500 text-sm shadow-sm bg-white text-gray-900 placeholder-gray-500" value={inputText} onChange={(e) => setInputText(e.target.value)} data-testid="input-chat-message" />
               <button type="submit" className="w-9 h-9 bg-[#00a884] text-white rounded-full flex items-center justify-center shadow-sm hover:bg-green-600 transition-colors flex-shrink-0" data-testid="button-send-message">
                 <Send size={16} />
               </button>

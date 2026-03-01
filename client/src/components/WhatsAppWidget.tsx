@@ -232,7 +232,8 @@ export function WhatsAppWidget() {
     if (node) {
       const opts = node.options ? node.options.split(',').map(o => o.trim()) : (fallbackOptions || fallbackButtons || []);
       const asButtons = node.inputType === 'buttons' ? opts : fallbackButtons;
-      const asDropdown = node.inputType === 'dropdown' ? opts : fallbackOptions;
+      const isDynamicDropdown = ['2', '2.1', '2.2', '3'].includes(stepId);
+      const asDropdown = node.inputType === 'dropdown' ? (isDynamicDropdown ? fallbackOptions : opts) : fallbackOptions;
       const asLoc = node.inputType === 'location' ? true : isLoc;
       addBotMessage(msg, asButtons, asDropdown, asLoc, media.mediaType, media.mediaUrl, media.mediaTitle);
     } else {
@@ -404,7 +405,7 @@ export function WhatsAppWidget() {
 
                   {m.options && (
                     <div className="mt-2.5">
-                      <select key={`select-${m.id}`} className="w-full border border-gray-200 bg-gray-50 text-gray-700 rounded-md p-1.5 text-xs focus:ring-2 focus:ring-green-500 outline-none"
+                      <select key={`select-${m.id}`} className="w-full border border-gray-200 bg-white text-gray-900 rounded-md p-1.5 text-xs focus:ring-2 focus:ring-green-500 outline-none"
                         onChange={(e) => { if (e.target.value) handleNextStep(e.target.value); }}
                         defaultValue="">
                         <option value="" disabled>Select an option...</option>
@@ -434,7 +435,7 @@ export function WhatsAppWidget() {
           <div className="p-2.5 bg-[#f0f2f5]">
             <form onSubmit={handleSubmit} className="flex gap-2">
               <input type="text" placeholder="Type a message..."
-                className="flex-1 rounded-full border-none px-4 py-2 outline-none focus:ring-2 focus:ring-green-500 text-sm shadow-sm"
+                className="flex-1 rounded-full border-none px-4 py-2 outline-none focus:ring-2 focus:ring-green-500 text-sm shadow-sm bg-white text-gray-900 placeholder-gray-500"
                 value={inputText} onChange={e => setInputText(e.target.value)} />
               <button type="submit" className="w-9 h-9 bg-[#00a884] text-white rounded-full flex items-center justify-center shadow-sm hover:bg-green-600 transition-colors flex-shrink-0">
                 <Send size={16} />

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, MapPin, Building2, Download } from 'lucide-react';
+import { indianStatesData, getDistrictsForState, getCitiesForDistrict, getDiscomsForState } from "@shared/india-data";
 import './simulator.css';
 
 interface Msg {
@@ -16,6 +17,8 @@ export default function BotSimulator() {
   const [step, setStep] = useState(0);
   const [lang, setLang] = useState<'en' | 'hi'>('en');
   const [inputText, setInputText] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
   
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -49,9 +52,11 @@ export default function BotSimulator() {
           setStep(2);
           break;
         case 2:
+          setSelectedState(userReply);
           setStep(2.1);
           break;
         case 2.1:
+          setSelectedDistrict(userReply);
           setStep(2.2);
           break;
         case 2.2:
@@ -108,17 +113,20 @@ export default function BotSimulator() {
     } else if (step === 1.2) {
       addBotMessage(t('What is your Email ID?', 'आपकी ईमेल आईडी क्या है?'));
     } else if (step === 2) {
-      addBotMessage(t('Question 2: Where are you located? Please select your State:', 'प्रश्न 2: आप कहाँ स्थित हैं? अपना राज्य चुनें:'), undefined, ["Bihar", "Uttar Pradesh", "Delhi", "Maharashtra", "Other"]);
+      addBotMessage(t('Question 2: Where are you located? Please select your State:', 'प्रश्न 2: आप कहाँ स्थित हैं? अपना राज्य चुनें:'), undefined, indianStatesData);
     } else if (step === 2.1) {
-      addBotMessage(t('Please select your District:', 'अपना जिला चुनें:'), undefined, ["Patna", "Gaya", "Muzaffarpur", "Other"]);
+      const districts = getDistrictsForState(selectedState);
+      addBotMessage(t('Please select your District:', 'अपना जिला चुनें:'), undefined, districts.length > 0 ? districts : ["Other"]);
     } else if (step === 2.2) {
-      addBotMessage(t('Please select your City/Town:', 'अपना शहर/कस्बा चुनें:'), undefined, ["Patna City", "Danapur", "Other"]);
+      const cities = getCitiesForDistrict(selectedDistrict);
+      addBotMessage(t('Please select your City/Town:', 'अपना शहर/कस्बा चुनें:'), undefined, cities.length > 0 ? cities : ["Other"]);
     } else if (step === 2.3) {
       addBotMessage(t('What is your Pin Code?', 'आपका पिन कोड क्या है?'));
     } else if (step === 2.4) {
       addBotMessage(t('Please share your GPS Location:', 'अपनी GPS लोकेशन साझा करें:'), [], [], true);
     } else if (step === 3) {
-      addBotMessage(t('Question 3: Select State Electricity Board:', 'प्रश्न 3: राज्य विद्युत बोर्ड चुनें:'), undefined, ["NBPDCL", "SBPDCL", "UPPCL", "Other"]);
+      const discoms = getDiscomsForState(selectedState);
+      addBotMessage(t('Question 3: Select State Electricity Board:', 'प्रश्न 3: राज्य विद्युत बोर्ड चुनें:'), undefined, discoms);
     } else if (step === 3.1) {
       addBotMessage(t('Question 3(a): What is your Consumer Number?', 'प्रश्न 3(a): आपका उपभोक्ता नंबर क्या है?'));
     } else if (step === 4) {
