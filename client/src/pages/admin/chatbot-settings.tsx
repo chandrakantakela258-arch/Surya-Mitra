@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Bot, Plus, Pencil, Trash2, Video, FileText, Image, Eye, EyeOff, Copy, ClipboardPaste, ExternalLink, Link, ChevronUp, ChevronDown, ArrowUpDown, GitBranch } from "lucide-react";
+import { Bot, Plus, Pencil, Trash2, Video, FileText, Image, Eye, EyeOff, Copy, ClipboardPaste, ExternalLink, Link, ChevronUp, ChevronDown, ArrowUpDown, GitBranch, Upload, Globe, Loader2, CheckCircle2 } from "lucide-react";
 
 interface BranchRule {
   match: string;
@@ -46,10 +46,11 @@ const INPUT_TYPES = [
 
 const MEDIA_TYPES = [
   { value: "none", label: "No Media" },
-  { value: "video", label: "Video (YouTube/URL)" },
-  { value: "ppt", label: "PPT / Document" },
+  { value: "video", label: "Video" },
   { value: "image", label: "Image" },
   { value: "pdf", label: "PDF" },
+  { value: "ppt", label: "PPT / Document" },
+  { value: "link", label: "Website Link" },
 ];
 
 export default function AdminChatbotSettings() {
@@ -58,6 +59,47 @@ export default function AdminChatbotSettings() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [sharecopied, setShareCopied] = useState(false);
   const [copiedNode, setCopiedNode] = useState<ChatbotNode | null>(null);
+  const [mediaSourceMode, setMediaSourceMode] = useState<"upload" | "link">("link");
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editNode) return;
+
+    setIsUploading(true);
+    setUploadedFileName(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/admin/chatbot-media/upload', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Upload failed');
+      }
+
+      const data = await response.json();
+      setEditNode({
+        ...editNode,
+        mediaUrl: data.url,
+        mediaType: editNode.mediaType === "none" ? data.detectedType : editNode.mediaType,
+      });
+      setUploadedFileName(data.originalName);
+      toast({ title: "File uploaded", description: data.originalName });
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const { data: nodes = [], isLoading } = useQuery<ChatbotNode[]>({
     queryKey: ["/api/admin/chatbot-nodes"],
@@ -151,6 +193,8 @@ export default function AdminChatbotSettings() {
       isActive: true,
       nextStepRules: null,
     });
+    setMediaSourceMode("link");
+    setUploadedFileName(null);
     setIsDialogOpen(true);
   };
 
@@ -164,6 +208,9 @@ export default function AdminChatbotSettings() {
       savesField: node.savesField || "",
       nextStepRules: node.nextStepRules || null,
     });
+    const url = node.mediaUrl || "";
+    setMediaSourceMode(url.startsWith("/uploads/") ? "upload" : "link");
+    setUploadedFileName(url.startsWith("/uploads/") ? url.split("/").pop() || null : null);
     setIsDialogOpen(true);
   };
 
@@ -214,6 +261,7 @@ export default function AdminChatbotSettings() {
       case "ppt": return <FileText size={14} className="text-orange-500" />;
       case "image": return <Image size={14} className="text-blue-500" />;
       case "pdf": return <FileText size={14} className="text-red-600" />;
+      case "link": return <Globe size={14} className="text-green-500" />;
       default: return null;
     }
   };
@@ -465,7 +513,10 @@ export default function AdminChatbotSettings() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Media Type</Label>
-                    <Select value={editNode.mediaType || "none"} onValueChange={v => setEditNode({...editNode, mediaType: v})}>
+                    <Select value={editNode.mediaType || "none"} onValueChange={v => {
+                      setEditNode({...editNode, mediaType: v, mediaUrl: v === "none" ? "" : editNode.mediaUrl});
+                      if (v === "link") setMediaSourceMode("link");
+                    }}>
                       <SelectTrigger data-testid="select-media-type"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {MEDIA_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
@@ -478,15 +529,97 @@ export default function AdminChatbotSettings() {
                   </div>
                 </div>
                 {editNode.mediaType && editNode.mediaType !== "none" && (
-                  <div className="mt-3">
-                    <Label>Media URL *</Label>
-                    <Input value={editNode.mediaUrl || ""} onChange={e => setEditNode({...editNode, mediaUrl: e.target.value})} placeholder="https://..." data-testid="input-media-url" />
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                      {editNode.mediaType === "video" ? "YouTube link or direct video URL" :
-                       editNode.mediaType === "ppt" ? "Google Slides link or direct PPT URL" :
-                       editNode.mediaType === "pdf" ? "Direct link to PDF file" :
-                       "Direct link to the image file"}
-                    </p>
+                  <div className="mt-3 space-y-3">
+                    {editNode.mediaType !== "link" && (
+                      <div className="flex gap-1 mb-2">
+                        <Button
+                          type="button"
+                          variant={mediaSourceMode === "upload" ? "default" : "outline"}
+                          size="sm"
+                          className="text-xs h-7"
+                          onClick={() => setMediaSourceMode("upload")}
+                          data-testid="button-mode-upload"
+                        >
+                          <Upload size={12} className="mr-1" /> Upload File
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={mediaSourceMode === "link" ? "default" : "outline"}
+                          size="sm"
+                          className="text-xs h-7"
+                          onClick={() => setMediaSourceMode("link")}
+                          data-testid="button-mode-link"
+                        >
+                          <Globe size={12} className="mr-1" /> Paste URL
+                        </Button>
+                      </div>
+                    )}
+
+                    {mediaSourceMode === "upload" && editNode.mediaType !== "link" ? (
+                      <div>
+                        <Label>Upload File</Label>
+                        <div className="mt-1">
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            onChange={handleFileUpload}
+                            accept={
+                              editNode.mediaType === "video" ? "video/mp4,video/quicktime,video/webm,video/x-msvideo" :
+                              editNode.mediaType === "image" ? "image/jpeg,image/png,image/webp,image/gif,image/svg+xml" :
+                              editNode.mediaType === "pdf" ? "application/pdf" :
+                              editNode.mediaType === "ppt" ? "application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation" :
+                              "image/*,video/*,application/pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                            }
+                            className="hidden"
+                            data-testid="input-file-upload"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="w-full border-dashed border-2 h-16 flex flex-col gap-1"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isUploading}
+                            data-testid="button-choose-file"
+                          >
+                            {isUploading ? (
+                              <><Loader2 size={16} className="animate-spin" /> Uploading...</>
+                            ) : uploadedFileName || editNode.mediaUrl?.startsWith("/uploads/") ? (
+                              <><CheckCircle2 size={16} className="text-green-500" /> <span className="text-xs truncate max-w-[200px]">{uploadedFileName || editNode.mediaUrl?.split("/").pop()}</span></>
+                            ) : (
+                              <><Upload size={16} /> Click to choose file</>
+                            )}
+                          </Button>
+                          <p className="text-[10px] text-muted-foreground mt-1">
+                            Max 50MB. Supported: {editNode.mediaType === "video" ? "MP4, MOV, WebM, AVI" :
+                             editNode.mediaType === "image" ? "JPEG, PNG, WebP, GIF, SVG" :
+                             editNode.mediaType === "pdf" ? "PDF files" :
+                             editNode.mediaType === "ppt" ? "PPT, PPTX" :
+                             "Images, Videos, PDFs, PPT"}
+                          </p>
+                        </div>
+                        {editNode.mediaUrl && (
+                          <div className="mt-2 p-2 bg-muted rounded text-xs flex items-center gap-2">
+                            {getMediaIcon(editNode.mediaType)}
+                            <a href={editNode.mediaUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline truncate flex-1">
+                              {editNode.mediaUrl}
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div>
+                        <Label>{editNode.mediaType === "link" ? "Website URL *" : "Media URL *"}</Label>
+                        <Input value={editNode.mediaUrl || ""} onChange={e => setEditNode({...editNode, mediaUrl: e.target.value})} placeholder="https://..." data-testid="input-media-url" />
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {editNode.mediaType === "video" ? "YouTube link or direct video URL" :
+                           editNode.mediaType === "ppt" ? "Google Slides link or direct PPT URL" :
+                           editNode.mediaType === "pdf" ? "Direct link to PDF file" :
+                           editNode.mediaType === "link" ? "Full website URL (e.g. https://example.com)" :
+                           "Direct link to the image file"}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

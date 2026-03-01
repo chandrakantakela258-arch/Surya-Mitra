@@ -114,6 +114,14 @@ function MediaBlock({ mediaType, mediaUrl, mediaTitle }: { mediaType: string; me
     );
   }
 
+  if (mediaType === "link") {
+    return (
+      <a href={mediaUrl} target="_blank" rel="noopener noreferrer" className="mt-2 flex items-center gap-2 bg-green-50 text-green-700 p-3 rounded-lg border border-green-200 text-xs hover:bg-green-100 transition-colors">
+        <ExternalLink size={14} /> {mediaTitle || mediaUrl} <span className="text-[9px] opacity-60 ml-auto">↗</span>
+      </a>
+    );
+  }
+
   return null;
 }
 

@@ -410,6 +410,9 @@ export function WhatsAppWidget() {
                       {(m.mediaType === 'pdf' || m.mediaType === 'ppt') && (
                         <a href={m.mediaUrl} target="_blank" rel="noopener noreferrer" className="block bg-orange-50 text-orange-600 text-xs py-2 px-3 rounded border border-orange-200 hover:bg-orange-100">📄 {m.mediaTitle || 'View Document'}</a>
                       )}
+                      {m.mediaType === 'link' && (
+                        <a href={m.mediaUrl} target="_blank" rel="noopener noreferrer" className="block bg-green-50 text-green-600 text-xs py-2 px-3 rounded border border-green-200 hover:bg-green-100">🔗 {m.mediaTitle || m.mediaUrl}</a>
+                      )}
                     </div>
                   )}
 

@@ -125,6 +125,46 @@ const pdfUpload = multer({
   },
 });
 
+const chatbotMediaDir = path.join(process.cwd(), "uploads", "chatbot-media");
+if (!fs.existsSync(chatbotMediaDir)) {
+  fs.mkdirSync(chatbotMediaDir, { recursive: true });
+}
+
+const chatbotMediaStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, chatbotMediaDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
+const chatbotMediaUpload = multer({
+  storage: chatbotMediaStorage,
+  limits: {
+    fileSize: 50 * 1024 * 1024,
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = [
+      "image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml",
+      "video/mp4", "video/quicktime", "video/x-msvideo", "video/webm",
+      "application/pdf",
+      "application/vnd.ms-powerpoint",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Invalid file type. Allowed: images, videos, PDFs, PPT, Word, Excel."));
+    }
+  },
+});
+
 const SALT_ROUNDS = 10;
 
 const PgSession = connectPgSimple(session);
@@ -10091,6 +10131,29 @@ export function registerRoutes(httpServer: Server, app: Express) {
       res.json(result.rows[0]);
     } catch (error: any) {
       console.error('[Update Chatbot Node Error]', error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/admin/chatbot-media/upload', requireAuth, chatbotMediaUpload.single('file'), async (req: any, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+      const fileUrl = `/uploads/chatbot-media/${req.file.filename}`;
+      const originalName = req.file.originalname;
+      const mimeType = req.file.mimetype;
+
+      let detectedType = 'pdf';
+      if (mimeType.startsWith('image/')) detectedType = 'image';
+      else if (mimeType.startsWith('video/')) detectedType = 'video';
+      else if (mimeType.includes('presentation') || mimeType.includes('powerpoint')) detectedType = 'ppt';
+      else if (mimeType === 'application/pdf') detectedType = 'pdf';
+      else detectedType = 'pdf';
+
+      res.json({ url: fileUrl, originalName, detectedType });
+    } catch (error: any) {
+      console.error('[Chatbot Media Upload Error]', error.message);
       res.status(500).json({ error: error.message });
     }
   });
