@@ -1,9 +1,9 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation } from "wouter";
-import { Loader2, ArrowLeft, Sun, IndianRupee, TrendingDown, Zap, BatteryCharging, CreditCard, FileText, Upload, X, File, MapPin, Navigation, Camera } from "lucide-react";
-import { customerFormSchema, indianStates, roofTypes, panelTypes } from "@shared/schema";
+import { Loader2, ArrowLeft, Sun, IndianRupee, Zap, CreditCard, FileText, Upload, X, File, MapPin, Navigation, Camera } from "lucide-react";
+import { customerFormSchema, indianStates, roofTypes } from "@shared/schema";
 
 // Unit types for commercial and industrial installations
 const commercialUnitTypes = [
@@ -37,7 +37,7 @@ const industrialUnitTypes = [
   { value: "packaging", label: "Packaging Unit" },
   { value: "other_industrial", label: "Other Industrial" },
 ] as const;
-import { calculateSubsidy, formatINR } from "@/components/subsidy-calculator";
+import { formatINR } from "@/components/subsidy-calculator";
 import type { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -52,245 +52,110 @@ import { Switch } from "@/components/ui/switch";
 
 type CustomerFormValues = z.infer<typeof customerFormSchema>;
 
-function SubsidyEstimateCard({ capacity, panelType, customerType = "residential", state = "" }: { 
-  capacity: string | null | undefined; 
-  panelType: string;
-  customerType?: string;
-  state?: string;
-}) {
-  const capacityNum = parseFloat(capacity || "0") || 0;
-  const isNonDcr = panelType === "non_dcr";
-  const customerTypeLabel = customerType === "commercial" ? "Commercial" : customerType === "industrial" ? "Industrial" : "Residential";
-  const electricityRate = customerType === "industrial" ? 9 : customerType === "commercial" ? 8 : 7;
-  
-  const result = calculateSubsidy(capacityNum, state, panelType, "hybrid", customerType as "residential" | "commercial" | "industrial");
-  
-  if (capacityNum <= 0) {
-    return (
-      <Card className="bg-muted/30">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <IndianRupee className="w-5 h-5 text-primary" />
-            {result.subsidyEligible ? "Subsidy Estimate" : "Cost Estimate"}
-          </CardTitle>
-          <CardDescription>
-            Select proposed capacity above to see {result.subsidyEligible ? "subsidy" : "cost"} calculation
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
-  
-  if (!result.subsidyEligible) {
-    return (
-      <div className="space-y-4">
-        <Card className="bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg text-orange-700 dark:text-orange-300">
-              <IndianRupee className="w-5 h-5" />
-              Cost Estimate for {capacityNum} kW {customerTypeLabel} {isNonDcr ? "Non-DCR" : "DCR"} System
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
-              <div className="p-3 bg-background rounded-lg">
-                <p className="text-sm text-muted-foreground">System Cost</p>
-                <p className="text-xl font-semibold font-mono">{formatINR(result.totalCost)}</p>
-                <p className="text-xs text-muted-foreground">Rs {result.ratePerWatt}/Watt</p>
-              </div>
-              <div className="p-3 bg-background rounded-lg">
-                <p className="text-sm text-muted-foreground">Customer Pays</p>
-                <p className="text-xl font-semibold font-mono text-primary">{formatINR(result.netCost)}</p>
-                <p className="text-xs text-muted-foreground">
-                  {customerType !== "residential" 
-                    ? `${customerTypeLabel} installations not subsidy-eligible` 
-                    : "Non-DCR panels not subsidy-eligible"}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        {/* Power Savings */}
-        <Card className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
-          <CardContent className="pt-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
-              <div className="p-2 bg-background rounded-lg">
-                <p className="text-lg font-bold text-green-600">{result.dailyGeneration}</p>
-                <p className="text-xs text-muted-foreground">Units/Day</p>
-              </div>
-              <div className="p-2 bg-background rounded-lg">
-                <p className="text-lg font-bold text-green-600">{result.monthlyGeneration}</p>
-                <p className="text-xs text-muted-foreground">Units/Month</p>
-              </div>
-              <div className="p-2 bg-background rounded-lg">
-                <p className="text-lg font-bold text-orange-600">{formatINR(result.monthlySavings)}</p>
-                <p className="text-xs text-muted-foreground">Monthly Savings</p>
-              </div>
-              <div className="p-2 bg-background rounded-lg">
-                <p className="text-lg font-bold text-orange-600">{formatINR(result.annualSavings)}</p>
-                <p className="text-xs text-muted-foreground">Annual Savings</p>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground text-center mt-2">
-              4 units/kW/day at Rs {electricityRate}/unit ({customerTypeLabel} rate)
-            </p>
-          </CardContent>
-        </Card>
-        
-        {/* EMI Comparison Table */}
-        <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
-          <CardContent className="pt-4 space-y-3">
-            <p className="text-sm font-medium text-center text-blue-700 dark:text-blue-300">EMI Options (10% Interest)</p>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b">
-                    <th className="py-1 px-2 text-left">Tenure</th>
-                    <th className="py-1 px-2 text-right">EMI</th>
-                    <th className="py-1 px-2 text-right">Effective</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    { months: 36, emi: result.emi36Months },
-                    { months: 48, emi: result.emi48Months },
-                    { months: 60, emi: result.emi60Months },
-                    { months: 72, emi: result.emi72Months },
-                    { months: 84, emi: result.emi84Months },
-                  ].map(({ months, emi }) => (
-                    <tr key={months} className="border-b">
-                      <td className="py-1 px-2">{months}M</td>
-                      <td className="py-1 px-2 text-right font-mono">{formatINR(emi)}</td>
-                      <td className="py-1 px-2 text-right font-mono text-green-600">
-                        {result.monthlySavings >= emi ? "FREE!" : formatINR(emi - result.monthlySavings)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="text-xs text-muted-foreground text-center">Effective = EMI - Power Savings | Payback: {result.paybackYears} years</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
+const registrationStateSubsidies: Record<string, { ratePerKw: number; maxSubsidy: number; label: string }> = {
+  "Odisha": { ratePerKw: 20000, maxSubsidy: 60000, label: "Odisha State Subsidy" },
+  "Uttar Pradesh": { ratePerKw: 10000, maxSubsidy: 30000, label: "UP State Subsidy" },
+  "Chhattisgarh": { ratePerKw: 10000, maxSubsidy: 30000, label: "Chhattisgarh State Subsidy" },
+};
+
+function localCalculateSubsidy(capacityKw: number, panelType: string, inverterType: string = "hybrid", customerType: string = "residential", state: string = "") {
+  let centralSubsidy = 0;
+  let stateSubsidy = 0;
+  let totalCost = 0;
+  let ratePerKw = 0;
+
+  if (panelType === "dcr") {
+    if (inverterType === "hybrid") {
+      ratePerKw = 75000;
+    } else {
+      ratePerKw = 66000;
+    }
+    totalCost = capacityKw * ratePerKw;
+    if (customerType === "residential") {
+      if (capacityKw <= 2) {
+        centralSubsidy = capacityKw * 30000;
+      } else if (capacityKw <= 3) {
+        centralSubsidy = 78000;
+      } else {
+        centralSubsidy = 78000;
+      }
+    }
+  } else {
+    if (inverterType === "hybrid") {
+      ratePerKw = 55000;
+    } else {
+      ratePerKw = 45000;
+    }
+    totalCost = capacityKw * ratePerKw;
+    centralSubsidy = 0;
   }
 
+  const isSubsidyEligible = customerType === "residential" && panelType === "dcr";
+  if (isSubsidyEligible && state && registrationStateSubsidies[state]) {
+    const stateInfo = registrationStateSubsidies[state];
+    const calculated = Math.min(capacityKw, 3) * stateInfo.ratePerKw;
+    stateSubsidy = Math.min(calculated, stateInfo.maxSubsidy);
+  }
+
+  const totalSubsidy = centralSubsidy + stateSubsidy;
+  const netCost = Math.max(0, totalCost - totalSubsidy);
+  const dailyGeneration = capacityKw * 4;
+  const monthlyGeneration = dailyGeneration * 30;
+  const electricityRate = customerType === "industrial" ? 9 : customerType === "commercial" ? 8 : 7;
+  const monthlySavings = monthlyGeneration * electricityRate;
+  const annualSavings = monthlySavings * 12;
+  const stateSubsidyLabel = state && registrationStateSubsidies[state] ? registrationStateSubsidies[state].label : "";
+  const ratePerWatt = ratePerKw / 1000;
+  
+  return { centralSubsidy, stateSubsidy, stateSubsidyLabel, totalSubsidy, totalCost, netCost, dailyGeneration, monthlyGeneration, monthlySavings, annualSavings, ratePerWatt };
+}
+
+function SubsidyPreview({ capacity, panelType, inverterType = "hybrid", customerType = "residential", state = "" }: { capacity: string; panelType: string; inverterType?: string; customerType?: string; state?: string }) {
+  const capacityNum = parseFloat(capacity || "0") || 0;
+  const isNonDcr = panelType === "non_dcr";
+  
+  if (capacityNum <= 0) {
+    return null;
+  }
+  
+  const result = localCalculateSubsidy(capacityNum, panelType, inverterType, customerType, state);
+  
   return (
-    <div className="space-y-4">
-      <Card className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg text-green-700 dark:text-green-300">
-            <TrendingDown className="w-5 h-5" />
-            Subsidy Estimate for {capacityNum} kW Residential DCR System
-          </CardTitle>
-          {capacityNum > 3 && (
-            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-              Note: Government subsidy is capped at 3 kW (Rs 78,000 max). Capacity beyond 3 kW is at full price.
-            </p>
-          )}
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-            <div className="p-3 bg-background rounded-lg">
-              <p className="text-sm text-muted-foreground">System Cost</p>
-              <p className="text-xl font-semibold font-mono">{formatINR(result.totalCost)}</p>
-              <p className="text-xs text-muted-foreground">Rs {result.ratePerWatt}/Watt</p>
-            </div>
-            <div className="p-3 bg-green-100 dark:bg-green-900/50 rounded-lg">
-              <p className="text-sm text-green-600 dark:text-green-400">Government Subsidy</p>
-              <p className="text-xl font-semibold font-mono text-green-600 dark:text-green-400">
-                - {formatINR(result.totalSubsidy)}
+    <Card className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
+      <CardContent className="pt-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+          <div className="p-2 bg-background rounded-lg">
+            <p className="text-sm text-muted-foreground">System Cost</p>
+            <p className="text-lg font-bold">{formatINR(result.totalCost)}</p>
+            <p className="text-xs text-muted-foreground">Rs {result.ratePerWatt}/Watt</p>
+          </div>
+          {!isNonDcr && customerType === "residential" && (
+            <div className="p-2 bg-green-100 dark:bg-green-900/50 rounded-lg">
+              <p className="text-sm text-green-600 dark:text-green-400">Central Subsidy</p>
+              <p className="text-lg font-bold text-green-600 dark:text-green-400">
+                - {formatINR(result.centralSubsidy)}
               </p>
-              {capacityNum > 3 && (
-                <p className="text-xs text-muted-foreground">Capped at 3 kW</p>
-              )}
             </div>
-            <div className="p-3 bg-background rounded-lg">
-              <p className="text-sm text-muted-foreground">Customer Pays</p>
-              <p className="text-xl font-semibold font-mono text-primary">{formatINR(result.netCost)}</p>
+          )}
+          {result.stateSubsidy > 0 && (
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
+              <p className="text-sm text-blue-600 dark:text-blue-400">{result.stateSubsidyLabel || "State Subsidy"}</p>
+              <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                - {formatINR(result.stateSubsidy)}
+              </p>
             </div>
+          )}
+          <div className="p-2 bg-background rounded-lg">
+            <p className="text-sm text-muted-foreground">Customer Pays</p>
+            <p className="text-lg font-bold text-primary">{formatINR(result.netCost)}</p>
           </div>
-        </CardContent>
-      </Card>
-      
-      {/* Power Savings */}
-      <Card className="bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800">
-        <CardContent className="pt-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
-            <div className="p-2 bg-background rounded-lg">
-              <p className="text-lg font-bold text-green-600">{result.dailyGeneration}</p>
-              <p className="text-xs text-muted-foreground">Units/Day</p>
-            </div>
-            <div className="p-2 bg-background rounded-lg">
-              <p className="text-lg font-bold text-green-600">{result.monthlyGeneration}</p>
-              <p className="text-xs text-muted-foreground">Units/Month</p>
-            </div>
-            <div className="p-2 bg-background rounded-lg">
-              <p className="text-lg font-bold text-orange-600">{formatINR(result.monthlySavings)}</p>
-              <p className="text-xs text-muted-foreground">Monthly Savings</p>
-            </div>
-            <div className="p-2 bg-background rounded-lg">
-              <p className="text-lg font-bold text-orange-600">{formatINR(result.annualSavings)}</p>
-              <p className="text-xs text-muted-foreground">Annual Savings</p>
-            </div>
+          <div className="p-2 bg-background rounded-lg">
+            <p className="text-sm text-muted-foreground">Monthly Savings</p>
+            <p className="text-lg font-bold text-orange-600">{formatINR(result.monthlySavings)}</p>
           </div>
-          <p className="text-xs text-muted-foreground text-center mt-2">4 units/kW/day at Rs 7/unit (Residential rate)</p>
-        </CardContent>
-      </Card>
-      
-      {/* EMI Comparison Table */}
-      <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
-        <CardContent className="pt-4 space-y-3">
-          <p className="text-sm font-medium text-center text-blue-700 dark:text-blue-300">EMI Options (10% Interest)</p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b">
-                  <th className="py-1 px-2 text-left">Tenure</th>
-                  <th className="py-1 px-2 text-right">EMI</th>
-                  <th className="py-1 px-2 text-right">Effective</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  { months: 36, emi: result.emi36Months },
-                  { months: 48, emi: result.emi48Months },
-                  { months: 60, emi: result.emi60Months },
-                  { months: 72, emi: result.emi72Months },
-                  { months: 84, emi: result.emi84Months },
-                ].map(({ months, emi }) => (
-                  <tr key={months} className="border-b">
-                    <td className="py-1 px-2">{months}M ({months / 12}Y)</td>
-                    <td className="py-1 px-2 text-right font-mono">{formatINR(emi)}</td>
-                    <td className="py-1 px-2 text-right font-mono text-green-600">
-                      {result.monthlySavings >= emi ? "FREE!" : formatINR(emi - result.monthlySavings)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="text-xs text-muted-foreground text-center">Effective = EMI - Power Savings | Payback: {result.paybackYears} years</p>
-        </CardContent>
-      </Card>
-      
-      <Card className="bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800">
-        <CardContent className="pt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="flex items-center gap-2 text-sm">
-              <Zap className="w-4 h-4 text-green-600" />
-              <span>Works during power cuts (others don't)</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <BatteryCharging className="w-4 h-4 text-blue-600" />
-              <span>Battery ready for night use (others can't)</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -373,6 +238,30 @@ export default function CustomerForm() {
       upiId: "",
     },
   });
+
+  const watchedPanelType = form.watch("panelType");
+  const watchedInverterType = form.watch("inverterType");
+  const watchedCustomerType = form.watch("customerType");
+  const watchedCapacity = form.watch("proposedCapacity");
+
+  useEffect(() => {
+    if (watchedCustomerType !== "residential") return;
+    const currentCapacity = parseFloat(form.getValues("proposedCapacity") || "0");
+    
+    if (watchedInverterType === "hybrid") {
+      if (![3, 5, 6].includes(currentCapacity)) {
+        form.setValue("proposedCapacity", "3");
+      }
+    } else if (watchedPanelType === "non_dcr" && watchedInverterType === "ongrid") {
+      if (currentCapacity < 8) {
+        form.setValue("proposedCapacity", "8");
+      }
+    } else if (watchedPanelType === "dcr" && watchedInverterType === "ongrid") {
+      if (currentCapacity < 3) {
+        form.setValue("proposedCapacity", "3");
+      }
+    }
+  }, [watchedPanelType, watchedInverterType, watchedCustomerType]);
 
   async function onSubmit(data: CustomerFormValues) {
     setIsLoading(true);
@@ -974,110 +863,104 @@ export default function CustomerForm() {
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      control={form.control}
-                      name="industrialUnitDescription"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Industrial Unit Description *</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              placeholder="Provide additional details about the industrial facility" 
-                              data-testid="input-industrial-description"
-                              {...field}
-                              value={field.value || ""}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Additional details about the industrial facility for installation
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                   </>
                 )}
 
-                <FormField
-                  control={form.control}
-                  name="panelType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Panel Type</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || "dcr"}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-panel-type">
-                            <SelectValue placeholder="Select panel type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {panelTypes.map((type) => (
-                            <SelectItem key={type.value} value={type.value}>
-                              {type.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        {form.watch("customerType") === "residential" 
-                          ? "DCR panels are eligible for government subsidy" 
-                          : "No subsidy for commercial/industrial installations"}
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="panelType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Panel Type *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || "dcr"}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-panel-type">
+                              <SelectValue placeholder="Select panel type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="dcr">DCR Panel - Subsidy Eligible</SelectItem>
+                            <SelectItem value="non_dcr">Non-DCR Panel - No Subsidy</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          DCR panels are eligible for government subsidy
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="inverterType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Inverter Type</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || "hybrid"}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-inverter-type">
-                            <SelectValue placeholder="Select inverter type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="hybrid">3-in-1 Hybrid Inverter</SelectItem>
-                          <SelectItem value="ongrid">Ongrid Inverter</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        {(field.value || "hybrid") === "hybrid" 
-                          ? "3-in-1 Hybrid works during power cuts & supports battery" 
-                          : "Ongrid inverter — grid-tied only, no battery support"}
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormField
+                    control={form.control}
+                    name="inverterType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Inverter Type *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || "hybrid"}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-inverter-type">
+                              <SelectValue placeholder="Select inverter type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="hybrid">3-in-1 Hybrid Inverter (3, 5, 6 kW)</SelectItem>
+                            <SelectItem value="ongrid">Ongrid Inverter</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          {watchedPanelType === "dcr" 
+                            ? (watchedInverterType === "hybrid" ? "Rs 75/Watt (3, 5, 6 kW only)" : "Rs 66/Watt (3-10 kW)")
+                            : (watchedInverterType === "hybrid" ? "Rs 55/Watt (3, 5, 6 kW only)" : "Rs 45/Watt (above 8 kW)")}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <FormField
                   control={form.control}
                   name="proposedCapacity"
                   render={({ field }) => {
-                    const panelType = form.watch("panelType") || "dcr";
-                    const customerType = form.watch("customerType") || "residential";
-                    const isDcr = panelType === "dcr";
+                    const customerType = watchedCustomerType || "residential";
                     const isResidential = customerType === "residential";
-                    
                     const isCommercial = customerType === "commercial";
                     const isIndustrial = customerType === "industrial";
+                    const pType = watchedPanelType || "dcr";
+                    const iType = watchedInverterType || "hybrid";
                     
-                    const capacityOptions = isResidential 
-                      ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-                      : isCommercial 
-                        ? [3, 5, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100, 150, 200, 250, 300, 400, 500]
-                        : [3, 5, 10, 15, 20, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
+                    let capacityOptions: number[];
+                    let capacityNote = "";
                     
+                    if (iType === "hybrid") {
+                      capacityOptions = [3, 5, 6];
+                      capacityNote = "3-in-1 Hybrid Inverter available only in 3, 5, 6 kW";
+                    } else if (pType === "dcr" && iType === "ongrid") {
+                      capacityOptions = isResidential 
+                        ? [3, 4, 5, 6, 7, 8, 9, 10]
+                        : isCommercial 
+                          ? [3, 5, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100, 150, 200, 250, 300, 400, 500]
+                          : [5, 10, 15, 20, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
+                      capacityNote = isResidential 
+                        ? "DCR Ongrid: 3-10 kW. Subsidy available up to 3 kW"
+                        : isCommercial ? "Commercial: 3-500 kW (no subsidy)" : "Industrial: 5-1000 kW (no subsidy)";
+                    } else {
+                      const allOptions = isResidential 
+                        ? [8, 9, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100]
+                        : isCommercial 
+                          ? [8, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100, 150, 200, 250, 300, 400, 500]
+                          : [8, 10, 15, 20, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
+                      capacityOptions = allOptions;
+                      capacityNote = "Non-DCR Ongrid: 8-100 kW";
+                    }
+
                     const [useCustom, setUseCustom] = useState(false);
-                    
+
                     return (
                       <FormItem>
-                        <FormLabel>Proposed Capacity (kW)</FormLabel>
+                        <FormLabel>Proposed Capacity (kW) *</FormLabel>
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
                             <Switch
@@ -1097,8 +980,8 @@ export default function CustomerForm() {
                                 data-testid="input-custom-capacity"
                                 value={field.value || ""}
                                 onChange={(e) => field.onChange(e.target.value)}
-                                min={isResidential ? 1 : 3}
-                                max={isResidential ? 10 : isCommercial ? 500 : 1000}
+                                min={iType === "hybrid" ? 3 : (pType === "non_dcr" && iType === "ongrid") ? 8 : 3}
+                                max={isResidential ? (pType === "non_dcr" && iType === "ongrid" ? 100 : 10) : isCommercial ? 500 : 1000}
                               />
                             </FormControl>
                           ) : (
@@ -1118,31 +1001,25 @@ export default function CustomerForm() {
                             </Select>
                           )}
                         </div>
-                        <FormDescription>
-                          {isResidential 
-                            ? (isDcr 
-                              ? "Residential: 1-10 kW (subsidy up to 3 kW)" 
-                              : "Residential: 1-10 kW at Rs 55,000/kW")
-                            : isCommercial
-                              ? "Commercial: 3-500 kW (no subsidy)"
-                              : "Industrial: 3-1000 kW (no subsidy)"}
-                        </FormDescription>
+                        <FormDescription>{capacityNote}</FormDescription>
                         <FormMessage />
                       </FormItem>
                     );
                   }}
                 />
+                
+                {watchedCapacity && watchedPanelType && (
+                  <SubsidyPreview 
+                    capacity={watchedCapacity} 
+                    panelType={watchedPanelType} 
+                    inverterType={watchedInverterType || "hybrid"}
+                    customerType={watchedCustomerType || "residential"}
+                    state={form.watch("state") || ""}
+                  />
+                )}
               </div>
             </CardContent>
           </Card>
-
-          {/* Subsidy Estimate */}
-          <SubsidyEstimateCard 
-            capacity={form.watch("proposedCapacity")} 
-            panelType={form.watch("panelType") || "dcr"} 
-            customerType={form.watch("customerType") || "residential"}
-            state={form.watch("state") || ""}
-          />
 
           {/* Bank Account Details */}
           <Card>

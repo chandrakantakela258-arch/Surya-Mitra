@@ -1490,7 +1490,7 @@ export function SubsidyCalculator({
     }
     if (panelType === "non_dcr" && inverterType === "ongrid") {
       if (customerType === "residential") {
-        return [8, 9, 10];
+        return [8, 9, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100];
       } else if (customerType === "commercial") {
         return [8, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100];
       } else {

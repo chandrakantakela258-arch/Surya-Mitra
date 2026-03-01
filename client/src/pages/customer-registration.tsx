@@ -1010,12 +1010,12 @@ export default function CustomerRegistration() {
                         : isCommercial ? "Commercial: 3-500 kW (no subsidy)" : "Industrial: 5-1000 kW (no subsidy)";
                     } else {
                       const allOptions = isResidential 
-                        ? [8, 9, 10]
+                        ? [8, 9, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100]
                         : isCommercial 
                           ? [8, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100, 150, 200, 250, 300, 400, 500]
                           : [8, 10, 15, 20, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
                       capacityOptions = allOptions;
-                      capacityNote = "Non-DCR Ongrid: minimum 8 kW";
+                      capacityNote = "Non-DCR Ongrid: 8-100 kW";
                     }
 
                     const [useCustomCapacity, setUseCustomCapacity] = useState(false);
@@ -1043,7 +1043,7 @@ export default function CustomerRegistration() {
                                 value={field.value || ""}
                                 onChange={(e) => field.onChange(e.target.value)}
                                 min={iType === "hybrid" ? 3 : (pType === "non_dcr" && iType === "ongrid") ? 8 : 3}
-                                max={isResidential ? 10 : isCommercial ? 500 : 1000}
+                                max={isResidential ? (pType === "non_dcr" && iType === "ongrid" ? 100 : 10) : isCommercial ? 500 : 1000}
                               />
                             </FormControl>
                           ) : (
