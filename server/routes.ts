@@ -10087,6 +10087,8 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // ==================== CHATBOT NODE MANAGEMENT ====================
   app.get('/api/public/chatbot-nodes', async (req, res) => {
     try {
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+      res.set('Pragma', 'no-cache');
       const result = await pool.query(`SELECT step_id as "stepId", label_en as "labelEn", label_hi as "labelHi", message_en as "messageEn", message_hi as "messageHi", input_type as "inputType", options, media_type as "mediaType", media_url as "mediaUrl", media_title as "mediaTitle", saves_field as "savesField", sort_order as "sortOrder", next_step_rules as "nextStepRules" FROM chatbot_nodes WHERE is_active = true ORDER BY sort_order ASC`);
       res.json(result.rows);
     } catch (error: any) {
