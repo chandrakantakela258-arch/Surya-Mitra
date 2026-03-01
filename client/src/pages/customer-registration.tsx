@@ -953,8 +953,8 @@ export default function CustomerRegistration() {
                         </Select>
                         <FormDescription>
                           {watchPanelType === "dcr" 
-                            ? (watchInverterType === "hybrid" ? "Rs 75/Watt" : "Rs 66/Watt (2-10 kW)")
-                            : (watchInverterType === "hybrid" ? "Rs 55/Watt (3, 5, 6 kW)" : "Rs 45/Watt")}
+                            ? (watchInverterType === "hybrid" ? "Rs 75/Watt (3, 5, 6 kW only)" : "Rs 66/Watt (3-10 kW)")
+                            : (watchInverterType === "hybrid" ? "Rs 55/Watt (3, 5, 6 kW only)" : "Rs 45/Watt (above 8 kW)")}
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -970,12 +970,33 @@ export default function CustomerRegistration() {
                     const isResidential = customerType === "residential";
                     const isCommercial = customerType === "commercial";
                     const isIndustrial = customerType === "industrial";
+                    const pType = watchPanelType || "dcr";
+                    const iType = watchInverterType || "hybrid";
                     
-                    const capacityOptions = isResidential 
-                      ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-                      : isCommercial 
-                        ? [3, 5, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100, 150, 200, 250, 300, 400, 500]
-                        : [5, 10, 15, 20, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
+                    let capacityOptions: number[];
+                    let capacityNote = "";
+                    
+                    if (iType === "hybrid") {
+                      capacityOptions = [3, 5, 6];
+                      capacityNote = "3-in-1 Hybrid Inverter available only in 3, 5, 6 kW";
+                    } else if (pType === "dcr" && iType === "ongrid") {
+                      capacityOptions = isResidential 
+                        ? [3, 4, 5, 6, 7, 8, 9, 10]
+                        : isCommercial 
+                          ? [3, 5, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100, 150, 200, 250, 300, 400, 500]
+                          : [5, 10, 15, 20, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
+                      capacityNote = isResidential 
+                        ? "DCR Ongrid: 3-10 kW. Subsidy available up to 3 kW"
+                        : isCommercial ? "Commercial: 3-500 kW (no subsidy)" : "Industrial: 5-1000 kW (no subsidy)";
+                    } else {
+                      const allOptions = isResidential 
+                        ? [8, 9, 10]
+                        : isCommercial 
+                          ? [8, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100, 150, 200, 250, 300, 400, 500]
+                          : [8, 10, 15, 20, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
+                      capacityOptions = allOptions;
+                      capacityNote = "Non-DCR Ongrid: minimum 8 kW";
+                    }
 
                     const [useCustomCapacity, setUseCustomCapacity] = useState(false);
 
@@ -1001,7 +1022,7 @@ export default function CustomerRegistration() {
                                 data-testid="input-custom-capacity"
                                 value={field.value || ""}
                                 onChange={(e) => field.onChange(e.target.value)}
-                                min={isResidential ? 1 : isCommercial ? 3 : 5}
+                                min={iType === "hybrid" ? 3 : (pType === "non_dcr" && iType === "ongrid") ? 8 : 3}
                                 max={isResidential ? 10 : isCommercial ? 500 : 1000}
                               />
                             </FormControl>
@@ -1020,13 +1041,7 @@ export default function CustomerRegistration() {
                             </Select>
                           )}
                         </div>
-                        <FormDescription>
-                          {isResidential 
-                            ? "Subsidy available up to 3 kW for residential installations"
-                            : isCommercial
-                              ? "Commercial: 3-500 kW (no subsidy)"
-                              : "Industrial: 5-1000 kW (no subsidy)"}
-                        </FormDescription>
+                        <FormDescription>{capacityNote}</FormDescription>
                         <FormMessage />
                       </FormItem>
                     );

@@ -1457,14 +1457,29 @@ export function SubsidyCalculator({
   
   // Capacity options based on customer type, panel type, and inverter type
   const capacityOptions = useMemo(() => {
-    if (customerType === "residential" && panelType === "dcr") {
+    if (inverterType === "hybrid") {
       return [3, 5, 6];
     }
-    if (panelType === "non_dcr" && inverterType === "hybrid" && customerType === "residential") {
-      return [3, 5, 6];
+    if (panelType === "dcr" && inverterType === "ongrid") {
+      if (customerType === "residential") {
+        return [3, 4, 5, 6, 7, 8, 9, 10];
+      } else if (customerType === "commercial") {
+        return [3, 5, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100];
+      } else {
+        return [5, 10, 15, 20, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
+      }
+    }
+    if (panelType === "non_dcr" && inverterType === "ongrid") {
+      if (customerType === "residential") {
+        return [8, 9, 10];
+      } else if (customerType === "commercial") {
+        return [8, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100];
+      } else {
+        return [8, 10, 15, 20, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
+      }
     }
     if (customerType === "residential") {
-      return [1, 2, 3, 5, 7, 10];
+      return [3, 5, 6, 8, 10];
     } else if (customerType === "commercial") {
       return [10, 15, 20, 25, 30, 40, 50, 60, 75, 100];
     } else {
@@ -1976,11 +1991,11 @@ Website: https://divyanshisolar.com`;
             <p className="text-xs text-muted-foreground">
               {panelType === "dcr" 
                 ? (inverterType === "hybrid" 
-                  ? `3-in-1 Hybrid Inverter @ Rs ${DCR_HYBRID_RATE_PER_WATT}/W` 
-                  : `Ongrid Inverter @ Rs ${DCR_ONGRID_RATE_PER_WATT}/W`)
+                  ? `3-in-1 Hybrid Inverter @ Rs ${DCR_HYBRID_RATE_PER_WATT}/W (3, 5, 6 kW only)` 
+                  : `Ongrid Inverter @ Rs ${DCR_ONGRID_RATE_PER_WATT}/W (3-10 kW)`)
                 : (inverterType === "hybrid"
-                  ? `3-in-1 Hybrid Inverter @ Rs ${NON_DCR_HYBRID_RATE_PER_WATT}/W (3-6 KW only)`
-                  : `Ongrid Inverter @ Rs ${NON_DCR_ONGRID_RATE_PER_WATT}/W`)}
+                  ? `3-in-1 Hybrid Inverter @ Rs ${NON_DCR_HYBRID_RATE_PER_WATT}/W (3, 5, 6 kW only)`
+                  : `Ongrid Inverter @ Rs ${NON_DCR_ONGRID_RATE_PER_WATT}/W (above 8 kW)`)}
             </p>
           </div>
 
