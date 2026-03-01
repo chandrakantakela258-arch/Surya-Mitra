@@ -111,7 +111,7 @@ export const processMessage = async (phone: string, text: string) => {
   let lang = lead.language || "en";
 
   switch (step) {
-    case 0:
+    case 1:
       lang = text === 'हिन्दी' ? 'hi' : 'en';
       await createOrUpdateLead(phone, { language: lang, currentStep: "1" });
       await sendWhatsAppMessage(phone, t(lang, 'What is your Name?', 'आपका नाम क्या है?'));
