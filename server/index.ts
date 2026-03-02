@@ -205,6 +205,10 @@ app.use((req, res, next) => {
       await pool.query(`ALTER TABLE "solar_bot_leads" ADD COLUMN IF NOT EXISTS "action_taken" text`).catch(() => {});
       console.log("solar_bot_leads table ready");
 
+      await pool.query(`ALTER TABLE "customers" ADD COLUMN IF NOT EXISTS "roof_length" text`).catch(() => {});
+      await pool.query(`ALTER TABLE "customers" ADD COLUMN IF NOT EXISTS "roof_breadth" text`).catch(() => {});
+      await pool.query(`ALTER TABLE "customers" ADD COLUMN IF NOT EXISTS "roof_photos" text[]`).catch(() => {});
+
       await pool.query(`
         CREATE TABLE IF NOT EXISTS "chatbot_nodes" (
           "id" VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),

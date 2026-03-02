@@ -71,6 +71,9 @@ export const customers = pgTable("customers", {
   // Roof details
   roofType: text("roof_type"), // RCC, Tin, Tile, etc.
   roofArea: integer("roof_area"), // in sq ft
+  roofLength: text("roof_length"), // in feet
+  roofBreadth: text("roof_breadth"), // in feet
+  roofPhotos: text("roof_photos").array(), // annotated roof measurement photos
   panelType: text("panel_type").default("dcr"), // dcr or non_dcr
   inverterType: text("inverter_type").default("hybrid"), // hybrid (3-in-1), ongrid
   proposedCapacity: text("proposed_capacity"), // in kW

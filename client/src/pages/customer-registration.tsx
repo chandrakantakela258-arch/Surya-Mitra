@@ -17,6 +17,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import logoImage from "@assets/88720521_logo_1766219255006.png";
 import { indianStatesData, getDistrictsForState, getCitiesForDistrict, getDiscomsForState } from "@shared/india-data";
 import { SolarPanel3D } from "@/components/solar-panel-3d";
+import { RoofSurvey, type RoofSurveyData } from "@/components/roof-survey";
 
 const roofTypes = ["rcc", "sheet", "tiles", "asbestos", "other"] as const;
 const panelTypes = ["dcr", "non_dcr"] as const;
