@@ -1643,6 +1643,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     try {
       const user = (req as any).user;
       const data = customerFormSchema.parse(req.body);
+      const { roofLength, roofBreadth, roofPhotos } = req.body;
 
       // Generate unique customer code (DSCLIENT + DDP's 6 digits + sequence)
       let customerCode: string | undefined;
@@ -1653,6 +1654,9 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
       const customer = await storage.createCustomer({
         ...data,
+        roofLength: roofLength || null,
+        roofBreadth: roofBreadth || null,
+        roofPhotos: roofPhotos || [],
         ddpId: user.id,
         status: "pending",
         customerCode,
@@ -4123,7 +4127,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // Public: Register as a customer (no authentication required)
   app.post("/api/public/customer-registration", async (req, res) => {
     try {
-      const { name, phone, email, address, district, state, pincode, roofType, panelType, proposedCapacity, monthlyBill, referralCode, sitePictures, city, electricityBoard, consumerNumber, sanctionedLoad, avgMonthlyBill, inverterType, roofArea, customerType, aadharNumber, panNumber, latitude, longitude, accountHolderName, accountNumber, ifscCode, bankName, upiId, documents, unitType } = req.body;
+      const { name, phone, email, address, district, state, pincode, roofType, panelType, proposedCapacity, monthlyBill, referralCode, sitePictures, city, electricityBoard, consumerNumber, sanctionedLoad, avgMonthlyBill, inverterType, roofArea, customerType, aadharNumber, panNumber, latitude, longitude, accountHolderName, accountNumber, ifscCode, bankName, upiId, documents, unitType, roofLength, roofBreadth, roofPhotos } = req.body;
 
       // Validate required fields
       if (!name || !phone || !address || !district || !state || !pincode || !roofType || !panelType || !proposedCapacity) {
@@ -4236,6 +4240,9 @@ export function registerRoutes(httpServer: Server, app: Express) {
         upiId: upiId || null,
         documents: documents || [],
         sitePictures: sitePictures || [],
+        roofLength: roofLength || null,
+        roofBreadth: roofBreadth || null,
+        roofPhotos: roofPhotos || [],
         ddpId,
         status: "pending",
         source: isIndependent ? "website_direct" : "website_referral",

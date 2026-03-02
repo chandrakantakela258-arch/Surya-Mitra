@@ -2,10 +2,11 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation } from "wouter";
-import { Loader2, ArrowLeft, Sun, IndianRupee, Zap, CreditCard, FileText, Upload, X, File, MapPin, Navigation, Camera, Grid3X3 } from "lucide-react";
+import { Loader2, ArrowLeft, Sun, IndianRupee, Zap, CreditCard, FileText, Upload, X, File, MapPin, Navigation, Camera, Grid3X3, Ruler } from "lucide-react";
 import { customerFormSchema, roofTypes } from "@shared/schema";
 import { indianStatesData, getDistrictsForState, getCitiesForDistrict, getDiscomsForState } from "@shared/india-data";
 import { SolarPanel3D } from "@/components/solar-panel-3d";
+import { RoofSurvey, type RoofSurveyData } from "@/components/roof-survey";
 
 // Unit types for commercial and industrial installations
 const commercialUnitTypes = [
@@ -171,6 +172,7 @@ export default function CustomerForm() {
   const [sitePhotos, setSitePhotos] = useState<string[]>([]);
   const [isUploadingSitePhotos, setIsUploadingSitePhotos] = useState(false);
   const [showRoofLayout, setShowRoofLayout] = useState(false);
+  const [roofSurveyData, setRoofSurveyData] = useState<RoofSurveyData | null>(null);
   const documentInputRef = useRef<HTMLInputElement>(null);
   const sitePhotoInputRef = useRef<HTMLInputElement>(null);
 
@@ -343,6 +345,9 @@ export default function CustomerForm() {
         ...data,
         documents: uploadedDocuments,
         sitePictures: sitePhotos.length > 0 ? sitePhotos : undefined,
+        roofLength: roofSurveyData?.roofLength || undefined,
+        roofBreadth: roofSurveyData?.roofBreadth || undefined,
+        roofPhotos: roofSurveyData?.roofPhotos?.length ? roofSurveyData.roofPhotos : undefined,
       });
       toast({
         title: "Customer registered successfully",
@@ -1346,6 +1351,22 @@ export default function CustomerForm() {
                   </p>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Roof Survey & Measurements */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Ruler className="w-5 h-5 text-primary" />
+                Roof Survey & Measurements
+              </CardTitle>
+              <CardDescription>
+                Capture roof dimensions, GPS location, and photos for accurate solar panel placement
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RoofSurvey onDataChange={setRoofSurveyData} />
             </CardContent>
           </Card>
 
