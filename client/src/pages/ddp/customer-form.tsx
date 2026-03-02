@@ -2,9 +2,10 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation } from "wouter";
-import { Loader2, ArrowLeft, Sun, IndianRupee, Zap, CreditCard, FileText, Upload, X, File, MapPin, Navigation, Camera } from "lucide-react";
+import { Loader2, ArrowLeft, Sun, IndianRupee, Zap, CreditCard, FileText, Upload, X, File, MapPin, Navigation, Camera, Grid3X3 } from "lucide-react";
 import { customerFormSchema, roofTypes } from "@shared/schema";
 import { indianStatesData, getDistrictsForState, getCitiesForDistrict, getDiscomsForState } from "@shared/india-data";
+import { SolarPanel3D } from "@/components/solar-panel-3d";
 
 // Unit types for commercial and industrial installations
 const commercialUnitTypes = [
@@ -167,7 +168,11 @@ export default function CustomerForm() {
   const [documentFiles, setDocumentFiles] = useState<File[]>([]);
   const [isUploadingDocs, setIsUploadingDocs] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [sitePhotos, setSitePhotos] = useState<string[]>([]);
+  const [isUploadingSitePhotos, setIsUploadingSitePhotos] = useState(false);
+  const [showRoofLayout, setShowRoofLayout] = useState(false);
   const documentInputRef = useRef<HTMLInputElement>(null);
+  const sitePhotoInputRef = useRef<HTMLInputElement>(null);
 
   const handleDocumentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.length) return;
@@ -183,7 +188,35 @@ export default function CustomerForm() {
   const removeDocument = (index: number) => {
     setDocumentFiles(prev => prev.filter((_, i) => i !== index));
   };
-  
+
+  const handleSitePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    if (sitePhotos.length + files.length > 6) {
+      toast({ title: "Maximum 6 site photos allowed", variant: "destructive" });
+      return;
+    }
+    setIsUploadingSitePhotos(true);
+    try {
+      const formData = new FormData();
+      Array.from(files).forEach(file => formData.append("documents", file));
+      const response = await fetch("/api/uploads/documents", { method: "POST", body: formData, credentials: "include" });
+      if (response.ok) {
+        const result = await response.json();
+        setSitePhotos(prev => [...prev, ...(result.urls || [])]);
+      }
+    } catch (error) {
+      toast({ title: "Upload failed", description: "Please try again", variant: "destructive" });
+    } finally {
+      setIsUploadingSitePhotos(false);
+      if (sitePhotoInputRef.current) sitePhotoInputRef.current.value = "";
+    }
+  };
+
+  const removeSitePhoto = (index: number) => {
+    setSitePhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
       toast({ title: "Error", description: "Geolocation is not supported by your browser", variant: "destructive" });
@@ -309,6 +342,7 @@ export default function CustomerForm() {
       await apiRequest("POST", "/api/ddp/customers", {
         ...data,
         documents: uploadedDocuments,
+        sitePictures: sitePhotos.length > 0 ? sitePhotos : undefined,
       });
       toast({
         title: "Customer registered successfully",
@@ -1249,6 +1283,101 @@ export default function CustomerForm() {
                     ))}
                   </div>
                 </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Site Photos Upload */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Camera className="w-5 h-5 text-primary" />
+                Site Photos (Optional)
+              </CardTitle>
+              <CardDescription>
+                Upload up to 6 photos of the customer's roof/site from different angles
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {sitePhotos.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {sitePhotos.map((url, index) => (
+                    <div key={index} className="relative group rounded-lg overflow-hidden border" data-testid={`site-photo-${index}`}>
+                      <img src={url} alt={`Site photo ${index + 1}`} className="w-full h-32 object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removeSitePhoto(index)}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        data-testid={`button-remove-site-photo-${index}`}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                      <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs text-center py-1">
+                        Photo {index + 1}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {sitePhotos.length < 6 && (
+                <div
+                  className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-6 text-center cursor-pointer transition-colors hover:border-primary/50"
+                  onClick={() => sitePhotoInputRef.current?.click()}
+                  data-testid="upload-site-photos-area"
+                >
+                  <input
+                    ref={sitePhotoInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={handleSitePhotoUpload}
+                    data-testid="input-site-photos"
+                  />
+                  {isUploadingSitePhotos ? (
+                    <Loader2 className="w-10 h-10 mx-auto mb-3 animate-spin text-muted-foreground" />
+                  ) : (
+                    <Camera className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
+                  )}
+                  <p className="text-sm font-medium">{isUploadingSitePhotos ? "Uploading..." : "Click to take photo or upload"}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {sitePhotos.length}/6 photos - JPG, PNG (Max 5MB each)
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 3D Roof Layout Planner */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Grid3X3 className="w-5 h-5 text-primary" />
+                3D Roof Layout Planner
+              </CardTitle>
+              <CardDescription>
+                Visualize solar panel placement on the roof - adjust dimensions, panel count, and view from different angles
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                type="button"
+                variant={showRoofLayout ? "secondary" : "outline"}
+                className="w-full mb-4"
+                onClick={() => setShowRoofLayout(!showRoofLayout)}
+                data-testid="button-toggle-roof-layout"
+              >
+                <Grid3X3 className="w-4 h-4 mr-2" />
+                {showRoofLayout ? "Hide Roof Layout Planner" : "Open Roof Layout Planner"}
+              </Button>
+              {showRoofLayout && (
+                <SolarPanel3D
+                  initialCapacity={parseFloat(form.getValues("proposedCapacity") || "3")}
+                  onCapacityChange={(capacity) => {
+                    form.setValue("proposedCapacity", String(capacity));
+                  }}
+                />
               )}
             </CardContent>
           </Card>

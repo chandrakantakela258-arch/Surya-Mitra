@@ -4123,7 +4123,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // Public: Register as a customer (no authentication required)
   app.post("/api/public/customer-registration", async (req, res) => {
     try {
-      const { name, phone, email, address, district, state, pincode, roofType, panelType, proposedCapacity, monthlyBill, referralCode } = req.body;
+      const { name, phone, email, address, district, state, pincode, roofType, panelType, proposedCapacity, monthlyBill, referralCode, sitePictures, city, electricityBoard, consumerNumber, sanctionedLoad, avgMonthlyBill, inverterType, roofArea, customerType, aadharNumber, panNumber, latitude, longitude, accountHolderName, accountNumber, ifscCode, bankName, upiId, documents, unitType } = req.body;
 
       // Validate required fields
       if (!name || !phone || !address || !district || !state || !pincode || !roofType || !panelType || !proposedCapacity) {
@@ -4212,15 +4212,34 @@ export function registerRoutes(httpServer: Server, app: Express) {
         address,
         district,
         state,
+        city: city || null,
         pincode,
         roofType,
+        roofArea: roofArea || null,
         panelType,
+        inverterType: inverterType || "hybrid",
         proposedCapacity,
-        avgMonthlyBill: monthlyBill || null,
+        customerType: customerType || "residential",
+        unitType: unitType || null,
+        electricityBoard: electricityBoard || null,
+        consumerNumber: consumerNumber || null,
+        sanctionedLoad: sanctionedLoad || null,
+        avgMonthlyBill: avgMonthlyBill || monthlyBill || null,
+        aadharNumber: aadharNumber || null,
+        panNumber: panNumber || null,
+        latitude: latitude || null,
+        longitude: longitude || null,
+        accountHolderName: accountHolderName || null,
+        accountNumber: accountNumber || null,
+        ifscCode: ifscCode || null,
+        bankName: bankName || null,
+        upiId: upiId || null,
+        documents: documents || [],
+        sitePictures: sitePictures || [],
         ddpId,
         status: "pending",
         source: isIndependent ? "website_direct" : "website_referral",
-        referrerCustomerId, // For customer partner referrals
+        referrerCustomerId,
       });
 
       res.status(201).json({
