@@ -172,7 +172,7 @@ function calculateSubsidy(
   customerType: CustomerType = "residential",
   interestRate: number = 6,
   electricityUnitRate: number = 7,
-  downPaymentPercent: number = 30,
+  downPaymentPercent: number = 15,
   customRatePerWatt: number | null = null
 ): SubsidyResult {
   let ratePerWatt: number;
@@ -1414,8 +1414,8 @@ export function SubsidyCalculator({
   const [interestRateInput, setInterestRateInput] = useState<string>("6");
   const [electricityUnitRate, setElectricityUnitRate] = useState<number>(7);
   const [electricityRateInput, setElectricityRateInput] = useState<string>("7");
-  const [downPaymentPercent, setDownPaymentPercent] = useState<number>(30);
-  const [downPaymentInput, setDownPaymentInput] = useState<string>("30");
+  const [downPaymentPercent, setDownPaymentPercent] = useState<number>(15);
+  const [downPaymentInput, setDownPaymentInput] = useState<string>("15");
   const [customerName, setCustomerName] = useState<string>("");
   const [customerPhone, setCustomerPhone] = useState<string>("");
   const [customerEmail, setCustomerEmail] = useState<string>("");
