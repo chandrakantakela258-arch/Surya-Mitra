@@ -126,35 +126,44 @@ function SubsidyPreview({ capacity, panelType, inverterType = "hybrid", customer
   return (
     <Card className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
       <CardContent className="pt-4">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
-          <div className="p-2 bg-background rounded-lg">
-            <p className="text-sm text-muted-foreground">System Cost</p>
-            <p className="text-lg font-bold">{formatINR(result.totalCost)}</p>
-            <p className="text-xs text-muted-foreground">Rs {result.ratePerWatt}/Watt</p>
-          </div>
-          {!isNonDcr && customerType === "residential" && (
-            <div className="p-2 bg-green-100 dark:bg-green-900/50 rounded-lg">
-              <p className="text-sm text-green-600 dark:text-green-400">Central Subsidy</p>
-              <p className="text-lg font-bold text-green-600 dark:text-green-400">
-                - {formatINR(result.centralSubsidy)}
-              </p>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3 text-center">
+            <div className="p-3 bg-background rounded-lg">
+              <p className="text-xs text-muted-foreground">System Cost</p>
+              <p className="text-base font-bold" data-testid="text-system-cost">{formatINR(result.totalCost)}</p>
+              <p className="text-xs text-muted-foreground">Rs {result.ratePerWatt}/Watt</p>
             </div>
-          )}
+            {!isNonDcr && customerType === "residential" ? (
+              <div className="p-3 bg-green-100 dark:bg-green-900/50 rounded-lg">
+                <p className="text-xs text-green-600 dark:text-green-400">Central Subsidy</p>
+                <p className="text-base font-bold text-green-600 dark:text-green-400" data-testid="text-central-subsidy">
+                  - {formatINR(result.centralSubsidy)}
+                </p>
+              </div>
+            ) : (
+              <div className="p-3 bg-gray-100 dark:bg-gray-800/50 rounded-lg">
+                <p className="text-xs text-muted-foreground">Central Subsidy</p>
+                <p className="text-base font-bold text-muted-foreground">Not Eligible</p>
+              </div>
+            )}
+          </div>
           {result.stateSubsidy > 0 && (
-            <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
-              <p className="text-sm text-blue-600 dark:text-blue-400">{result.stateSubsidyLabel || "State Subsidy"}</p>
-              <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+            <div className="p-3 bg-blue-100 dark:bg-blue-900/50 rounded-lg text-center">
+              <p className="text-xs text-blue-600 dark:text-blue-400">{result.stateSubsidyLabel || "State Subsidy"}</p>
+              <p className="text-base font-bold text-blue-600 dark:text-blue-400">
                 - {formatINR(result.stateSubsidy)}
               </p>
             </div>
           )}
-          <div className="p-2 bg-background rounded-lg">
-            <p className="text-sm text-muted-foreground">Customer Pays</p>
-            <p className="text-lg font-bold text-primary">{formatINR(result.netCost)}</p>
-          </div>
-          <div className="p-2 bg-background rounded-lg">
-            <p className="text-sm text-muted-foreground">Monthly Savings</p>
-            <p className="text-lg font-bold text-orange-600">{formatINR(result.monthlySavings)}</p>
+          <div className="grid grid-cols-2 gap-3 text-center">
+            <div className="p-3 bg-background rounded-lg border-2 border-primary/20">
+              <p className="text-xs text-muted-foreground">Customer Pays</p>
+              <p className="text-base font-bold text-primary" data-testid="text-customer-pays">{formatINR(result.netCost)}</p>
+            </div>
+            <div className="p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg border-2 border-orange-200 dark:border-orange-800">
+              <p className="text-xs text-muted-foreground">Monthly Savings</p>
+              <p className="text-base font-bold text-orange-600" data-testid="text-monthly-savings">{formatINR(result.monthlySavings)}</p>
+            </div>
           </div>
         </div>
       </CardContent>

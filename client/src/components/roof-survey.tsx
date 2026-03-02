@@ -42,7 +42,7 @@ export function RoofSurvey({ onDataChange, initialData }: RoofSurveyProps) {
   const [gpsLat, setGpsLat] = useState(initialData?.gpsLat || "");
   const [gpsLng, setGpsLng] = useState(initialData?.gpsLng || "");
   const [isGettingLocation, setIsGettingLocation] = useState(false);
-  const [showDiagram, setShowDiagram] = useState(false);
+  const [showDiagram, setShowDiagram] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -451,18 +451,21 @@ export function RoofSurvey({ onDataChange, initialData }: RoofSurveyProps) {
 
       {computedArea > 0 && (
         <div className="space-y-3">
-          <Button
-            type="button"
-            variant={showDiagram ? "secondary" : "outline"}
-            className="w-full"
-            onClick={() => setShowDiagram(!showDiagram)}
-            data-testid="button-toggle-autocad"
-          >
-            <Grid3X3 className="w-4 h-4 mr-2" />
-            {showDiagram
-              ? "Hide AutoCAD Layout"
-              : "Generate AutoCAD Roof Layout"}
-          </Button>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium flex items-center gap-2">
+              <Grid3X3 className="w-4 h-4" />
+              AutoCAD Roof Layout
+            </p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowDiagram(!showDiagram)}
+              data-testid="button-toggle-autocad"
+            >
+              {showDiagram ? "Hide" : "Show"}
+            </Button>
+          </div>
 
           {showDiagram && (
             <div className="space-y-2">
