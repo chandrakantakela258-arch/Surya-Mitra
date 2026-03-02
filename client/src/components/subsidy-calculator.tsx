@@ -170,9 +170,9 @@ function calculateSubsidy(
   panelType: string = "dcr", 
   inverterType: InverterType = "hybrid",
   customerType: CustomerType = "residential",
-  interestRate: number = 10,
+  interestRate: number = 6,
   electricityUnitRate: number = 7,
-  downPaymentPercent: number = 15,
+  downPaymentPercent: number = 30,
   customRatePerWatt: number | null = null
 ): SubsidyResult {
   let ratePerWatt: number;
@@ -211,9 +211,9 @@ function calculateSubsidy(
   const totalSubsidy = centralSubsidy + stateSubsidy;
   const netCost = Math.max(0, totalCost - totalSubsidy);
   
-  // Calculate down payment and effective loan amount
-  const downPayment = Math.round(netCost * (downPaymentPercent / 100));
-  const loanAmount = netCost - downPayment;
+  // Calculate down payment as percentage of plant cost (totalCost), not net cost
+  const downPayment = Math.round(totalCost * (downPaymentPercent / 100));
+  const loanAmount = Math.max(0, netCost - downPayment);
   
   // Power generation: 4 units per kW per day average
   const dailyGeneration = capacityKW * 4;
@@ -1008,7 +1008,7 @@ function generateProposalPDF(data: ProposalData): jsPDF {
   doc.setTextColor(...darkColor);
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  doc.text(`Down Payment (${data.downPaymentPercent}%):`, 30, y + 30);
+  doc.text(`Down Payment (${data.downPaymentPercent}% of Plant Cost):`, 30, y + 30);
   doc.setFont("helvetica", "bold");
   doc.text(formatINR(data.downPayment), 120, y + 30);
   
@@ -1410,12 +1410,12 @@ export function SubsidyCalculator({
   const [customCapacity, setCustomCapacity] = useState(initialCapacity.toString());
   const [customerType, setCustomerType] = useState<CustomerType>(initialCustomerType);
   const [selectedEmiTenure, setSelectedEmiTenure] = useState<number>(60);
-  const [interestRate, setInterestRate] = useState<number>(10);
-  const [interestRateInput, setInterestRateInput] = useState<string>("10");
+  const [interestRate, setInterestRate] = useState<number>(6);
+  const [interestRateInput, setInterestRateInput] = useState<string>("6");
   const [electricityUnitRate, setElectricityUnitRate] = useState<number>(7);
   const [electricityRateInput, setElectricityRateInput] = useState<string>("7");
-  const [downPaymentPercent, setDownPaymentPercent] = useState<number>(15);
-  const [downPaymentInput, setDownPaymentInput] = useState<string>("15");
+  const [downPaymentPercent, setDownPaymentPercent] = useState<number>(30);
+  const [downPaymentInput, setDownPaymentInput] = useState<string>("30");
   const [customerName, setCustomerName] = useState<string>("");
   const [customerPhone, setCustomerPhone] = useState<string>("");
   const [customerEmail, setCustomerEmail] = useState<string>("");
@@ -1681,7 +1681,7 @@ _Registered with - SBPDCL & NBPDCL_
 - Net Cost: Rs ${formatINRPlain(data.netCost)}
 
 *Payment Structure:*
-- Down Payment (${data.downPaymentPercent}%): Rs ${formatINRPlain(data.downPayment)}
+- Down Payment (${data.downPaymentPercent}% of Plant Cost): Rs ${formatINRPlain(data.downPayment)}
 - Loan Amount: Rs ${formatINRPlain(data.loanAmount)}
 - EMI (${data.selectedTenure} months): Rs ${formatINRPlain(data.selectedEmi)}/month
 
@@ -1715,7 +1715,7 @@ Website: https://divyanshisolar.com`;
 - Net Cost: Rs ${formatINRPlain(data.netCost)}
 
 *Payment Structure:*
-- Down Payment (${data.downPaymentPercent}%): Rs ${formatINRPlain(data.downPayment)}
+- Down Payment (${data.downPaymentPercent}% of Plant Cost): Rs ${formatINRPlain(data.downPayment)}
 - Loan Amount: Rs ${formatINRPlain(data.loanAmount)}
 - EMI (${data.selectedTenure} months): Rs ${formatINRPlain(data.selectedEmi)}/month
 
@@ -2158,8 +2158,8 @@ Website: https://divyanshisolar.com`;
                 onBlur={() => {
                   const numVal = parseFloat(interestRateInput);
                   if (isNaN(numVal) || numVal < 1) {
-                    setInterestRate(10);
-                    setInterestRateInput("10");
+                    setInterestRate(6);
+                    setInterestRateInput("6");
                   } else if (numVal > 25) {
                     setInterestRate(25);
                     setInterestRateInput("25");
@@ -2202,8 +2202,8 @@ Website: https://divyanshisolar.com`;
                 onBlur={() => {
                   const numVal = parseInt(downPaymentInput);
                   if (isNaN(numVal) || numVal < 0) {
-                    setDownPaymentPercent(15);
-                    setDownPaymentInput("15");
+                    setDownPaymentPercent(30);
+                    setDownPaymentInput("30");
                   } else if (numVal > 100) {
                     setDownPaymentPercent(100);
                     setDownPaymentInput("100");
@@ -2218,7 +2218,7 @@ Website: https://divyanshisolar.com`;
               <span className="text-sm text-muted-foreground whitespace-nowrap">%</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Initial payment ({formatINR(Math.round(result.netCost * (downPaymentPercent / 100)))})
+              {downPaymentPercent}% of plant cost ({formatINR(Math.round(result.totalCost * (downPaymentPercent / 100)))})
             </p>
           </div>
           
@@ -2623,7 +2623,7 @@ Website: https://divyanshisolar.com`;
                 <p className="text-xl font-bold font-mono">{formatINR(result.netCost)}</p>
               </div>
               <div className="p-4 bg-background rounded-lg">
-                <p className="text-sm text-muted-foreground mb-1">Down Payment ({result.downPaymentPercent}%)</p>
+                <p className="text-sm text-muted-foreground mb-1">Down Payment ({result.downPaymentPercent}% of Plant Cost)</p>
                 <p className="text-xl font-bold font-mono text-green-600">{formatINR(result.downPayment)}</p>
               </div>
               <div className="p-4 bg-background rounded-lg">
@@ -2919,7 +2919,7 @@ Website: https://divyanshisolar.com`;
                 <strong>Proposal includes:</strong> {capacity} kW {panelType === "dcr" ? "DCR" : "Non-DCR"} Plant | 
                 Material Cost: {formatINR(result.totalCost)} | 
                 Subsidy: {formatINR(result.totalSubsidy)} | 
-                Down Payment ({downPaymentPercent}%): {formatINR(Math.round(result.netCost * (downPaymentPercent / 100)))} | 
+                Down Payment ({downPaymentPercent}% of Plant Cost): {formatINR(result.downPayment)} | 
                 EMI: {formatINR(selectedEmi)}/month ({selectedEmiTenure} months) | 
                 Monthly Savings: {formatINR(result.monthlySavings)}
               </p>
