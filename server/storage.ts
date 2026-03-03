@@ -637,7 +637,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCustomerByPhone(phone: string): Promise<Customer | undefined> {
-    const [customer] = await db.select().from(customers).where(eq(customers.phone, phone));
+    const cleanPhone = phone.replace(/[\s\-\(\)]/g, "");
+    const digits = cleanPhone.replace(/^\+?91/, "");
+    
+    const [customer] = await db.select().from(customers).where(
+      sql`REPLACE(REPLACE(REPLACE(REPLACE(${customers.phone}, ' ', ''), '-', ''), '(', ''), ')', '') = ${cleanPhone}
+        OR REGEXP_REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(${customers.phone}, ' ', ''), '-', ''), '(', ''), ')', ''), '^\\+?91', '') = ${digits}`
+    );
     return customer || undefined;
   }
 
