@@ -3015,6 +3015,17 @@ export function registerRoutes(httpServer: Server, app: Express) {
         return res.status(404).json({ message: "Customer not found" });
       }
 
+      if (portalEnabled && customer.phone) {
+        const portalLink = `${req.protocol}://${req.get("host")}/customer-portal`;
+        const smsMessage = `Dear ${customer.name}, your DivyanshiSolar Customer Portal is now active! Track your solar installation, view documents & raise service requests. Login here: ${portalLink} (Use your registered mobile number)`;
+        try {
+          await notificationService.sendSMS(customer.phone, smsMessage);
+          console.log(`Portal access SMS sent to ${customer.phone}`);
+        } catch (smsErr) {
+          console.log("Portal SMS notification skipped:", (smsErr as Error).message);
+        }
+      }
+
       res.json(customer);
     } catch (error) {
       console.error("Admin toggle customer portal error:", error);

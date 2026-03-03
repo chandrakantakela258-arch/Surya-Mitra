@@ -180,10 +180,11 @@ export default function AdminCustomers() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/customers"] });
+      const portalLink = `${window.location.origin}/customer-portal`;
       toast({
-        title: variables.enabled ? "Portal Enabled" : "Portal Disabled",
+        title: variables.enabled ? "Portal Access Enabled" : "Portal Disabled",
         description: variables.enabled 
-          ? "Customer can now track their installation via OTP login."
+          ? `Customer can now login at ${portalLink} using their registered mobile number. An SMS has been sent with the link.`
           : "Customer portal access has been disabled.",
       });
     },

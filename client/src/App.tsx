@@ -683,6 +683,9 @@ function PublicRouter() {
       <Route path="/track-installation">
         <CustomerDashboard />
       </Route>
+      <Route path="/customer-portal">
+        <CustomerDashboard />
+      </Route>
       <Route path="/customer-partner-register">
         <Redirect to="/register" />
       </Route>
