@@ -11,7 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Bot, Plus, Pencil, Trash2, Video, FileText, Image, Eye, EyeOff, Copy, ClipboardPaste, ExternalLink, Link, ChevronUp, ChevronDown, ArrowUpDown, GitBranch, Upload, Globe, Loader2, CheckCircle2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Bot, Plus, Pencil, Trash2, Video, FileText, Image, Eye, EyeOff, Copy, ClipboardPaste, ExternalLink, Link, ChevronUp, ChevronDown, ArrowUpDown, GitBranch, Upload, Globe, Loader2, CheckCircle2, X } from "lucide-react";
 
 interface BranchRule {
   match: string;
@@ -59,6 +60,9 @@ export default function AdminChatbotSettings() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [sharecopied, setShareCopied] = useState(false);
   const [copiedNode, setCopiedNode] = useState<ChatbotNode | null>(null);
+  const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
+  const [copiedNodes, setCopiedNodes] = useState<ChatbotNode[]>([]);
+  const [isPasting, setIsPasting] = useState(false);
   const [mediaSourceMode, setMediaSourceMode] = useState<"upload" | "link">("link");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
@@ -216,6 +220,8 @@ export default function AdminChatbotSettings() {
 
   const copyNode = (node: ChatbotNode) => {
     setCopiedNode(node);
+    setCopiedNodes([]);
+    setSelectedNodeIds(new Set());
     toast({ title: `Copied "${node.labelEn}"`, description: "Click 'Paste Here' between any nodes to insert it" });
   };
 
@@ -245,6 +251,88 @@ export default function AdminChatbotSettings() {
     };
     createMutation.mutate(newNode);
     setCopiedNode(null);
+  };
+
+  const toggleSelectNode = (nodeId: string) => {
+    setSelectedNodeIds(prev => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) next.delete(nodeId);
+      else next.add(nodeId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedNodeIds.size === nodes.length) {
+      setSelectedNodeIds(new Set());
+    } else {
+      setSelectedNodeIds(new Set(nodes.map(n => n.id)));
+    }
+  };
+
+  const copySelectedNodes = () => {
+    const selected = nodes.filter(n => selectedNodeIds.has(n.id));
+    if (selected.length === 0) {
+      toast({ title: "No nodes selected", description: "Select nodes using checkboxes first", variant: "destructive" });
+      return;
+    }
+    setCopiedNodes(selected);
+    setCopiedNode(null);
+    setSelectedNodeIds(new Set());
+    toast({ title: `Copied ${selected.length} nodes`, description: "Click 'Paste Here' between any nodes to insert them" });
+  };
+
+  const pasteMultipleAt = async (insertAfterIdx: number) => {
+    if (copiedNodes.length === 0) return;
+    setIsPasting(true);
+
+    let baseSortOrder: number;
+    let gap: number;
+
+    if (insertAfterIdx < 0) {
+      baseSortOrder = nodes.length > 0 ? nodes[0].sortOrder - copiedNodes.length - 1 : 1;
+      gap = 1;
+    } else if (insertAfterIdx >= nodes.length - 1) {
+      baseSortOrder = nodes[nodes.length - 1].sortOrder + 1;
+      gap = 1;
+    } else {
+      const low = nodes[insertAfterIdx].sortOrder;
+      const high = nodes[insertAfterIdx + 1].sortOrder;
+      gap = Math.max(1, Math.floor((high - low) / (copiedNodes.length + 1)));
+      baseSortOrder = low + gap;
+    }
+
+    try {
+      for (let i = 0; i < copiedNodes.length; i++) {
+        const src = copiedNodes[i];
+        const newNode: Partial<ChatbotNode> = {
+          stepId: src.stepId + "_copy",
+          labelEn: src.labelEn + " (Copy)",
+          labelHi: src.labelHi,
+          messageEn: src.messageEn,
+          messageHi: src.messageHi,
+          inputType: src.inputType,
+          options: src.options,
+          mediaType: src.mediaType || undefined,
+          mediaUrl: src.mediaUrl,
+          mediaTitle: src.mediaTitle,
+          savesField: src.savesField,
+          sortOrder: baseSortOrder + (i * gap),
+          isActive: src.isActive,
+        };
+        await apiRequest("POST", "/api/admin/chatbot-nodes", {
+          ...newNode,
+          mediaType: newNode.mediaType === "none" ? null : newNode.mediaType,
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/chatbot-nodes"] });
+      toast({ title: `Pasted ${copiedNodes.length} nodes successfully` });
+    } catch (err: any) {
+      toast({ title: "Failed to paste nodes", description: err.message, variant: "destructive" });
+    } finally {
+      setCopiedNodes([]);
+      setIsPasting(false);
+    }
   };
 
   const shareLink = `${window.location.origin}/solar-bot`;
@@ -295,6 +383,11 @@ export default function AdminChatbotSettings() {
               <ExternalLink size={14} className="mr-1" /> Preview Bot
             </Button>
           </a>
+          {selectedNodeIds.size > 0 && (
+            <Button variant="default" size="sm" onClick={copySelectedNodes} data-testid="button-copy-selected">
+              <Copy size={14} className="mr-1" /> Copy {selectedNodeIds.size} Selected
+            </Button>
+          )}
           <Button onClick={openAdd} size="sm" data-testid="button-add-node">
             <Plus size={14} className="mr-1" /> Add Node
           </Button>
@@ -318,8 +411,16 @@ export default function AdminChatbotSettings() {
       </Card>
 
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <ArrowUpDown size={14} />
-        <span>Use the up/down arrows to reorder the chatbot flow. Click the pencil icon to edit any node.</span>
+        <div className="flex items-center gap-2">
+          <Checkbox
+            checked={nodes.length > 0 && selectedNodeIds.size === nodes.length}
+            onCheckedChange={toggleSelectAll}
+            data-testid="checkbox-select-all"
+          />
+          <span className="text-xs font-medium">Select All</span>
+        </div>
+        <ArrowUpDown size={14} className="ml-2" />
+        <span>Use checkboxes to select multiple nodes, then copy & paste them together.</span>
         <Badge variant="outline" className="ml-auto">{nodes.length} nodes</Badge>
       </div>
 
@@ -333,25 +434,55 @@ export default function AdminChatbotSettings() {
         </div>
       )}
 
+      {copiedNodes.length > 0 && (
+        <div className="flex items-center justify-between gap-2 p-3 rounded-lg border-2 border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-950/50">
+          <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-300">
+            <ClipboardPaste size={16} />
+            <span><strong>{copiedNodes.length} nodes</strong> copied — click "Paste Here" to insert them all at once</span>
+          </div>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <div className="flex flex-wrap gap-1 max-w-[300px]">
+              {copiedNodes.slice(0, 3).map(n => (
+                <Badge key={n.id} variant="secondary" className="text-[10px] px-1.5 py-0">{n.labelEn}</Badge>
+              ))}
+              {copiedNodes.length > 3 && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">+{copiedNodes.length - 3} more</Badge>}
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setCopiedNodes([])} data-testid="button-cancel-multi-copy">
+              <X size={14} className="mr-1" /> Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+
       {isLoading ? (
         <div className="text-center py-10 text-muted-foreground">Loading chatbot nodes...</div>
       ) : (
         <div className="space-y-2">
-          {copiedNode && (
+          {(copiedNode || copiedNodes.length > 0) && (
             <button
-              onClick={() => pasteNodeAt(-1)}
-              className="w-full flex items-center justify-center gap-2 py-1.5 px-3 text-xs rounded-md border-2 border-dashed border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+              onClick={() => copiedNodes.length > 0 ? pasteMultipleAt(-1) : pasteNodeAt(-1)}
+              disabled={isPasting}
+              className="w-full flex items-center justify-center gap-2 py-1.5 px-3 text-xs rounded-md border-2 border-dashed border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors disabled:opacity-50"
               data-testid="button-paste-top"
             >
-              <ClipboardPaste size={12} /> Paste "{copiedNode.labelEn}" here
+              <ClipboardPaste size={12} />
+              {isPasting ? "Pasting..." : copiedNodes.length > 0
+                ? `Paste ${copiedNodes.length} nodes here`
+                : `Paste "${copiedNode?.labelEn}" here`}
             </button>
           )}
           {nodes.map((node, idx) => (
             <div key={node.id} className="space-y-2">
-            <Card className={`transition-all ${!node.isActive ? 'opacity-40' : ''} ${copiedNode?.id === node.id ? 'ring-2 ring-blue-400' : ''}`} data-testid={`card-node-${node.stepId}`}>
+            <Card className={`transition-all ${!node.isActive ? 'opacity-40' : ''} ${copiedNode?.id === node.id ? 'ring-2 ring-blue-400' : ''} ${selectedNodeIds.has(node.id) ? 'ring-2 ring-green-400 dark:ring-green-600' : ''}`} data-testid={`card-node-${node.stepId}`}>
               <CardContent className="p-3 sm:p-4">
                 <div className="flex items-start gap-2 sm:gap-3">
                   <div className="flex flex-col items-center gap-0.5 pt-0.5 flex-shrink-0">
+                    <Checkbox
+                      checked={selectedNodeIds.has(node.id)}
+                      onCheckedChange={() => toggleSelectNode(node.id)}
+                      className="mb-1"
+                      data-testid={`checkbox-node-${node.stepId}`}
+                    />
                     <Button variant="ghost" size="icon" className="h-6 w-6" disabled={idx === 0} onClick={() => moveNode(node, "up")} data-testid={`button-move-up-${node.stepId}`}>
                       <ChevronUp size={14} />
                     </Button>
@@ -428,6 +559,16 @@ export default function AdminChatbotSettings() {
                 data-testid={`button-paste-after-${node.stepId}`}
               >
                 <ClipboardPaste size={12} /> Paste "{copiedNode.labelEn}" here
+              </button>
+            )}
+            {copiedNodes.length > 0 && (
+              <button
+                onClick={() => pasteMultipleAt(idx)}
+                disabled={isPasting}
+                className="w-full flex items-center justify-center gap-2 py-1.5 px-3 text-xs rounded-md border-2 border-dashed border-green-300 dark:border-green-700 text-green-600 dark:text-green-400 bg-green-50/50 dark:bg-green-950/30 hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors disabled:opacity-50"
+                data-testid={`button-paste-multi-after-${node.stepId}`}
+              >
+                <ClipboardPaste size={12} /> {isPasting ? "Pasting..." : `Paste ${copiedNodes.length} nodes here`}
               </button>
             )}
             </div>
