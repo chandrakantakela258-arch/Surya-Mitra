@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Search, Phone, MapPin, Zap, Calendar, MoreVertical, CheckCircle, Clock, FileCheck, Truck, PartyPopper, Eye, Camera, Video, Play, X, Image, Smartphone, ShieldOff, Settings, Mail, Trash2, Plus, Pencil, Check, CreditCard, Landmark, User, RefreshCw, Send } from "lucide-react";
+import { Search, Phone, MapPin, Zap, Calendar, MoreVertical, CheckCircle, Clock, FileCheck, Truck, PartyPopper, Eye, Camera, Video, Play, X, Image, Smartphone, ShieldOff, Settings, Mail, Trash2, Plus, Pencil, Check, CreditCard, Landmark, User, RefreshCw, Send, KeyRound } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { CustomerJourneyMini, ExpandableSiteProgress } from "@/components/customer-journey-tracker";
@@ -192,6 +192,26 @@ export default function AdminCustomers() {
       toast({
         title: "Error",
         description: "Failed to update portal access.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("POST", `/api/admin/customers/${id}/reset-portal-password`, {});
+    },
+    onSuccess: (_, _id) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/customers"] });
+      toast({
+        title: "Password Reset",
+        description: "Customer's portal password has been cleared. They will set a new password on next login.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to reset password.",
         variant: "destructive",
       });
     },
@@ -590,6 +610,20 @@ export default function AdminCustomers() {
                               </>
                             )}
                           </DropdownMenuItem>
+                          {customer.portalEnabled && (
+                            <DropdownMenuItem
+                              onClick={() => {
+                                if (confirm(`Reset portal password for ${customer.name}? They will be asked to set a new password on next login.`)) {
+                                  resetPasswordMutation.mutate(customer.id);
+                                }
+                              }}
+                              disabled={resetPasswordMutation.isPending}
+                              data-testid={`button-reset-password-${customer.id}`}
+                            >
+                              <KeyRound className="w-4 h-4 mr-2 text-orange-500" />
+                              Reset Portal Password
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             onClick={() => openEditDetails(customer)}

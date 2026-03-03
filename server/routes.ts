@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -803,7 +804,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       }
 
       // Generate session token
-      const crypto = require("crypto");
+      
       const sessionToken = crypto.randomBytes(32).toString("hex");
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
@@ -873,7 +874,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       });
 
       // Auto-login after setup
-      const crypto = require("crypto");
+      
       const sessionToken = crypto.randomBytes(32).toString("hex");
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
@@ -1039,7 +1040,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       }
 
       // Generate session token
-      const crypto = require("crypto");
+      
       const sessionToken = crypto.randomBytes(32).toString("hex");
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
@@ -3033,6 +3034,30 @@ export function registerRoutes(httpServer: Server, app: Express) {
     }
   });
 
+  app.post("/api/admin/customers/:id/reset-portal-password", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { newPassword } = req.body;
+
+      const customer = await storage.getCustomer(id);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+
+      if (newPassword && newPassword.length >= 4) {
+        const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+        await storage.updateCustomer(id, { passwordHash: hashedPassword });
+        res.json({ success: true, message: `Password reset to the provided value for ${customer.name}` });
+      } else {
+        await storage.updateCustomer(id, { passwordHash: null });
+        res.json({ success: true, message: `Password cleared for ${customer.name}. Customer will be prompted to set a new password on next login.` });
+      }
+    } catch (error) {
+      console.error("Admin reset portal password error:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
   // Admin update customer details (Aadhaar, PAN, Bank Details)
   app.patch("/api/admin/customers/:id/details", requireAdmin, async (req, res) => {
     try {
@@ -3706,7 +3731,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       }
 
       // Verify signature (CRITICAL SECURITY CHECK)
-      const crypto = require("crypto");
+      
       const expectedSignature = crypto
         .createHmac("sha256", keySecret)
         .update(`${razorpay_order_id}|${razorpay_payment_id}`)
@@ -3957,7 +3982,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
         return res.status(400).json({ message: "No pending payment found for this order" });
       }
 
-      const crypto = require("crypto");
+      
       const expectedSignature = crypto
         .createHmac("sha256", keySecret)
         .update(`${razorpay_order_id}|${razorpay_payment_id}`)
@@ -4060,7 +4085,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
       if (webhookSecret) {
         // Verify webhook signature
-        const crypto = require("crypto");
+        
         const signature = req.headers["x-razorpay-signature"];
         const expectedSignature = crypto
           .createHmac("sha256", webhookSecret)
