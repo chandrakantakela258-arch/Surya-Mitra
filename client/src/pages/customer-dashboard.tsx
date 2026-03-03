@@ -16,6 +16,7 @@ import {
   Sun, 
   Phone, 
   ArrowRight, 
+  Check,
   CheckCircle2, 
   Clock, 
   MapPin, 
@@ -50,7 +51,8 @@ import {
 } from "lucide-react";
 import { SiFacebook, SiInstagram, SiWhatsapp, SiX } from "react-icons/si";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { CustomerJourneyTracker } from "@/components/customer-journey-tracker";
+import { installationMilestones } from "@shared/schema";
+import { formatDistanceToNow } from "date-fns";
 
 interface CustomerData {
   id: string;
@@ -1342,12 +1344,61 @@ export default function CustomerDashboard() {
                   </Card>
                 </div>
 
-                <CustomerJourneyTracker 
-                  customerId={progress.customer.id}
-                  customerName={progress.customer.name}
-                  showActions={false}
-                  portalMilestones={progress.milestones}
-                />
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                      <CardTitle className="text-lg">Installation Journey</CardTitle>
+                      <Badge variant={progress.percentComplete === 100 ? "default" : "secondary"}>
+                        {progress.milestones.filter(m => m.status === "completed").length} / {installationMilestones.length} Complete
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Track progress for {progress.customer.name}
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="relative">
+                      <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-muted" />
+                      <div className="space-y-0">
+                        {installationMilestones.map((milestone, index) => {
+                          const portalData = progress.milestones.find(m => m.title === milestone.key);
+                          const isCompleted = portalData?.status === "completed";
+                          const completedSoFar = progress.milestones.filter(m => m.status === "completed").length;
+                          const isNext = index === completedSoFar;
+                          return (
+                            <div key={milestone.key} className="relative pl-10 pb-6 last:pb-0">
+                              <div className={`absolute left-2 w-5 h-5 rounded-full flex items-center justify-center ${
+                                isCompleted ? "bg-green-500 text-white" : isNext ? "bg-primary text-primary-foreground" : "bg-muted border-2 border-muted-foreground/20"
+                              }`}>
+                                {isCompleted ? <Check className="h-3 w-3" /> : <span className="text-xs font-medium">{index + 1}</span>}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h4 className={`font-medium ${isCompleted ? "text-green-700 dark:text-green-400" : ""}`}>
+                                    {milestone.label}
+                                  </h4>
+                                  {isCompleted && (
+                                    <Badge variant="outline" className="text-xs text-green-600 border-green-200">Completed</Badge>
+                                  )}
+                                  {isNext && !isCompleted && (
+                                    <Badge variant="outline" className="text-xs">Current</Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-0.5">{milestone.description}</p>
+                                {portalData?.completedAt && (
+                                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    {formatDistanceToNow(new Date(portalData.completedAt), { addSuffix: true })}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               <TabsContent value="site" className="space-y-6 mt-6">
