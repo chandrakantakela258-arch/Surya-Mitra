@@ -1,4 +1,4 @@
-const CACHE_NAME = 'divyanshi-solar-v3';
+const CACHE_NAME = 'divyanshi-solar-v4';
 const STATIC_ASSETS = [
   '/',
   '/favicon.png',
@@ -6,9 +6,8 @@ const STATIC_ASSETS = [
 ];
 
 const CACHE_STRATEGIES = {
-  networkFirst: ['api'],
-  cacheFirst: ['fonts.googleapis.com', 'fonts.gstatic.com', '.png', '.jpg', '.svg', '.ico'],
-  staleWhileRevalidate: ['.js', '.css']
+  networkFirst: ['api', '.js', '.css'],
+  cacheFirst: ['fonts.googleapis.com', 'fonts.gstatic.com', '.png', '.jpg', '.svg', '.ico']
 };
 
 const SKIP_CACHE_PATTERNS = [
@@ -76,11 +75,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  event.respondWith(staleWhileRevalidate(request));
+  if (isNetworkFirst(url.href)) {
+    event.respondWith(networkFirst(request));
+    return;
+  }
+
+  event.respondWith(networkFirst(request));
 });
 
 function isCacheFirst(url) {
   return CACHE_STRATEGIES.cacheFirst.some(pattern => url.includes(pattern));
+}
+
+function isNetworkFirst(url) {
+  return CACHE_STRATEGIES.networkFirst.some(pattern => url.includes(pattern));
 }
 
 async function networkOnly(request) {
