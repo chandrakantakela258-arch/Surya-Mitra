@@ -17,33 +17,50 @@ interface EnrichedAssignment extends CustomerVendorAssignment {
   vendor?: Vendor;
 }
 
+interface PortalMilestone {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  completedAt: string | null;
+  visibleToCustomer: boolean;
+  documents: string[] | null;
+}
+
 interface CustomerJourneyTrackerProps {
   customerId: string;
   customerName: string;
   customerState?: string;
   showActions?: boolean;
+  portalMilestones?: PortalMilestone[];
 }
 
 export function CustomerJourneyTracker({ 
   customerId, 
   customerName,
   customerState,
-  showActions = true 
+  showActions = true,
+  portalMilestones,
 }: CustomerJourneyTrackerProps) {
   const { toast } = useToast();
   const [pendingMilestoneId, setPendingMilestoneId] = useState<string | null>(null);
   const [vendorDialogType, setVendorDialogType] = useState<VendorAssignmentType | null>(null);
 
+  const isPortalMode = !!portalMilestones;
+
   const { data: milestones = [], isLoading } = useQuery<Milestone[]>({
     queryKey: ["/api/customers", customerId, "milestones"],
+    enabled: !isPortalMode,
   });
 
   const { data: vendorAssignments = [] } = useQuery<EnrichedAssignment[]>({
     queryKey: ["/api/customers", customerId, "vendor-assignments"],
+    enabled: !isPortalMode,
   });
 
   const { data: approvedVendors = [] } = useQuery<Vendor[]>({
     queryKey: ["/api/admin/vendors/approved"],
+    enabled: !isPortalMode,
   });
 
   const discomVendors = approvedVendors.filter(v => v.vendorType === "discom_net_metering");
@@ -164,15 +181,34 @@ export function CustomerJourneyTracker({
   };
 
   const getMilestoneData = (milestoneKey: string) => {
+    if (isPortalMode && portalMilestones) {
+      const pm = portalMilestones.find((m) => m.title === milestoneKey);
+      if (pm) {
+        return {
+          id: pm.id,
+          milestone: pm.title,
+          status: pm.status,
+          completedAt: pm.completedAt,
+          notes: pm.description,
+          visibleToCustomer: pm.visibleToCustomer,
+          documents: pm.documents,
+        } as unknown as Milestone;
+      }
+      return undefined;
+    }
     return milestones.find((m) => m.milestone === milestoneKey);
   };
 
-  const completedCount = milestones.filter((m) => m.status === "completed").length;
+  const effectiveMilestones = isPortalMode
+    ? (portalMilestones || []).map(pm => ({ milestone: pm.title, status: pm.status }))
+    : milestones;
+
+  const completedCount = effectiveMilestones.filter((m) => m.status === "completed").length;
   const progress = installationMilestones.length > 0 
     ? (completedCount / installationMilestones.length) * 100 
     : 0;
 
-  if (isLoading) {
+  if (isLoading && !isPortalMode) {
     return (
       <Card>
         <CardContent className="p-6">

@@ -139,6 +139,7 @@ const serviceStatusColors: Record<string, string> = {
 
 const statusLabels: Record<string, string> = {
   pending: "Application Pending",
+  approved: "Application Approved",
   documents_verified: "Documents Verified",
   site_survey_scheduled: "Site Survey Scheduled",
   site_survey_completed: "Site Survey Completed",
@@ -157,6 +158,7 @@ const statusLabels: Record<string, string> = {
 
 const statusColors: Record<string, string> = {
   pending: "bg-yellow-500",
+  approved: "bg-green-500",
   documents_verified: "bg-blue-500",
   site_survey_scheduled: "bg-purple-500",
   site_survey_completed: "bg-purple-600",
@@ -1344,6 +1346,7 @@ export default function CustomerDashboard() {
                   customerId={progress.customer.id}
                   customerName={progress.customer.name}
                   showActions={false}
+                  portalMilestones={progress.milestones}
                 />
               </TabsContent>
 
