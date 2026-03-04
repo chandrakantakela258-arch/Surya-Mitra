@@ -1,30 +1,7 @@
-const CACHE_NAME = 'divyanshi-solar-v4';
+const CACHE_NAME = 'divyanshi-solar-v5';
 const STATIC_ASSETS = [
-  '/',
   '/favicon.png',
   '/manifest.json'
-];
-
-const CACHE_STRATEGIES = {
-  networkFirst: ['api', '.js', '.css'],
-  cacheFirst: ['fonts.googleapis.com', 'fonts.gstatic.com', '.png', '.jpg', '.svg', '.ico']
-};
-
-const SKIP_CACHE_PATTERNS = [
-  '/api/admin/',
-  '/api/bdp/',
-  '/api/ddp/',
-  'commissions',
-  'customers',
-  'dashboard',
-  'earnings',
-  'payouts',
-  'wallet',
-  'referrals',
-  'leaderboard',
-  'orders',
-  'stats',
-  'milestones'
 ];
 
 self.addEventListener('install', (event) => {
@@ -44,9 +21,16 @@ self.addEventListener('activate', (event) => {
           .filter((name) => name !== CACHE_NAME)
           .map((name) => caches.delete(name))
       );
+    }).then(() => {
+      return self.clients.claim();
+    }).then(() => {
+      return self.clients.matchAll({ type: 'window' }).then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({ type: 'SW_UPDATED' });
+        });
+      });
     })
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
@@ -55,100 +39,51 @@ self.addEventListener('fetch', (event) => {
 
   if (request.method !== 'GET') return;
 
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request).catch(() => caches.match(request))
+    );
+    return;
+  }
+
   if (url.pathname.startsWith('/api')) {
-    const isSensitiveRoute = 
-      url.pathname.startsWith('/api/admin/') ||
-      url.pathname.startsWith('/api/bdp/') ||
-      url.pathname.startsWith('/api/ddp/') ||
-      SKIP_CACHE_PATTERNS.some(pattern => url.pathname.includes(pattern));
-    
-    if (isSensitiveRoute) {
-      event.respondWith(networkOnly(request));
-    } else {
-      event.respondWith(networkFirst(request));
-    }
+    event.respondWith(fetch(request).catch(() => {
+      return new Response(JSON.stringify({ error: 'Offline', offline: true }), {
+        status: 503,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }));
     return;
   }
 
-  if (isCacheFirst(url.href)) {
-    event.respondWith(cacheFirst(request));
+  if (url.href.match(/\.(png|jpg|jpeg|svg|ico|webp|woff2?)(\?|$)/)) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        if (cached) return cached;
+        return fetch(request).then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return response;
+        }).catch(() => new Response('', { status: 404 }));
+      })
+    );
     return;
   }
 
-  if (isNetworkFirst(url.href)) {
-    event.respondWith(networkFirst(request));
-    return;
-  }
-
-  event.respondWith(networkFirst(request));
+  event.respondWith(
+    fetch(request).then((response) => {
+      if (response.ok) {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+      }
+      return response;
+    }).catch(() => {
+      return caches.match(request) || new Response('', { status: 404 });
+    })
+  );
 });
-
-function isCacheFirst(url) {
-  return CACHE_STRATEGIES.cacheFirst.some(pattern => url.includes(pattern));
-}
-
-function isNetworkFirst(url) {
-  return CACHE_STRATEGIES.networkFirst.some(pattern => url.includes(pattern));
-}
-
-async function networkOnly(request) {
-  try {
-    return await fetch(request);
-  } catch (error) {
-    return new Response(JSON.stringify({ error: 'Offline', offline: true }), {
-      status: 503,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-}
-
-async function networkFirst(request) {
-  try {
-    const networkResponse = await fetch(request);
-    if (networkResponse.ok) {
-      const cache = await caches.open(CACHE_NAME);
-      cache.put(request, networkResponse.clone());
-    }
-    return networkResponse;
-  } catch (error) {
-    const cachedResponse = await caches.match(request);
-    if (cachedResponse) return cachedResponse;
-    return new Response(JSON.stringify({ error: 'Offline', offline: true }), {
-      status: 503,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-}
-
-async function cacheFirst(request) {
-  const cachedResponse = await caches.match(request);
-  if (cachedResponse) return cachedResponse;
-  
-  try {
-    const networkResponse = await fetch(request);
-    if (networkResponse.ok) {
-      const cache = await caches.open(CACHE_NAME);
-      cache.put(request, networkResponse.clone());
-    }
-    return networkResponse;
-  } catch (error) {
-    return new Response('', { status: 404 });
-  }
-}
-
-async function staleWhileRevalidate(request) {
-  const cache = await caches.open(CACHE_NAME);
-  const cachedResponse = await caches.match(request);
-  
-  const fetchPromise = fetch(request).then((networkResponse) => {
-    if (networkResponse.ok) {
-      cache.put(request, networkResponse.clone());
-    }
-    return networkResponse;
-  }).catch(() => cachedResponse);
-
-  return cachedResponse || fetchPromise;
-}
 
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {

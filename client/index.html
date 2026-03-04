@@ -340,13 +340,17 @@
     <script type="module" src="/src/main.tsx"></script>
     <script>
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', async () => {
+        navigator.serviceWorker.addEventListener('message', function(e) {
+          if (e.data && e.data.type === 'SW_UPDATED') {
+            window.location.reload();
+          }
+        });
+        window.addEventListener('load', async function() {
           try {
-            var cacheNames = await caches.keys();
-            for (var name of cacheNames) {
-              if (name !== 'divyanshi-solar-v4') {
-                await caches.delete(name);
-                console.log('Deleted old cache:', name);
+            var keys = await caches.keys();
+            for (var k of keys) {
+              if (k !== 'divyanshi-solar-v5') {
+                await caches.delete(k);
               }
             }
           } catch(e) {}
@@ -356,19 +360,16 @@
               reg.waiting.postMessage({ type: 'SKIP_WAITING' });
             }
             reg.addEventListener('updatefound', function() {
-              var newWorker = reg.installing;
-              if (newWorker) {
-                newWorker.addEventListener('statechange', function() {
-                  if (newWorker.state === 'activated') {
+              var w = reg.installing;
+              if (w) {
+                w.addEventListener('statechange', function() {
+                  if (w.state === 'activated') {
                     window.location.reload();
                   }
                 });
               }
             });
-            console.log('SW registered:', reg.scope);
-          } catch(e) {
-            console.log('SW registration failed:', e);
-          }
+          } catch(e) {}
         });
       }
     </script>
