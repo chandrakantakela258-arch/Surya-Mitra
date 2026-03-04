@@ -9980,6 +9980,10 @@ export function registerRoutes(httpServer: Server, app: Express) {
         consumerNumber: 'consumer_number', meterType: 'meter_type',
         roofSpace: 'roof_space', businessType: 'business_type',
         monthlyBilling: 'monthly_billing', plantCapacity: 'plant_capacity',
+        residentialPlantCapacity: 'residential_plant_capacity',
+        commercialSolarPlantType: 'commercial_solar_plant_type',
+        industrialPlantType: 'industrial_plant_type',
+        finalExecutionDecision: 'final_execution_decision',
         proposalStatus: 'proposal_status', status: 'status',
         mobileNumber: 'mobile_number',
       };
@@ -10102,7 +10106,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // Admin CRM API (using raw SQL for production reliability)
   app.get('/api/leads', requireAuth, async (req, res) => {
     try {
-      const result = await pool.query(`SELECT id, phone, mobile_number as "mobileNumber", name, email, language, state, district, city, pincode, gps_location as "gpsLocation", electricity_board as "electricityBoard", consumer_number as "consumerNumber", meter_type as "meterType", roof_space as "roofSpace", business_type as "businessType", monthly_billing as "monthlyBilling", plant_capacity as "plantCapacity", proposal_status as "proposalStatus", status, action_taken as "actionTaken", current_step as "currentStep", created_at as "createdAt", updated_at as "updatedAt" FROM solar_bot_leads ORDER BY created_at DESC`);
+      const result = await pool.query(`SELECT id, phone, mobile_number as "mobileNumber", name, email, language, state, district, city, pincode, gps_location as "gpsLocation", electricity_board as "electricityBoard", consumer_number as "consumerNumber", meter_type as "meterType", roof_space as "roofSpace", business_type as "businessType", monthly_billing as "monthlyBilling", plant_capacity as "plantCapacity", residential_plant_capacity as "residentialPlantCapacity", commercial_solar_plant_type as "commercialSolarPlantType", industrial_plant_type as "industrialPlantType", final_execution_decision as "finalExecutionDecision", proposal_status as "proposalStatus", status, action_taken as "actionTaken", current_step as "currentStep", created_at as "createdAt", updated_at as "updatedAt" FROM solar_bot_leads ORDER BY created_at DESC`);
       console.log(`[Solar Bot Leads] Returning ${result.rows.length} leads`);
       res.json(result.rows);
     } catch (error: any) {

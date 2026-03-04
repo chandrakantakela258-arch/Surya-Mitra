@@ -93,7 +93,7 @@ export default function CrmDashboard() {
   const exportToCsv = () => {
     if (!leads || leads.length === 0) return;
 
-    const headers = ["ID", "Mobile Number", "Name", "Email", "Lang", "State", "District", "City", "Pincode", "Electricity Board", "Consumer No", "Meter Type", "Roof Space(sqft)", "Business Type", "Monthly Billing", "Plant Capacity", "Proposal Reply", "Final Status", "Captured Date"];
+    const headers = ["ID", "Mobile Number", "Name", "Email", "Lang", "State", "District", "City", "Pincode", "Electricity Board", "Consumer No", "Meter Type", "Roof Space(sqft)", "Business Type", "Monthly Billing", "Plant Capacity", "Residential Plant Capacity", "Commercial Solar Plant Type", "Industrial Plant Type", "Final Execution Decision", "Proposal Reply", "Final Status", "Captured Date"];
 
     const csvRows = [
       headers.join(','),
@@ -114,6 +114,10 @@ export default function CrmDashboard() {
         `"${lead.businessType || ''}"`,
         `"${lead.monthlyBilling || ''}"`,
         lead.plantCapacity || '',
+        lead.residentialPlantCapacity || '',
+        `"${lead.commercialSolarPlantType || ''}"`,
+        `"${lead.industrialPlantType || ''}"`,
+        `"${lead.finalExecutionDecision || ''}"`,
         `"${lead.proposalStatus || ''}"`,
         lead.status || '',
         lead.createdAt ? new Date(lead.createdAt).toLocaleString() : ''
@@ -333,8 +337,17 @@ export default function CrmDashboard() {
                       <TableCell>
                         <div className="text-sm">
                           <div className="font-semibold text-primary">{lead.plantCapacity || '- kW'}</div>
+                          {lead.residentialPlantCapacity && (
+                            <div className="text-xs text-muted-foreground mt-0.5">Residential: {lead.residentialPlantCapacity}</div>
+                          )}
+                          {lead.commercialSolarPlantType && (
+                            <div className="text-xs text-muted-foreground mt-0.5">Commercial: {lead.commercialSolarPlantType}</div>
+                          )}
+                          {lead.industrialPlantType && (
+                            <div className="text-xs text-muted-foreground mt-0.5">Industrial: {lead.industrialPlantType}</div>
+                          )}
                           <div className="text-xs text-muted-foreground mt-0.5">
-                            Roof Space: {lead.roofSpace || 'N/A'}
+                            Roof: {lead.roofSpace || 'N/A'}
                           </div>
                         </div>
                       </TableCell>
@@ -344,6 +357,11 @@ export default function CrmDashboard() {
                           <div className="text-xs text-muted-foreground">
                             Meter: {lead.meterType || 'N/A'}
                           </div>
+                          {lead.finalExecutionDecision && (
+                            <div className="text-xs font-medium text-orange-600 dark:text-orange-400 mt-0.5">
+                              Decision: {lead.finalExecutionDecision}
+                            </div>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>

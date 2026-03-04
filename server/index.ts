@@ -203,6 +203,10 @@ app.use((req, res, next) => {
       `);
       await pool.query(`ALTER TABLE "solar_bot_leads" ADD COLUMN IF NOT EXISTS "mobile_number" text`).catch(() => {});
       await pool.query(`ALTER TABLE "solar_bot_leads" ADD COLUMN IF NOT EXISTS "action_taken" text`).catch(() => {});
+      await pool.query(`ALTER TABLE "solar_bot_leads" ADD COLUMN IF NOT EXISTS "residential_plant_capacity" text`).catch(() => {});
+      await pool.query(`ALTER TABLE "solar_bot_leads" ADD COLUMN IF NOT EXISTS "commercial_solar_plant_type" text`).catch(() => {});
+      await pool.query(`ALTER TABLE "solar_bot_leads" ADD COLUMN IF NOT EXISTS "industrial_plant_type" text`).catch(() => {});
+      await pool.query(`ALTER TABLE "solar_bot_leads" ADD COLUMN IF NOT EXISTS "final_execution_decision" text`).catch(() => {});
       console.log("solar_bot_leads table ready");
 
       await pool.query(`ALTER TABLE "customers" ADD COLUMN IF NOT EXISTS "roof_length" text`).catch(() => {});

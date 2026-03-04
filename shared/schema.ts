@@ -3901,6 +3901,10 @@ export const SolarBotLeads = pgTable("solar_bot_leads", {
   businessType: text("business_type"),
   monthlyBilling: text("monthly_billing"),
   plantCapacity: text("plant_capacity"),
+  residentialPlantCapacity: text("residential_plant_capacity"),
+  commercialSolarPlantType: text("commercial_solar_plant_type"),
+  industrialPlantType: text("industrial_plant_type"),
+  finalExecutionDecision: text("final_execution_decision"),
   proposalStatus: text("proposal_status"),
   status: text("status").notNull().default("New"),
   currentStep: decimal("current_step").default("0"), // Use decimal for float steps like 1.1
