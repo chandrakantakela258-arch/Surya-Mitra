@@ -248,6 +248,7 @@ export default function AdminChatbotSettings() {
       savesField: copiedNode.savesField,
       sortOrder: targetSortOrder,
       isActive: copiedNode.isActive,
+      nextStepRules: copiedNode.nextStepRules || null,
     };
     createMutation.mutate(newNode);
     setCopiedNode(null);
@@ -319,6 +320,7 @@ export default function AdminChatbotSettings() {
           savesField: src.savesField,
           sortOrder: baseSortOrder + (i * gap),
           isActive: src.isActive,
+          nextStepRules: src.nextStepRules || null,
         };
         await apiRequest("POST", "/api/admin/chatbot-nodes", {
           ...newNode,
