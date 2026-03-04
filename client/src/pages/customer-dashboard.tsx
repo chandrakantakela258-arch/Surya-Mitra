@@ -258,7 +258,7 @@ export default function CustomerDashboard() {
       fetchTestimonials(token);
       fetchSiteMedia(token);
       if (data.customer.latitude && data.customer.longitude) {
-        setCustomerLocation({ lat: data.customer.latitude, lng: data.customer.longitude });
+        setCustomerLocation({ lat: parseFloat(data.customer.latitude), lng: parseFloat(data.customer.longitude) });
       }
     } catch {
       localStorage.removeItem("customerSessionToken");
@@ -307,7 +307,7 @@ export default function CustomerDashboard() {
         setSitePictures(data.sitePictures || []);
         setSiteVideo(data.siteVideo || null);
         if (data.latitude && data.longitude) {
-          setCustomerLocation({ lat: data.latitude, lng: data.longitude });
+          setCustomerLocation({ lat: parseFloat(data.latitude), lng: parseFloat(data.longitude) });
         }
       }
     } catch {
