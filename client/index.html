@@ -337,6 +337,18 @@
       <p>Please enable JavaScript to use the full application.</p>
     </noscript>
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script>
+      window.addEventListener('error', function(e) {
+        var root = document.getElementById('root');
+        if (root && !root.hasChildNodes()) {
+          root.innerHTML = '<div style="padding:40px;text-align:center;font-family:system-ui">' +
+            '<h2 style="color:#e11d48">Page failed to load</h2>' +
+            '<p style="color:#666">' + (e.message || 'Unknown error') + '</p>' +
+            '<button onclick="if(window.caches)caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k)})});if(navigator.serviceWorker)navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister()})});localStorage.clear();setTimeout(function(){location.reload()},500)" ' +
+            'style="margin-top:16px;padding:10px 24px;background:#f97316;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:16px">Clear Cache & Reload</button></div>';
+        }
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
     <script>
       if ('serviceWorker' in navigator) {

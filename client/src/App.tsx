@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Component, ErrorInfo, ReactNode } from "react";
 import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -732,18 +732,55 @@ function PublicRouter() {
   );
 }
 
+class AppErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("App crash:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: 40, textAlign: "center", fontFamily: "system-ui" }}>
+          <h2 style={{ color: "#e11d48" }}>Something went wrong</h2>
+          <p style={{ color: "#666", marginTop: 8 }}>{this.state.error?.message}</p>
+          <button
+            onClick={() => {
+              if ("caches" in window) caches.keys().then(ks => ks.forEach(k => caches.delete(k)));
+              if ("serviceWorker" in navigator) navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()));
+              localStorage.clear();
+              window.location.reload();
+            }}
+            style={{ marginTop: 16, padding: "10px 24px", background: "#f97316", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 16 }}
+          >
+            Clear Cache & Reload
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <PublicRouter />
-          </TooltipProvider>
-        </AuthProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <AppErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <AuthProvider>
+            <TooltipProvider>
+              <Toaster />
+              <PublicRouter />
+            </TooltipProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </AppErrorBoundary>
   );
 }
 
