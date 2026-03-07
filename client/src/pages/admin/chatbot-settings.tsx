@@ -105,6 +105,23 @@ export default function AdminChatbotSettings() {
     }
   };
 
+  const handleDeleteMedia = async () => {
+    if (!editNode?.mediaUrl) return;
+    if (editNode.mediaUrl.startsWith('/uploads/chatbot-media/')) {
+      try {
+        await fetch('/api/admin/chatbot-media', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: editNode.mediaUrl }),
+          credentials: 'include',
+        });
+      } catch {}
+    }
+    setEditNode({ ...editNode, mediaUrl: "", mediaType: "none" });
+    setUploadedFileName(null);
+    toast({ title: "Media removed" });
+  };
+
   const { data: nodes = [], isLoading } = useQuery<ChatbotNode[]>({
     queryKey: ["/api/admin/chatbot-nodes"],
   });
@@ -747,6 +764,16 @@ export default function AdminChatbotSettings() {
                             <a href={editNode.mediaUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline truncate flex-1">
                               {editNode.mediaUrl}
                             </a>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
+                              onClick={handleDeleteMedia}
+                              data-testid="button-delete-media"
+                            >
+                              <Trash2 size={14} />
+                            </Button>
                           </div>
                         )}
                       </div>

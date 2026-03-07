@@ -8730,6 +8730,16 @@ export function registerRoutes(httpServer: Server, app: Express) {
     }
   });
 
+  // Serve chatbot media files (PDFs, images, videos, PPTs)
+  app.use("/uploads/chatbot-media", (req, res, next) => {
+    const filePath = path.join(chatbotMediaDir, req.path);
+    if (fs.existsSync(filePath)) {
+      res.sendFile(filePath);
+    } else {
+      res.status(404).json({ message: "File not found" });
+    }
+  });
+
   // ==================== SERVICE REQUESTS ====================
 
   // Customer Portal - Create service request
@@ -10222,6 +10232,25 @@ export function registerRoutes(httpServer: Server, app: Express) {
       res.json({ url: fileUrl, originalName, detectedType });
     } catch (error: any) {
       console.error('[Chatbot Media Upload Error]', error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete('/api/admin/chatbot-media', requireAuth, async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url || !url.startsWith('/uploads/chatbot-media/')) {
+        return res.status(400).json({ error: 'Invalid media URL' });
+      }
+      const filename = url.split('/').pop();
+      if (!filename) return res.status(400).json({ error: 'Invalid filename' });
+      const filePath = path.join(chatbotMediaDir, filename);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('[Delete Chatbot Media Error]', error.message);
       res.status(500).json({ error: error.message });
     }
   });
