@@ -8,6 +8,8 @@ import {
   ShoppingCart,
   UserPlus,
   FileText,
+  Trophy,
+  Wrench,
   User,
   GitBranch,
   Receipt,
@@ -46,8 +48,20 @@ const ddpNavItems: NavItem[] = [
   { icon: Users, label: "Customers", href: "/ddp/customers" },
   { icon: Calculator, label: "Calculator", href: "/calculator" },
   { icon: Wallet, label: "Earnings", href: "/ddp/earnings" },
+];
+
+const ddpMenuItems: NavItem[] = [
+  { icon: LayoutDashboard, label: "Home", href: "/ddp/dashboard" },
+  { icon: MessageSquare, label: "Chat Bot Leads", href: "/ddp/bot-leads" },
+  { icon: Users, label: "Customers", href: "/ddp/customers" },
+  { icon: UserPlus, label: "Add Customer", href: "/ddp/customers/new" },
+  { icon: FileText, label: "Applications", href: "/ddp/applications" },
   { icon: ShoppingCart, label: "Store", href: "/ddp/store" },
-  { icon: User, label: "Profile", href: "/profile" },
+  { icon: Wallet, label: "Earnings", href: "/ddp/earnings" },
+  { icon: Wrench, label: "Service Requests", href: "/ddp/service-requests" },
+  { icon: Trophy, label: "Leaderboard", href: "/leaderboard" },
+  { icon: User, label: "My Profile", href: "/profile" },
+  { icon: Calculator, label: "Calculator", href: "/calculator" },
 ];
 
 // Bottom bar items for BDP (first 4 shown in bottom nav)
@@ -67,6 +81,7 @@ const bdpMenuItems: NavItem[] = [
   { icon: Calculator, label: "Calculator", href: "/calculator" },
   { icon: User, label: "Profile", href: "/profile" },
   { icon: Users, label: "District Partners", href: "/bdp/partners" },
+  { icon: MessageSquare, label: "Chat Bot Leads", href: "/bdp/bot-leads" },
 ];
 
 // Bottom bar items for admin (first 4 shown in bottom nav)
@@ -79,16 +94,29 @@ const adminBottomNavItems: NavItem[] = [
 
 // Additional menu items for admin (shown in More menu only)
 const adminMenuItems: NavItem[] = [
+  { icon: UserCheck, label: "Partner Approvals", href: "/admin/partners" },
+  { icon: GitBranch, label: "Partner Hierarchy", href: "/admin/partner-hierarchy" },
   { icon: Users, label: "All Customers", href: "/admin/customers" },
-  { icon: GitBranch, label: "Hierarchy", href: "/admin/partner-hierarchy" },
-  { icon: UserCheck, label: "Partner Approval", href: "/admin/partners" },
-  { icon: CreditCard, label: "Commission Payout", href: "/admin/payouts" },
-  { icon: Wrench, label: "Service Requests", href: "/admin/service-requests" },
-  { icon: MessageSquare, label: "Testimonials", href: "/admin/testimonials" },
-  { icon: Truck, label: "Vendor Payments", href: "/admin/vendor-payments" },
-  { icon: ClipboardCheck, label: "Vendor Approval", href: "/admin/vendors" },
+  { icon: User, label: "Independent Customers", href: "/admin/independent-customers" },
+  { icon: FileText, label: "Customer Leads", href: "/admin/customer-journey" },
+  { icon: MessageSquare, label: "SOLAR BOT LEAD", href: "/admin/solar-bot-leads" },
+  { icon: MessageSquare, label: "Partner Chat Bot Leads", href: "/admin/partner-bot-leads" },
+  { icon: MessagesSquare, label: "Chatbot Settings", href: "/admin/chatbot-settings" },
+  { icon: ShoppingCart, label: "Products", href: "/admin/products" },
+  { icon: Receipt, label: "Orders", href: "/admin/orders" },
+  { icon: CreditCard, label: "Commission Payouts", href: "/admin/payouts" },
+  { icon: Wrench, label: "Site Expenses Tools", href: "/admin/site-expenses" },
+  { icon: FileText, label: "Documents", href: "/admin/documents" },
   { icon: MessagesSquare, label: "User Feedback", href: "/admin/feedback" },
+  { icon: ClipboardCheck, label: "Service Requests", href: "/admin/service-requests" },
+  { icon: MessageSquare, label: "Testimonials", href: "/admin/testimonials" },
+  { icon: ClipboardCheck, label: "Vendor Approvals", href: "/admin/vendors" },
+  { icon: Truck, label: "Vendor Payments", href: "/admin/vendor-payments" },
   { icon: Megaphone, label: "Broadcast", href: "/admin/notifications" },
+  { icon: Wrench, label: "Equipment Settings", href: "/admin/equipment-settings" },
+  { icon: Calculator, label: "Subsidy Calculator", href: "/admin/subsidy-calculator" },
+  { icon: Share2, label: "Notifications", href: "/admin/push-notifications" },
+  { icon: MessagesSquare, label: "Help Assistant", href: "/admin/help" },
 ];
 
 const customerPartnerNavItems: NavItem[] = [
@@ -133,7 +161,7 @@ export function MobileNav() {
       ? bdpBottomNavItems 
       : user.role === "customer_partner"
         ? customerPartnerNavItems
-        : ddpNavItems;
+        : ddpMenuItems;
 
   // Menu items for More section (admin gets separate menu items, others get full list)
   const menuItems = user.role === "admin" 
@@ -142,7 +170,7 @@ export function MobileNav() {
       ? bdpMenuItems 
       : user.role === "customer_partner"
         ? customerPartnerNavItems
-        : ddpNavItems;
+        : ddpMenuItems;
 
   const handleSignOut = async () => {
     setMenuOpen(false);
@@ -188,11 +216,11 @@ export function MobileNav() {
               <span className="text-[10px] font-medium">More</span>
             </button>
           </SheetTrigger>
-          <SheetContent side="right" className="w-[280px] sm:w-[320px]">
+          <SheetContent side="right" className="w-[280px] sm:w-[320px] overflow-y-auto">
             <SheetHeader>
               <SheetTitle className="text-left">Menu</SheetTitle>
             </SheetHeader>
-            <div className="mt-6 space-y-1">
+            <div className="mt-6 space-y-1 pr-1 pb-20">
               {menuItems.map((item) => {
                 const isActive = location === item.href || location.startsWith(item.href + "/");
                 const Icon = item.icon;

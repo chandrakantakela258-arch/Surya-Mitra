@@ -24,6 +24,7 @@ import PartnerDetail from "@/pages/bdp/partner-detail";
 import PartnerForm from "@/pages/bdp/partner-form";
 import BDPCustomers from "@/pages/bdp/customers";
 import DDPDashboard from "@/pages/ddp/dashboard";
+import PartnerBotLeads from "@/pages/partner-bot-leads";
 import DDPCustomers from "@/pages/ddp/customers";
 import CustomerForm from "@/pages/ddp/customer-form";
 import DDPApplications from "@/pages/ddp/applications";
@@ -67,6 +68,9 @@ import AdminVendorPayments from "@/pages/admin/vendor-payments";
 import AdminCustomerLeads from "@/pages/admin/customer-leads";
 import AdminCrmDashboard from "@/pages/admin/crm-dashboard";
 import AdminChatbotSettings from "@/pages/admin/chatbot-settings";
+import AdminSolarBotLeads from "@/pages/admin/solar-bot-leads";
+import AdminPartnerChatbotLeads from "@/pages/admin/partner-chatbot-leads";
+import AdminPartnerBotLeads from "@/pages/admin/partner-bot-leads";
 import SolarBotPage from "@/pages/solar-bot";
 import AdminEquipmentSettings from "@/pages/admin/equipment-settings";
 import PartnerServiceRequests from "@/pages/partner-service-requests";
@@ -241,6 +245,27 @@ function AuthenticatedRoutes() {
         <ProtectedRoute allowedRoles={["admin"]}>
           <DashboardLayout>
             <AdminCrmDashboard />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/partner-bot-leads">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminPartnerBotLeads />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/partner-chatbot-leads">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminPartnerChatbotLeads />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/solar-bot-leads">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminSolarBotLeads />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>
@@ -446,6 +471,20 @@ function AuthenticatedRoutes() {
         <ProtectedRoute allowedRoles={["bdp", "admin"]}>
           <DashboardLayout>
             <BDPDashboard />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/bdp/bot-leads">
+        <ProtectedRoute allowedRoles={["bdp", "admin"]}>
+          <DashboardLayout>
+            <PartnerBotLeads />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/ddp/bot-leads">
+        <ProtectedRoute allowedRoles={["ddp", "admin"]}>
+          <DashboardLayout>
+            <PartnerBotLeads />
           </DashboardLayout>
         </ProtectedRoute>
       </Route>

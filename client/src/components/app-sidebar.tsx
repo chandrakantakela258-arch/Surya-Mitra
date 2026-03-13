@@ -90,8 +90,14 @@ const adminMenuSections: MenuSection[] = [
       { title: "All Customers", url: "/admin/customers", icon: Users },
       { title: "Independent Customers", url: "/admin/independent-customers", icon: UserPlus },
       { title: "Customer Leads", url: "/admin/customer-leads", icon: UserPlus },
-      { title: "SOLAR BOT LEAD", url: "/admin/crm", icon: MessageSquare, highlight: true },
+      { title: "SOLAR BOT LEAD", url: "/admin/solar-bot-leads", icon: MessageSquare, highlight: true },
       { title: "Chatbot Settings", url: "/admin/chatbot-settings", icon: Bot },
+    ],
+  },
+  {
+    label: "Partner Chatbot",
+    items: [
+      { title: "Partner Chat Bot Leads", url: "/admin/partner-bot-leads", icon: MessageSquare, highlight: true },
     ],
   },
   {
@@ -168,6 +174,12 @@ const bdpMenuSections: MenuSection[] = [
     ],
   },
   {
+    label: "Solar Bot",
+    items: [
+      { title: "Chat Bot Leads", url: "/bdp/bot-leads", icon: MessageSquare, highlight: true },
+    ],
+  },
+  {
     label: "Tools",
     items: [
       { title: "My Profile", url: "/profile", icon: User },
@@ -181,6 +193,7 @@ const ddpMenuSections: MenuSection[] = [
     label: "Overview",
     items: [
       { title: "Dashboard", url: "/ddp/dashboard", icon: LayoutDashboard },
+      { title: "Chat Bot Leads", url: "/ddp/bot-leads", icon: MessageSquare, highlight: true },
     ],
   },
   {
@@ -203,6 +216,12 @@ const ddpMenuSections: MenuSection[] = [
     label: "Growth",
     items: [
       { title: "Leaderboard", url: "/leaderboard", icon: Trophy },
+    ],
+  },
+  {
+    label: "Solar Bot",
+    items: [
+      { title: "Chat Bot Leads", url: "/ddp/bot-leads", icon: MessageSquare, highlight: true },
     ],
   },
   {

@@ -37,12 +37,12 @@ interface NodeConfig {
 
 const SESSION_ID = Math.random().toString(36).substring(2, 15);
 
-const saveLead = async (data: Record<string, string>) => {
+const saveLead = async (data: Record<string, string>, ref?: string) => {
   try {
     await fetch("/api/public/web-lead", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId: SESSION_ID, ...data }),
+      body: JSON.stringify({ sessionId: SESSION_ID, ...data, ...(ref ? { ref } : {}) }),
     });
   } catch (e) {}
 };
@@ -105,6 +105,7 @@ function MediaBlock({ mediaType, mediaUrl, mediaTitle }: { mediaType: string; me
 }
 
 export default function SolarBotPage() {
+  const [refCode] = useState<string>(() => new URLSearchParams(window.location.search).get("ref") || "");
   const [messages, setMessages] = useState<Msg[]>([]);
   const [currentStepId, setCurrentStepId] = useState<string | null>(null);
   const [lang, setLang] = useState<"en" | "hi">("en");
@@ -202,13 +203,13 @@ export default function SolarBotPage() {
       const currentNode = getNodeConfig(currentStepId);
 
       if (currentNode?.savesField) {
-        saveLead({ [currentNode.savesField]: userReply });
+        saveLead({ [currentNode.savesField]: userReply }, refCode);
       }
 
       if (currentNode?.savesField === "language") {
         const newLang = userReply === "\u0939\u093F\u0928\u094D\u0926\u0940" ? "hi" : "en";
         setLang(newLang);
-        saveLead({ language: newLang });
+        saveLead({ language: newLang }, refCode);
       }
       if (currentNode?.savesField === "state") setSelectedState(userReply);
       if (currentNode?.savesField === "district") setSelectedDistrict(userReply);

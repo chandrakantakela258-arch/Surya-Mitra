@@ -137,24 +137,24 @@ function calculateCommission(capacityKW: number, panelType: string, customerType
 
   if (panelType === "dcr") {
     if (capacityKW === 3) {
-      ddpCommission = 20000;
-      bdpCommission = 10000;
+      ddpCommission = 15000;
+      bdpCommission = 7500;
     } else if (capacityKW === 5) {
-      ddpCommission = 35000;
-      bdpCommission = 15000;
+      ddpCommission = 25000;
+      bdpCommission = 12500;
     } else if (capacityKW >= 6 && capacityKW <= 10) {
-      ddpCommission = capacityKW * 6000;
-      bdpCommission = capacityKW * 3000;
+      ddpCommission = capacityKW * 4000;
+      bdpCommission = capacityKW * 2000;
     } else if (capacityKW > 10) {
-      ddpCommission = capacityKW * 6000;
-      bdpCommission = capacityKW * 3000;
+      ddpCommission = capacityKW * 4000;
+      bdpCommission = capacityKW * 2000;
     } else {
-      ddpCommission = capacityKW * 6000;
-      bdpCommission = capacityKW * 3000;
+      ddpCommission = capacityKW * 4000;
+      bdpCommission = capacityKW * 2000;
     }
   } else {
-    ddpCommission = capacityKW * 2000;
-    bdpCommission = capacityKW * 1000;
+    ddpCommission = capacityKW * 5000;
+    bdpCommission = capacityKW * 2500;
   }
 
   return {
@@ -2932,8 +2932,8 @@ Website: https://divyanshisolar.com`;
           <p>* Non-DCR Panel Rate: Ongrid Rs {NON_DCR_ONGRID_RATE_PER_WATT}/W | 3-in-1 Hybrid Rs {NON_DCR_HYBRID_RATE_PER_WATT}/W (3-6 KW only) | Commercial/Industrial Rs {NON_DCR_COMMERCIAL_RATE_PER_WATT}/W (No Subsidy)</p>
           <p>* Central Subsidy (DCR only): Up to 2 kW - Rs 30,000/kW | 2-3 kW - Rs 18,000/kW | Above 3 kW - Capped at Rs 78,000</p>
           <p>* State Subsidies (DCR only): Odisha - Rs 20,000/kW (Max Rs 60,000) | UP - Rs 10,000/kW (Max Rs 30,000)</p>
-          <p>* DCR Commission: 3kW (DDP Rs 20k, BDP Rs 10k) | 5kW (DDP Rs 35k, BDP Rs 15k) | 6+ kW (DDP Rs 6k/kW, BDP Rs 3k/kW)</p>
-          <p>* Non-DCR Commission (All): DDP Rs 2,000/kW | BDP Rs 1,000/kW</p>
+          <p>* DCR Commission: 3kW (DDP Rs 15k, BDP Rs 7.5k) | 5kW (DDP Rs 25k, BDP Rs 12.5k) | 6+ kW (DDP Rs 4k/kW, BDP Rs 2k/kW)</p>
+          <p>* Non-DCR Commission (All): DDP Rs 5,000/kW | BDP Rs 2,500/kW</p>
           <p>* Calculations based on average solar generation of 4 kWh/kW/day and Rs 7/kWh electricity tariff</p>
         </div>
       </CardContent>

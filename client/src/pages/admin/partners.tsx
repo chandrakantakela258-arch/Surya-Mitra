@@ -8,11 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Users, Building2, Check, X, Search, Phone, Mail, MapPin, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { User } from "@shared/schema";
 import { indianStates } from "@shared/schema";
+
+
 
 export default function AdminPartners() {
   const { toast } = useToast();
@@ -35,6 +38,22 @@ export default function AdminPartners() {
   const { data: partners, isLoading } = useQuery<User[]>({
     queryKey: ["/api/admin/partners"],
   });
+
+  const { data: chatbotConfigs = [], refetch: refetchChatbot } = useQuery<any[]>({
+    queryKey: ["/api/admin/partner-chatbot"],
+  });
+
+  const chatbotMap = Object.fromEntries((chatbotConfigs as any[]).map((c: any) => [c.id, c]));
+
+  const toggleChatbotMutation = useMutation({
+    mutationFn: async ({ partnerId, isActive }: { partnerId: string; isActive: boolean }) =>
+      apiRequest("POST", `/api/admin/partner-chatbot/${partnerId}/toggle`, { isActive }),
+    onSuccess: (_: any, vars: any) => {
+      refetchChatbot();
+      toast({ title: vars.isActive ? "🤖 Chatbot activated!" : "Chatbot deactivated" });
+    },
+  });
+
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -339,6 +358,19 @@ export default function AdminPartners() {
                         <span className="flex items-center gap-1">
                           <MapPin className="w-3 h-3" /> {partner.district}, {partner.state}
                         </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Switch
+                          checked={chatbotMap[partner.id]?.isActive || false}
+                          onCheckedChange={(checked) => toggleChatbotMutation.mutate({ partnerId: partner.id, isActive: checked })}
+                          disabled={toggleChatbotMutation.isPending}
+                        />
+                        <span className={`text-xs font-medium ${chatbotMap[partner.id]?.isActive ? "text-green-600" : "text-muted-foreground"}`}>
+                          {chatbotMap[partner.id]?.isActive ? "🤖 Chatbot Active" : "Chatbot Off"}
+                        </span>
+                        {chatbotMap[partner.id]?.isActive && chatbotMap[partner.id]?.botLink && (
+                          <button onClick={() => { navigator.clipboard.writeText(chatbotMap[partner.id].botLink); toast({ title: "Bot link copied!" }); }} className="text-xs text-blue-500 underline ml-1">Copy Link</button>
+                        )}
                       </div>
                     </div>
                     

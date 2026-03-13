@@ -2528,6 +2528,117 @@ export function registerRoutes(httpServer: Server, app: Express) {
     }
   });
 
+  // ========== PARTNER CHATBOT CONFIG ==========
+
+  app.get("/api/admin/partner-chatbot", requireAdmin, async (req, res) => {
+    try {
+      const result = await pool.query(`
+        SELECT u.id, u.name, u.username, u.role, u.state, u.district, u.phone,
+          u.partner_code as "partnerCode",
+          pcc.is_active as "isActive", pcc.bot_link as "botLink", pcc.activated_at as "activatedAt",
+          COUNT(sbl.id)::int as "totalLeads",
+          COUNT(CASE WHEN sbl.action_taken IS NULL THEN 1 END)::int as "newLeads"
+        FROM users u
+        LEFT JOIN partner_chatbot_config pcc ON pcc.partner_id = u.id
+        LEFT JOIN solar_bot_leads sbl ON sbl.referred_by_partner_id = u.id
+        WHERE u.role IN ('ddp', 'bdp') AND u.status = 'approved'
+        GROUP BY u.id, u.name, u.username, u.role, u.state, u.district, u.phone,
+          u.partner_code, pcc.is_active, pcc.bot_link, pcc.activated_at
+        ORDER BY u.name ASC
+      `);
+      res.json(result.rows);
+    } catch (error: any) {
+      console.error("Get partner chatbot config error:", error);
+      res.status(500).json({ message: "Failed to get partner chatbot config" });
+    }
+  });
+
+  app.post("/api/admin/partner-chatbot/:partnerId/toggle", requireAdmin, async (req, res) => {
+    try {
+      const { partnerId } = req.params;
+      const { isActive } = req.body;
+      const partnerResult = await pool.query(`SELECT id, name, partner_code, username FROM users WHERE id = $1`, [partnerId]);
+      if (!partnerResult.rows.length) return res.status(404).json({ message: "Partner not found" });
+      const partner = partnerResult.rows[0];
+      const code = partner.partner_code || partner.username;
+      const botLink = `https://divyanshisolar.in/solar-bot?ref=${code}`;
+      await pool.query(`
+        INSERT INTO partner_chatbot_config (partner_id, is_active, bot_link, activated_at, updated_at)
+        VALUES ($1, $2, $3, $4, NOW())
+        ON CONFLICT (partner_id) DO UPDATE SET
+          is_active = $2, bot_link = $3, activated_at = $4, updated_at = NOW()
+      `, [partnerId, isActive, botLink, isActive ? new Date() : null]);
+      res.json({ success: true, botLink: isActive ? botLink : null, isActive });
+    } catch (error: any) {
+      console.error("Toggle partner chatbot error:", error);
+      res.status(500).json({ message: "Failed to toggle partner chatbot" });
+    }
+  });
+
+  app.get("/api/admin/partner-chatbot/:partnerId/leads", requireAdmin, async (req, res) => {
+    try {
+      const { partnerId } = req.params;
+      const result = await pool.query(`
+        SELECT id, phone, mobile_number as "mobileNumber", name, email, state, district, city,
+          pincode, electricity_board as "electricityBoard", consumer_number as "consumerNumber",
+          monthly_billing as "monthlyBilling", connection_type as "connectionType",
+          plant_capacity as "plantCapacity", proposal_status as "proposalStatus",
+          status, action_taken as "actionTaken", referred_by_partner_code as "referredByPartnerCode",
+          created_at as "createdAt"
+        FROM solar_bot_leads WHERE referred_by_partner_id = $1 ORDER BY created_at DESC
+      `, [partnerId]);
+      res.json(result.rows);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to get partner leads" });
+    }
+  });
+
+  app.get("/api/partner/chatbot-config", async (req, res) => {
+    try {
+      if (!req.session?.userId) return res.status(401).json({ message: "Unauthorized" });
+      const result = await pool.query(`
+        SELECT is_active as "isActive", bot_link as "botLink" FROM partner_chatbot_config WHERE partner_id = $1
+      `, [req.session.userId]);
+      if (!result.rows.length) return res.json({ isActive: false, botLink: null });
+      res.json(result.rows[0]);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to get chatbot config" });
+    }
+  });
+
+  app.get("/api/partner/bot-leads", async (req, res) => {
+    try {
+      if (!req.session?.userId) return res.status(401).json({ message: "Unauthorized" });
+      const result = await pool.query(`
+        SELECT id, phone, mobile_number as "mobileNumber", name, email, state, district, city,
+          pincode, electricity_board as "electricityBoard", consumer_number as "consumerNumber",
+          monthly_billing as "monthlyBilling", connection_type as "connectionType",
+          plant_capacity as "plantCapacity", proposal_status as "proposalStatus",
+          status, action_taken as "actionTaken", created_at as "createdAt"
+        FROM solar_bot_leads WHERE referred_by_partner_id = $1 ORDER BY created_at DESC
+      `, [req.session.userId]);
+      res.json(result.rows);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to get bot leads" });
+    }
+  });
+
+  app.patch("/api/partner/bot-leads/:id/action", async (req, res) => {
+    try {
+      if (!req.session?.userId) return res.status(401).json({ message: "Unauthorized" });
+      const { id } = req.params;
+      const { actionTaken, status } = req.body;
+      await pool.query(`
+        UPDATE solar_bot_leads SET action_taken = $1, status = COALESCE($2, status), updated_at = NOW()
+        WHERE id = $3 AND referred_by_partner_id = $4
+      `, [actionTaken, status, id, req.session.userId]);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to update lead" });
+    }
+  });
+
+
   // Update partner status
   app.patch("/api/admin/partners/:id/status", requireAdmin, async (req, res) => {
     try {
@@ -9977,6 +10088,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // Public route for web widget to save/update a lead (raw SQL for production reliability)
   app.post('/api/public/web-lead', async (req, res) => {
     try {
+      console.log("[WEB-LEAD BODY]", JSON.stringify(req.body));
       const { sessionId, ...data } = req.body;
       if (!sessionId) return res.status(400).json({ error: "sessionId required" });
 
@@ -9996,6 +10108,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
         finalExecutionDecision: 'final_execution_decision',
         proposalStatus: 'proposal_status', status: 'status',
         mobileNumber: 'mobile_number',
+        connectionType: 'connection_type',
       };
 
       if (existing.rows.length === 0) {
@@ -10026,6 +10139,25 @@ export function registerRoutes(httpServer: Server, app: Express) {
           setClauses.push(`updated_at = NOW()`);
           vals.push(phoneKey);
           await pool.query(`UPDATE solar_bot_leads SET ${setClauses.join(', ')} WHERE phone = $${idx}`, vals);
+        }
+      }
+      // Handle partner ref tracking
+      const refCode = data.ref || data.referredByPartnerCode;
+      if (refCode) {
+        try {
+          const partnerResult = await pool.query(
+            `SELECT id, partner_code FROM users WHERE partner_code = $1 AND status = 'approved' LIMIT 1`,
+            [refCode]
+          );
+          if (partnerResult.rows.length > 0) {
+            const partner = partnerResult.rows[0];
+            await pool.query(
+              `UPDATE solar_bot_leads SET referred_by_partner_id = $1, referred_by_partner_code = $2 WHERE phone = $3`,
+              [partner.id, partner.partner_code, phoneKey]
+            );
+          }
+        } catch (refErr: any) {
+          console.error('[Ref Tracking Error]', refErr.message);
         }
       }
       res.json({ success: true });
@@ -10123,7 +10255,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       console.error('[Leads API Error]', error.message);
       // If mobile_number column doesn't exist yet, retry without it
       try {
-        const result = await pool.query(`SELECT id, phone, name, email, language, state, district, city, pincode, gps_location as "gpsLocation", electricity_board as "electricityBoard", consumer_number as "consumerNumber", meter_type as "meterType", roof_space as "roofSpace", business_type as "businessType", monthly_billing as "monthlyBilling", plant_capacity as "plantCapacity", proposal_status as "proposalStatus", status, current_step as "currentStep", created_at as "createdAt", updated_at as "updatedAt" FROM solar_bot_leads ORDER BY created_at DESC`);
+        const result = await pool.query(`SELECT id, phone, mobile_number as "mobileNumber", name, email, language, state, district, city, pincode, gps_location as "gpsLocation", electricity_board as "electricityBoard", consumer_number as "consumerNumber", meter_type as "meterType", roof_space as "roofSpace", business_type as "businessType", monthly_billing as "monthlyBilling", plant_capacity as "plantCapacity", proposal_status as "proposalStatus", status, current_step as "currentStep", created_at as "createdAt", updated_at as "updatedAt" FROM solar_bot_leads ORDER BY created_at DESC`);
         console.log(`[Solar Bot Leads Fallback] Returning ${result.rows.length} leads`);
         res.json(result.rows);
       } catch (fallbackError: any) {
@@ -10133,6 +10265,20 @@ export function registerRoutes(httpServer: Server, app: Express) {
     }
   });
 
+  app.delete('/api/leads/bulk-delete', requireAuth, async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: 'No IDs provided' });
+      }
+      const placeholders = ids.map((_, i) => `$${i + 1}`).join(', ');
+      await pool.query(`DELETE FROM solar_bot_leads WHERE id IN (${placeholders})`, ids);
+      res.json({ success: true, deleted: ids.length });
+    } catch (error: any) {
+      console.error('[Bulk Delete Lead Error]', error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
   app.delete('/api/leads/:id', requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
