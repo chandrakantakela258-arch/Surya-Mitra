@@ -361,7 +361,7 @@ export default function AdminPartners() {
                       </div>
                       <div className="flex items-center gap-2 mt-2">
                         <Switch
-                          checked={chatbotMap[partner.id]?.isActive || false}
+                          checked={chatbotMap[partner.id]?.isActive === true}
                           onCheckedChange={(checked) => toggleChatbotMutation.mutate({ partnerId: partner.id, isActive: checked })}
                           disabled={toggleChatbotMutation.isPending}
                         />
