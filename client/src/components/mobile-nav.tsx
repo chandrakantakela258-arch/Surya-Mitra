@@ -44,14 +44,14 @@ interface NavItem {
 }
 
 const ddpNavItems: NavItem[] = [
-  { icon: LayoutDashboard, label: "Home", href: "/ddp/dashboard" },
+  { icon: LayoutDashboard, label: "Home", href: "/ddp/bot-leads" },
   { icon: Users, label: "Customers", href: "/ddp/customers" },
   { icon: Calculator, label: "Calculator", href: "/calculator" },
   { icon: Wallet, label: "Earnings", href: "/ddp/earnings" },
 ];
 
 const ddpMenuItems: NavItem[] = [
-  { icon: LayoutDashboard, label: "Home", href: "/ddp/dashboard" },
+  { icon: LayoutDashboard, label: "Home", href: "/ddp/bot-leads" },
   { icon: MessageSquare, label: "Chat Bot Leads", href: "/ddp/bot-leads" },
   { icon: Users, label: "Customers", href: "/ddp/customers" },
   { icon: UserPlus, label: "Add Customer", href: "/ddp/customers/new" },
@@ -66,7 +66,7 @@ const ddpMenuItems: NavItem[] = [
 
 // Bottom bar items for BDP (first 4 shown in bottom nav)
 const bdpBottomNavItems: NavItem[] = [
-  { icon: LayoutDashboard, label: "Home", href: "/bdp/dashboard" },
+  { icon: LayoutDashboard, label: "Home", href: "/bdp/bot-leads" },
   { icon: Users, label: "All Customers", href: "/bdp/customers" },
   { icon: Wallet, label: "Wallet", href: "/bdp/wallet" },
   { icon: ShoppingCart, label: "Store", href: "/bdp/store" },
@@ -74,7 +74,7 @@ const bdpBottomNavItems: NavItem[] = [
 
 // Additional menu items for BDP (shown in More menu)
 const bdpMenuItems: NavItem[] = [
-  { icon: LayoutDashboard, label: "Home", href: "/bdp/dashboard" },
+  { icon: LayoutDashboard, label: "Home", href: "/bdp/bot-leads" },
   { icon: Users, label: "Customers", href: "/bdp/customers" },
   { icon: Wallet, label: "Wallet", href: "/bdp/wallet" },
   { icon: ShoppingCart, label: "Store", href: "/bdp/store" },

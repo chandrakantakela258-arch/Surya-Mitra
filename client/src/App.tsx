@@ -128,11 +128,11 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
       if (user.role === "admin") {
         setShouldRedirect("/admin/dashboard");
       } else if (user.role === "bdp") {
-        setShouldRedirect("/bdp/dashboard");
+        setShouldRedirect("/bdp/bot-leads");
       } else if (user.role === "customer_partner") {
         setShouldRedirect("/customer-partner/dashboard");
       } else {
-        setShouldRedirect("/ddp/dashboard");
+        setShouldRedirect("/ddp/bot-leads");
       }
     }
   }, [user, isLoading, allowedRoles]);
@@ -539,7 +539,7 @@ function AuthenticatedRoutes() {
       </Route>
 
       {/* DDP Routes */}
-      <Route path="/ddp/dashboard">
+      <Route path="/ddp/bot-leads">
         <ProtectedRoute allowedRoles={["ddp", "admin"]}>
           <DashboardLayout>
             <DDPDashboard />
@@ -732,9 +732,9 @@ function PublicRouter() {
         {user ? (
           <Redirect to={
             user.role === "admin" ? "/admin/dashboard" : 
-            user.role === "bdp" ? "/bdp/dashboard" : 
+            user.role === "bdp" ? "/bdp/bot-leads" : 
             user.role === "customer_partner" ? "/customer-partner/dashboard" :
-            "/ddp/dashboard"
+            "/ddp/bot-leads"
           } />
         ) : (
           <LoginPage />
@@ -744,9 +744,9 @@ function PublicRouter() {
         {user ? (
           <Redirect to={
             user.role === "admin" ? "/admin/dashboard" : 
-            user.role === "bdp" ? "/bdp/dashboard" : 
+            user.role === "bdp" ? "/bdp/bot-leads" : 
             user.role === "customer_partner" ? "/customer-partner/dashboard" :
-            "/ddp/dashboard"
+            "/ddp/bot-leads"
           } />
         ) : (
           <ForgotPasswordPage />
@@ -756,9 +756,9 @@ function PublicRouter() {
         {user ? (
           <Redirect to={
             user.role === "admin" ? "/admin/dashboard" : 
-            user.role === "bdp" ? "/bdp/dashboard" : 
+            user.role === "bdp" ? "/bdp/bot-leads" : 
             user.role === "customer_partner" ? "/customer-partner/dashboard" :
-            "/ddp/dashboard"
+            "/ddp/bot-leads"
           } />
         ) : (
           <RegisterPage />

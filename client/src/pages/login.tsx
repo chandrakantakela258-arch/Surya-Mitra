@@ -46,9 +46,9 @@ export default function LoginPage() {
       if (result.user.role === "admin") {
         setLocation("/admin/dashboard");
       } else if (result.user.role === "bdp") {
-        setLocation("/bdp/dashboard");
+        setLocation("/bdp/bot-leads");
       } else if (result.user.role === "ddp") {
-        setLocation("/ddp/dashboard");
+        setLocation("/ddp/bot-leads");
       } else {
         setLocation("/");
       }
