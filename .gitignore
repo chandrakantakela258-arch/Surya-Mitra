@@ -14,3 +14,4 @@ ecosystem.config.cjs
 *.key
 *.sql
 *.dump
+ecosystem.config.cjs*
