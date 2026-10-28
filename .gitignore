@@ -16,3 +16,4 @@ ecosystem.config.cjs
 *.dump
 ecosystem.config.cjs*
 ecosystem.config.cjs*
+ecosystem.config.cjs*
