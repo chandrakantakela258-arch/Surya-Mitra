@@ -44,7 +44,7 @@ export default function CustomerPartnerProfile() {
     const referralLink = `${window.location.origin}/customer-registration?ref=${profile?.referralCode}`;
     if (navigator.share) {
       navigator.share({
-        title: "Join Divyanshi Solar",
+        title: "Join Divyanshi Digital Services Pvt Ltd",
         text: `Use my referral code ${profile?.referralCode} to get solar installation benefits!`,
         url: referralLink,
       });

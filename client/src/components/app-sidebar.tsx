@@ -1,7 +1,10 @@
-import { useLocation, Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import {
+  useLocation, Link } from "wouter";
+import {
+  useQuery } from "@tanstack/react-query";
 import logoImage from "@assets/88720521_logo_1766219255006.png";
 import {
+  Share2,
   LayoutDashboard,
   Users,
   UserPlus,
@@ -38,9 +41,14 @@ import {
   Phone,
   Settings,
   Bot,
+  Mail,
+  AlertTriangle,
+Store,
 } from "lucide-react";
-import { FeedbackDialog } from "@/components/feedback-dialog";
-import { ChatbotAssistant } from "@/components/chatbot-assistant";
+import {
+  FeedbackDialog } from "@/components/feedback-dialog";
+import {
+  ChatbotAssistant } from "@/components/chatbot-assistant";
 import {
   Sidebar,
   SidebarContent,
@@ -54,13 +62,20 @@ import {
   SidebarMenuItem,
   SidebarMenuBadge,
 } from "@/components/ui/sidebar";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { RoleBadge } from "@/components/status-badge";
-import { useAuth } from "@/lib/auth";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import {
+  Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+Button } from "@/components/ui/button";
+import {
+Badge } from "@/components/ui/badge";
+import {
+RoleBadge } from "@/components/status-badge";
+import {
+useAuth } from "@/lib/auth";
+import {
+apiRequest } from "@/lib/queryClient";
+import {
+useToast } from "@/hooks/use-toast";
 
 interface MenuItem {
   title: string;
@@ -77,6 +92,36 @@ interface MenuSection {
 
 const adminMenuSections: MenuSection[] = [
   {
+    label: "Billing \& Invoicing",
+    items: [
+      { title: "Billing Dashboard", url: "/admin/billing", icon: IndianRupee },
+      { title: "Raise Invoice", url: "/admin/billing/invoices/new", icon: Banknote, highlight: true },
+      { title: "Raise Quotation", url: "/admin/billing/quotations/new", icon: Files, highlight: true },
+      { title: "All Invoices", url: "/admin/billing/invoices", icon: FileCheck },
+      { title: "GST Invoice", url: "/admin/billing/approved-bills", icon: FileCheck },
+      { title: "All Quotations", url: "/admin/billing/quotations", icon: Files },
+      { title: "Bank Quotation", url: "/admin/billing/bank-quotations", icon: Landmark },
+      { title: "All Purchase Orders", url: "/admin/billing/purchase-orders", icon: Truck },
+      { title: "Vendors/Suppliers", url: "/admin/billing/vendors", icon: Truck },
+      { title: "Billing Customers", url: "/admin/billing/customers-billing", icon: Users },
+      { title: "Payment Receipts", url: "/admin/billing/receipts", icon: FileCheck },
+      { title: "Generate Ledger", url: "/admin/ledger", icon: FileText },
+      { title: "Products \& Stock", url: "/admin/billing/stock", icon: Package },
+    ],
+  },
+  {
+    label: "PM Surya Ghar Grievance",
+    icon: AlertTriangle,
+    adminOnly: true,
+    items: [
+      { title: "Grievance List", url: "/admin/grievance-list", icon: FileText },
+      { title: "Email Registry", url: "/admin/grievance-emails", icon: Mail },
+      { title: "Reminder Templates", url: "/admin/grievance-reminder-templates", icon: Bell },
+      { title: "Meter Testing", url: "/admin/meter-testing", icon: FileText },
+      { title: "Meter Utilization", url: "/admin/meter-utilization", icon: FileText },
+    ],
+  },
+  {
     label: "Overview",
     items: [
       { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
@@ -87,17 +132,22 @@ const adminMenuSections: MenuSection[] = [
     items: [
       { title: "Partner Approvals", url: "/admin/partners", icon: UserCheck },
       { title: "Partner Hierarchy", url: "/admin/partner-hierarchy", icon: Users },
+      { title: "Shop Partners", url: "/admin/shop-partners", icon: Store },
       { title: "All Customers", url: "/admin/customers", icon: Users },
       { title: "Independent Customers", url: "/admin/independent-customers", icon: UserPlus },
       { title: "Customer Leads", url: "/admin/customer-leads", icon: UserPlus },
+      { title: "Shop Partner Leads", url: "/admin/shop-partner-leads", icon: Users },
       { title: "SOLAR BOT LEAD", url: "/admin/solar-bot-leads", icon: MessageSquare, highlight: true },
-      { title: "Chatbot Settings", url: "/admin/chatbot-settings", icon: Bot },
+      { title: "WhatsApp Dashboard", url: "/admin/whatsapp-dashboard", icon: MessageSquare },
+      { title: "WhatsApp Settings", url: "/admin/whatsapp-settings", icon: MessageSquare },
+      { title: "WhatsApp Contacts", url: "/admin/whatsapp-contacts", icon: Users },
     ],
   },
   {
     label: "Partner Chatbot",
     items: [
       { title: "Partner Chat Bot Leads", url: "/admin/partner-bot-leads", icon: MessageSquare, highlight: true },
+      { title: "Chatbot Settings", url: "/admin/chatbot-settings", icon: Settings },
     ],
   },
   {
@@ -140,6 +190,7 @@ const adminMenuSections: MenuSection[] = [
       { title: "Broadcast", url: "/admin/notifications", icon: Bell },
       { title: "Equipment Settings", url: "/admin/equipment-settings", icon: Settings },
       { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },
+    { title: "Generate Proposal", url: "/generate-proposal", icon: FileText },
     ],
   },
 ];
@@ -154,8 +205,11 @@ const bdpMenuSections: MenuSection[] = [
   {
     label: "Partner Network",
     items: [
-      { title: "District Partners", url: "/bdp/partners", icon: Building2 },
-      { title: "Add Partner", url: "/bdp/partners/new", icon: UserPlus, highlight: true },
+      { title: "Partners", url: "/bdp/partners", icon: Building2 },
+      { title: "Partner Hierarchy", url: "/bdp/partner-hierarchy", icon: Users },
+      { title: "Add District Partner", url: "/bdp/partners/new", icon: UserPlus, highlight: true },
+      { title: "Share Partner Link", url: "/bdp/share-link", icon: Gift, highlight: true },
+      { title: "Add State Partner", url: "/bdp/add-sdp", icon: Building2, highlight: true },
       { title: "All Customers", url: "/bdp/customers", icon: Users },
     ],
   },
@@ -176,7 +230,10 @@ const bdpMenuSections: MenuSection[] = [
   {
     label: "Solar Bot",
     items: [
+      { title: "WhatsApp Campaigns", url: "/bdp/whatsapp", icon: MessageSquare },
       { title: "Chat Bot Leads", url: "/bdp/bot-leads", icon: MessageSquare, highlight: true },
+      { title: "Partner Chat Leads", url: "/bdp/partner-chat-leads", icon: MessageSquare, highlight: true },
+      { title: "WhatsApp Contacts", url: "/bdp/whatsapp-contacts", icon: Users },
     ],
   },
   {
@@ -184,15 +241,58 @@ const bdpMenuSections: MenuSection[] = [
     items: [
       { title: "My Profile", url: "/profile", icon: User },
       { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },
+    { title: "Generate Proposal", url: "/generate-proposal", icon: FileText },
     ],
   },
 ];
 
+const sdpMenuSections: MenuSection[] = [
+  {
+    label: "Overview",
+    items: [
+      { title: "Dashboard", url: "/sdp/dashboard", icon: LayoutDashboard },
+      { title: "Chat Bot Leads", url: "/sdp/bot-leads", icon: MessageSquare, highlight: true },
+      { title: "Partner Chat Leads", url: "/sdp/partner-chat-leads", icon: MessageSquare, highlight: true },
+    ],
+  },
+  {
+    label: "Partner Network",
+    items: [
+      { title: "District Partners", url: "/sdp/partners", icon: Building2 },
+      { title: "Partner Hierarchy", url: "/sdp/partner-hierarchy", icon: Users, highlight: false },
+      { title: "Add District Partner", url: "/sdp/partners/new", icon: UserPlus, highlight: true },
+      { title: "Share Partner Link", url: "/sdp/share-link", icon: Gift, highlight: true },
+    ],
+  },
+  {
+    label: "Customer Management",
+    items: [
+      { title: "Customers", url: "/sdp/customers", icon: Users },
+      { title: "Add Customer", url: "/sdp/customers/new", icon: UserPlus, highlight: true },
+      { title: "Share Customer Link", url: "/sdp/share-customer", icon: Share2, highlight: true },
+    ],
+  },
+  {
+    label: "Business",
+    items: [
+      { title: "Earnings", url: "/sdp/earnings", icon: Wallet },
+    ],
+  },
+  {
+    label: "Tools",
+    items: [
+      { title: "My Profile", url: "/profile", icon: User },
+      { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },
+    { title: "Generate Proposal", url: "/generate-proposal", icon: FileText },
+    ],
+  },
+];
 const ddpMenuSections: MenuSection[] = [
   {
     label: "Overview",
     items: [
       { title: "Dashboard", url: "/ddp/dashboard", icon: LayoutDashboard },
+      { title: "WhatsApp Campaigns", url: "/ddp/whatsapp", icon: MessageSquare },
       { title: "Chat Bot Leads", url: "/ddp/bot-leads", icon: MessageSquare, highlight: true },
     ],
   },
@@ -201,6 +301,7 @@ const ddpMenuSections: MenuSection[] = [
     items: [
       { title: "Customers", url: "/ddp/customers", icon: Users },
       { title: "Add Customer", url: "/ddp/customers/new", icon: UserPlus, highlight: true },
+      { title: "Share Customer Link", url: "/ddp/share-customer", icon: Share2, highlight: true },
       { title: "Applications", url: "/ddp/applications", icon: FileText },
     ],
   },
@@ -222,6 +323,7 @@ const ddpMenuSections: MenuSection[] = [
     label: "Solar Bot",
     items: [
       { title: "Chat Bot Leads", url: "/ddp/bot-leads", icon: MessageSquare, highlight: true },
+      { title: "WhatsApp Contacts", url: "/ddp/whatsapp-contacts", icon: Users },
     ],
   },
   {
@@ -229,6 +331,7 @@ const ddpMenuSections: MenuSection[] = [
     items: [
       { title: "My Profile", url: "/profile", icon: User },
       { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },
+    { title: "Generate Proposal", url: "/generate-proposal", icon: FileText },
     ],
   },
 ];
@@ -253,6 +356,7 @@ const customerPartnerMenuSections: MenuSection[] = [
     items: [
       { title: "My Profile", url: "/customer-partner/profile", icon: User },
       { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },
+    { title: "Generate Proposal", url: "/generate-proposal", icon: FileText },
     ],
   },
 ];
@@ -269,9 +373,13 @@ export function AppSidebar() {
     refetchInterval: 30000,
   });
 
-  // Fetch stats based on role
   const { data: stats } = useQuery<any>({
-    queryKey: user?.role === "bdp" ? ["/api/bdp/stats"] : 
+    queryKey: user?.role === "sdp" ? ["/api/sdp/stats"] :
+              user?.role === "bdp" ? ["/api/bdp/stats"] :
+
+
+
+
               user?.role === "customer_partner" ? ["/api/customer-partner/stats"] : 
               ["/api/ddp/stats"],
     enabled: !!user && user.role !== "admin",
@@ -279,6 +387,8 @@ export function AppSidebar() {
 
   const menuSections = user?.role === "admin" 
     ? adminMenuSections 
+    : user?.role === "sdp"
+    ? sdpMenuSections
     : user?.role === "bdp" 
     ? bdpMenuSections 
     : user?.role === "customer_partner"
@@ -325,7 +435,7 @@ export function AppSidebar() {
         <Link href="/" className="flex items-center group">
           <img 
             src={logoImage} 
-            alt="Divyanshi Solar" 
+            alt="Divyanshi Digital Services Pvt Ltd" 
             className="h-10 w-auto object-contain"
           />
         </Link>

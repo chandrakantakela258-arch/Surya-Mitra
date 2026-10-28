@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { 
@@ -19,15 +20,47 @@ import {
   Search,
   MapPin,
   IdCard
-} from "lucide-react";
+, Trash2 } from "lucide-react";
 import type { User as UserType, Customer } from "@shared/schema";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import { ExpandableSiteProgress } from "@/components/customer-journey-tracker";
 
 export default function AdminPartnerHierarchy() {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedBDPs, setExpandedBDPs] = useState<Set<string>>(new Set());
   const [expandedDDPs, setExpandedDDPs] = useState<Set<string>>(new Set());
+  const [expandedSDPs, setExpandedSDPs] = useState<Set<string>>(new Set());
+
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/admin/partners/${id}`);
+    },
+    onSuccess: () => {
+      toast({ title: "Partner deleted successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/partners"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/customers"] });
+    },
+    onError: (e: any) => {
+      toast({ title: "Delete failed", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const handleDelete = (id: string, name: string, role: string) => {
+    const childCount = role === 'bdp' 
+      ? (partners?.filter(p => p.role === 'ddp' && p.parentId === id) || []).length
+      : 0;
+    const warning = childCount > 0 
+      ? `\n\nWARNING: This BDP has ${childCount} DDP partner(s) mapped under them. Deleting will orphan those partners.`
+      : '';
+    if (confirm(`Are you sure you want to delete ${name} (${role.toUpperCase()})?${warning}\n\nThis action cannot be undone.`)) {
+      deleteMutation.mutate(id);
+    }
+  };
 
   const { data: partners, isLoading: partnersLoading } = useQuery<UserType[]>({
     queryKey: ["/api/admin/partners"],
@@ -48,6 +81,14 @@ export default function AdminPartnerHierarchy() {
     });
   };
 
+  const toggleSDP = (id: string) => {
+    setExpandedSDPs(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
   const toggleDDP = (id: string) => {
     setExpandedDDPs(prev => {
       const next = new Set(prev);
@@ -71,8 +112,15 @@ export default function AdminPartnerHierarchy() {
   }
 
   const bdps = partners?.filter(p => p.role === "bdp") || [];
+  const sdps = partners?.filter(p => p.role === "sdp") || [];
   const ddps = partners?.filter(p => p.role === "ddp") || [];
 
+  const getSDPsForBDP = (bdpId: string) => {
+    return sdps.filter(sdp => sdp.parentId === bdpId);
+  };
+  const getDDPsForSDP = (sdpId: string) => {
+    return ddps.filter(ddp => ddp.parentId === sdpId);
+  };
   const getDDPsForBDP = (bdpId: string) => {
     return ddps.filter(ddp => ddp.parentId === bdpId);
   };
@@ -111,10 +159,10 @@ export default function AdminPartnerHierarchy() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold" data-testid="text-page-title">Partner Hierarchy</h1>
-        <p className="text-muted-foreground">View BDP → DDP → Customer relationships</p>
+        <p className="text-muted-foreground">View BDP → SDP → DDP → Customer relationships</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-3">
@@ -124,6 +172,19 @@ export default function AdminPartnerHierarchy() {
               <div>
                 <p className="text-2xl font-bold" data-testid="text-bdp-count">{bdps.length}</p>
                 <p className="text-sm text-muted-foreground">BDPs</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-500/10 rounded-lg">
+                <Building2 className="w-5 h-5 text-purple-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{sdps.length}</p>
+                <p className="text-sm text-muted-foreground">SDPs</p>
               </div>
             </div>
           </CardContent>
@@ -215,6 +276,7 @@ export default function AdminPartnerHierarchy() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
+                          <Badge variant="secondary">{getSDPsForBDP(bdp.id).length} SDPs</Badge>
                           <Badge variant="secondary">{bdpDDPs.length} DDPs</Badge>
                           <Badge className="bg-primary/10 text-primary border-0">BDP</Badge>
                         </div>
@@ -223,6 +285,90 @@ export default function AdminPartnerHierarchy() {
                     
                     <CollapsibleContent>
                       <div className="pl-8 pr-4 pb-4 space-y-2">
+                        {/* SDPs under this BDP */}
+                        {getSDPsForBDP(bdp.id).map((sdp) => {
+                          const sdpDDPs = getDDPsForSDP(sdp.id);
+                          const isSDPExpanded = expandedSDPs.has(sdp.id);
+                          return (
+                            <div key={sdp.id} className="border rounded-lg bg-purple-50/30 dark:bg-purple-950/10">
+                              <Collapsible open={isSDPExpanded} onOpenChange={() => toggleSDP(sdp.id)}>
+                                <CollapsibleTrigger className="w-full">
+                                  <div className="flex items-center justify-between p-3 hover-elevate rounded-lg">
+                                    <div className="flex items-center gap-3">
+                                      {isSDPExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                                      <div className="p-1.5 bg-purple-500/10 rounded-full"><Building2 className="w-3 h-3 text-purple-500" /></div>
+                                      <div className="text-left">
+                                        <p className="font-medium">{sdp.name}</p>
+                                        <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                                          <Phone className="w-3 h-3" /><span>{sdp.phone}</span>
+                                          {sdp.partnerCode && (<><IdCard className="w-3 h-3 ml-1" /><span className="font-mono text-purple-600 dark:text-purple-400">{sdp.partnerCode}</span></>)}
+                                          {sdp.state && (<><MapPin className="w-3 h-3 ml-1" /><span>{sdp.state}</span></>)}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); handleDelete(sdp.id, sdp.name, 'sdp'); }} title="Delete SDP"><Trash2 className="h-3.5 w-3.5" /></Button>
+                                      <Badge variant="secondary" className="text-xs">{sdpDDPs.length} DDPs</Badge>
+                                      <Badge className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border-0 text-xs">SDP</Badge>
+                                    </div>
+                                  </div>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent>
+                                  <div className="pl-10 pr-3 pb-3 space-y-2">
+                                    {sdpDDPs.length > 0 ? sdpDDPs.map((ddp) => {
+                                      const ddpCustomers = getCustomersForDDP(ddp.id);
+                                      const isDDPExpanded = expandedDDPs.has(ddp.id);
+                                      return (
+                                        <div key={ddp.id} className="border rounded-lg bg-muted/30">
+                                          <Collapsible open={isDDPExpanded} onOpenChange={() => toggleDDP(ddp.id)}>
+                                            <CollapsibleTrigger className="w-full">
+                                              <div className="flex items-center justify-between p-3 hover-elevate rounded-lg">
+                                                <div className="flex items-center gap-3">
+                                                  {isDDPExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                                                  <div className="p-1.5 bg-blue-500/10 rounded-full"><Users className="w-3 h-3 text-blue-500" /></div>
+                                                  <div className="text-left">
+                                                    <p className="font-medium">{ddp.name}</p>
+                                                    <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                                                      <Phone className="w-3 h-3" /><span>{ddp.phone}</span>
+                                                      {ddp.partnerCode && (<><IdCard className="w-3 h-3 ml-1" /><span className="font-mono text-blue-600 dark:text-blue-400">{ddp.partnerCode}</span></>)}
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); handleDelete(ddp.id, ddp.name, 'ddp'); }} title="Delete DDP"><Trash2 className="h-3.5 w-3.5" /></Button>
+                                                  <Badge variant="outline" className="text-xs">{ddpCustomers.length} Customers</Badge>
+                                                  <Badge className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-0 text-xs">DDP</Badge>
+                                                </div>
+                                              </div>
+                                            </CollapsibleTrigger>
+                                            <CollapsibleContent>
+                                              <div className="pl-10 pr-3 pb-3 space-y-1">
+                                                {ddpCustomers.length > 0 ? ddpCustomers.map((customer) => (
+                                                  <div key={customer.id} className="p-2 bg-background rounded-md border space-y-2">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                      <div className="flex items-center gap-2">
+                                                        <div className="p-1 bg-green-500/10 rounded-full"><User className="w-3 h-3 text-green-500" /></div>
+                                                        <div>
+                                                          <p className="text-sm font-medium">{customer.name}</p>
+                                                          <div className="flex items-center gap-1 text-xs text-muted-foreground"><Phone className="w-3 h-3" /><span>{customer.phone}</span></div>
+                                                        </div>
+                                                      </div>
+                                                      <Badge variant="outline" className="text-xs">{customer.status}</Badge>
+                                                    </div>
+                                                  </div>
+                                                )) : <p className="text-xs text-muted-foreground py-2">No customers yet</p>}
+                                              </div>
+                                            </CollapsibleContent>
+                                          </Collapsible>
+                                        </div>
+                                      );
+                                    }) : <p className="text-xs text-muted-foreground py-2">No DDPs under this SDP</p>}
+                                  </div>
+                                </CollapsibleContent>
+                              </Collapsible>
+                            </div>
+                          );
+                        })}
                         {bdpDDPs.length > 0 ? (
                           bdpDDPs.map((ddp) => {
                             const ddpCustomers = getCustomersForDDP(ddp.id);
@@ -330,7 +476,7 @@ export default function AdminPartnerHierarchy() {
                             );
                           })
                         ) : (
-                          <p className="text-sm text-muted-foreground py-2">No DDPs under this BDP</p>
+                          <p className="text-sm text-muted-foreground py-2">No partners under this BDP</p>
                         )}
                       </div>
                     </CollapsibleContent>

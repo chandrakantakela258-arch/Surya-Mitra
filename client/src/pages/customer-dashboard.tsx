@@ -1199,7 +1199,7 @@ export default function CustomerDashboard() {
                 size="sm"
                 className="flex items-center justify-center gap-2"
                 onClick={() => {
-                  const text = `Divyanshi Solar Installation Site\n\n${progress.customer.address}, ${progress.customer.district}, ${progress.customer.state} - ${progress.customer.pincode}\n\n${progress.customer.capacity} kW Solar System\n\nwww.divyanshisolar.com`;
+                  const text = `Divyanshi Digital Services Pvt Ltd Installation Site\n\n${progress.customer.address}, ${progress.customer.district}, ${progress.customer.state} - ${progress.customer.pincode}\n\n${progress.customer.capacity} kW Solar System\n\nhttps://divyanshisolar.in`;
                   const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
                   window.open(url, "_blank");
                 }}
@@ -1213,8 +1213,8 @@ export default function CustomerDashboard() {
                 size="sm"
                 className="flex items-center justify-center gap-2"
                 onClick={() => {
-                  const text = `Divyanshi Solar Installation Site - ${progress.customer.address}, ${progress.customer.district}. ${progress.customer.capacity} kW Solar System.`;
-                  const url = `https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent(text)}&u=${encodeURIComponent("https://www.divyanshisolar.com")}`;
+                  const text = `Divyanshi Digital Services Pvt Ltd Installation Site - ${progress.customer.address}, ${progress.customer.district}. ${progress.customer.capacity} kW Solar System.`;
+                  const url = `https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent(text)}&u=${encodeURIComponent("https://divyanshisolar.in")}`;
                   window.open(url, "_blank");
                 }}
                 data-testid="mobile-button-facebook"
@@ -1581,26 +1581,26 @@ export default function CustomerDashboard() {
                       Share on Social Media
                     </CardTitle>
                     <CardDescription>
-                      Share your Divyanshi Solar installation with friends and family
+                      Share your Divyanshi Digital Services Pvt Ltd installation with friends and family
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="p-4 bg-muted/50 rounded-lg space-y-2">
-                      <p className="font-semibold text-primary">Divyanshi Solar Installation Site</p>
+                      <p className="font-semibold text-primary">Divyanshi Digital Services Pvt Ltd Installation Site</p>
                       <p className="text-sm text-muted-foreground">
                         {progress.customer.address}, {progress.customer.district}, {progress.customer.state} - {progress.customer.pincode}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {progress.customer.capacity} kW Solar System | {progress.customer.panelType?.toUpperCase()} Panels
                       </p>
-                      <p className="text-xs text-primary mt-2">www.divyanshisolar.com</p>
+                      <p className="text-xs text-primary mt-2">https://divyanshisolar.in</p>
                     </div>
                     <div className="flex flex-wrap gap-3">
                       <Button
                         variant="outline"
                         className="flex-1 min-w-[120px]"
                         onClick={() => {
-                          const text = `Divyanshi Solar Installation Site\n\n${progress.customer.address}, ${progress.customer.district}, ${progress.customer.state} - ${progress.customer.pincode}\n\n${progress.customer.capacity} kW Solar System | ${progress.customer.panelType?.toUpperCase()} Panels\n\nPowered by Divyanshi Solar\nwww.divyanshisolar.com`;
+                          const text = `Divyanshi Digital Services Pvt Ltd Installation Site\n\n${progress.customer.address}, ${progress.customer.district}, ${progress.customer.state} - ${progress.customer.pincode}\n\n${progress.customer.capacity} kW Solar System | ${progress.customer.panelType?.toUpperCase()} Panels\n\nPowered by Divyanshi Digital Services Pvt Ltd\nhttps://divyanshisolar.in`;
                           const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
                           window.open(url, "_blank");
                         }}
@@ -1613,8 +1613,8 @@ export default function CustomerDashboard() {
                         variant="outline"
                         className="flex-1 min-w-[120px]"
                         onClick={() => {
-                          const text = `Divyanshi Solar Installation Site - ${progress.customer.address}, ${progress.customer.district}, ${progress.customer.state}. ${progress.customer.capacity} kW Solar System. www.divyanshisolar.com`;
-                          const url = `https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent(text)}&u=${encodeURIComponent("https://www.divyanshisolar.com")}`;
+                          const text = `Divyanshi Digital Services Pvt Ltd Installation Site - ${progress.customer.address}, ${progress.customer.district}, ${progress.customer.state}. ${progress.customer.capacity} kW Solar System. https://divyanshisolar.in`;
+                          const url = `https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent(text)}&u=${encodeURIComponent("https://divyanshisolar.in")}`;
                           window.open(url, "_blank");
                         }}
                         data-testid="button-share-facebook"
@@ -1626,8 +1626,8 @@ export default function CustomerDashboard() {
                         variant="outline"
                         className="flex-1 min-w-[120px]"
                         onClick={() => {
-                          const text = `Divyanshi Solar Installation Site - ${progress.customer.address}, ${progress.customer.district}. ${progress.customer.capacity} kW Solar System. #DivyanshiSolar #SolarEnergy #PMSuryaGhar`;
-                          const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent("https://www.divyanshisolar.com")}`;
+                          const text = `Divyanshi Digital Services Pvt Ltd Installation Site - ${progress.customer.address}, ${progress.customer.district}. ${progress.customer.capacity} kW Solar System. #DivyanshiSolar #SolarEnergy #PMSuryaGhar`;
+                          const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent("https://divyanshisolar.in")}`;
                           window.open(url, "_blank");
                         }}
                         data-testid="button-share-twitter"
@@ -1642,7 +1642,7 @@ export default function CustomerDashboard() {
                           window.open("https://www.instagram.com/", "_blank");
                           toast({ 
                             title: "Copy & Share", 
-                            description: "Open Instagram and paste your story with: Divyanshi Solar Installation - " + progress.customer.address 
+                            description: "Open Instagram and paste your story with: Divyanshi Digital Services Pvt Ltd Installation - " + progress.customer.address 
                           });
                         }}
                         data-testid="button-share-instagram"
@@ -1652,7 +1652,7 @@ export default function CustomerDashboard() {
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground text-center">
-                      All shared content will include Divyanshi Solar branding and your installation address
+                      All shared content will include Divyanshi Digital Services Pvt Ltd branding and your installation address
                     </p>
                   </CardContent>
                 </Card>

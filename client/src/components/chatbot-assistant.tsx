@@ -67,7 +67,7 @@ const defaultFaqs: ChatbotFaq[] = [
   {
     id: "5",
     question: "How can I track my commission earnings?",
-    answer: "You can view your commission details in the Commissions section of your dashboard. Commissions are automatically calculated when a customer's installation is marked as complete. DDP partners earn Rs 20,000 for 3kW, Rs 35,000 for 5kW, and Rs 6,000/kW for 6+ kW on DCR panels.",
+    answer: "You can view your commission details in the Commissions section of your dashboard. Commissions are automatically calculated when a customer's installation is marked as complete. DDP partners earn Rs 5,000/kW on DCR panels and Rs 2,000/kW on Non-DCR panels.",
     category: "payment",
     keywords: ["commission", "earnings", "payment", "track"],
     isActive: "active",

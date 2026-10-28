@@ -1,0 +1,82 @@
+# robots.txt — divyanshisolar.in
+# Divyanshi Digital Services Pvt Ltd | Divyanshi Solar
+# Last updated: 2026-09-11
+#
+# IMPORTANT: a crawler obeys ONLY the most specific group that names it,
+# so the private-path Disallow lines are repeated in every group below.
+# robots.txt is NOT security — private areas must stay behind login.
+
+# 1. All crawlers (Googlebot, Bingbot, everyone not named below)
+User-agent: *
+Disallow: /admin
+Disallow: /api/admin/
+Disallow: /api/billing/
+Disallow: /bdp/
+Disallow: /ddp/
+Disallow: /sdp/
+Disallow: /state-partner/
+Disallow: /customer-partner/
+Disallow: /customer-portal
+Disallow: /my-installation
+Disallow: /notifications
+Disallow: /profile
+Disallow: /login
+Disallow: /forgot-password
+Disallow: /join/
+
+# 2. AI search & answer engines — ALLOWED (AEO citations)
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: Claude-SearchBot
+User-agent: Claude-User
+User-agent: PerplexityBot
+User-agent: Perplexity-User
+User-agent: DuckAssistBot
+User-agent: Applebot
+Disallow: /admin
+Disallow: /api/admin/
+Disallow: /api/billing/
+Disallow: /bdp/
+Disallow: /ddp/
+Disallow: /sdp/
+Disallow: /state-partner/
+Disallow: /customer-partner/
+Disallow: /customer-portal
+Disallow: /my-installation
+Disallow: /notifications
+Disallow: /profile
+Disallow: /login
+Disallow: /forgot-password
+Disallow: /join/
+
+# 3. AI training crawlers — ALLOWED (so models know the brand)
+# To opt out of training but keep AI-search visibility, replace the
+# lines under this group with a single "Disallow: /".
+User-agent: GPTBot
+User-agent: ClaudeBot
+User-agent: Google-Extended
+User-agent: Applebot-Extended
+User-agent: meta-externalagent
+User-agent: Amazonbot
+User-agent: CCBot
+Disallow: /admin
+Disallow: /api/admin/
+Disallow: /api/billing/
+Disallow: /bdp/
+Disallow: /ddp/
+Disallow: /sdp/
+Disallow: /state-partner/
+Disallow: /customer-partner/
+Disallow: /customer-portal
+Disallow: /my-installation
+Disallow: /notifications
+Disallow: /profile
+Disallow: /login
+Disallow: /forgot-password
+Disallow: /join/
+
+# 4. Blocked
+User-agent: Bytespider
+Disallow: /
+
+Sitemap: https://divyanshisolar.in/sitemap.xml

@@ -1,0 +1,172 @@
+/**
+ * Invoice List — /admin/billing/invoices
+ */
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Search, FileText, ArrowLeft, Download } from "lucide-react";
+
+interface Invoice {
+  id: number; invoice_no: string; invoice_date: string; invoice_type: string;
+  total_amount: string; taxable_amount: string; payment_status: string;
+  amount_paid: string; balance_due: string;
+  customer_name: string; customer_phone: string; customer_gstin: string;
+  company_name: string; cancelled: boolean;
+}
+
+function formatINR(n: number): string {
+  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
+}
+
+export default function InvoiceList() {
+  const [, navigate] = useLocation();
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const load = () => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (statusFilter !== "all") params.set("status", statusFilter);
+    fetch(`/api/billing/invoices?${params}`).then(r => r.json()).then(data => {
+      setInvoices(Array.isArray(data) ? data : []);
+    }).finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, [statusFilter]);
+  useEffect(() => {
+    const t = setTimeout(load, 400);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const statusBadge: Record<string, string> = {
+    paid: "bg-emerald-100 text-emerald-800",
+    partial: "bg-amber-100 text-amber-800",
+    unpaid: "bg-red-100 text-red-800",
+  };
+
+  const typeBadge: Record<string, string> = {
+    tax_invoice: "Tax Invoice",
+    proforma: "Proforma",
+    credit_note: "Credit Note",
+    debit_note: "Debit Note",
+  };
+
+  const totals = {
+    total: invoices.reduce((s, i) => s + parseFloat(i.total_amount || "0"), 0),
+    paid: invoices.reduce((s, i) => s + parseFloat(i.amount_paid || "0"), 0),
+    due: invoices.reduce((s, i) => s + parseFloat(i.balance_due || "0"), 0),
+  };
+
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/admin/billing")}>
+            <ArrowLeft className="w-4 h-4 mr-1" />Back
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold">Invoices</h1>
+            <p className="text-sm text-gray-500">{invoices.length} invoices found</p>
+          </div>
+        </div>
+        <Button onClick={() => navigate("/admin/billing/invoices/new")}>
+          <Plus className="w-4 h-4 mr-2" />New Invoice
+        </Button>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-3 gap-4">
+        <Card><CardContent className="p-4 text-center">
+          <p className="text-xs text-gray-500 uppercase">Total Billed</p>
+          <p className="text-xl font-bold mt-1">{formatINR(totals.total)}</p>
+        </CardContent></Card>
+        <Card><CardContent className="p-4 text-center">
+          <p className="text-xs text-gray-500 uppercase">Collected</p>
+          <p className="text-xl font-bold text-emerald-700 mt-1">{formatINR(totals.paid)}</p>
+        </CardContent></Card>
+        <Card><CardContent className="p-4 text-center">
+          <p className="text-xs text-gray-500 uppercase">Outstanding</p>
+          <p className="text-xl font-bold text-red-600 mt-1">{formatINR(totals.due)}</p>
+        </CardContent></Card>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="p-4 flex gap-3 items-center">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input className="pl-9" placeholder="Search by invoice #, customer name..." value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-40"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="unpaid">Unpaid</SelectItem>
+              <SelectItem value="partial">Partial</SelectItem>
+              <SelectItem value="paid">Paid</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      {/* Invoice Table */}
+      <Card>
+        <CardContent className="p-0">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-gray-50">
+                <th className="text-left p-3 font-medium text-gray-600">Invoice #</th>
+                <th className="text-left p-3 font-medium text-gray-600">Customer</th>
+                <th className="text-left p-3 font-medium text-gray-600">Date</th>
+                <th className="text-left p-3 font-medium text-gray-600">Type</th>
+                <th className="text-right p-3 font-medium text-gray-600">Amount</th>
+                <th className="text-right p-3 font-medium text-gray-600">Paid</th>
+                <th className="text-right p-3 font-medium text-gray-600">Balance</th>
+                <th className="text-center p-3 font-medium text-gray-600">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={8} className="p-8 text-center text-gray-400">Loading...</td></tr>
+              ) : invoices.length === 0 ? (
+                <tr><td colSpan={8} className="p-8 text-center text-gray-400">
+                  <FileText className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                  No invoices found
+                </td></tr>
+              ) : invoices.map(inv => (
+                <tr
+                  key={inv.id}
+                  className={`border-b hover:bg-gray-50 cursor-pointer transition-colors ${inv.cancelled ? "opacity-50 line-through" : ""}`}
+                  onClick={() => navigate(`/admin/billing/invoices/${inv.id}`)}
+                >
+                  <td className="p-3 font-medium text-blue-600">{inv.invoice_no}</td>
+                  <td className="p-3">
+                    <div className="font-medium">{inv.customer_name || "—"}</div>
+                    <div className="text-xs text-gray-400">{inv.company_name}</div>
+                  </td>
+                  <td className="p-3 text-gray-600">{new Date(inv.invoice_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</td>
+                  <td className="p-3"><Badge variant="outline" className="text-xs">{typeBadge[inv.invoice_type] || inv.invoice_type}</Badge></td>
+                  <td className="p-3 text-right font-medium">{formatINR(parseFloat(inv.total_amount))}</td>
+                  <td className="p-3 text-right text-emerald-700">{formatINR(parseFloat(inv.amount_paid || "0"))}</td>
+                  <td className="p-3 text-right font-medium">{parseFloat(inv.balance_due || "0") > 0 ? formatINR(parseFloat(inv.balance_due)) : "—"}</td>
+                  <td className="p-3 text-center">
+                    <Badge className={`text-xs ${statusBadge[inv.payment_status] || "bg-gray-100"}`}>
+                      {inv.payment_status}
+                    </Badge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

@@ -1,0 +1,1647 @@
+import { useState, useMemo, useRef, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useLocation } from "wouter";
+import { Loader2, ArrowLeft, Sun, IndianRupee, Zap, CreditCard, FileText, Upload, X, File, MapPin, Navigation, Camera, Grid3X3, Ruler } from "lucide-react";
+import { customerFormSchema, roofTypes } from "@shared/schema";
+import { indianStatesData, getDistrictsForState, getCitiesForDistrict, getDiscomsForState } from "@shared/india-data";
+import { SolarPanel3D } from "@/components/solar-panel-3d";
+import { RoofSurvey, type RoofSurveyData } from "@/components/roof-survey";
+import { GeotagCamera } from "@/components/geotag-camera";
+
+// Unit types for commercial and industrial installations
+const commercialUnitTypes = [
+  { value: "hospital", label: "Hospital / Clinic" },
+  { value: "school", label: "School / College / University" },
+  { value: "hotel", label: "Hotel / Resort" },
+  { value: "mall", label: "Shopping Mall / Complex" },
+  { value: "office", label: "Office Building" },
+  { value: "shop", label: "Shop / Retail Store" },
+  { value: "restaurant", label: "Restaurant / Cafe" },
+  { value: "bank", label: "Bank / Financial Institution" },
+  { value: "petrol_pump", label: "Petrol Pump" },
+  { value: "bike_car_tractor", label: "Bike / Car / Tractor Agency" },
+  { value: "other_commercial", label: "Other Commercial" },
+] as const;
+
+const industrialUnitTypes = [
+  { value: "flour_mill", label: "Flour / Atta Mill" },
+  { value: "rice_mill", label: "Rice Mill" },
+  { value: "oil_mill", label: "Oil Mill" },
+  { value: "dal_mill", label: "Dal / Pulse Mill" },
+  { value: "chura_mill", label: "Chura Mill" },
+  { value: "masala_mill", label: "Masala Mill" },
+  { value: "ro_plant", label: "RO Plant" },
+  { value: "cold_storage", label: "Cold Storage" },
+  { value: "warehouse", label: "Warehouse / Godown" },
+  { value: "factory", label: "Factory / Manufacturing Plant" },
+  { value: "processing_unit", label: "Food Processing Unit" },
+  { value: "textile", label: "Textile / Garment Factory" },
+  { value: "steel_plant", label: "Steel / Iron Works" },
+  { value: "packaging", label: "Packaging Unit" },
+  { value: "other_industrial", label: "Other Industrial" },
+] as const;
+import { formatINR } from "@/components/subsidy-calculator";
+import type { z } from "zod";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+
+type CustomerFormValues = z.infer<typeof customerFormSchema>;
+
+const registrationStateSubsidies: Record<string, { ratePerKw: number; maxSubsidy: number; label: string }> = {
+  "Odisha": { ratePerKw: 20000, maxSubsidy: 60000, label: "Odisha State Subsidy" },
+  "Uttar Pradesh": { ratePerKw: 10000, maxSubsidy: 30000, label: "UP State Subsidy" },
+  "Chhattisgarh": { ratePerKw: 10000, maxSubsidy: 30000, label: "Chhattisgarh State Subsidy" },
+};
+
+function localCalculateSubsidy(capacityKw: number, panelType: string, inverterType: string = "hybrid", customerType: string = "residential", state: string = "") {
+  let centralSubsidy = 0;
+  let stateSubsidy = 0;
+  let totalCost = 0;
+  let ratePerKw = 0;
+
+  if (panelType === "dcr") {
+    if (inverterType === "hybrid") {
+      ratePerKw = 75000;
+    } else {
+      ratePerKw = 66000;
+    }
+    totalCost = capacityKw * ratePerKw;
+    if (customerType === "residential") {
+      if (capacityKw <= 2) {
+        centralSubsidy = capacityKw * 30000;
+      } else if (capacityKw <= 3) {
+        centralSubsidy = 78000;
+      } else {
+        centralSubsidy = 78000;
+      }
+    }
+  } else {
+    if (inverterType === "hybrid") {
+      ratePerKw = 55000;
+    } else {
+      ratePerKw = 45000;
+    }
+    totalCost = capacityKw * ratePerKw;
+    centralSubsidy = 0;
+  }
+
+  const isSubsidyEligible = customerType === "residential" && panelType === "dcr";
+  if (isSubsidyEligible && state && registrationStateSubsidies[state]) {
+    const stateInfo = registrationStateSubsidies[state];
+    const calculated = Math.min(capacityKw, 3) * stateInfo.ratePerKw;
+    stateSubsidy = Math.min(calculated, stateInfo.maxSubsidy);
+  }
+
+  const totalSubsidy = centralSubsidy + stateSubsidy;
+  const netCost = Math.max(0, totalCost - totalSubsidy);
+  const dailyGeneration = capacityKw * 4;
+  const monthlyGeneration = dailyGeneration * 30;
+  const electricityRate = customerType === "industrial" ? 9 : customerType === "commercial" ? 8 : 7;
+  const monthlySavings = monthlyGeneration * electricityRate;
+  const annualSavings = monthlySavings * 12;
+  const stateSubsidyLabel = state && registrationStateSubsidies[state] ? registrationStateSubsidies[state].label : "";
+  const ratePerWatt = ratePerKw / 1000;
+  
+  return { centralSubsidy, stateSubsidy, stateSubsidyLabel, totalSubsidy, totalCost, netCost, dailyGeneration, monthlyGeneration, monthlySavings, annualSavings, ratePerWatt };
+}
+
+function SubsidyPreview({ capacity, panelType, inverterType = "hybrid", customerType = "residential", state = "" }: { capacity: string; panelType: string; inverterType?: string; customerType?: string; state?: string }) {
+  const capacityNum = parseFloat(capacity || "0") || 0;
+  const isNonDcr = panelType === "non_dcr";
+  
+  if (capacityNum <= 0) {
+    return null;
+  }
+  
+  const result = localCalculateSubsidy(capacityNum, panelType, inverterType, customerType, state);
+  
+  return (
+    <Card className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
+      <CardContent className="pt-4">
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3 text-center">
+            <div className="p-3 bg-background rounded-lg">
+              <p className="text-xs text-muted-foreground">System Cost</p>
+              <p className="text-base font-bold" data-testid="text-system-cost">{formatINR(result.totalCost)}</p>
+              <p className="text-xs text-muted-foreground">Rs {result.ratePerWatt}/Watt</p>
+            </div>
+            {!isNonDcr && customerType === "residential" ? (
+              <div className="p-3 bg-green-100 dark:bg-green-900/50 rounded-lg">
+                <p className="text-xs text-green-600 dark:text-green-400">Central Subsidy</p>
+                <p className="text-base font-bold text-green-600 dark:text-green-400" data-testid="text-central-subsidy">
+                  - {formatINR(result.centralSubsidy)}
+                </p>
+              </div>
+            ) : (
+              <div className="p-3 bg-gray-100 dark:bg-gray-800/50 rounded-lg">
+                <p className="text-xs text-muted-foreground">Central Subsidy</p>
+                <p className="text-base font-bold text-muted-foreground">Not Eligible</p>
+              </div>
+            )}
+          </div>
+          {result.stateSubsidy > 0 && (
+            <div className="p-3 bg-blue-100 dark:bg-blue-900/50 rounded-lg text-center">
+              <p className="text-xs text-blue-600 dark:text-blue-400">{result.stateSubsidyLabel || "State Subsidy"}</p>
+              <p className="text-base font-bold text-blue-600 dark:text-blue-400">
+                - {formatINR(result.stateSubsidy)}
+              </p>
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-3 text-center">
+            <div className="p-3 bg-background rounded-lg border-2 border-primary/20">
+              <p className="text-xs text-muted-foreground">Customer Pays</p>
+              <p className="text-base font-bold text-primary" data-testid="text-customer-pays">{formatINR(result.netCost)}</p>
+            </div>
+            <div className="p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg border-2 border-orange-200 dark:border-orange-800">
+              <p className="text-xs text-muted-foreground">Monthly Savings</p>
+              <p className="text-base font-bold text-orange-600" data-testid="text-monthly-savings">{formatINR(result.monthlySavings)}</p>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function CustomerForm() {
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [documentFiles, setDocumentFiles] = useState<File[]>([]);
+  const [isUploadingDocs, setIsUploadingDocs] = useState(false);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [sitePhotos, setSitePhotos] = useState<string[]>([]);
+  const [isUploadingSitePhotos, setIsUploadingSitePhotos] = useState(false);
+  const [showRoofLayout, setShowRoofLayout] = useState(false);
+  const [showGeotagCamera, setShowGeotagCamera] = useState(false);
+  const [roofSurveyData, setRoofSurveyData] = useState<RoofSurveyData | null>(null);
+  const documentInputRef = useRef<HTMLInputElement>(null);
+  const sitePhotoInputRef = useRef<HTMLInputElement>(null);
+  const capturedGpsRef = useRef<{lat: string, lng: string} | null>(null);
+  const [gpsStatus, setGpsStatus] = useState<"idle"|"getting"|"got"|"failed">("idle");
+
+  const getCameraWithGPS = () => {
+    // Open camera immediately
+    sitePhotoInputRef.current?.click();
+    // Get GPS in background simultaneously
+    setGpsStatus("getting");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude.toFixed(6);
+        const lng = pos.coords.longitude.toFixed(6);
+        capturedGpsRef.current = { lat, lng };
+        form.setValue("latitude", lat, { shouldValidate: true });
+        form.setValue("longitude", lng, { shouldValidate: true });
+        setGpsStatus("got");
+      },
+      () => { setGpsStatus("failed"); },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  };
+
+  const handleDocumentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.length) return;
+    const newFiles = Array.from(e.target.files);
+    if (documentFiles.length + newFiles.length > 10) {
+      toast({ title: "Error", description: "Maximum 10 documents allowed", variant: "destructive" });
+      return;
+    }
+    setDocumentFiles(prev => [...prev, ...newFiles]);
+    if (documentInputRef.current) documentInputRef.current.value = "";
+  };
+
+  const removeDocument = (index: number) => {
+    setDocumentFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSitePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    if (sitePhotos.length + files.length > 6) {
+      toast({ title: "Maximum 6 site photos allowed", variant: "destructive" });
+      return;
+    }
+    setIsUploadingSitePhotos(true);
+    try {
+      const formData = new FormData();
+      Array.from(files).forEach(file => formData.append("documents", file));
+      const response = await fetch("/api/uploads/documents", { method: "POST", body: formData, credentials: "include" });
+      if (response.ok) {
+        const result = await response.json();
+        setSitePhotos(prev => [...prev, ...(result.urls || [])]);
+      }
+    } catch (error) {
+      toast({ title: "Upload failed", description: "Please try again", variant: "destructive" });
+    } finally {
+      setIsUploadingSitePhotos(false);
+      if (sitePhotoInputRef.current) sitePhotoInputRef.current.value = "";
+    }
+  };
+
+  const removeSitePhoto = (index: number) => {
+    setSitePhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const getCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      toast({ title: "Error", description: "Geolocation is not supported by your browser", variant: "destructive" });
+      return;
+    }
+    
+    setIsGettingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        form.setValue("latitude", position.coords.latitude.toFixed(6));
+        form.setValue("longitude", position.coords.longitude.toFixed(6));
+        setIsGettingLocation(false);
+        toast({ title: "Location captured", description: "GPS coordinates have been added to the form" });
+      },
+      (error) => {
+        setIsGettingLocation(false);
+        toast({ title: "Error", description: "Failed to get location: " + error.message, variant: "destructive" });
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const form = useForm<CustomerFormValues>({
+    resolver: zodResolver(customerFormSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      phone: "",
+      aadharNumber: "",
+      panNumber: "",
+      address: "",
+      district: "",
+      state: "",
+      pincode: "",
+      latitude: "",
+      longitude: "",
+      electricityBoard: "",
+      consumerNumber: "",
+      smartMeter: "",
+      sanctionedLoad: "",
+      avgMonthlyBill: undefined,
+      roofType: "",
+      roofArea: undefined,
+      panelType: "dcr",
+      inverterType: "hybrid",
+      proposedCapacity: "",
+      customerType: "residential",
+      status: "pending",
+      documents: [],
+      accountHolderName: "",
+      accountNumber: "",
+      ifscCode: "",
+      bankName: "",
+      upiId: "",
+    },
+  });
+
+  const watchedPanelType = form.watch("panelType");
+  const watchedInverterType = form.watch("inverterType");
+  const watchedCustomerType = form.watch("customerType");
+  const watchedCapacity = form.watch("proposedCapacity");
+  const watchedState = form.watch("state");
+  const watchedDistrict = form.watch("district");
+  const [selectedCity, setSelectedCity] = useState("");
+
+  const availableDistricts = useMemo(() => watchedState ? getDistrictsForState(watchedState) : [], [watchedState]);
+  const availableCities = useMemo(() => watchedDistrict ? getCitiesForDistrict(watchedDistrict) : [], [watchedDistrict]);
+  const availableDiscoms = useMemo(() => watchedState ? getDiscomsForState(watchedState) : [], [watchedState]);
+
+  useEffect(() => {
+    form.setValue("district", "");
+    setSelectedCity("");
+    form.setValue("electricityBoard", "");
+  }, [watchedState]);
+
+  useEffect(() => {
+    setSelectedCity("");
+  }, [watchedDistrict]);
+
+  useEffect(() => {
+    if (watchedCustomerType !== "residential") return;
+    const currentCapacity = parseFloat(form.getValues("proposedCapacity") || "0");
+    
+    if (watchedInverterType === "hybrid") {
+      if (![3, 5, 6].includes(currentCapacity)) {
+        form.setValue("proposedCapacity", "3");
+      }
+    } else if (watchedPanelType === "non_dcr" && watchedInverterType === "ongrid") {
+      if (currentCapacity < 8) {
+        form.setValue("proposedCapacity", "8");
+      }
+    } else if (watchedPanelType === "dcr" && watchedInverterType === "ongrid") {
+      if (currentCapacity < 3) {
+        form.setValue("proposedCapacity", "3");
+      }
+    }
+  }, [watchedPanelType, watchedInverterType, watchedCustomerType]);
+
+  async function onSubmit(data: CustomerFormValues) {
+    setIsLoading(true);
+    try {
+      let uploadedDocuments: string[] = [];
+      
+      if (documentFiles.length > 0) {
+        setIsUploadingDocs(true);
+        const formData = new FormData();
+        documentFiles.forEach(file => formData.append("documents", file));
+        
+        const uploadResponse = await fetch("/api/uploads/documents", {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+        });
+        
+        if (!uploadResponse.ok) {
+          throw new Error("Failed to upload documents");
+        }
+        
+        const uploadResult = await uploadResponse.json();
+        uploadedDocuments = uploadResult.urls || [];
+        setIsUploadingDocs(false);
+      }
+      
+      await apiRequest("POST", "/api/ddp/customers", {
+        ...data,
+        documents: uploadedDocuments,
+        sitePictures: sitePhotos.length > 0 ? sitePhotos : undefined,
+        roofLength: roofSurveyData?.roofLength || undefined,
+        roofBreadth: roofSurveyData?.roofBreadth || undefined,
+        roofPhotos: roofSurveyData?.roofPhotos?.length ? roofSurveyData.roofPhotos : undefined,
+      });
+      toast({
+        title: "Customer registered successfully",
+        description: `${data.name} has been added for solar installation under PM Surya Ghar Yojana.`,
+      });
+      setLocation("/ddp/customers");
+    } catch (error: any) {
+      toast({
+        title: "Failed to register customer",
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+      setIsUploadingDocs(false);
+    }
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-6">
+      {/* Page Header */}
+      <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setLocation("/ddp/customers")}
+          data-testid="button-back"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </Button>
+        <div>
+          <h1 className="text-3xl font-semibold" data-testid="text-page-title">Add Customer</h1>
+          <p className="text-muted-foreground">Register a new customer for PM Surya Ghar Yojana</p>
+        </div>
+      </div>
+
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          {/* Personal Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sun className="w-5 h-5 text-primary" />
+                Personal Information
+              </CardTitle>
+              <CardDescription>
+                Customer's basic details for the application
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Full Name *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Enter customer's full name" 
+                          data-testid="input-name"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone Number *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="10-digit mobile number" 
+                          data-testid="input-phone"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="email"
+                          placeholder="customer@example.com" 
+                          data-testid="input-email"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="aadharNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-orange-600 dark:text-orange-400 font-semibold">Aadhaar Number (Important)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="12-digit Aadhaar number" 
+                          maxLength={12}
+                          data-testid="input-aadhar"
+                          className="border-orange-300 dark:border-orange-700 focus:border-orange-500"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <p className="text-xs text-orange-600 dark:text-orange-400">Required for subsidy application</p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="panNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-orange-600 dark:text-orange-400 font-semibold">PAN Number (Important)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g., ABCDE1234F" 
+                          maxLength={10}
+                          data-testid="input-pan"
+                          className="border-orange-300 dark:border-orange-700 focus:border-orange-500"
+                          {...field}
+                          value={field.value || ""}
+                          onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                        />
+                      </FormControl>
+                      <p className="text-xs text-orange-600 dark:text-orange-400">Required for subsidy and tax purposes</p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <Separator />
+
+              <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Complete Address *</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="House no., Street, Locality" 
+                        data-testid="input-address"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormField
+                  control={form.control}
+                  name="state"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>State *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-state">
+                            <SelectValue placeholder="Select state" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {indianStatesData.map((state) => (
+                            <SelectItem key={state} value={state}>
+                              {state}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="district"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>District *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ""} disabled={!watchedState}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-district">
+                            <SelectValue placeholder={watchedState ? "Select district" : "Select state first"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {availableDistricts.map((district) => (
+                            <SelectItem key={district} value={district}>
+                              {district}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div>
+                  <label className="text-sm font-medium">City</label>
+                  <Select onValueChange={setSelectedCity} value={selectedCity} disabled={!watchedDistrict}>
+                    <SelectTrigger data-testid="select-city">
+                      <SelectValue placeholder={watchedDistrict ? "Select city" : "Select district first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableCities.map((city) => (
+                        <SelectItem key={city} value={city}>
+                          {city}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="pincode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Pincode *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="6-digit pincode" 
+                          maxLength={6}
+                          data-testid="input-pincode"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+
+          {/* Extended Address & Co-Applicant */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Address Details (Extended)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Landmark</Label>
+                  <Input placeholder="Near temple, school, etc." {...form.register("landmark")} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Sub-District / Tehsil</Label>
+                  <Input placeholder="Sub-district name" {...form.register("subDistrict")} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Block</Label>
+                  <Input placeholder="Block name" {...form.register("block")} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Village / Panchayat</Label>
+                  <Input placeholder="Village or Panchayat" {...form.register("villagePanchayat")} />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Co-Applicant Details */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">📋 Co-Applicant Details <span className="text-xs text-muted-foreground font-normal">(Optional)</span></CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Co-Applicant Name</Label>
+                  <Input placeholder="Full name" {...form.register("coApplicantName")} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Co-Applicant Mobile</Label>
+                  <Input placeholder="10-digit number" {...form.register("coApplicantPhone")} />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Date of Birth</Label>
+                  <Input type="date" {...form.register("coApplicantDob")} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Relation with Applicant</Label>
+                  <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" {...form.register("coApplicantRelation")}>
+                    <option value="">Select relation</option>
+                    <option value="spouse">Spouse</option>
+                    <option value="father">Father</option>
+                    <option value="mother">Mother</option>
+                    <option value="son">Son</option>
+                    <option value="daughter">Daughter</option>
+                    <option value="brother">Brother</option>
+                    <option value="sister">Sister</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Annual Income</Label>
+                  <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" {...form.register("annualIncome")}>
+                    <option value="">Select range</option>
+                    <option value="below_1L">Below 1 Lakh</option>
+                    <option value="1L_3L">1 - 3 Lakh</option>
+                    <option value="3L_5L">3 - 5 Lakh</option>
+                    <option value="5L_10L">5 - 10 Lakh</option>
+                    <option value="10L_25L">10 - 25 Lakh</option>
+                    <option value="above_25L">Above 25 Lakh</option>
+                  </select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Electricity Details */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Electricity Details</CardTitle>
+              <CardDescription>
+                Information about the customer's current electricity connection
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="electricityBoard"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Electricity Board/DISCOM *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ""} disabled={!watchedState}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-electricity-board">
+                            <SelectValue placeholder={watchedState ? "Select DISCOM" : "Select state first"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {availableDiscoms.map((discom) => (
+                            <SelectItem key={discom} value={discom}>
+                              {discom}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="consumerNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Consumer/K Number *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Electricity consumer number" 
+                          data-testid="input-consumer-number"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+
+                <FormField
+                  control={form.control}
+                  name="smartMeter"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Smart Meter Installed?</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="yes">Yes</SelectItem>
+                          <SelectItem value="no">No</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="sanctionedLoad"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Sanctioned Load (kW) *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g., 3, 5, 10" 
+                          data-testid="input-sanctioned-load"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="avgMonthlyBill"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Average Monthly Bill (₹) *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number"
+                          placeholder="e.g., 2500" 
+                          data-testid="input-avg-bill"
+                          {...field}
+                          value={field.value ?? ""}
+                          onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Average of last 6 months electricity bill
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Roof & Capacity Details */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Roof & Capacity Details</CardTitle>
+              <CardDescription>
+                Information about the rooftop for solar panel installation
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="roofType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Roof Type *</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-roof-type">
+                            <SelectValue placeholder="Select roof type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {roofTypes.map((type) => (
+                            <SelectItem key={type} value={type}>
+                              {type}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="roofArea"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Available Roof Area (sq ft) *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number"
+                          placeholder="e.g., 300" 
+                          data-testid="input-roof-area"
+                          {...field}
+                          value={field.value ?? ""}
+                          onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Shadow-free area available for panels
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="customerType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Customer Installation Type *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || "residential"}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-customer-type">
+                            <SelectValue placeholder="Select customer type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="residential">Residential (1 kW to 10 kW)</SelectItem>
+                          <SelectItem value="commercial">Commercial (3 kW to 500 kW)</SelectItem>
+                          <SelectItem value="industrial">Industrial (5 kW to 1000 kW)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Only residential DCR installations qualify for government subsidy
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {form.watch("customerType") === "commercial" && (
+                  <>
+                    <FormField
+                      control={form.control}
+                      name="unitType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Type of Commercial Unit *</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value || ""}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-commercial-unit-type">
+                                <SelectValue placeholder="Select unit type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {commercialUnitTypes.map((type) => (
+                                <SelectItem key={type.value} value={type.value}>
+                                  {type.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            Select the type of commercial establishment
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="commercialUnitDescription"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Commercial Unit Description</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Provide additional details about the commercial establishment" 
+                              data-testid="input-commercial-description"
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Additional details about the commercial property for installation
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </>
+                )}
+
+                {form.watch("customerType") === "industrial" && (
+                  <>
+                    <FormField
+                      control={form.control}
+                      name="unitType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Type of Industrial Unit *</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value || ""}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-industrial-unit-type">
+                                <SelectValue placeholder="Select unit type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {industrialUnitTypes.map((type) => (
+                                <SelectItem key={type.value} value={type.value}>
+                                  {type.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            Select the type of industrial facility
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="panelType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Panel Type *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || "dcr"}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-panel-type">
+                              <SelectValue placeholder="Select panel type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="dcr">DCR Panel - Subsidy Eligible</SelectItem>
+                            <SelectItem value="non_dcr">Non-DCR Panel - No Subsidy</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          DCR panels are eligible for government subsidy
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="inverterType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Inverter Type *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || "hybrid"}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-inverter-type">
+                              <SelectValue placeholder="Select inverter type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="hybrid">3-in-1 Hybrid Inverter (3, 5, 6 kW)</SelectItem>
+                            <SelectItem value="ongrid">Ongrid Inverter</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          {watchedPanelType === "dcr" 
+                            ? (watchedInverterType === "hybrid" ? "Rs 75/Watt (3, 5, 6 kW only)" : "Rs 66/Watt (3-10 kW)")
+                            : (watchedInverterType === "hybrid" ? "Rs 55/Watt (3, 5, 6 kW only)" : "Rs 45/Watt (above 8 kW)")}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="proposedCapacity"
+                  render={({ field }) => {
+                    const customerType = watchedCustomerType || "residential";
+                    const isResidential = customerType === "residential";
+                    const isCommercial = customerType === "commercial";
+                    const isIndustrial = customerType === "industrial";
+                    const pType = watchedPanelType || "dcr";
+                    const iType = watchedInverterType || "hybrid";
+                    
+                    let capacityOptions: number[];
+                    let capacityNote = "";
+                    
+                    if (iType === "hybrid") {
+                      capacityOptions = [3, 5, 6];
+                      capacityNote = "3-in-1 Hybrid Inverter available only in 3, 5, 6 kW";
+                    } else if (pType === "dcr" && iType === "ongrid") {
+                      capacityOptions = isResidential 
+                        ? [3, 4, 5, 6, 7, 8, 9, 10]
+                        : isCommercial 
+                          ? [3, 5, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100, 150, 200, 250, 300, 400, 500]
+                          : [5, 10, 15, 20, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
+                      capacityNote = isResidential 
+                        ? "DCR Ongrid: 3-10 kW. Subsidy available up to 3 kW"
+                        : isCommercial ? "Commercial: 3-500 kW (no subsidy)" : "Industrial: 5-1000 kW (no subsidy)";
+                    } else {
+                      const allOptions = isResidential 
+                        ? [8, 9, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100]
+                        : isCommercial 
+                          ? [8, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100, 150, 200, 250, 300, 400, 500]
+                          : [8, 10, 15, 20, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
+                      capacityOptions = allOptions;
+                      capacityNote = "Non-DCR Ongrid: 8-100 kW";
+                    }
+
+                    const [useCustom, setUseCustom] = useState(false);
+
+                    return (
+                      <FormItem>
+                        <FormLabel>Proposed Capacity (kW) *</FormLabel>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={useCustom}
+                              onCheckedChange={setUseCustom}
+                              data-testid="switch-custom-capacity"
+                            />
+                            <span className="text-sm text-muted-foreground">
+                              {useCustom ? "Custom value" : "Select from list"}
+                            </span>
+                          </div>
+                          {useCustom ? (
+                            <FormControl>
+                              <Input
+                                type="number"
+                                placeholder="Enter capacity in kW"
+                                data-testid="input-custom-capacity"
+                                value={field.value || ""}
+                                onChange={(e) => field.onChange(e.target.value)}
+                                min={iType === "hybrid" ? 3 : (pType === "non_dcr" && iType === "ongrid") ? 8 : 3}
+                                max={isResidential ? (pType === "non_dcr" && iType === "ongrid" ? 100 : 10) : isCommercial ? 500 : 1000}
+                              />
+                            </FormControl>
+                          ) : (
+                            <Select onValueChange={field.onChange} value={field.value || ""}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-proposed-capacity">
+                                  <SelectValue placeholder="Select capacity" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {capacityOptions.map((cap) => (
+                                  <SelectItem key={cap} value={cap.toString()}>
+                                    {cap} kW
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+                        <FormDescription>{capacityNote}</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
+                />
+                
+                {watchedCapacity && watchedPanelType && (
+                  <SubsidyPreview 
+                    capacity={watchedCapacity} 
+                    panelType={watchedPanelType} 
+                    inverterType={watchedInverterType || "hybrid"}
+                    customerType={watchedCustomerType || "residential"}
+                    state={form.watch("state") || ""}
+                  />
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Bank Account Details */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-primary" />
+                Payment Details
+              </CardTitle>
+              <CardDescription>
+                Customer's bank account or UPI for receiving any payouts via Razorpay
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="accountHolderName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Account Holder Name *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Name as per bank account" 
+                          data-testid="input-account-holder"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="bankName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Bank Name *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g., State Bank of India" 
+                          data-testid="input-bank-name"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="accountNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Account Number *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Bank account number" 
+                          data-testid="input-account-number"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="ifscCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>IFSC Code *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g., SBIN0001234" 
+                          data-testid="input-ifsc-code"
+                          {...field}
+                          value={field.value || ""}
+                          onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="upiId"
+                  render={({ field }) => (
+                    <FormItem className="md:col-span-2">
+                      <FormLabel>UPI ID (Optional)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g., customer@upi or 9876543210@paytm" 
+                          data-testid="input-upi-id"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Provide either bank details or UPI ID for payments
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Document Upload */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-primary" />
+                Documents Upload (Optional)
+              </CardTitle>
+              <CardDescription>
+                Upload documents if available (Electricity Bill, Aadhaar, PAN Card, Property documents, etc.)
+              </CardDescription>
+              <p className="text-sm font-bold text-red-600 mt-2">
+                Please upload Bank Proof (Bank Passbook or Bank Cancel Cheque) - Optional
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div 
+                className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-6 text-center cursor-pointer transition-colors hover:border-primary/50"
+                onClick={() => documentInputRef.current?.click()}
+                data-testid="upload-documents-area"
+              >
+                <input
+                  ref={documentInputRef}
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                  multiple
+                  className="hidden"
+                  onChange={handleDocumentUpload}
+                  data-testid="input-documents"
+                />
+                <Upload className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
+                <p className="text-sm font-medium">Click to upload documents</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  PDF, JPG, PNG, DOC (Max 10 files, 5MB each)
+                </p>
+              </div>
+
+              {documentFiles.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Selected Documents ({documentFiles.length}/10)</p>
+                  <div className="space-y-2">
+                    {documentFiles.map((file, index) => (
+                      <div 
+                        key={index}
+                        className="flex items-center justify-between p-2 bg-muted/50 rounded-lg"
+                        data-testid={`document-item-${index}`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <File className="w-4 h-4 shrink-0 text-primary" />
+                          <span className="text-sm truncate">{file.name}</span>
+                          <span className="text-xs text-muted-foreground shrink-0">
+                            ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                          </span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeDocument(index)}
+                          data-testid={`button-remove-document-${index}`}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Roof Dimensions */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Ruler className="w-5 h-5 text-primary" />
+                Roof Dimensions
+              </CardTitle>
+              <CardDescription>
+                Enter roof measurements for accurate solar panel placement
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Roof Length (ft) *</label>
+                  <Input
+                    type="number"
+                    placeholder="e.g., 30"
+                    value={roofSurveyData?.roofLength || ""}
+                    onChange={(e) => setRoofSurveyData(prev => ({ ...prev, roofLength: e.target.value, roofBreadth: prev?.roofBreadth || "" } as any))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Roof Breadth (ft) *</label>
+                  <Input
+                    type="number"
+                    placeholder="e.g., 20"
+                    value={roofSurveyData?.roofBreadth || ""}
+                    onChange={(e) => setRoofSurveyData(prev => ({ ...prev, roofBreadth: e.target.value, roofLength: prev?.roofLength || "" } as any))}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Geotagged Site Photos - NoteCam Style */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Camera className="w-5 h-5 text-primary" />
+                Site Photos with Geotag
+              </CardTitle>
+              <CardDescription>
+                GPS location, date &amp; time will be stamped on each photo automatically.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+
+              {/* GPS Status - compact */}
+              {gpsStatus === "got" && capturedGpsRef.current && (
+                <div className="flex items-center gap-2 p-2 rounded-lg text-xs bg-green-50 text-green-700 border border-green-200">
+                  <Navigation className="w-3 h-3" />
+                  GPS: {capturedGpsRef.current.lat}, {capturedGpsRef.current.lng}
+                </div>
+              )}
+              {gpsStatus === "failed" && (
+                <div className="flex items-center gap-2 p-2 rounded-lg text-xs bg-red-50 text-red-700 border border-red-200">
+                  <Navigation className="w-3 h-3" />
+                  GPS unavailable — photo will be saved without coordinates
+                </div>
+              )}
+
+              {/* Photo Grid */}
+              {sitePhotos.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {sitePhotos.map((url, index) => (
+                    <div key={index} className="relative group rounded-lg overflow-hidden border">
+                      <img src={url} alt={`Site photo ${index + 1}`} className="w-full h-32 object-cover" />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => setSitePhotos(prev => prev.filter((_, i) => i !== index))}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Camera Button */}
+              {showGeotagCamera && (
+                <GeotagCamera
+                  addressLine={[form.getValues().address, form.getValues().district, form.getValues().state].filter(Boolean).join(", ")}
+                  onClose={() => setShowGeotagCamera(false)}
+                  onCapture={async (blob, gpsData) => {
+                    setShowGeotagCamera(false);
+                    if (gpsData) {
+                      capturedGpsRef.current = gpsData;
+                      form.setValue("latitude", gpsData.lat, { shouldValidate: true });
+                      form.setValue("longitude", gpsData.lng, { shouldValidate: true });
+                      setGpsStatus("got");
+                    }
+                    try {
+                      const fd = new FormData();
+                      fd.append("documents", blob, "site-photo-geotagged.jpg");
+                      const res = await fetch("/api/uploads/documents", { method: "POST", body: fd, credentials: "include" });
+                      if (res.ok) {
+                        const result = await res.json();
+                        const url = result.urls?.[0];
+                        if (url) {
+                          setSitePhotos(prev => [...prev, url]);
+                          toast({ title: "Photo saved", description: gpsData ? "Geotagged successfully" : "Saved (GPS unavailable)" });
+                        }
+                      }
+                    } catch {
+                      const url = URL.createObjectURL(blob);
+                      setSitePhotos(prev => [...prev, url]);
+                    }
+                  }}
+                />
+              )}
+              {sitePhotos.length < 6 && (
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowGeotagCamera(true)}
+                    className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-primary/40 rounded-xl hover:bg-primary/5 transition-colors cursor-pointer gap-2"
+                  >
+                    <Camera className="w-7 h-7 text-primary" />
+                    <span className="text-sm font-medium text-primary">📍 Tap to Take Geotagged Photo</span>
+                    <span className="text-xs text-muted-foreground">Live GPS shown on camera viewfinder</span>
+                  </button>
+                  <label className="flex items-center justify-center w-full h-12 border border-dashed rounded-lg cursor-pointer hover:bg-muted/50 gap-2">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <span className="text-xs text-muted-foreground font-medium">📤 Upload Photo from Gallery</span>
+                    <input type="file" className="hidden" accept="image/*" multiple onChange={async (e) => {
+                      const files = Array.from(e.target.files || []);
+                      if (!files.length) return;
+                      if (sitePhotos.length + files.length > 6) { toast({ title: "Maximum 6 photos", variant: "destructive" }); return; }
+                      setIsUploadingSitePhotos(true);
+                      try {
+                        for (const file of files) {
+                          const fd = new FormData();
+                          fd.append("documents", file, file.name);
+                          const res = await fetch("/api/uploads/documents", { method: "POST", body: fd, credentials: "include" });
+                          if (res.ok) { const r = await res.json(); if (r.urls?.[0]) setSitePhotos(p => [...p, r.urls[0]]); }
+                        }
+                      } catch {} finally { setIsUploadingSitePhotos(false); }
+                      e.target.value = "";
+                    }} />
+                  </label>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    capture="environment"
+                    ref={sitePhotoInputRef}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const gps = capturedGpsRef.current;
+                      const formValues = form.getValues();
+                      const addressLine = [formValues.address, formValues.district, formValues.state, formValues.pincode].filter(Boolean).join(", ");
+                      const now = new Date();
+                      const dateStr = now.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+                      const timeStr = now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+                      const img = new Image();
+                      img.onload = () => {
+                        const canvas = document.createElement("canvas");
+                        const W = img.width;
+                        const H = img.height;
+                        canvas.width = W;
+                        canvas.height = H;
+                        const ctx = canvas.getContext("2d")!;
+                        // Draw full photo
+                        ctx.drawImage(img, 0, 0, W, H);
+                        // Stamp lines
+                        const fs = Math.max(20, W * 0.032);
+                        const padding = Math.max(16, W * 0.02);
+                        const lineH = fs * 1.6;
+                        const stampLines = [
+                          gps ? `Latitude: ${gps.lat}` : "Latitude: N/A",
+                          gps ? `Longitude: ${gps.lng}` : "Longitude: N/A",
+                          `Date: ${dateStr}`,
+                          `Time: ${timeStr}`,
+                          ...(addressLine ? [addressLine.slice(0, 50)] : []),
+                        ];
+                        const boxH = stampLines.length * lineH + padding;
+                        const boxY = H - boxH - padding;
+                        // Dark semi-transparent box
+                        ctx.fillStyle = "rgba(0,0,0,0.6)";
+                        ctx.fillRect(padding - 10, boxY - 10, W * 0.72, boxH + 20);
+                        // White text lines
+                        stampLines.forEach((line, i) => {
+                          ctx.font = `bold ${fs}px Arial`;
+                          ctx.fillStyle = "#ffffff";
+                          ctx.fillText(line, padding, boxY + lineH * (i + 1));
+                        });
+                        // Brand bottom-right in orange
+                        ctx.font = `bold italic ${Math.max(18, W * 0.026)}px Arial`;
+                        ctx.fillStyle = "#f97316";
+                        const brand = "Powered by Prayga India Private Limited";
+                        ctx.fillText(brand, W - ctx.measureText(brand).width - padding, H - padding);
+
+                        canvas.toBlob(async (blob) => {
+                          if (!blob) return;
+                          try {
+                            const formData = new FormData();
+                            formData.append("documents", blob, "site-photo-geotagged.jpg");
+                            const response = await fetch("/api/uploads/documents", {
+                              method: "POST",
+                              body: formData,
+                              credentials: "include",
+                            });
+                            if (response.ok) {
+                              const result = await response.json();
+                              const uploadedUrl = result.urls?.[0];
+                              if (uploadedUrl) {
+                                setSitePhotos(prev => [...prev, uploadedUrl]);
+                                toast({ title: "Photo saved", description: gps ? "Geotagged successfully" : "Saved (GPS unavailable)" });
+                              }
+                            }
+                          } catch {
+                            const url = URL.createObjectURL(blob);
+                            setSitePhotos(prev => [...prev, url]);
+                          }
+                        }, "image/jpeg", 0.9);
+                      };
+                      img.src = URL.createObjectURL(file);
+                      e.target.value = "";
+                    }}
+                  />
+                  <p className="text-xs text-muted-foreground text-center">
+                    {sitePhotos.length}/6 photos • JPG, PNG (Max 5MB each)
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Form Errors Display */}
+          {Object.keys(form.formState.errors).length > 0 && (
+            <Card className="border-destructive bg-destructive/10">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-destructive text-base">Please fix the following errors:</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="list-disc list-inside space-y-1 text-sm text-destructive">
+                  {Object.entries(form.formState.errors).map(([field, error]) => (
+                    <li key={field}>
+                      <span className="font-medium capitalize">{field.replace(/([A-Z])/g, ' $1').trim()}</span>: {(error as any)?.message || 'Invalid value'}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Submit Buttons */}
+          <div className="flex gap-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setLocation("/ddp/customers")}
+              data-testid="button-cancel"
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={isLoading || isUploadingDocs}
+              data-testid="button-submit"
+              onClick={() => {
+                if (Object.keys(form.formState.errors).length > 0) {
+                  toast({
+                    title: "Form has errors",
+                    description: "Please scroll up and fix the highlighted fields",
+                    variant: "destructive",
+                  });
+                }
+              }}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {isUploadingDocs ? "Uploading Documents..." : "Registering..."}
+                </>
+              ) : (
+                "Register Customer"
+              )}
+            </Button>
+          </div>
+        </form>
+      </Form>
+    </div>
+  );
+}

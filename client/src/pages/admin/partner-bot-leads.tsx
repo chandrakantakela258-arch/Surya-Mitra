@@ -12,19 +12,6 @@ export default function AdminPartnerBotLeads() {
 
   const { data: leads = [], isLoading, refetch, isFetching } = useQuery<any[]>({
     queryKey: ["/api/admin/partner-bot-leads-all"],
-    queryFn: async () => {
-      const res = await fetch("/api/admin/partner-chatbot");
-      const partners = await res.json();
-      const active = partners.filter((p: any) => p.isActive || parseInt(p.totalLeads || 0) > 0);
-      const allLeads: any[] = [];
-      for (const partner of active) {
-        const r = await fetch(`/api/admin/partner-chatbot/${partner.id}/leads`);
-        const leads = await r.json();
-        leads.forEach((l: any) => { l.partnerName = partner.name; l.partnerCode = partner.partnerCode; });
-        allLeads.push(...leads);
-      }
-      return allLeads.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    },
   });
 
   const filtered = leads.filter((l) =>

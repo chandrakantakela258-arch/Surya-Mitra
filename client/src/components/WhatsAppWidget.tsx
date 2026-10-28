@@ -176,6 +176,29 @@ export function WhatsAppWidget() {
 
       if (currentNode?.savesField) {
         saveLead({ [currentNode.savesField]: userReply });
+
+        // Meta Pixel Events
+        const fbq = (window as any).fbq;
+        if (typeof fbq === 'function') {
+          if (currentNode.savesField === 'name') {
+            fbq('track', 'Lead', { content_name: 'chatbot_name' });
+          }
+          if (currentNode.savesField === 'mobileNumber') {
+            fbq('track', 'Lead', { content_name: 'chatbot_phone' });
+          }
+          if (currentNode.savesField === 'email') {
+            fbq('track', 'Lead', { content_name: 'chatbot_email' });
+          }
+          if (currentNode.savesField === 'state') {
+            fbq('trackCustom', 'ChatbotState', { state: userReply });
+          }
+          if (currentNode.savesField === 'electricityBoard') {
+            fbq('trackCustom', 'ChatbotElectricityBoard', { board: userReply });
+          }
+          if (currentNode.savesField === 'consumerNumber') {
+            fbq('track', 'CompleteRegistration', { content_name: 'chatbot_consumer_number' });
+          }
+        }
       }
 
       if (currentNode?.savesField === 'language') {

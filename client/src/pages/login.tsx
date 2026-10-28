@@ -46,9 +46,15 @@ export default function LoginPage() {
       if (result.user.role === "admin") {
         setLocation("/admin/dashboard");
       } else if (result.user.role === "bdp") {
-        setLocation("/bdp/dashboard");
+        setLocation("/bdp/bot-leads");
       } else if (result.user.role === "ddp") {
-        setLocation("/ddp/dashboard");
+        setLocation("/ddp/bot-leads");
+      } else if (result.user.role === "sdp") {
+        setLocation("/sdp/dashboard");
+      } else if (result.user.role === "customer_partner") {
+        setLocation("/customer-partner/dashboard");
+      } else if (result.user.role === "shop_dev") {
+        setLocation("/shop-partner");
       } else {
         setLocation("/");
       }
@@ -80,7 +86,7 @@ export default function LoginPage() {
         <Link href="/">
           <img 
             src={logoImage} 
-            alt="Divyanshi Solar" 
+            alt="Divyanshi Digital Services Pvt Ltd" 
             className="h-10 w-auto object-contain"
           />
         </Link>

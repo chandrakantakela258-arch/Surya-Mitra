@@ -8,11 +8,18 @@ import path from "path";
 
 const app = express();
 
+
 // Serve attached_assets directory for product images
+app.use("/solar-designer.html", (_req, res) => {
+  res.sendFile("/root/surya-mitra-host/dist/public/solar-designer.html");
+});
 app.use("/attached_assets", express.static(path.resolve(process.cwd(), "attached_assets")));
 
 // Serve uploads directory for site pictures and videos
 app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads")));
+
+// Serve Livguard PDF inserts for proposal merging
+app.use("/pdf-inserts", express.static(path.resolve(process.cwd(), "dist", "public", "pdf-inserts")));
 
 // Seed admin user if it doesn't exist
 async function seedAdminUser() {
@@ -24,7 +31,7 @@ async function seedAdminUser() {
         username: "admin",
         password: hashedPassword,
         name: "System Admin",
-        email: "admin@divyanshisolar.com",
+        email: "admin@divyanshisolar.in",
         phone: "9999999999",
         role: "admin",
         district: "All India",
@@ -43,9 +50,9 @@ async function seedAdminUser() {
 // Default products catalog
 const defaultProducts = [
   // Solar Packages - DCR with Hybrid Inverter
-  { name: "3 kW DCR Solar Package (Hybrid Inverter)", description: "Complete 3 kW DCR solar panel system with 3-in-1 hybrid inverter. Eligible for government subsidy. Installation included.", category: "solar_package", price: 225000 },
-  { name: "5 kW DCR Solar Package (Hybrid Inverter)", description: "Complete 5 kW DCR solar panel system with 3-in-1 hybrid inverter. Subsidy eligible up to 3 kW. Installation included.", category: "solar_package", price: 375000 },
-  { name: "10 kW DCR Solar Package (Hybrid Inverter)", description: "Complete 10 kW DCR solar panel system with 3-in-1 hybrid inverter. Ideal for larger homes. Installation included.", category: "solar_package", price: 750000 },
+  { name: "3 kW DCR Solar Package (Hybrid Inverter)", description: "Complete 3 kW DCR solar panel system with Livguard hybrid inverter. Eligible for government subsidy. Installation included.", category: "solar_package", price: 225000 },
+  { name: "5 kW DCR Solar Package (Hybrid Inverter)", description: "Complete 5 kW DCR solar panel system with Livguard hybrid inverter. Subsidy eligible up to 3 kW. Installation included.", category: "solar_package", price: 375000 },
+  { name: "10 kW DCR Solar Package (Hybrid Inverter)", description: "Complete 10 kW DCR solar panel system with Livguard hybrid inverter. Ideal for larger homes. Installation included.", category: "solar_package", price: 750000 },
   // Solar Packages - DCR with Ongrid Inverter
   { name: "3 kW DCR Solar Package (Ongrid Inverter)", description: "Complete 3 kW DCR solar panel system with ongrid inverter. Eligible for government subsidy. Installation included.", category: "solar_package", price: 198000 },
   { name: "5 kW DCR Solar Package (Ongrid Inverter)", description: "Complete 5 kW DCR solar panel system with ongrid inverter. Subsidy eligible up to 3 kW. Installation included.", category: "solar_package", price: 330000 },
@@ -54,9 +61,9 @@ const defaultProducts = [
   { name: "5 kW Non-DCR Solar Package", description: "Complete 5 kW non-DCR solar panel system. Budget-friendly option without subsidy. Installation included.", category: "solar_package", price: 275000 },
   { name: "10 kW Non-DCR Solar Package", description: "Complete 10 kW non-DCR solar panel system. Budget-friendly option for larger installations without subsidy.", category: "solar_package", price: 550000 },
   // Inverters
-  { name: "SunPunch Trimax 3.5 kW Inverter", description: "Market's only On-Grid + Off-Grid + Hybrid Inverter. Supports grid-tie, off-grid, and grid-tie with backup modes. Features backflow prevention, parallel operation up to 12 units, remote WiFi monitoring, high PV input up to 500Vdc, built-in MPPT solar controller with 99% efficiency.", category: "accessory", price: 42000 },
-  { name: "SunPunch Trimax 5.5 kW Inverter", description: "Market's only On-Grid + Off-Grid + Hybrid Inverter. Supports grid-tie, off-grid, and grid-tie with backup modes. Features backflow prevention, parallel operation up to 12 units, remote WiFi monitoring, high PV input up to 500Vdc, built-in MPPT solar controller with 99% efficiency.", category: "accessory", price: 55000 },
-  { name: "SunPunch Trimax 6.2 kW Inverter", description: "Market's only On-Grid + Off-Grid + Hybrid Inverter. Supports grid-tie, off-grid, and grid-tie with backup modes. Features backflow prevention, parallel operation up to 12 units, remote WiFi monitoring, high PV input up to 500Vdc, built-in MPPT solar controller with 99% efficiency.", category: "accessory", price: 65000 },
+  { name: "Livguard Trimax 3.5 kW Inverter", description: "Market's only On-Grid + Off-Grid + Hybrid Inverter. Supports grid-tie, off-grid, and grid-tie with backup modes. Features backflow prevention, parallel operation up to 12 units, remote WiFi monitoring, high PV input up to 500Vdc, built-in MPPT solar controller with 99% efficiency.", category: "accessory", price: 42000 },
+  { name: "Livguard Trimax 5.5 kW Inverter", description: "Market's only On-Grid + Off-Grid + Hybrid Inverter. Supports grid-tie, off-grid, and grid-tie with backup modes. Features backflow prevention, parallel operation up to 12 units, remote WiFi monitoring, high PV input up to 500Vdc, built-in MPPT solar controller with 99% efficiency.", category: "accessory", price: 55000 },
+  { name: "Livguard Trimax 6.2 kW Inverter", description: "Market's only On-Grid + Off-Grid + Hybrid Inverter. Supports grid-tie, off-grid, and grid-tie with backup modes. Features backflow prevention, parallel operation up to 12 units, remote WiFi monitoring, high PV input up to 500Vdc, built-in MPPT solar controller with 99% efficiency.", category: "accessory", price: 65000 },
   // Marketing Materials
   { name: "Solar Panel Brochure Pack (50 pcs)", description: "High-quality printed brochures explaining PM Surya Ghar Yojana benefits and solar installation process. Pack of 50 pieces.", category: "marketing_material", price: 500 },
   { name: "Brochures Tri-Fold (100 pcs)", description: "High-quality tri-fold brochures explaining PM Surya Ghar Yojana benefits and solar installation process. Pack of 100 pieces.", category: "marketing_material", price: 1300 },
@@ -253,15 +260,15 @@ app.use((req, res, next) => {
           ('3', 'Electricity Board', 'विद्युत बोर्ड', 'Select your Electricity Board:', 'अपना विद्युत बोर्ड चुनें:', 'dropdown', NULL, 'electricityBoard', 10),
           ('3.1', 'Consumer Number', 'उपभोक्ता नंबर', 'What is your Consumer Number?', 'आपका उपभोक्ता नंबर क्या है?', 'text', NULL, 'consumerNumber', 11),
           ('4', 'Connection Type', 'कनेक्शन प्रकार', 'What is your Connection Type?', 'आपका कनेक्शन प्रकार क्या है?', 'buttons', 'Residential,Commercial,Industrial', 'connectionType', 12),
-          ('4.5', 'Residential Plant', 'घरेलू प्लांट', 'Great! For a Residential connection, here are the recommended solar plants for you. Please select:', 'बढ़िया! आपके घरेलू कनेक्शन के लिए अनुशंसित सोलर प्लांट चुनें:', 'dropdown', '3kW On-Grid,3kW 3-in-1 Hybrid,5kW 3-in-1 Hybrid,6kW On-Grid,6kW 3-in-1 Hybrid,6.5kW On-Grid', 'plantCapacity', 13),
+          ('4.5', 'Residential Plant', 'घरेलू प्लांट', 'Great! For a Residential connection, here are the recommended solar plants for you. Please select:', 'बढ़िया! आपके घरेलू कनेक्शन के लिए अनुशंसित सोलर प्लांट चुनें:', 'dropdown', '3kW On-Grid,3kW Livguard Hybrid,5kW Livguard Hybrid,6kW On-Grid,6kW Livguard Hybrid,6.5kW On-Grid', 'plantCapacity', 13),
           ('6', 'Roof Space', 'छत की जगह', 'Available Roof Space (in sq ft)?', 'छत पर उपलब्ध जगह (वर्ग फुट में)?', 'text', NULL, 'roofSpace', 14),
           ('7', 'Business Type', 'व्यवसाय का प्रकार', 'What is your Business Type?', 'आपके व्यवसाय का प्रकार?', 'dropdown', 'Bike/Car Showroom,Aata/Oil/Masala Mill,Tractor Agency,RO/Packaging Plant,Rice Mill,Fabrication Plant,Other Industrial Unit', 'businessType', 15),
-          ('7.5', 'Showroom Plant', 'शोरूम प्लांट', 'For Bike/Car Showroom, here are the best suited solar plants. Please select:', 'बाइक/कार शोरूम के लिए अनुशंसित सोलर प्लांट चुनें:', 'dropdown', '3kW On-Grid,3kW 3-in-1 Hybrid', 'plantCapacity', 16),
+          ('7.5', 'Showroom Plant', 'शोरूम प्लांट', 'For Bike/Car Showroom, here are the best suited solar plants. Please select:', 'बाइक/कार शोरूम के लिए अनुशंसित सोलर प्लांट चुनें:', 'dropdown', '3kW On-Grid,3kW Livguard Hybrid', 'plantCapacity', 16),
           ('7.1', 'Monthly Billing', 'मासिक बिल', 'Monthly Electricity Bill Amount?', 'मासिक बिजली बिल राशि?', 'dropdown', 'Less than ₹1000,₹2000 - ₹4000,₹4000 - ₹10000,₹15000 - ₹30000,₹50000+,₹100000+', 'monthlyBilling', 17),
           ('7.2', 'Capacity Selection', 'क्षमता चुनें', 'What Capacity Plant do you want to Install?', 'कितनी क्षमता का प्लांट लगाना चाहते हैं?', 'dropdown', '2 kW,3 kW,6 kW,15 kW,25 kW,50 kW,100 kW,500 kW,1000 kW', 'plantCapacity', 18),
           ('8', 'Proposal & Interest', 'प्रस्ताव और रुचि', '📄 Based on your selection, here is your estimated Solar Proposal.\n\nOur team will prepare a detailed customized proposal for you shortly.\n\nAre you interested in proceeding?', '📄 आपके चयन के आधार पर यहाँ आपका अनुमानित सोलर प्रस्ताव है।\n\nहमारी टीम जल्द ही एक विस्तृत अनुकूलित प्रस्ताव तैयार करेगी।\n\nक्या आप आगे बढ़ने में रुचि रखते हैं?', 'buttons', 'Interested,Not Interested,Will Call Later,Install after 2-3 months', 'proposalStatus', 19),
           ('9', 'Next Steps', 'अगला कदम', 'Great! How would you like to proceed?', 'बहुत बढ़िया! आप कैसे आगे बढ़ना चाहेंगे?', 'buttons', 'Fill Online Form,Call for Understanding,Schedule Home Visit', 'status', 20),
-          ('10', 'Thank You', 'धन्यवाद', 'Thank you for choosing Divyanshi Solar! Our team will contact you soon. ☀️', 'दिव्यांशी सोलर को चुनने के लिए धन्यवाद! हमारी टीम जल्द ही संपर्क करेगी। ☀️', 'none', NULL, NULL, 21)
+          ('10', 'Thank You', 'धन्यवाद', 'Thank you for choosing Prayga India Private Limited! Our team will contact you soon. ☀️', 'दिव्यांशी सोलर को चुनने के लिए धन्यवाद! हमारी टीम जल्द ही संपर्क करेगी। ☀️', 'none', NULL, NULL, 21)
           ON CONFLICT (step_id) DO NOTHING;
         `);
         console.log("Default chatbot nodes seeded");

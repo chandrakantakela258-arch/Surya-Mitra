@@ -222,7 +222,7 @@ export default function VendorRegistration() {
           <div className="text-center mb-8">
             <div className="flex items-center justify-center gap-2 mb-4">
               <Sun className="w-8 h-8 text-orange-500" />
-              <h1 className="text-2xl font-bold">Divyanshi Solar</h1>
+              <h1 className="text-2xl font-bold">Divyanshi Digital Services Pvt Ltd</h1>
             </div>
             <h2 className="text-xl font-semibold mb-2">Site Installation Vendor Registration</h2>
             <p className="text-muted-foreground">
@@ -1412,7 +1412,7 @@ export default function VendorRegistration() {
 
           <div className="mt-8 text-center text-sm text-muted-foreground">
             <p>
-              By registering, you agree to work with Divyanshi Solar for solar panel installations under PM Surya Ghar Yojana.
+              By registering, you agree to work with Divyanshi Digital Services Pvt Ltd for solar panel installations under PM Surya Ghar Yojana.
             </p>
             <p className="mt-2">
               For queries, contact us at{" "}

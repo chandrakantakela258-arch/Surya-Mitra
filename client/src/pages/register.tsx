@@ -205,7 +205,7 @@ export default function RegisterPage() {
 
   const getPanelTypeLabel = (type: string) => {
     switch (type) {
-      case "dcr_hybrid": return "DCR with 3-in-1 Hybrid Inverter";
+      case "dcr_hybrid": return "DCR with Livguard Hybrid Inverter";
       case "dcr_ongrid": return "DCR with Ongrid Inverter";
       case "non_dcr": return "Non-DCR Panel";
       default: return type;
@@ -261,7 +261,7 @@ export default function RegisterPage() {
         <Link href="/">
           <img 
             src={logoImage} 
-            alt="Divyanshi Solar" 
+            alt="Divyanshi Digital Services Pvt Ltd" 
             className="h-10 w-auto object-contain cursor-pointer"
           />
         </Link>

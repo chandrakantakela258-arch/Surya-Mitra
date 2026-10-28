@@ -1,0 +1,122 @@
+import { useEffect, useState } from "react";
+import { useRoute } from "wouter";
+
+export default function ShopJoin() {
+  const [, params] = useRoute("/shop-join/:code");
+  const code = params?.code || "";
+  const [dev, setDev] = useState<any>(null);
+  const [checking, setChecking] = useState(true);
+  const [f, setF] = useState({ shopName: "", ownerName: "", ownerWhatsapp: "", district: "", state: "Bihar", address: "", googleLocation: "" });
+  const [coords, setCoords] = useState<{ lat: string; lng: string } | null>(null);
+  const [board, setBoard] = useState<File | null>(null);
+  const [counter, setCounter] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [done, setDone] = useState<any>(null);
+  const set = (k: string) => (e: any) => setF({ ...f, [k]: e.target.value });
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch(`/api/shop/join/${encodeURIComponent(code)}`);
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || "This invite link is not valid");
+        setDev(d);
+      } catch (e: any) { setErr(e.message); } finally { setChecking(false); }
+    })();
+  }, [code]);
+
+  const locate = () => navigator.geolocation?.getCurrentPosition(
+    p => setCoords({ lat: p.coords.latitude.toFixed(6), lng: p.coords.longitude.toFixed(6) }),
+    () => setErr("Location permission refused — paste a Google Maps link instead.")
+  );
+
+  const submit = async (e: any) => {
+    e.preventDefault(); setErr("");
+    if (!board || !counter) return setErr("दोनों फोटो जरूरी हैं: दुकान का बोर्ड, और काउंटर जिसमें Divyanshi स्टैंडी दिखे।");
+    setBusy(true);
+    try {
+      const fd = new FormData();
+      Object.entries(f).forEach(([k, v]) => fd.append(k, v));
+      if (coords) { fd.append("latitude", coords.lat); fd.append("longitude", coords.lng); }
+      fd.append("boardPhoto", board); fd.append("counterPhoto", counter);
+      const r = await fetch(`/api/shop/join/${encodeURIComponent(code)}`, { method: "POST", body: fd });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setDone(d);
+    } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+  };
+
+  const L = "block text-sm font-semibold text-slate-700 mb-1";
+  const I = "w-full rounded-lg border border-slate-300 px-3 py-3 text-base outline-none focus:border-orange-500";
+
+  if (checking) return <div className="p-8 text-center text-slate-500">Loading…</div>;
+
+  if (done) return (
+    <div className="min-h-screen bg-slate-50 px-4 py-10">
+      <div className="mx-auto max-w-md rounded-xl bg-white p-6 text-center shadow-sm">
+        <p className="text-2xl">🎉</p>
+        <h1 className="mt-2 text-xl font-bold text-slate-900">आपकी दुकान रजिस्टर हो गई!</h1>
+        <p className="mt-2 text-sm text-slate-600">{done.shop.shop_name} · {done.shop.shop_code}</p>
+        <p className="mt-4 text-sm font-semibold text-slate-700">आपका डैशबोर्ड लिंक</p>
+        <code className="mt-1 block break-all rounded bg-slate-100 p-2 text-xs">{window.location.origin}{done.dashboardUrl}</code>
+        <a href={done.dashboardUrl} className="mt-4 inline-block rounded-lg bg-orange-600 px-5 py-3 font-bold text-white">
+          डैशबोर्ड खोलें
+        </a>
+        <p className="mt-3 text-xs text-slate-500">इस लिंक को सेव कर लें। यहीं से आप ग्राहकों को जोड़ सकते हैं।</p>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-slate-50 px-4 py-8">
+      <div className="mx-auto w-full max-w-md">
+        <h1 className="text-2xl font-bold text-slate-900">Divyanshi Shop Solar Partner</h1>
+        <p className="mt-1 text-sm text-slate-600">
+          अपनी दुकान रजिस्टर करें और हर सफल सोलर लीड पर कमाई करें।
+        </p>
+        {dev?.name && <p className="mt-2 text-xs text-slate-500">आमंत्रित किया: <strong>{dev.name}</strong></p>}
+
+        {err && !dev && <div className="mt-6 rounded-lg bg-red-50 p-4 text-sm text-red-700">{err}</div>}
+
+        {dev && (
+          <form onSubmit={submit} className="mt-5 space-y-4 rounded-xl bg-white p-5 shadow-sm">
+            <div><label className={L}>दुकान का नाम / Shop name *</label>
+              <input className={I} value={f.shopName} onChange={set("shopName")} required maxLength={200} /></div>
+            <div><label className={L}>मालिक का नाम / Owner name *</label>
+              <input className={I} value={f.ownerName} onChange={set("ownerName")} required maxLength={150} /></div>
+            <div><label className={L}>व्हाट्सएप नंबर / WhatsApp *</label>
+              <input className={I} value={f.ownerWhatsapp} onChange={set("ownerWhatsapp")} required inputMode="numeric" placeholder="10 अंक" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className={L}>जिला</label><input className={I} value={f.district} onChange={set("district")} /></div>
+              <div><label className={L}>राज्य</label><input className={I} value={f.state} onChange={set("state")} /></div>
+            </div>
+            <div><label className={L}>दुकान का पता</label><input className={I} value={f.address} onChange={set("address")} maxLength={500} /></div>
+
+            <div className="rounded-lg border border-slate-200 p-3">
+              <label className={L}>दुकान की लोकेशन *</label>
+              <button type="button" onClick={locate} className="w-full rounded-lg border border-slate-300 px-3 py-3 text-sm font-semibold">
+                {coords ? `सेव: ${coords.lat}, ${coords.lng}` : "दुकान पर लोकेशन लें"}
+              </button>
+              <input className={I + " mt-2"} value={f.googleLocation} onChange={set("googleLocation")} placeholder="या Google Maps लिंक पेस्ट करें" maxLength={500} />
+            </div>
+
+            <div className="rounded-lg border-2 border-dashed border-orange-300 bg-orange-50 p-3">
+              <p className="text-sm font-bold text-orange-900">दोनों फोटो जरूरी हैं</p>
+              <p className="mb-3 text-xs text-orange-800">स्टैंडी सही जगह लगाने के बाद फोटो लें।</p>
+              <label className={L}>1. दुकान के बोर्ड की फोटो *</label>
+              <input type="file" accept="image/*" capture="environment" className="mb-3 w-full text-sm" onChange={e => setBoard(e.target.files?.[0] || null)} />
+              <label className={L}>2. काउंटर की फोटो, Divyanshi स्टैंडी के साथ *</label>
+              <input type="file" accept="image/*" capture="environment" className="w-full text-sm" onChange={e => setCounter(e.target.files?.[0] || null)} />
+            </div>
+
+            {err && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{err}</div>}
+            <button disabled={busy} className="w-full rounded-lg bg-orange-600 px-3 py-3.5 text-base font-bold text-white disabled:opacity-60">
+              {busy ? "भेजा जा रहा है…" : "दुकान रजिस्टर करें"}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}

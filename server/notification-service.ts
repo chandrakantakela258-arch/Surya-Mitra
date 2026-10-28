@@ -50,8 +50,10 @@ export class NotificationService {
   private fast2smsApiKey: string | undefined;
   private aisensyApiKey: string | undefined;
   private cunnektApiKey: string | undefined;
+  private metaPhoneNumberId: string | undefined;
+  private metaAccessToken: string | undefined;
   private smsProvider: "twilio" | "fast2sms";
-  private whatsappProvider: "twilio" | "aisensy" | "cunnekt";
+  private whatsappProvider: "twilio" | "aisensy" | "cunnekt" | "meta";
   private resendApiKey: string | undefined;
   private fromEmail: string;
 
@@ -62,10 +64,12 @@ export class NotificationService {
     this.fast2smsApiKey = process.env.FAST2SMS_API_KEY;
     this.aisensyApiKey = process.env.AISENSY_API_KEY;
     this.cunnektApiKey = process.env.CUNNEKT_API_KEY;
+    this.metaPhoneNumberId = process.env.META_PHONE_NUMBER_ID || "800257033151495";
+    this.metaAccessToken = process.env.META_WHATSAPP_TOKEN;
     this.smsProvider = (process.env.SMS_PROVIDER as "twilio" | "fast2sms") || "fast2sms";
-    this.whatsappProvider = (process.env.WHATSAPP_PROVIDER as "twilio" | "aisensy" | "cunnekt") || "cunnekt";
+    this.whatsappProvider = (process.env.WHATSAPP_PROVIDER as "twilio" | "aisensy" | "cunnekt" | "meta") || "meta";
     this.resendApiKey = process.env.RESEND_API_KEY;
-    this.fromEmail = process.env.FROM_EMAIL || "notifications@divyanshisolar.com";
+    this.fromEmail = process.env.FROM_EMAIL || "notifications@divyanshisolar.in";
   }
 
   private formatPhoneNumber(phone: string): string {
@@ -80,6 +84,9 @@ export class NotificationService {
   }
 
   async sendWhatsAppMessage(to: string, message: string, campaignName?: string, templateParams?: string[], userName?: string, imageUrl?: string): Promise<boolean> {
+    if (this.whatsappProvider === "meta") {
+      return this.sendWhatsAppViaMeta(to, message, campaignName, templateParams, imageUrl);
+    }
     if (this.whatsappProvider === "cunnekt") {
       return this.sendWhatsAppViaCunnekt(to, message, campaignName, templateParams, imageUrl);
     }
@@ -87,6 +94,58 @@ export class NotificationService {
       return this.sendWhatsAppViaAiSensy(to, message, campaignName, templateParams, userName);
     }
     return this.sendWhatsAppViaTwilio(to, message);
+  }
+
+  private async sendWhatsAppViaMeta(to: string, message: string, templateName?: string, templateParams?: string[], imageUrl?: string): Promise<boolean> {
+    const token = this.metaAccessToken || process.env.META_WHATSAPP_TOKEN || process.env.META_ACCESS_TOKEN;
+    const phoneNumberId = this.metaPhoneNumberId || "800257033151495";
+    if (!token) {
+      console.error("[Meta WhatsApp] META_WHATSAPP_TOKEN not configured");
+      return false;
+    }
+    try {
+      const phone = to.replace(/\D/g, "");
+      const formattedPhone = phone.startsWith("91") ? phone : "91" + phone.slice(-10);
+      let body: any;
+      if (templateName) {
+        const components: any[] = [];
+        if (imageUrl) {
+          components.push({ type: "header", parameters: [{ type: "image", image: { link: imageUrl } }] });
+        }
+        if (templateParams && templateParams.length > 0 && templateParams[0] !== "") {
+          components.push({ type: "body", parameters: templateParams.map(p => ({ type: "text", text: p })) });
+        }
+        const cleanName = templateName!.split(" · ")[0].trim(); const langMap: Record<string,string> = {"english":"en","hindi":"hi","en":"en","hi":"hi"}; const langPart = (templateName!.split(" · ")[1] || "hi").trim().toLowerCase(); const langCode = langMap[langPart] || "hi"; body = { messaging_product: "whatsapp", to: formattedPhone, type: "template", template: { name: cleanName, language: { code: langCode } } };
+      } else {
+        body = { messaging_product: "whatsapp", to: formattedPhone, type: "text", text: { body: message } };
+      }
+      const response = await fetch(`https://graph.facebook.com/v18.0/${phoneNumberId}/messages`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const result = await response.json() as any;
+      if (response.ok) {
+        const msgId = result.messages?.[0]?.id;
+        console.log(`[Meta WhatsApp] Sent to ${formattedPhone}:`, msgId);
+        if (msgId) {
+          const { Pool } = await import('pg');
+          const pool2 = new Pool({ connectionString: process.env.DATABASE_URL });
+          await pool2.query(
+            'INSERT INTO whatsapp_broadcasts (message_id, recipient_phone, recipient_name, template_name, provider, status, sent_at) VALUES ($1,$2,$3,$4,$5,$6,NOW()) ON CONFLICT (message_id) DO NOTHING',
+            [msgId, formattedPhone, formattedPhone, templateName||'direct', 'meta', 'sent']
+          ).catch(e => console.error('[WA Save Error]', e.message));
+          await pool2.end().catch(() => {});
+        }
+        return true;
+      } else {
+        console.error(`[Meta WhatsApp] Failed:`, result);
+        return false;
+      }
+    } catch (error) {
+      console.error("[Meta WhatsApp] Error:", error);
+      return false;
+    }
   }
 
   private async sendWhatsAppViaAiSensy(to: string, message: string, campaignName?: string, templateParams?: string[], userName?: string): Promise<boolean> {
@@ -115,7 +174,7 @@ export class NotificationService {
         apiKey: this.aisensyApiKey,
         campaignName: campaignName || "Divyanshi_Partner_Meeting",
         destination: phoneNumber,
-        userName: userName || "Divyanshi digital service pvt ltd",
+        userName: userName || "Divyanshi Digital Services Pvt Ltd",
         templateParams: templateParams || [],
         source: "divyanshi_solar_app",
         media: {},
@@ -670,7 +729,7 @@ export class NotificationService {
       <body style="font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f4f4f4;">
         <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px;">
           <div style="text-align: center; padding: 20px 0; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); border-radius: 8px;">
-            <h1 style="color: white; margin: 0; font-size: 24px;">Divyanshi Solar</h1>
+            <h1 style="color: white; margin: 0; font-size: 24px;">Prayga India Private Limited</h1>
             <p style="color: rgba(255,255,255,0.9); margin: 5px 0 0 0; font-size: 14px;">PM Surya Ghar Yojana Partner</p>
           </div>
           
@@ -681,7 +740,7 @@ export class NotificationService {
             
             <div style="background-color: #fff7ed; border-left: 4px solid #f97316; padding: 15px; margin: 20px 0;">
               <p style="margin: 0; color: #9a3412; font-size: 14px;">
-                <strong>Need help?</strong> Contact your local partner or reach us at support@divyanshisolar.com
+                <strong>Need help?</strong> Contact your local partner or reach us at support@divyanshisolar.in
               </p>
             </div>
           </div>
@@ -699,7 +758,7 @@ export class NotificationService {
   }
 
   private generateWhatsAppMessage(title: string, description: string, customerName: string): string {
-    return `*Divyanshi Solar - PM Surya Ghar Yojana*
+    return `*Prayga India Private Limited - PM Surya Ghar Yojana*
 
 *${title}*
 
@@ -709,7 +768,7 @@ ${description}
 
 For any queries, contact your local partner.
 
-_Thank you for choosing Divyanshi Solar!_`;
+_Thank you for choosing Prayga India Private Limited!_`;
   }
 
   async notifyCustomerStatusChange(data: CustomerStatusNotification): Promise<{
@@ -745,7 +804,7 @@ _Thank you for choosing Divyanshi Solar!_`;
 
     if ((prefs?.smsNotifications === "true" || !prefs) && !results.whatsapp) {
       results.sms = await this.sendSMS(data.customerPhone, 
-        `Divyanshi Solar: ${statusInfo.title} - ${statusInfo.description.substring(0, 100)}...`
+        `Prayga India Private Limited: ${statusInfo.title} - ${statusInfo.description.substring(0, 100)}...`
       );
     }
 
@@ -753,7 +812,7 @@ _Thank you for choosing Divyanshi Solar!_`;
       const emailHtml = this.generateEmailHtml(statusInfo.title, statusInfo.description, data.customerName);
       results.email = await this.sendEmail(
         data.customerEmail,
-        `Divyanshi Solar: ${statusInfo.title}`,
+        `Prayga India Private Limited: ${statusInfo.title}`,
         emailHtml
       );
     }
@@ -812,13 +871,13 @@ _Thank you for choosing Divyanshi Solar!_`;
     if (prefs?.whatsappNotifications === "true" || !prefs) {
       await this.sendWhatsAppMessage(
         partnerPhone,
-        `*Divyanshi Solar*\n\n${title}\n\n${message}\n\n_Keep up the great work!_`
+        `*Prayga India Private Limited*\n\n${title}\n\n${message}\n\n_Keep up the great work!_`
       );
     }
 
     if ((prefs?.emailNotifications === "true" || !prefs) && partnerEmail) {
       const emailHtml = this.generateEmailHtml(title, message, "Partner");
-      await this.sendEmail(partnerEmail, `Divyanshi Solar: ${title}`, emailHtml);
+      await this.sendEmail(partnerEmail, `Prayga India Private Limited: ${title}`, emailHtml);
     }
   }
 
@@ -852,17 +911,18 @@ _Thank you for choosing Divyanshi Solar!_`;
 
     if ((prefs?.emailNotifications === "true" || !prefs) && customerEmail) {
       const emailHtml = this.generateEmailHtml(title, message, customerName);
-      await this.sendEmail(customerEmail, `Divyanshi Solar: ${title}`, emailHtml);
+      await this.sendEmail(customerEmail, `Prayga India Private Limited: ${title}`, emailHtml);
     }
   }
 
-  isConfigured(): { twilio: boolean; resend: boolean; aisensy: boolean; fast2sms: boolean; cunnekt: boolean } {
+  isConfigured(): { twilio: boolean; resend: boolean; aisensy: boolean; fast2sms: boolean; cunnekt: boolean; meta: boolean } {
     return {
       twilio: !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER),
       resend: !!process.env.RESEND_API_KEY,
       aisensy: !!process.env.AISENSY_API_KEY,
       fast2sms: !!process.env.FAST2SMS_API_KEY,
       cunnekt: !!process.env.CUNNEKT_API_KEY,
+      meta: !!process.env.META_WHATSAPP_TOKEN,
     };
   }
 
@@ -893,7 +953,7 @@ _Thank you for choosing Divyanshi Solar!_`;
           message.replace(/\{\{name\}\}/g, recipient.name),
           templateId || undefined,
           personalizedParams || [],
-          "Divyanshi digital service pvt ltd",
+          "Divyanshi Digital Services Pvt Ltd",
           imageUrl
         );
 
@@ -964,7 +1024,7 @@ _Thank you for choosing Divyanshi Solar!_`;
       <body style="font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f4f4f4;">
         <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px;">
           <div style="text-align: center; padding: 20px 0; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); border-radius: 8px;">
-            <h1 style="color: white; margin: 0; font-size: 24px;">Divyanshi Solar</h1>
+            <h1 style="color: white; margin: 0; font-size: 24px;">Prayga India Private Limited</h1>
             <p style="color: rgba(255,255,255,0.9); margin: 5px 0 0 0; font-size: 14px;">PM Surya Ghar Yojana Partner Network</p>
           </div>
           
@@ -975,7 +1035,7 @@ _Thank you for choosing Divyanshi Solar!_`;
             
             <div style="background-color: #fff7ed; border-left: 4px solid #f97316; padding: 15px; margin: 20px 0;">
               <p style="margin: 0; color: #9a3412; font-size: 14px;">
-                <strong>Important:</strong> This is an official communication from Divyanshi Solar admin team.
+                <strong>Important:</strong> This is an official communication from Prayga India Private Limited admin team.
               </p>
             </div>
           </div>
@@ -994,3 +1054,25 @@ _Thank you for choosing Divyanshi Solar!_`;
 }
 
 export const notificationService = new NotificationService();
+
+export async function saveWhatsAppBroadcast(data: {
+  messageId: string;
+  recipientPhone: string;
+  recipientName: string;
+  templateName?: string;
+  broadcastId?: string;
+  provider?: string;
+}) {
+  try {
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    await pool.query(`
+      INSERT INTO whatsapp_broadcasts (message_id, recipient_phone, recipient_name, template_name, broadcast_id, provider, status, sent_at)
+      VALUES ($1, $2, $3, $4, $5, $6, 'sent', NOW())
+      ON CONFLICT (message_id) DO NOTHING
+    `, [data.messageId, data.recipientPhone, data.recipientName, data.templateName || null, data.broadcastId || null, data.provider || 'meta']);
+    await pool.end();
+  } catch (e: any) {
+    console.error('[WhatsApp Broadcast Save Error]', e.message);
+  }
+}

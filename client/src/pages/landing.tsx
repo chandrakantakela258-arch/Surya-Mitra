@@ -223,7 +223,7 @@ export default function LandingPage() {
             <div className="flex items-center">
               <img 
                 src={logoImage} 
-                alt="Divyanshi Solar - Powering Every Home" 
+                alt="Divyanshi Digital Services Pvt Ltd - Powering Every Home" 
                 className="h-14 sm:h-16 md:h-18 w-auto object-contain drop-shadow-sm"
               />
             </div>
@@ -244,15 +244,14 @@ export default function LandingPage() {
                 data-testid="nav-sunpunch"
               >
                 <Battery className="w-4 h-4 text-purple-500" />
-                SunPunch
+                Livguard
               </button>
-              <WouterLink href="/ib-solar-panels">
-                <button 
+              <WouterLink href="/pm-surya-ghar-grievance">
+                <button
                   className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-200"
-                  data-testid="nav-ib-solar-panels"
                 >
-                  <Sun className="w-4 h-4 text-amber-500" />
-                  IB Solar Panels
+                  <span className="text-red-500 text-base">📋</span>
+                  PM Surya Ghar Grievance
                 </button>
               </WouterLink>
               <WouterLink href="/network-map">
@@ -340,15 +339,12 @@ export default function LandingPage() {
                   data-testid="mobile-nav-sunpunch"
                 >
                   <Battery className="w-4 h-4 text-purple-500" />
-                  SunPunch
+                  Livguard
                 </button>
-                <WouterLink href="/ib-solar-panels" onClick={() => setMobileMenuOpen(false)}>
-                  <div 
-                    className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left"
-                    data-testid="mobile-nav-ib-solar-panels"
-                  >
-                    <Sun className="w-4 h-4 text-amber-500" />
-                    IB Solar Panels
+                <WouterLink href="/pm-surya-ghar-grievance" onClick={() => setMobileMenuOpen(false)}>
+                  <div className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left">
+                    <span className="text-red-500 text-base">📋</span>
+                    PM Surya Ghar Grievance
                   </div>
                 </WouterLink>
                 <WouterLink href="/network-map" onClick={() => setMobileMenuOpen(false)}>
@@ -487,10 +483,10 @@ export default function LandingPage() {
             </div>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6">
               Power Your Home with
-              <span className="text-primary block mt-2">Free Solar Energy</span>
+              <span className="text-primary block mt-2">Affordable Solar Energy</span>
             </h1>
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Join India's largest rooftop solar installation program. Get up to Rs 78,000 subsidy 
+              Join India's largest rooftop solar installation program. Get up to Rs 98,000 subsidy in Bihar (Rs 78,000 central + Rs 20,000 state) 
               and reduce your electricity bills to zero.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -502,7 +498,7 @@ export default function LandingPage() {
               </a>
               <WouterLink href="/register">
                 <Button size="lg" variant="outline" className="gap-2 w-full sm:w-auto" data-testid="hero-partner-button">
-                  Join Divyanshi Solar Partner Network
+                  Join Divyanshi Digital Services Pvt Ltd Partner Network
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </WouterLink>
@@ -535,8 +531,8 @@ export default function LandingPage() {
             </Card>
             <Card>
               <CardContent className="p-6 text-center">
-                <div className="text-3xl font-bold text-primary">Rs 78,000</div>
-                <div className="text-sm text-muted-foreground mt-1">Max Subsidy (3 kW)</div>
+                <div className="text-3xl font-bold text-primary">Rs 98,000</div>
+                <div className="text-sm text-muted-foreground mt-1">Max Subsidy in Bihar (3 kW)</div>
               </CardContent>
             </Card>
             <Card>
@@ -611,7 +607,7 @@ export default function LandingPage() {
                   <div>
                     <h3 className="font-semibold text-lg mb-2">Limited Time Subsidy</h3>
                     <p className="text-sm text-muted-foreground">
-                      PM Surya Ghar Yojana offers up to Rs 78,000 subsidy only until 2027. After that, you pay full price for the same system.
+                      PM Surya Ghar Yojana offers up to Rs 78,000 central subsidy only until 2027, and Bihar's additional Rs 20,000 is first-come-first-served. After that, you pay full price for the same system.
                     </p>
                   </div>
                 </div>
@@ -675,7 +671,7 @@ export default function LandingPage() {
                   <div className="space-y-4">
                     <div className="flex items-center gap-3">
                       <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
-                      <span><strong>300+ units free</strong> electricity per month with 3kW system</span>
+                      <span><strong>300+ units</strong> electricity savings per month with 3kW system</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
@@ -711,9 +707,9 @@ export default function LandingPage() {
       <section id="about" className="py-20 bg-muted/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">About Divyanshi Solar</h2>
+            <h2 className="text-3xl font-bold mb-4">About Divyanshi Digital Services Pvt Ltd</h2>
             <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-              Divyanshi Solar is an Authorized Marketing Partner of Hewtech System Pvt. Ltd. (Registered with - SBPDCL & NBPDCL), committed to helping 
+              Divyanshi Digital Services Pvt Ltd is an  (Registered Vendor with SBPDCL & NBPDCL under PM-Surya Ghar: Muft Bijli Yojana Rooftop Solar Program), committed to helping 
               Indian households transition to clean, reliable, and affordable solar energy.
             </p>
           </div>
@@ -723,7 +719,7 @@ export default function LandingPage() {
             <CardContent className="p-6">
               <h3 className="font-semibold text-xl mb-4">Our Legacy</h3>
               <p className="text-muted-foreground mb-4">
-                Divyanshi Solar is a brand of <span className="font-medium text-foreground">Divyanshi Digital Services Pvt. Ltd.</span>, 
+                Divyanshi Digital Services Pvt Ltd is a brand of <span className="font-medium text-foreground">Divyanshi Digital Services Pvt. Ltd.</span>, 
                 a company incorporated on 11th December 2017, with a strong legacy of executing large-scale, 
                 technology-driven infrastructure projects across India.
               </p>
@@ -747,7 +743,7 @@ export default function LandingPage() {
               </div>
               <p className="text-muted-foreground">
                 This deep experience in nationwide deployment, compliance, partner management, and operations 
-                forms the backbone of Divyanshi Solar. Today, we are applying the same execution excellence to 
+                forms the backbone of Divyanshi Digital Services Pvt Ltd. Today, we are applying the same execution excellence to 
                 the renewable energy sector.
               </p>
             </CardContent>
@@ -852,7 +848,7 @@ export default function LandingPage() {
               <h2 className="text-3xl font-bold mb-6">Why Renewable Energy?</h2>
               <p className="text-muted-foreground mb-6">
                 India receives abundant sunlight throughout the year, making it ideal for solar power generation. 
-                By harnessing this free, clean energy, you can significantly reduce your carbon footprint while 
+                By harnessing this clean, renewable energy, you can significantly reduce your carbon footprint while 
                 saving money on electricity bills.
               </p>
               <div className="space-y-4">
@@ -928,9 +924,9 @@ export default function LandingPage() {
               <Sun className="w-4 h-4" />
               Government of India Initiative
             </div>
-            <h2 className="text-3xl font-bold mb-4">PM Surya Ghar Muft Bijli Yojana</h2>
+            <h2 className="text-3xl font-bold mb-4">PM Surya Ghar Yojana</h2>
             <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-              A flagship scheme by the Government of India to provide free electricity to 1 crore households 
+              A flagship scheme by the Government of India to provide subsidized solar electricity to 1 crore households 
               through rooftop solar installations.
             </p>
           </div>
@@ -1032,7 +1028,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* SunPunch Inverter Section */}
+      {/* Livguard Inverter Section */}
       <section id="sunpunch" className="py-20 bg-muted/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
@@ -1040,7 +1036,7 @@ export default function LandingPage() {
               <Zap className="w-4 h-4" />
               Recommended Technology
             </div>
-            <h2 className="text-3xl font-bold mb-4">SunPunch Trimax 3-in-1 Inverter</h2>
+            <h2 className="text-3xl font-bold mb-4">Livguard Hybrid Solar Inverter</h2>
             <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
               India's only On-Grid + Off-Grid + Hybrid inverter by Statcon Powertech. 
               The most versatile solar inverter for your home.
@@ -1091,7 +1087,7 @@ export default function LandingPage() {
 
             <Card>
               <CardContent className="p-6">
-                <h3 className="font-semibold text-xl mb-6">Why Choose SunPunch Trimax?</h3>
+                <h3 className="font-semibold text-xl mb-6">Why Choose Livguard Trimax?</h3>
                 <div className="space-y-4">
                   <div className="flex items-start gap-3">
                     <CheckCircle2 className="w-5 h-5 text-primary mt-0.5" />
@@ -1503,7 +1499,7 @@ export default function LandingPage() {
             <WouterLink href="/register">
               <Button className="gap-2" data-testid="button-state-become-partner">
                 <Users className="w-4 h-4" />
-                Join Divyanshi Solar Partner Network
+                Join Divyanshi Digital Services Pvt Ltd Partner Network
               </Button>
             </WouterLink>
           </div>
@@ -1515,7 +1511,7 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-bold mb-4">Ready to Go Solar?</h2>
           <p className="text-lg opacity-90 mb-8">
-            Join thousands of households already benefiting from free solar electricity. 
+            Join thousands of households already benefiting from subsidized solar electricity. 
             Calculate your subsidy or join our partner network today.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -1528,7 +1524,7 @@ export default function LandingPage() {
             <WouterLink href="/register">
               <Button size="lg" variant="outline" className="gap-2 w-full sm:w-auto bg-transparent border-primary-foreground text-primary-foreground hover:bg-primary-foreground/10" data-testid="cta-partner-button">
                 <Users className="w-5 h-5" />
-                Join Divyanshi Solar Partner Network
+                Join Divyanshi Digital Services Pvt Ltd Partner Network
               </Button>
             </WouterLink>
           </div>
@@ -1553,9 +1549,9 @@ export default function LandingPage() {
                 </div>
                 <h3 className="font-semibold text-lg mb-2">Office Address</h3>
                 <p className="text-muted-foreground text-sm">
-                  Hewtech System Pvt. Ltd. (Registered with - SBPDCL & NBPDCL)<br />
-                  Golu Babu Market, Ashiyana Digha Road,<br />
-                  Rajiv Nagar, Patna, 800025
+                  Divyanshi Digital Services Pvt Ltd (Registered Vendor with SBPDCL & NBPDCL under PM-Surya Ghar: Muft Bijli Yojana Rooftop Solar Program)<br />
+                  Plot No. C-3/258, Shreyansh Apartment,<br />
+                  Chitrakoot Scheme, Vaishali Nagar, Jaipur, Rajasthan 302021
                 </p>
               </CardContent>
             </Card>
@@ -1620,7 +1616,7 @@ export default function LandingPage() {
               <div className="mb-4">
                 <img 
                   src={logoImage} 
-                  alt="Divyanshi Solar" 
+                  alt="Divyanshi Digital Services Pvt Ltd" 
                   className="h-12 w-auto object-contain"
                 />
               </div>
@@ -1628,10 +1624,10 @@ export default function LandingPage() {
                 A brand of Divyanshi Digital Services Pvt. Ltd.
               </p>
               <p className="text-sm text-muted-foreground mb-1">
-                Authorized Marketing Partner of Hewtech System Pvt. Ltd.
+                
               </p>
               <p className="text-sm text-muted-foreground mb-4">
-                Registered with - SBPDCL & NBPDCL
+                Registered Vendor with SBPDCL & NBPDCL under PM-Surya Ghar: Muft Bijli Yojana Rooftop Solar Program
               </p>
               <p className="text-xs text-muted-foreground">
                 CIN: U93090BR2017PTC036522

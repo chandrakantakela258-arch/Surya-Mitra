@@ -56,7 +56,7 @@ export default function NotificationSettingsPage() {
   const [editingTemplate, setEditingTemplate] = useState<NotificationTemplate | null>(null);
   const [testPhone, setTestPhone] = useState("");
   const [testEmail, setTestEmail] = useState("");
-  const [testMessage, setTestMessage] = useState("Test notification from Divyanshi Solar");
+  const [testMessage, setTestMessage] = useState("Test notification from Divyanshi Digital Services Pvt Ltd");
   
   // Broadcast state
   const [broadcastSubject, setBroadcastSubject] = useState("");
@@ -243,7 +243,7 @@ export default function NotificationSettingsPage() {
                 </div>
                 <div>
                   <p className="font-medium">WhatsApp</p>
-                  <p className="text-xs text-muted-foreground">Cunnekt</p>
+                  <p className="text-xs text-muted-foreground">Meta WhatsApp</p>
                 </div>
               </div>
               {configLoading ? (
@@ -530,16 +530,16 @@ export default function NotificationSettingsPage() {
               />
             </div>
             <div>
-              <Label htmlFor="testTemplateId">WhatsApp Template ID (Cunnekt)</Label>
+              <Label htmlFor="testTemplateId">WhatsApp Template ID (Meta WhatsApp)</Label>
               <Input
                 id="testTemplateId"
                 value={testTemplateId}
                 onChange={(e) => setTestTemplateId(e.target.value)}
-                placeholder="Enter Cunnekt template ID"
+                placeholder="Enter Meta WhatsApp template ID"
                 data-testid="input-test-template-id"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Get Template ID from Cunnekt Dashboard &gt; Template List
+                Get Template ID from Meta WhatsApp Dashboard &gt; Template List
               </p>
             </div>
             <div>
@@ -660,16 +660,16 @@ export default function NotificationSettingsPage() {
             </div>
             
             <div>
-              <Label htmlFor="broadcastTemplateId">WhatsApp Template ID (Cunnekt)</Label>
+              <Label htmlFor="broadcastTemplateId">WhatsApp Template ID (Meta WhatsApp)</Label>
               <Input
                 id="broadcastTemplateId"
                 value={broadcastTemplateId}
                 onChange={(e) => setBroadcastTemplateId(e.target.value)}
-                placeholder="Enter Cunnekt template ID for WhatsApp"
+                placeholder="Enter Meta WhatsApp template ID for WhatsApp"
                 data-testid="input-broadcast-template-id"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Required for WhatsApp. Get from Cunnekt Dashboard &gt; Template List
+                Required for WhatsApp. Get from Meta WhatsApp Dashboard &gt; Template List
               </p>
             </div>
 

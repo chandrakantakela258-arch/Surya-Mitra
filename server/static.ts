@@ -7,6 +7,18 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export function serveStatic(app: Express) {
+  // SEO: 301 duplicate routes to their canonical twin (2026-09-11)
+  const SEO_REDIRECTS: Record<string, string> = {
+    "/grievance": "/pm-surya-ghar-grievance",
+  };
+  app.use((req, res, next) => {
+    if (req.method !== "GET" && req.method !== "HEAD") return next();
+    const to = SEO_REDIRECTS[req.path.replace(/\/+$/, "") || "/"];
+    if (!to) return next();
+    const q = req.originalUrl.indexOf("?");
+    res.redirect(301, "https://divyanshisolar.in" + to + (q >= 0 ? req.originalUrl.slice(q) : ""));
+  });
+
   const distPath = path.resolve(__dirname, "public");
   if (!fs.existsSync(distPath)) {
     throw new Error(
@@ -23,8 +35,32 @@ export function serveStatic(app: Express) {
 
   app.use(express.static(distPath));
 
+  app.use("*.html", (req, res) => {
+    const filePath = path.resolve(distPath, req.path.slice(1));
+    if (fs.existsSync(filePath)) {
+      res.sendFile(filePath);
+    } else {
+      res.status(404).send("Not found");
+    }
+  });
   app.use("*", (_req, res) => {
     res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-    res.sendFile(path.resolve(distPath, "index.html"));
+    // SEO: per-route canonical + og:url + twitter:url, rendered server-side (2026-09-11)
+    {
+      const SEO_ORIGIN = "https://divyanshisolar.in";
+      const seoEsc = (s: string) =>
+        s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const seoPath = String(res.req?.originalUrl || "/").split("?")[0].split("#")[0];
+      const seoUrl = seoEsc(SEO_ORIGIN + (seoPath.replace(/\/+$/, "") || "/"));
+      try {
+        const seoHtml = fs.readFileSync(path.resolve(distPath, "index.html"), "utf-8")
+          .replace(/<link[^>]*rel=["']canonical["'][^>]*>/i, `<link rel="canonical" href="${seoUrl}" />`)
+          .replace(/<meta[^>]*property=["']og:url["'][^>]*>/i, `<meta property="og:url" content="${seoUrl}" />`)
+          .replace(/<meta[^>]*name=["']twitter:url["'][^>]*>/i, `<meta name="twitter:url" content="${seoUrl}" />`);
+        res.status(200).type("html").send(seoHtml);
+      } catch {
+        res.sendFile(path.resolve(distPath, "index.html"));
+      }
+    }
   });
 }

@@ -1,0 +1,3251 @@
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sun, IndianRupee, Zap, TrendingDown, MapPin, BatteryCharging, Power, Check, Users, Home, Building2, Factory, FileText, Share2, Mail, MessageCircle, Download, Wallet, Loader2, Grid3X3 } from "lucide-react";
+import { SolarPanel3D } from "./solar-panel-3d";
+import { indianStates } from "@shared/schema";
+import { jsPDF } from "jspdf";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import pmSuryaGharImage from "@assets/PM_Surya_Ghar_Yojana_-_Bluebird_Solar_ce42b9b9-5592-4660-b4f5_1766775803880.webp";
+
+// Helper function to load image and convert to base64
+const loadImageAsBase64 = (imageSrc: string): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0);
+        const dataURL = canvas.toDataURL('image/png');
+        resolve(dataURL);
+      } else {
+        reject(new Error('Failed to get canvas context'));
+      }
+    };
+    img.onerror = () => reject(new Error('Failed to load image'));
+    img.src = imageSrc;
+  });
+};
+
+const stateSubsidies: Record<string, { ratePerKw: number; maxSubsidy: number; label: string }> = {
+  "Odisha": { ratePerKw: 20000, maxSubsidy: 60000, label: "Odisha State Subsidy" },
+  "Uttar Pradesh": { ratePerKw: 10000, maxSubsidy: 30000, label: "UP State Subsidy" },
+  "Chhattisgarh": { ratePerKw: 10000, maxSubsidy: 30000, label: "Chhattisgarh State Subsidy" },
+};
+
+// Customer types with capacity limits
+type CustomerType = "residential" | "commercial" | "industrial";
+
+const customerTypeConfig: Record<CustomerType, { 
+  label: string; 
+  maxCapacity: number; 
+  description: string;
+  icon: any;
+  subsidyEligible: boolean;
+}> = {
+  residential: { 
+    label: "Residential", 
+    maxCapacity: 10, 
+    description: "Home rooftop solar (1-10 kW)",
+    icon: Home,
+    subsidyEligible: true
+  },
+  commercial: { 
+    label: "Commercial", 
+    maxCapacity: 100, 
+    description: "Shops, offices, schools (1-100 kW)",
+    icon: Building2,
+    subsidyEligible: false
+  },
+  industrial: { 
+    label: "Industrial", 
+    maxCapacity: 1000, 
+    description: "Factories, warehouses (50-1000 kW)",
+    icon: Factory,
+    subsidyEligible: false
+  },
+};
+
+// DCR Panel Pricing
+const DCR_HYBRID_RATE_PER_WATT = 75;  // With 3-in-1 Hybrid Inverter
+const DCR_ONGRID_RATE_PER_WATT = 66;  // With Ongrid Inverter
+
+// Non-DCR Panel Pricing
+const NON_DCR_ONGRID_RATE_PER_WATT = 45;      // Non-DCR with Ongrid Inverter
+const NON_DCR_HYBRID_RATE_PER_WATT = 62;       // Non-DCR with 3-in-1 Hybrid Inverter (3KW-6KW only)
+const NON_DCR_COMMERCIAL_RATE_PER_WATT = 45;
+
+// Battery Cost Per Watt (for adding to plant cost)
+const BATTERY_COST_LEAD_ACID_PER_WATT = 13;
+const BATTERY_COST_LITHIUM_ION_PER_WATT = 22;
+
+type BatteryCostType = "lead_acid" | "lithium_ion";
+const BATTERY_COST_RATES: Record<BatteryCostType, { rate: number; label: string }> = {
+  lead_acid: { rate: BATTERY_COST_LEAD_ACID_PER_WATT, label: "Lead Acid" },
+  lithium_ion: { rate: BATTERY_COST_LITHIUM_ION_PER_WATT, label: "Lithium Ion" },
+};
+
+// Inverter capacity options and pricing
+const INVERTER_MODELS: Record<number, { hybrid: { name: string; price: number; voltage: string }; ongrid: { name: string; price: number } }> = {
+  3:  { hybrid: { name: "SunPunch Trimax 3kW 24V Hybrid", price: 25000, voltage: "24V" }, ongrid: { name: "SunPunch 3kW Ongrid", price: 18000 } },
+  5:  { hybrid: { name: "SunPunch Trimax 5kW 48V Hybrid", price: 42000, voltage: "48V" }, ongrid: { name: "SunPunch 5kW Ongrid", price: 30000 } },
+  6:  { hybrid: { name: "SunPunch Trimax 6kW 48V Hybrid", price: 52000, voltage: "48V" }, ongrid: { name: "SunPunch 6kW Ongrid", price: 36000 } },
+  8:  { hybrid: { name: "SunPunch 8kW 48V Hybrid", price: 68000, voltage: "48V" }, ongrid: { name: "SunPunch 8kW Ongrid", price: 48000 } },
+  10: { hybrid: { name: "SunPunch 10kW 48V Hybrid", price: 85000, voltage: "48V" }, ongrid: { name: "SunPunch 10kW Ongrid", price: 58000 } },
+};
+
+function getInverterOptions(plantKW: number, invType: InverterType): number[] {
+  const all = [3, 5, 6, 8, 10];
+  return all.filter(k => k >= plantKW || (plantKW <= 3 && k === 3));
+}
+
+function getInverterUpcharge(plantKW: number, selectedInvKW: number, invType: InverterType): number {
+  const baseKW = Math.min(...getInverterOptions(plantKW, invType));
+  if (selectedInvKW <= baseKW) return 0;
+  const basePrice = invType === "hybrid" ? INVERTER_MODELS[baseKW].hybrid.price : INVERTER_MODELS[baseKW].ongrid.price;
+  const selPrice = invType === "hybrid" ? INVERTER_MODELS[selectedInvKW].hybrid.price : INVERTER_MODELS[selectedInvKW].ongrid.price;
+  return selPrice - basePrice;
+}
+
+// Default per-kW rates for itemized quotation (from rate card)
+const DEFAULT_ITEM_RATES = {
+  panels: 30000,
+  inverter: 16000,
+  structure: 6000,
+  wiring: 6000,
+  netMetering: 2000,
+  transport: 2000,
+  installation: 3000,
+  misc: 2500,
+  service: 4000,
+  contractor: 3500,
+};
+
+// Battery rate is per kW (already exists as BATTERY_COST per watt)
+// 13000 per kW = 13 per watt (lead acid)
+
+interface ItemRates {
+  panels: number;
+  inverter: number;
+  structure: number;
+  wiring: number;
+  netMetering: number;
+  transport: number;
+  installation: number;
+  misc: number;
+  service: number;
+  contractor: number;
+}
+
+function computeTotalFromRates(rates: ItemRates, capacityKW: number, includeNetMetering: boolean, batteryAmount: number, inverterUpcharge: number): number {
+  let total = 0;
+  total += rates.panels * capacityKW;
+  total += rates.inverter * capacityKW;
+  total += rates.structure * capacityKW;
+  total += rates.wiring * capacityKW;
+  if (includeNetMetering) total += rates.netMetering * capacityKW;
+  total += rates.transport * capacityKW;
+  total += rates.installation * capacityKW;
+  total += rates.misc * capacityKW;
+  total += rates.service * capacityKW;
+  total += rates.contractor * capacityKW;
+  total += batteryAmount;
+  total += inverterUpcharge;
+  return total;
+}
+
+
+function getInverterModelName(kw: number, invType: InverterType): string {
+  const m = INVERTER_MODELS[kw];
+  if (!m) return `${kw}kW ${invType === "hybrid" ? "Hybrid" : "Ongrid"} Inverter`;
+  return invType === "hybrid" ? m.hybrid.name : m.ongrid.name;
+}
+
+
+type InverterType = "hybrid" | "ongrid";
+
+interface SubsidyResult {
+  capacity: number;
+  totalCost: number;
+  centralSubsidy: number;
+  stateSubsidy: number;
+  totalSubsidy: number;
+  netCost: number;
+  downPayment: number;
+  downPaymentPercent: number;
+  loanAmount: number;
+  monthlyGeneration: number;
+  dailyGeneration: number;
+  annualSavings: number;
+  monthlySavings: number;
+  paybackYears: number;
+  state: string;
+  emiMonthly: number;
+  emiTenure: number;
+  panelType: string;
+  inverterType: InverterType;
+  ratePerWatt: number;
+  customerType: CustomerType;
+  subsidyEligible: boolean;
+  // EMI options for different tenures (calculated on loan amount after down payment)
+  emi36Months: number;
+  emi48Months: number;
+  emi60Months: number;
+  emi72Months: number;
+  emi84Months: number;
+  emi96Months: number;
+  emi108Months: number;
+  emi120Months: number;
+  loanWithoutSubsidy: number;
+  emiA36: number; emiA48: number; emiA60: number; emiA72: number; emiA84: number;
+  emiA96: number; emiA108: number; emiA120: number;
+  batteryCostAmount: number;
+  totalCostWithBattery: number;
+  inverterUpcharge: number;
+  inverterModelName: string;
+  inverterCapacityKW: number;
+}
+
+interface CommissionResult {
+  ddpCommission: number;
+  bdpCommission: number;
+  sdpCommission: number;
+  sdpDirectBonus: number;
+  totalCommission: number;
+}
+
+function calculateEMI(principal: number, annualRate: number = 10, tenureMonths: number = 60): number {
+  if (principal <= 0) return 0;
+  const monthlyRate = annualRate / 12 / 100;
+  const emi = principal * monthlyRate * Math.pow(1 + monthlyRate, tenureMonths) / 
+              (Math.pow(1 + monthlyRate, tenureMonths) - 1);
+  return Math.round(emi);
+}
+
+function calculateCommission(capacityKW: number, panelType: string, customerType: string = "residential", teamStructure: string = "direct", userRole: string = "ddp"): CommissionResult {
+  let ddpCommission = 0;
+  let bdpCommission = 0;
+  let sdpCommission = 0;
+
+  const isMarketingTeam = teamStructure === "marketing_team";
+
+  if (isMarketingTeam) {
+    // BDP -> SDP -> DDP Marketing Team Structure
+    if (panelType === "dcr") {
+      ddpCommission = capacityKW * 4000;
+      sdpCommission = capacityKW * 2000;
+      bdpCommission = capacityKW * 1500;
+    } else {
+      ddpCommission = capacityKW * 1500;
+      sdpCommission = capacityKW * 1000;
+      bdpCommission = capacityKW * 500;
+    }
+    // SDP direct customer: SDP gets SDP + DDP share
+    if (userRole === "sdp_direct") {
+      sdpCommission = sdpCommission + ddpCommission;
+      ddpCommission = 0;
+    }
+  } else {
+    // BDP -> DDP Direct Structure
+    if (panelType === "dcr") {
+      ddpCommission = capacityKW * 5000;
+      bdpCommission = capacityKW * 2500;
+    } else {
+      ddpCommission = capacityKW * 2000;
+      bdpCommission = capacityKW * 1000;
+    }
+  }
+
+  return {
+    ddpCommission,
+    bdpCommission,
+    sdpCommission,
+    sdpDirectBonus: 0,
+    totalCommission: ddpCommission + bdpCommission + sdpCommission,
+  };
+}
+
+function calculateSubsidy(
+  capacityKW: number, 
+  state: string = "", 
+  panelType: string = "dcr", 
+  inverterType: InverterType = "hybrid",
+  customerType: CustomerType = "residential",
+  interestRate: number = 6,
+  electricityUnitRate: number = 7,
+  downPaymentPercent: number = 15,
+  customRatePerWatt: number | null = null,
+  includeBatteryCost: boolean = false,
+  batteryCostType: BatteryCostType = "lead_acid",
+  inverterCapacityKW: number = 0
+): SubsidyResult {
+  let ratePerWatt: number;
+  const defaultRate = panelType === "dcr"
+    ? (inverterType === "hybrid" ? DCR_HYBRID_RATE_PER_WATT : DCR_ONGRID_RATE_PER_WATT)
+    : (inverterType === "hybrid" ? NON_DCR_HYBRID_RATE_PER_WATT : NON_DCR_ONGRID_RATE_PER_WATT);
+  if (customRatePerWatt !== null && customRatePerWatt > 0) {
+    ratePerWatt = Math.max(customRatePerWatt, defaultRate);
+  } else {
+    ratePerWatt = defaultRate;
+  }
+  
+  const basePlantCost = capacityKW * ratePerWatt * 1000;
+  const batteryCostAmount = includeBatteryCost ? capacityKW * 1000 * BATTERY_COST_RATES[batteryCostType].rate : 0;
+  const effectiveInvKW = inverterCapacityKW > 0 ? inverterCapacityKW : capacityKW;
+  const inverterUpcharge = getInverterUpcharge(capacityKW, effectiveInvKW, inverterType);
+  const inverterModelName = getInverterModelName(effectiveInvKW, inverterType);
+  const totalCost = basePlantCost + batteryCostAmount + inverterUpcharge;
+  
+  // Subsidy only for residential DCR installations up to 3 kW
+  const subsidyEligible = customerType === "residential" && panelType === "dcr";
+  
+  let centralSubsidy = 0;
+  let stateSubsidy = 0;
+  
+  if (subsidyEligible) {
+    if (capacityKW <= 2) {
+      centralSubsidy = capacityKW * 30000;
+    } else if (capacityKW <= 3) {
+      centralSubsidy = 2 * 30000 + (capacityKW - 2) * 18000;
+    } else {
+      centralSubsidy = 78000; // Max subsidy capped at 3 kW equivalent
+    }
+    
+    if (state && stateSubsidies[state]) {
+      const calculatedStateSubsidy = Math.min(capacityKW, 3) * stateSubsidies[state].ratePerKw;
+      stateSubsidy = Math.min(calculatedStateSubsidy, stateSubsidies[state].maxSubsidy);
+    }
+  }
+  
+  const totalSubsidy = centralSubsidy + stateSubsidy;
+  const netCost = Math.max(0, totalCost - totalSubsidy);
+  
+  // Calculate down payment as percentage of plant cost (totalCost), not net cost
+  const downPayment = Math.round(totalCost * (downPaymentPercent / 100));
+  const loanAmount = Math.max(0, netCost - downPayment);
+  const loanWithoutSubsidy = Math.max(0, totalCost - downPayment);
+  
+  // Power generation: 4 units per kW per day average
+  const dailyGeneration = capacityKW * 4;
+  const monthlyGeneration = dailyGeneration * 30;
+  
+  // Use custom electricity unit rate for savings calculation
+  const unitCost = electricityUnitRate;
+  const monthlySavings = monthlyGeneration * unitCost;
+  const annualSavings = monthlySavings * 12;
+  
+  const paybackYears = netCost > 0 ? netCost / annualSavings : 0;
+  
+  // Calculate EMI for different tenures using custom interest rate on LOAN AMOUNT (not netCost)
+  const emiTenure = 60;
+  const emiMonthly = calculateEMI(loanAmount, interestRate, emiTenure);
+  const emi36Months = calculateEMI(loanAmount, interestRate, 36);
+  const emi48Months = calculateEMI(loanAmount, interestRate, 48);
+  const emi60Months = calculateEMI(loanAmount, interestRate, 60);
+  const emi72Months = calculateEMI(loanAmount, interestRate, 72);
+  const emi84Months = calculateEMI(loanAmount, interestRate, 84);
+  const emi96Months = calculateEMI(loanAmount, interestRate, 96);
+  const emi108Months = calculateEMI(loanAmount, interestRate, 108);
+  const emi120Months = calculateEMI(loanAmount, interestRate, 120);
+  const emiA36 = calculateEMI(loanWithoutSubsidy, interestRate, 36);
+  const emiA48 = calculateEMI(loanWithoutSubsidy, interestRate, 48);
+  const emiA60 = calculateEMI(loanWithoutSubsidy, interestRate, 60);
+  const emiA72 = calculateEMI(loanWithoutSubsidy, interestRate, 72);
+  const emiA84 = calculateEMI(loanWithoutSubsidy, interestRate, 84);
+  const emiA96 = calculateEMI(loanWithoutSubsidy, interestRate, 96);
+  const emiA108 = calculateEMI(loanWithoutSubsidy, interestRate, 108);
+  const emiA120 = calculateEMI(loanWithoutSubsidy, interestRate, 120);
+  
+  return {
+    capacity: capacityKW,
+    totalCost,
+    centralSubsidy,
+    stateSubsidy,
+    totalSubsidy,
+    netCost,
+    downPayment,
+    downPaymentPercent,
+    loanAmount,
+    dailyGeneration,
+    monthlyGeneration,
+    monthlySavings,
+    annualSavings,
+    paybackYears: Math.round(paybackYears * 10) / 10,
+    state,
+    emiMonthly,
+    emiTenure,
+    panelType,
+    inverterType,
+    ratePerWatt,
+    customerType,
+    subsidyEligible,
+    emi36Months,
+    emi48Months,
+    emi60Months,
+    emi72Months,
+    emi84Months,
+    emi96Months,
+    emi108Months,
+    emi120Months,
+    loanWithoutSubsidy,
+    emiA36, emiA48, emiA60, emiA72, emiA84, emiA96, emiA108, emiA120,
+    batteryCostAmount,
+    totalCostWithBattery: totalCost,
+    inverterUpcharge,
+    inverterModelName,
+    inverterCapacityKW: effectiveInvKW,
+  };
+}
+
+function formatINR(amount: number): string {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+function formatINRPlain(amount: number): string {
+  return new Intl.NumberFormat("en-IN", {
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+interface ProposalData {
+  customerName: string;
+  partnerName: string;
+  partnerPhone: string;
+  installationAddress: string;
+  capacity: number;
+  panelType: string;
+  inverterType: string;
+  customerType: string;
+  totalCost: number;
+  centralSubsidy: number;
+  stateSubsidy: number;
+  totalSubsidy: number;
+  netCost: number;
+  downPayment: number;
+  downPaymentPercent: number;
+  loanAmount: number;
+  selectedTenure: number;
+  selectedEmi: number;
+  interestRate: number;
+  electricityRate: number;
+  monthlyGeneration: number;
+  monthlySavings: number;
+  annualSavings: number;
+  effectiveMonthlyPayment: number;
+  paybackYears: number;
+  state: string;
+  ratePerWatt: number;
+  emi36Months: number;
+  emi48Months: number;
+  emi60Months: number;
+  emi72Months: number;
+  emi84Months: number;
+  emi96Months: number;
+  emi108Months: number;
+  emi120Months: number;
+  includeBattery: boolean;
+  batteryCostAmount: number;
+  loanWithoutSubsidy: number;
+  emiA36: number;
+  emiA48: number;
+  emiA60: number;
+  emiA72: number;
+  emiA84: number;
+  emiA96: number;
+  emiA108: number;
+  emiA120: number;
+  inverterModelName: string;
+  inverterCapacityKW: number;
+  inverterUpcharge: number;
+  includeNetMetering: boolean;
+  itemRates: ItemRates;
+  pmSuryaGharImageData?: string;
+}
+
+function generateProposalPDF(data: ProposalData): jsPDF {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 15;
+  const contentWidth = pageWidth - (margin * 2);
+  
+  const primaryColor: [number, number, number] = [255, 102, 0];
+  const darkColor: [number, number, number] = [33, 33, 33];
+  const grayColor: [number, number, number] = [100, 100, 100];
+  const lightGray: [number, number, number] = [150, 150, 150];
+  const greenColor: [number, number, number] = [34, 139, 34];
+  const blueColor: [number, number, number] = [41, 98, 255];
+  const whiteColor: [number, number, number] = [255, 255, 255];
+  
+  const totalPages = 12;
+  
+  const addHeader = (pageNum: number, sectionTitle: string) => {
+    doc.setFillColor(...primaryColor);
+    doc.rect(0, 0, pageWidth, 8, 'F');
+    
+    doc.setFillColor(250, 250, 250);
+    doc.rect(0, 8, pageWidth, 22, 'F');
+    
+    doc.setTextColor(...darkColor);
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("DIVYANSHI SOLAR", margin, 22);
+    
+    doc.setTextColor(...lightGray);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text(sectionTitle, pageWidth - margin, 22, { align: "right" });
+    
+    doc.setDrawColor(230, 230, 230);
+    doc.setLineWidth(0.5);
+    doc.line(0, 30, pageWidth, 30);
+  };
+  
+  const addFooter = (pageNum: number) => {
+    doc.setDrawColor(230, 230, 230);
+    doc.setLineWidth(0.5);
+    doc.line(margin, pageHeight - 20, pageWidth - margin, pageHeight - 20);
+    
+    doc.setTextColor(...lightGray);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text("Divyanshi Solar - Authorized Marketing Partner of Prayga India Private Limited | Nation Wide Discoms", margin, pageHeight - 12);
+    doc.text(`Page ${pageNum} of ${totalPages}`, pageWidth - margin, pageHeight - 12, { align: "right" });
+  };
+  
+  // ========== PAGE 1: COVER PAGE ==========
+  // Add PM Surya Ghar Yojana image at the top if available
+  let headerEndY = 0;
+  if (data.pmSuryaGharImageData) {
+    try {
+      // Image dimensions: original is ~900x600, we'll scale proportionally
+      const imgWidth = pageWidth;
+      const imgHeight = 55; // Reduced height for header banner
+      doc.addImage(data.pmSuryaGharImageData, 'PNG', 0, 0, imgWidth, imgHeight);
+      headerEndY = imgHeight;
+    } catch (e) {
+      console.error('Failed to add image to PDF:', e);
+      headerEndY = 0;
+    }
+  }
+  
+  // Company branding section below image
+  const brandingY = headerEndY > 0 ? headerEndY : 0;
+  doc.setFillColor(...primaryColor);
+  doc.rect(0, brandingY, pageWidth, 35, 'F');
+  
+  doc.setTextColor(...whiteColor);
+  doc.setFontSize(20);
+  doc.setFont("helvetica", "bold");
+  doc.text("DIVYANSHI SOLAR", pageWidth / 2, brandingY + 15, { align: "center" });
+  
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("(Prayga India Private Limited | Registered with - Nation Wide Discoms)", pageWidth / 2, brandingY + 24, { align: "center" });
+  
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "italic");
+  doc.text("\"For us Customers are not clients - They are Family\"", pageWidth / 2, brandingY + 32, { align: "center" });
+  
+  // Main title
+  let y = brandingY + 50;
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(26);
+  doc.setFont("helvetica", "bold");
+  doc.text("SOLAR ROOFTOP SYSTEM PROPOSAL", pageWidth / 2, y, { align: "center" });
+  
+  // Decorative line
+  y += 8;
+  doc.setDrawColor(...primaryColor);
+  doc.setLineWidth(3);
+  doc.line(pageWidth / 2 - 60, y, pageWidth / 2 + 60, y);
+  
+  // Customer details grid with prominent borders
+  y += 18;
+  const boxWidth = 82;
+  const boxHeight = 36;
+  const boxGap = 8;
+  const leftX = (pageWidth - (boxWidth * 2 + boxGap)) / 2;
+  const rightX = leftX + boxWidth + boxGap;
+  
+  // Row 1 - Customer Name & Location
+  doc.setFillColor(255, 250, 245);
+  doc.roundedRect(leftX, y, boxWidth, boxHeight, 4, 4, 'F');
+  doc.roundedRect(rightX, y, boxWidth, boxHeight, 4, 4, 'F');
+  doc.setDrawColor(...primaryColor);
+  doc.setLineWidth(1);
+  doc.roundedRect(leftX, y, boxWidth, boxHeight, 4, 4, 'S');
+  doc.roundedRect(rightX, y, boxWidth, boxHeight, 4, 4, 'S');
+  
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.text("PREPARED FOR", leftX + 6, y + 10);
+  doc.text("STATE", rightX + 6, y + 10);
+  
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(data.customerName || "Valued Customer", leftX + 6, y + 25);
+  doc.text(data.state || "India", rightX + 6, y + 25);
+  
+  // Row 2 - Capacity & Date
+  y += boxHeight + 6;
+  doc.setFillColor(255, 250, 245);
+  doc.roundedRect(leftX, y, boxWidth, boxHeight, 4, 4, 'F');
+  doc.roundedRect(rightX, y, boxWidth, boxHeight, 4, 4, 'F');
+  doc.setDrawColor(...primaryColor);
+  doc.roundedRect(leftX, y, boxWidth, boxHeight, 4, 4, 'S');
+  doc.roundedRect(rightX, y, boxWidth, boxHeight, 4, 4, 'S');
+  
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.text("SYSTEM CAPACITY", leftX + 6, y + 10);
+  doc.text("PROPOSAL DATE", rightX + 6, y + 10);
+  
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${data.capacity} kWp`, leftX + 6, y + 25);
+  doc.text(new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }), rightX + 6, y + 25);
+  
+  // Row 3 - Property & System Type
+  y += boxHeight + 6;
+  doc.setFillColor(255, 250, 245);
+  doc.roundedRect(leftX, y, boxWidth, boxHeight, 4, 4, 'F');
+  doc.roundedRect(rightX, y, boxWidth, boxHeight, 4, 4, 'F');
+  doc.setDrawColor(...primaryColor);
+  doc.roundedRect(leftX, y, boxWidth, boxHeight, 4, 4, 'S');
+  doc.roundedRect(rightX, y, boxWidth, boxHeight, 4, 4, 'S');
+  
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.text("PROPERTY TYPE", leftX + 6, y + 10);
+  doc.text("SYSTEM TYPE", rightX + 6, y + 10);
+  
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(data.customerType.charAt(0).toUpperCase() + data.customerType.slice(1), leftX + 6, y + 25);
+  doc.text(data.inverterType === "hybrid" ? `Hybrid Inverter (${data.inverterCapacityKW || data.capacity}kW)` : `Ongrid Inverter (${data.inverterCapacityKW || data.capacity}kW)`, rightX + 6, y + 25);
+  
+  addFooter(1);
+  
+  // ========== PAGE 2: PROJECT DETAILS ==========
+  doc.addPage();
+  addHeader(2, "PROJECT DETAILS");
+  
+  y = 45;
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text("Installation & Partner Details", margin, y);
+  
+  // Installation Address Section
+  y += 20;
+  if (data.installationAddress) {
+    doc.setFillColor(240, 255, 240);
+    doc.roundedRect(margin, y, contentWidth, 35, 4, 4, 'F');
+    doc.setDrawColor(...greenColor);
+    doc.setLineWidth(1.5);
+    doc.roundedRect(margin, y, contentWidth, 35, 4, 4, 'S');
+    
+    doc.setTextColor(...greenColor);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("PROPOSED PLANT INSTALLATION SITE", margin + 10, y + 12);
+    
+    doc.setTextColor(...darkColor);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    const addressLines = doc.splitTextToSize(data.installationAddress, contentWidth - 20);
+    doc.text(addressLines.slice(0, 2), margin + 10, y + 25);
+    y += 45;
+  }
+  
+  // Partner info section
+  if (data.partnerName || data.partnerPhone) {
+    doc.setFillColor(240, 248, 255);
+    doc.roundedRect(margin, y, contentWidth, 35, 4, 4, 'F');
+    doc.setDrawColor(...blueColor);
+    doc.setLineWidth(1.5);
+    doc.roundedRect(margin, y, contentWidth, 35, 4, 4, 'S');
+    
+    doc.setTextColor(...blueColor);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("YOUR DISTRICT PARTNER", margin + 10, y + 12);
+    
+    doc.setTextColor(...darkColor);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    const partnerInfo = data.partnerName ? `${data.partnerName}${data.partnerPhone ? ` | +91-${data.partnerPhone}` : ''}` : `+91-${data.partnerPhone}`;
+    doc.text(partnerInfo, margin + 10, y + 25);
+    y += 45;
+  }
+  
+  // Quick system overview
+  y += 10;
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("System Overview", margin, y);
+  
+  y += 15;
+  const overviewItems = [
+    { label: "Customer Name", value: data.customerName || "Valued Customer" },
+    { label: "System Capacity", value: `${data.capacity} kWp` },
+    { label: "Panel Type", value: data.panelType === "dcr" ? "DCR (Subsidy Eligible)" : "Non-DCR" },
+    { label: "Inverter Type", value: data.inverterType === "hybrid" ? "Hybrid (Battery Ready)" : "Ongrid" },
+    { label: "State", value: data.state || "India" },
+  ];
+  
+  overviewItems.forEach((item, idx) => {
+    doc.setFillColor(idx % 2 === 0 ? 250 : 255, idx % 2 === 0 ? 250 : 255, idx % 2 === 0 ? 250 : 255);
+    doc.roundedRect(margin, y, contentWidth, 14, 2, 2, 'F');
+    
+    doc.setTextColor(...darkColor);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text(item.label, margin + 8, y + 9);
+    doc.setFont("helvetica", "bold");
+    doc.text(item.value, pageWidth - margin - 8, y + 9, { align: "right" });
+    y += 16;
+  });
+  
+  addFooter(2);
+  
+  // ========== PAGE 3: WHY SOLAR ==========
+  doc.addPage();
+  addHeader(3, "WHY SOLAR");
+  
+  y = 45;
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(20);
+  doc.setFont("helvetica", "bold");
+  doc.text("Power Your Home with Free Solar Energy", margin, y);
+  
+  y = 58;
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  const introText = "Join India's largest rooftop solar installation program. Get up to Rs 78,000 subsidy and reduce your electricity bills to zero.";
+  doc.text(doc.splitTextToSize(introText, contentWidth), margin, y);
+  
+  y = 80;
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("Why Every Indian Home Needs Solar", margin, y);
+  
+  y = 92;
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  const whyText = "With rising electricity costs and growing energy demands, rooftop solar is no longer optional - it's essential for India's energy security and your family's financial future.";
+  doc.text(doc.splitTextToSize(whyText, contentWidth), margin, y);
+  
+  // Benefits grid
+  y = 115;
+  const benefitW = (contentWidth - 10) / 2;
+  const benefitH = 42;
+  
+  const solarBenefits = [
+    { title: "Rising Electricity Costs", desc: "Electricity tariffs have increased by 30-50% in the last 5 years. Solar locks in your energy costs for 25+ years.", icon: "Rs" },
+    { title: "Growing Energy Demand", desc: "With EVs, ACs, and smart appliances, household energy consumption is doubling every decade.", icon: "+" },
+    { title: "Limited Time Subsidy", desc: "PM Surya Ghar Yojana offers up to Rs 78,000 subsidy only until 2027. After that, you pay full price.", icon: "!" },
+    { title: "Earn From Surplus Power", desc: "Net metering allows you to sell excess electricity back to the grid. Turn your rooftop into income.", icon: "Rs" },
+  ];
+  
+  solarBenefits.forEach((benefit, i) => {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const bx = margin + col * (benefitW + 10);
+    const by = y + row * (benefitH + 8);
+    
+    doc.setFillColor(250, 250, 250);
+    doc.roundedRect(bx, by, benefitW, benefitH, 2, 2, 'F');
+    
+    doc.setTextColor(...primaryColor);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text(benefit.title, bx + 8, by + 12);
+    
+    doc.setTextColor(...grayColor);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text(doc.splitTextToSize(benefit.desc, benefitW - 16), bx + 8, by + 22);
+  });
+  
+  // Impact stats
+  y = 220;
+  doc.setFillColor(...primaryColor);
+  doc.roundedRect(margin, y, contentWidth, 45, 3, 3, 'F');
+  
+  doc.setTextColor(...whiteColor);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("National Impact of PM Surya Ghar Yojana", pageWidth / 2, y + 14, { align: "center" });
+  
+  const statW = contentWidth / 2;
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("720 Million Tonnes CO2 Saved over 25 years", margin + statW / 2, y + 30, { align: "center" });
+  doc.text("17 Lakh Jobs Created in solar sector", margin + statW + statW / 2, y + 30, { align: "center" });
+  
+  addFooter(3);
+  
+  // ========== PAGE 4: ABOUT US ==========
+  doc.addPage();
+  addHeader(4, "ABOUT US");
+  
+  y = 45;
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(20);
+  doc.setFont("helvetica", "bold");
+  doc.text("About DIVYANSHI SOLAR", margin, y);
+  
+  y = 60;
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  const aboutText = "DIVYANSHI SOLAR delivers premium renewable energy solutions focused on long-term value, substantial savings, and lifetime customer support. We are committed to transforming how India consumes energy through innovative solar technology.";
+  doc.text(doc.splitTextToSize(aboutText, contentWidth), margin, y);
+  
+  // Experience section
+  y = 88;
+  doc.setFillColor(248, 248, 248);
+  doc.roundedRect(margin, y, contentWidth, 50, 3, 3, 'F');
+  
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  const expText = "For the last 8 years, we have been closely associated with Hitachi Payment Services Pvt. Ltd., delivering mission-critical financial infrastructure. This deep experience in nationwide deployment, compliance, partner management, and operations forms the backbone of Divyanshi Solar.";
+  doc.text(doc.splitTextToSize(expText, contentWidth - 20), margin + 10, y + 14);
+  
+  // Stats
+  const statBoxW = (contentWidth - 20) / 3;
+  const statsY = y + 55;
+  
+  doc.setFillColor(255, 248, 240);
+  doc.roundedRect(margin, statsY, statBoxW, 35, 2, 2, 'F');
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text("300+", margin + statBoxW / 2, statsY + 15, { align: "center" });
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "normal");
+  doc.text("White Label ATMs", margin + statBoxW / 2, statsY + 26, { align: "center" });
+  
+  doc.setFillColor(240, 255, 240);
+  doc.roundedRect(margin + statBoxW + 10, statsY, statBoxW, 35, 2, 2, 'F');
+  doc.setTextColor(...greenColor);
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text("500+", margin + statBoxW + 10 + statBoxW / 2, statsY + 15, { align: "center" });
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "normal");
+  doc.text("ATMs Sourced", margin + statBoxW + 10 + statBoxW / 2, statsY + 26, { align: "center" });
+  
+  doc.setFillColor(240, 248, 255);
+  doc.roundedRect(margin + statBoxW * 2 + 20, statsY, statBoxW, 35, 2, 2, 'F');
+  doc.setTextColor(...blueColor);
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text("5,000+", margin + statBoxW * 2 + 20 + statBoxW / 2, statsY + 15, { align: "center" });
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "normal");
+  doc.text("Partners Onboarded", margin + statBoxW * 2 + 20 + statBoxW / 2, statsY + 26, { align: "center" });
+  
+  // Values section
+  y = statsY + 50;
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("Our Values", margin, y);
+  
+  const values = [
+    { title: "Trust & Transparency", desc: "Complete honesty in pricing and processes" },
+    { title: "Execution Excellence", desc: "Timely installation and regulatory compliance" },
+    { title: "Sustainability First", desc: "Every installation protects our environment" },
+    { title: "Partner Empowerment", desc: "Enabling local partners to grow with us" },
+    { title: "Nation Building", desc: "Aligned with India's vision of self-reliance" },
+    { title: "Customer-Centric", desc: "Simple processes and long-term support" },
+  ];
+  
+  const valueW = (contentWidth - 10) / 2;
+  const valueH = 22;
+  y += 10;
+  
+  values.forEach((val, i) => {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const vx = margin + col * (valueW + 10);
+    const vy = y + row * (valueH + 5);
+    
+    doc.setFillColor(250, 250, 250);
+    doc.roundedRect(vx, vy, valueW, valueH, 2, 2, 'F');
+    
+    doc.setTextColor(...primaryColor);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text(val.title, vx + 6, vy + 9);
+    
+    doc.setTextColor(...grayColor);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text(val.desc, vx + 6, vy + 17);
+  });
+  
+  addFooter(4);
+  
+  // ========== PAGE 5: BENEFITS ==========
+  doc.addPage();
+  
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("BENEFITS", pageWidth - 20, 20, { align: "right" });
+  
+  y = 50;
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.text("Why Choose DIVYANSHI SOLAR", 20, y);
+  
+  y = 75;
+  const benefitBoxWidth = (pageWidth - 50) / 2;
+  const benefitBoxHeight = 50;
+  
+  const benefits = [
+    { title: "Financial Savings", desc: "Dramatically reduce your monthly electricity bills and build lifetime savings with solar power.", color: primaryColor },
+    { title: "Government Support", desc: `PM Surya Ghar Yojana subsidy credited directly to your account - up to Rs ${formatINRPlain(data.totalSubsidy)} benefits.`, color: greenColor },
+    { title: "Sustainability", desc: "Zero emission clean energy that protects our environment for future generations.", color: blueColor },
+    { title: "Property Value", desc: "Solar installations significantly increase your property's market value and appeal.", color: [139, 69, 19] as [number, number, number] },
+  ];
+  
+  benefits.forEach((benefit, i) => {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const x = 20 + col * (benefitBoxWidth + 10);
+    const boxY = y + row * (benefitBoxHeight + 15);
+    
+    doc.setFillColor(250, 250, 250);
+    doc.rect(x, boxY, benefitBoxWidth, benefitBoxHeight, 'F');
+    
+    doc.setTextColor(...benefit.color);
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text(benefit.title, x + 10, boxY + 15);
+    
+    doc.setTextColor(...darkColor);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    const descText = doc.splitTextToSize(benefit.desc, benefitBoxWidth - 20);
+    doc.text(descText, x + 10, boxY + 28);
+  });
+  
+  y = 210;
+  doc.setFillColor(255, 102, 0);
+  doc.rect(20, y, pageWidth - 40, 40, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("25-Year Performance Warranty", pageWidth / 2, y + 18, { align: "center" });
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("Complete peace of mind with our industry-leading warranty coverage.", pageWidth / 2, y + 30, { align: "center" });
+  
+  addFooter(5);
+  
+  // ========== PAGE 6: SUNPUNCH INVERTER ==========
+  doc.addPage();
+  
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("INVERTER TECHNOLOGY", pageWidth - 20, 20, { align: "right" });
+  
+  y = 50;
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.text("Sunpunch Inverter", 20, y);
+  
+  y = 68;
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  doc.text("Premium Quality Inverter for Your Solar System", 20, y);
+  
+  // Main inverter highlight box
+  y = 85;
+  doc.setFillColor(255, 248, 240);
+  doc.roundedRect(margin, y, contentWidth, 55, 4, 4, 'F');
+  doc.setDrawColor(...primaryColor);
+  doc.setLineWidth(2);
+  doc.roundedRect(margin, y, contentWidth, 55, 4, 4, 'S');
+  
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text("SUNPUNCH", margin + 15, y + 20);
+  doc.setFontSize(12);
+  doc.text(data.inverterType === "hybrid" ? "3-in-1 Hybrid Inverter" : "On-Grid Inverter", margin + 15, y + 35);
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("Made in India | BIS Certified | MNRE Approved", margin + 15, y + 48);
+  
+  // Key Features
+  y = 150;
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("Key Features", margin, y);
+  
+  const inverterFeatures = [
+    { title: "High Efficiency", desc: "Up to 98.6% conversion efficiency for maximum power output" },
+    { title: "Smart MPPT", desc: "Advanced Maximum Power Point Tracking for optimal energy harvest" },
+    { title: "WiFi Monitoring", desc: "Real-time monitoring via mobile app - track generation anytime" },
+    { title: "Wide Voltage Range", desc: "Works efficiently even in low voltage conditions" },
+    { title: "5 Year Warranty", desc: "Comprehensive manufacturer warranty with local service support" },
+    { title: "IP65 Protection", desc: "Dust and water resistant for outdoor installation" },
+  ];
+  
+  y = 165;
+  const featureW = (contentWidth - 10) / 2;
+  const featureH = 32;
+  
+  inverterFeatures.forEach((feat, i) => {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const fx = margin + col * (featureW + 10);
+    const fy = y + row * (featureH + 6);
+    
+    doc.setFillColor(250, 250, 250);
+    doc.roundedRect(fx, fy, featureW, featureH, 3, 3, 'F');
+    
+    doc.setTextColor(...primaryColor);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text(feat.title, fx + 8, fy + 12);
+    
+    doc.setTextColor(...grayColor);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    const descLines = doc.splitTextToSize(feat.desc, featureW - 16);
+    doc.text(descLines.slice(0, 2), fx + 8, fy + 23);
+  });
+  
+  // Hybrid vs Ongrid comparison - positioned safely above footer (footer at pageHeight - 20 = 277)
+  const inverterBoxY = 248;
+  if (data.inverterType === "hybrid") {
+    doc.setFillColor(240, 255, 240);
+    doc.roundedRect(margin, inverterBoxY, contentWidth, 26, 4, 4, 'F');
+    doc.setDrawColor(...greenColor);
+    doc.setLineWidth(1);
+    doc.roundedRect(margin, inverterBoxY, contentWidth, 26, 4, 4, 'S');
+    
+    doc.setTextColor(...greenColor);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("3-in-1 HYBRID ADVANTAGE", margin + 12, inverterBoxY + 10);
+    
+    doc.setTextColor(...darkColor);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text("Solar Inverter + Battery Charger + UPS in One Unit | Battery Backup Ready", margin + 12, inverterBoxY + 20);
+  } else {
+    doc.setFillColor(240, 248, 255);
+    doc.roundedRect(margin, inverterBoxY, contentWidth, 26, 4, 4, 'F');
+    doc.setDrawColor(...blueColor);
+    doc.setLineWidth(1);
+    doc.roundedRect(margin, inverterBoxY, contentWidth, 26, 4, 4, 'S');
+    
+    doc.setTextColor(...blueColor);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("ON-GRID INVERTER BENEFITS", margin + 12, inverterBoxY + 10);
+    
+    doc.setTextColor(...darkColor);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text("Direct Grid Connection | Net Metering Compatible | Maximum Savings", margin + 12, inverterBoxY + 20);
+  }
+  
+  addFooter(6);
+  
+  // ========== PAGE 7: INVESTMENT SUMMARY ==========
+  doc.addPage();
+
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("INVESTMENT", pageWidth - 20, 20, { align: "right" });
+
+  y = 50;
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.text("Investment Summary", 20, y);
+
+  y = 62;
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`${data.capacity} kWp ${data.inverterType === "hybrid" ? "Hybrid" : "Ongrid"} Solar Rooftop System`, 20, y);
+
+  // Project Cost Box
+  y = 76;
+  doc.setFillColor(250, 250, 250);
+  doc.rect(20, y, pageWidth - 40, 24, 'F');
+
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("Project Cost", 30, y + 15);
+  doc.text(formatINR(data.totalCost), pageWidth - 30, y + 15, { align: "right" });
+
+  // Orange divider line
+  y += 26;
+  doc.setDrawColor(...primaryColor);
+  doc.setLineWidth(2);
+  doc.line(20, y, pageWidth - 20, y);
+
+  // Total Project Cost
+  y += 4;
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("Total Project Cost", 30, y + 10);
+  doc.text(formatINR(data.totalCost), pageWidth - 30, y + 10, { align: "right" });
+
+  // Payment Structure Box
+  y += 16;
+  doc.setFillColor(240, 255, 240);
+  doc.roundedRect(20, y, pageWidth - 40, 46, 4, 4, 'F');
+  doc.setDrawColor(...greenColor);
+  doc.setLineWidth(1.5);
+  doc.roundedRect(20, y, pageWidth - 40, 46, 4, 4, 'S');
+
+  doc.setTextColor(...greenColor);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("Payment Structure", 30, y + 12);
+
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Down Payment (${data.downPaymentPercent}% of Plant Cost):`, 30, y + 26);
+  doc.setFont("helvetica", "bold");
+  doc.text(formatINR(data.downPayment), 140, y + 26);
+
+  doc.setFont("helvetica", "normal");
+  doc.text("Net Loan Amount:", 30, y + 38);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...primaryColor);
+  doc.text(formatINR(data.loanAmount), 140, y + 38);
+
+  // Subsidy box
+  y += 54;
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.setFillColor(255, 248, 240);
+  doc.roundedRect(20, y - 8, pageWidth - 40, 38, 4, 4, 'F');
+  doc.setDrawColor(...primaryColor);
+  doc.setLineWidth(1);
+  doc.roundedRect(20, y - 8, pageWidth - 40, 38, 4, 4, 'S');
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text("Applicable Subsidies", 30, y + 3);
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Central Govt Subsidy (PM Surya Ghar):`, 30, y + 14);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...greenColor);
+  doc.text(`Rs ${formatINRPlain(data.centralSubsidy)}`, pageWidth - 30, y + 14, { align: "right" });
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  doc.text(`State Government Subsidy:`, 30, y + 25);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...greenColor);
+  doc.text(`Rs ${formatINRPlain(data.stateSubsidy)}`, pageWidth - 30, y + 25, { align: "right" });
+  y += 30;
+
+  // Three savings boxes
+  y += 20;
+  const savingsBoxWidth = (pageWidth - 60) / 3;
+  const savingsBoxHeight = 40;
+
+  // Annual Savings
+  doc.setFillColor(240, 255, 240);
+  doc.roundedRect(20, y, savingsBoxWidth, savingsBoxHeight, 4, 4, 'F');
+  doc.setDrawColor(...greenColor);
+  doc.setLineWidth(1);
+  doc.roundedRect(20, y, savingsBoxWidth, savingsBoxHeight, 4, 4, 'S');
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("ANNUAL SAVINGS", 20 + savingsBoxWidth / 2, y + 12, { align: "center" });
+  doc.setTextColor(...greenColor);
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text(formatINR(data.annualSavings), 20 + savingsBoxWidth / 2, y + 30, { align: "center" });
+
+  // 25-Year Savings
+  doc.setFillColor(255, 250, 240);
+  doc.roundedRect(30 + savingsBoxWidth, y, savingsBoxWidth, savingsBoxHeight, 4, 4, 'F');
+  doc.setDrawColor(...primaryColor);
+  doc.setLineWidth(1);
+  doc.roundedRect(30 + savingsBoxWidth, y, savingsBoxWidth, savingsBoxHeight, 4, 4, 'S');
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("25-YEAR SAVINGS", 30 + savingsBoxWidth + savingsBoxWidth / 2, y + 12, { align: "center" });
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text(formatINR(data.annualSavings * 25), 30 + savingsBoxWidth + savingsBoxWidth / 2, y + 30, { align: "center" });
+
+  // Payback Period
+  doc.setFillColor(240, 248, 255);
+  doc.roundedRect(40 + savingsBoxWidth * 2, y, savingsBoxWidth, savingsBoxHeight, 4, 4, 'F');
+  doc.setDrawColor(...blueColor);
+  doc.setLineWidth(1);
+  doc.roundedRect(40 + savingsBoxWidth * 2, y, savingsBoxWidth, savingsBoxHeight, 4, 4, 'S');
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("PAYBACK PERIOD", 40 + savingsBoxWidth * 2 + savingsBoxWidth / 2, y + 12, { align: "center" });
+  doc.setTextColor(...blueColor);
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${data.paybackYears} Years`, 40 + savingsBoxWidth * 2 + savingsBoxWidth / 2, y + 30, { align: "center" });
+
+  addFooter(7);
+
+  // ========== PAGE 8: ITEMIZED QUOTATION ==========
+  doc.addPage();
+  addHeader(8, "ITEMIZED QUOTATION");
+
+  y = 45;
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(20);
+  doc.setFont("helvetica", "bold");
+  doc.text("Itemized Cost Quotation", margin, y);
+
+  y += 12;
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`${data.capacity} kWp ${data.panelType === "dcr" ? "DCR" : "Non-DCR"} Solar System | ${data.inverterType === "hybrid" ? "Hybrid" : "Ongrid"} Inverter`, margin, y);
+
+  // Per-kW rates from actual quotation data
+  const cap = data.capacity;
+  const panelRatePerKW = data.panelType === "dcr" ? 28000 : 18000;
+  const getHybridInvRate = (kw: number) => {
+    if (kw <= 6) return 16000;
+    if (kw <= 10) return 18000;
+    if (kw <= 15) return 26000;
+    if (kw <= 20) return 21000;
+    if (kw <= 35) return 16500;
+    if (kw <= 50) return 14500;
+    if (kw <= 70) return 13500;
+    return 13000;
+  };
+  const getOngridInvRate = (kw: number) => {
+    if (kw <= 6) return 6000;
+    if (kw <= 10) return 4000;
+    return 3000;
+  };
+  const inverterRatePerKW = data.inverterType === "hybrid" ? getHybridInvRate(cap) : getOngridInvRate(cap);
+
+  const ir = data.itemRates || DEFAULT_ITEM_RATES;
+  const quotationItems: Array<{sn: number; desc: string; amount: number; hidden?: boolean}> = [
+    { sn: 1,  desc: `TopCon Bifacial N-Type ${data.panelType === "dcr" ? "DCR" : "Non-DCR"} Solar Panels`, amount: ir.panels * data.capacity },
+    { sn: 2,  desc: `UTL/Livguard/Statcon 3-in-1 ${data.inverterType === "hybrid" ? "Hybrid" : "Ongrid"} Inverter (${data.inverterCapacityKW || data.capacity}kW)`, amount: ir.inverter * data.capacity },
+    { sn: 3,  desc: "Galvanized Iron Mounting Structure (2mm 14 gauge)", amount: ir.structure * data.capacity },
+    { sn: 4,  desc: "AC/DC Wiring, MC4 Connectors, ACDB, DCDB, Earthing Kit", amount: ir.wiring * data.capacity },
+    { sn: 5,  desc: "Battery - Lead Acid (Livguard/Luminous/Exide)", amount: data.includeBattery ? data.batteryCostAmount : 0, hidden: !data.includeBattery },
+    { sn: 6,  desc: "Net Metering & DISCOM Connectivity Charges", amount: data.includeNetMetering ? ir.netMetering * data.capacity : 0, hidden: !data.includeNetMetering },
+    { sn: 7,  desc: "Transportation & Logistics (Panel + Structure + Inverter)", amount: ir.transport * data.capacity },
+    { sn: 8,  desc: "Complete Installation & Commissioning", amount: ir.installation * data.capacity },
+    { sn: 9,  desc: "Miscellaneous (Circuit Breakers, Changeover, PVC, SPD)", amount: ir.misc * data.capacity },
+    { sn: 10, desc: "Service & AMC Package (5 Years Compulsory)", amount: ir.service * data.capacity },
+    { sn: 11, desc: "Contractor Profit & Overheads", amount: ir.contractor * data.capacity },
+  ];
+
+  y += 14;
+  doc.setFillColor(...primaryColor);
+  doc.rect(margin, y, contentWidth, 12, 'F');
+  doc.setTextColor(...whiteColor);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.text("S.No", margin + 4, y + 8);
+  doc.text("ITEM DESCRIPTION", margin + 20, y + 8);
+  doc.text("AMOUNT (Rs)", pageWidth - margin - 4, y + 8, { align: "right" });
+
+  y += 12;
+  let quotationRunningTotal = 0;
+  const qRowH = 13;
+
+  quotationItems.forEach((item, idx) => {
+    if (item.hidden) {
+      doc.setFillColor(245, 245, 245);
+      doc.rect(margin, y, contentWidth, qRowH, 'F');
+      doc.setTextColor(180, 180, 180);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "italic");
+      doc.text(String(item.sn), margin + 6, y + 9);
+      doc.text(item.desc + " (Not Selected)", margin + 20, y + 9);
+      doc.text("N/A", pageWidth - margin - 4, y + 9, { align: "right" });
+    } else {
+      doc.setFillColor(idx % 2 === 0 ? 250 : 255, idx % 2 === 0 ? 250 : 255, idx % 2 === 0 ? 250 : 255);
+      doc.rect(margin, y, contentWidth, qRowH, 'F');
+      doc.setTextColor(...darkColor);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text(String(item.sn), margin + 6, y + 9);
+      doc.text(item.desc, margin + 20, y + 9);
+      doc.setFont("helvetica", "bold");
+      doc.text(formatINR(item.amount), pageWidth - margin - 4, y + 9, { align: "right" });
+      quotationRunningTotal += item.amount;
+    }
+    y += qRowH;
+  });
+
+  y += 2;
+  doc.setFillColor(255, 248, 240);
+  doc.rect(margin, y, contentWidth, 16, 'F');
+  doc.setDrawColor(...primaryColor);
+  doc.setLineWidth(2);
+  doc.line(margin, y, margin + contentWidth, y);
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("TOTAL PROJECT COST", margin + 20, y + 11);
+  doc.text(formatINR(data.totalCost), pageWidth - margin - 4, y + 11, { align: "right" });
+
+
+  y += 24;
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "italic");
+  doc.text("* Prices indicative, may vary by site. GST included.", margin, y);
+  if (data.includeBattery) {
+    doc.text(`* Battery: ${formatINR(data.batteryCostAmount)} included in total cost.`, margin, y + 8);
+  }
+
+  addFooter(8);
+
+  // ========== PAGE 9: EMI SCHEDULE (Option A & B, 36-120 Months) ==========
+  doc.addPage();
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("LOAN EMI SCHEDULE", pageWidth - 20, 20, { align: "right" });
+
+  y = 45;
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(20);
+  doc.setFont("helvetica", "bold");
+  doc.text("Loan EMI Options", 20, y);
+
+  y = 58;
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("Compare EMI with and without subsidy deduction (36 - 120 months):", 20, y);
+
+  y = 76;
+  const loanBoxW = (pageWidth - 50) / 2;
+
+  doc.setFillColor(255, 248, 240);
+  doc.roundedRect(20, y, loanBoxW, 66, 3, 3, 'F');
+  doc.setDrawColor(220, 120, 0);
+  doc.setLineWidth(1.2);
+  doc.roundedRect(20, y, loanBoxW, 66, 3, 3, 'S');
+  doc.setTextColor(220, 120, 0);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.text("OPTION A - Without Subsidy Deduction", 28, y + 12);
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Plant Cost${data.includeBattery ? " (+Battery)" : ""}: ${formatINR(data.totalCost)}`, 28, y + 24);
+  doc.text(`Down Payment (${data.downPaymentPercent}%): -${formatINR(data.downPayment)}`, 28, y + 34);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(220, 120, 0);
+  doc.text(`Net Loan (A): ${formatINR(data.loanWithoutSubsidy)}`, 28, y + 48);
+
+  doc.setFillColor(240, 255, 240);
+  doc.roundedRect(30 + loanBoxW, y, loanBoxW, 66, 3, 3, 'F');
+  doc.setDrawColor(...greenColor);
+  doc.setLineWidth(1.2);
+  doc.roundedRect(30 + loanBoxW, y, loanBoxW, 66, 3, 3, 'S');
+  doc.setTextColor(...greenColor);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.text("OPTION B - After Subsidy Deduction", 38 + loanBoxW, y + 12);
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Plant Cost: ${formatINR(data.totalCost)}`, 38 + loanBoxW, y + 22);
+  doc.text(`Down Payment (${data.downPaymentPercent}%): -${formatINR(data.downPayment)}`, 38 + loanBoxW, y + 32);
+  doc.text(`Total Subsidy: -${formatINR(data.totalSubsidy)}`, 38 + loanBoxW, y + 42);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...greenColor);
+  doc.text(`Net Loan (B): ${formatINR(data.loanAmount)}`, 38 + loanBoxW, y + 58);
+
+  y += 72;
+
+  y += 10;
+  doc.setFillColor(...primaryColor);
+  doc.rect(20, y, pageWidth - 40, 12, 'F');
+  doc.setTextColor(...whiteColor);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.text("TENURE", 28, y + 8);
+  doc.text("EMI (A) W/o Sub.", 68, y + 8);
+  doc.text("EMI (B) After Sub.", 112, y + 8);
+  doc.text("YOU SAVE /mo", 158, y + 8);
+
+  const pdfEmiRows = [
+    { m: 36,  a: data.emiA36,  b: data.emi36Months },
+    { m: 48,  a: data.emiA48,  b: data.emi48Months },
+    { m: 60,  a: data.emiA60,  b: data.emi60Months },
+    { m: 72,  a: data.emiA72,  b: data.emi72Months },
+    { m: 84,  a: data.emiA84,  b: data.emi84Months },
+    { m: 96,  a: data.emiA96,  b: data.emi96Months },
+    { m: 108, a: data.emiA108, b: data.emi108Months },
+    { m: 120, a: data.emiA120, b: data.emi120Months },
+  ];
+
+  y += 12;
+  pdfEmiRows.forEach((row, idx) => {
+    const isSel = row.m === data.selectedTenure;
+    const rH = 10;
+    if (isSel) {
+      doc.setFillColor(235, 255, 235);
+      doc.rect(20, y, pageWidth - 40, rH, 'F');
+      doc.setDrawColor(...greenColor);
+      doc.setLineWidth(0.6);
+      doc.rect(20, y, pageWidth - 40, rH, 'S');
+    } else if (idx % 2 === 0) {
+      doc.setFillColor(250, 250, 250);
+      doc.rect(20, y, pageWidth - 40, rH, 'F');
+    }
+    const fw: "bold" | "normal" = isSel ? "bold" : "normal";
+    doc.setFontSize(9);
+    doc.setFont("helvetica", fw);
+    doc.setTextColor(...darkColor);
+    doc.text(`${row.m}M (${(row.m / 12).toFixed(1)} yr)`, 28, y + 8);
+    doc.setTextColor(200, 100, 0);
+    doc.text(formatINR(row.a), 70, y + 8);
+    doc.setTextColor(34, 139, 34);
+    doc.text(formatINR(row.b), 114, y + 8);
+    doc.setTextColor(0, 120, 0);
+    doc.setFont("helvetica", "bold");
+    doc.text(formatINR(row.a - row.b), 160, y + 8);
+    y += rH;
+  });
+
+  y += 3;
+  doc.setFillColor(255, 248, 240);
+  doc.roundedRect(20, y, pageWidth - 40, 24, 4, 4, 'F');
+  doc.setDrawColor(220, 120, 0);
+  doc.setLineWidth(2);
+  doc.roundedRect(20, y, pageWidth - 40, 24, 4, 4, 'S');
+  doc.setTextColor(...greenColor);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.text("YOUR SELECTED PLAN (OPTION A - Without Subsidy)", 28, y + 9);
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${data.selectedTenure} Months  |  EMI: ${formatINR(data.selectedTenure === 36 ? data.emiA36 : data.selectedTenure === 48 ? data.emiA48 : data.selectedTenure === 60 ? data.emiA60 : data.selectedTenure === 72 ? data.emiA72 : data.selectedTenure === 84 ? data.emiA84 : data.selectedTenure === 96 ? data.emiA96 : data.selectedTenure === 108 ? data.emiA108 : data.emiA120)}/month  |  Rate: ${data.interestRate}% p.a.`, 28, y + 20);
+
+  addFooter(9);
+  
+  // ========== PAGE 10: ENVIRONMENTAL IMPACT ==========
+  doc.addPage();
+  
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("SUSTAINABILITY", pageWidth - 20, 20, { align: "right" });
+  
+  y = 50;
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.text("Environmental Impact", 20, y);
+  
+  const annualGeneration = data.capacity * 4 * 365;
+  const co2Mitigated = Math.round(annualGeneration * 0.82);
+  const treesEquivalent = Math.round(co2Mitigated / 21);
+  const distanceEquivalent = Math.round(co2Mitigated * 4);
+  const roi = ((data.annualSavings / data.netCost) * 100).toFixed(2);
+  
+  y = 80;
+  doc.setFillColor(240, 255, 240);
+  doc.rect(pageWidth / 2 - 50, y, 100, 50, 'F');
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("CO2 Mitigated (Annual)", pageWidth / 2, y + 15, { align: "center" });
+  doc.setTextColor(...greenColor);
+  doc.setFontSize(20);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${formatINRPlain(co2Mitigated)} Kg`, pageWidth / 2, y + 38, { align: "center" });
+  
+  y = 145;
+  doc.setFillColor(255, 250, 240);
+  doc.rect(pageWidth / 2 - 50, y, 100, 50, 'F');
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("Trees Planted Equivalent", pageWidth / 2, y + 15, { align: "center" });
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(20);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${treesEquivalent} Trees`, pageWidth / 2, y + 38, { align: "center" });
+  
+  y = 210;
+  doc.setFillColor(240, 248, 255);
+  doc.rect(pageWidth / 2 - 50, y, 100, 50, 'F');
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("Distance Equivalent", pageWidth / 2, y + 15, { align: "center" });
+  doc.setTextColor(...blueColor);
+  doc.setFontSize(20);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${formatINRPlain(distanceEquivalent)} Kms`, pageWidth / 2, y + 38, { align: "center" });
+  
+  addFooter(10);
+  
+  // ========== PAGE 11: TERMS & CONDITIONS ==========
+  doc.addPage();
+  
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("OUR PARTNER", pageWidth - 20, 20, { align: "right" });
+  
+  y = 50;
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.text("Prayga India Private Limited", 20, y);
+  
+  y = 65;
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  doc.text("Registered with - Nation Wide Discoms", 20, y);
+
+  y = 90;
+  doc.setFillColor(245, 245, 245);
+  doc.roundedRect(20, y, pageWidth - 40, 55, 3, 3, 'F');
+  doc.setFillColor(...primaryColor);
+  doc.roundedRect(20, y, 4, 55, 2, 2, 'F');
+  
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("Residential Solar Installations", 32, y + 15);
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  const residentialLines = doc.splitTextToSize(
+    "Prayga India Private Limited has installed rooftop solar plants under PM Surya Ghar Yojana on more than 93 households with a total plant capacity of 331 kW.",
+    pageWidth - 72
+  );
+  doc.text(residentialLines, 32, y + 28);
+
+  y = 160;
+  doc.setFillColor(245, 245, 245);
+  doc.roundedRect(20, y, pageWidth - 40, 55, 3, 3, 'F');
+  doc.setFillColor(255, 102, 0);
+  doc.roundedRect(20, y, 4, 55, 2, 2, 'F');
+  
+  doc.setTextColor(255, 102, 0);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("Commercial Solar Installations", 32, y + 15);
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  const commercialLines = doc.splitTextToSize(
+    "Prayga India Private Limited has also installed commercial solar plants of more than 700 kW on commercial units.",
+    pageWidth - 72
+  );
+  doc.text(commercialLines, 32, y + 28);
+
+  y = 230;
+  doc.setFillColor(...primaryColor);
+  doc.roundedRect(20, y, (pageWidth - 50) / 2, 35, 3, 3, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(20);
+  doc.setFont("helvetica", "bold");
+  doc.text("93+", 20 + ((pageWidth - 50) / 4), y + 15, { align: "center" });
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("Households Served", 20 + ((pageWidth - 50) / 4), y + 27, { align: "center" });
+
+  doc.setFillColor(255, 102, 0);
+  doc.roundedRect(30 + (pageWidth - 50) / 2, y, (pageWidth - 50) / 2, 35, 3, 3, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(20);
+  doc.setFont("helvetica", "bold");
+  doc.text("1000+ kW", 30 + (pageWidth - 50) / 2 + ((pageWidth - 50) / 4), y + 15, { align: "center" });
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("Total Capacity Installed", 30 + (pageWidth - 50) / 2 + ((pageWidth - 50) / 4), y + 27, { align: "center" });
+
+  addFooter(11);
+
+  doc.addPage();
+  
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("TERMS", pageWidth - 20, 20, { align: "right" });
+  
+  y = 50;
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.text("Terms & Conditions", 20, y);
+  
+  y = 75;
+  const terms = [
+    "This proposal is valid for 7 business days from the date of issuance.",
+    "Net-metering and subsidy approvals are subject to DISCOM and MNRE feasibility.",
+    "Final project cost may vary based on site-specific structural requirements.",
+    "System includes a comprehensive 5-year maintenance package.",
+    "All electrical work follows national safety standards.",
+    "Subsidy will be credited directly to customer bank account as per MNRE norms.",
+  ];
+  
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  
+  terms.forEach((term, i) => {
+    doc.setFillColor(250, 250, 250);
+    doc.rect(20, y + (i * 20), pageWidth - 40, 15, 'F');
+    doc.text(term, 30, y + 10 + (i * 20));
+  });
+  
+  y = 215;
+  doc.setFillColor(255, 102, 0);
+  doc.rect(0, y, pageWidth, 48, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "italic");
+  doc.text("\"For us Customers are not clients - They are Family\"", pageWidth / 2, y + 13, { align: "center" });
+  
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("Divyanshi Solar", pageWidth / 2, y + 28, { align: "center" });
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("Authorized Marketing Partner of Prayga India Private Limited", pageWidth / 2, y + 38, { align: "center" });
+  doc.setFontSize(8);
+  doc.text("Registered with - Nation Wide Discoms", pageWidth / 2, y + 46, { align: "center" });
+  
+  y = y + 53;
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(7.5);
+  doc.text("Prayga India Private Limited (Registered with - Nation Wide Discoms)", pageWidth / 2, y, { align: "center" });
+  doc.text("Flat 205, Rameshwaram Enclave, Siddharth Nagar, B.V College, Jagdeo path, Patna 800014", pageWidth / 2, y + 8, { align: "center" });
+  
+  addFooter(12);
+  
+  return doc;
+}
+
+interface SubsidyCalculatorProps {
+  onCapacityChange?: (capacity: number) => void;
+  onStateChange?: (state: string) => void;
+  onCustomerTypeChange?: (type: CustomerType) => void;
+  initialCapacity?: number;
+  initialState?: string;
+  initialCustomerType?: CustomerType;
+  compact?: boolean;
+  showCommission?: 'none' | 'ddp_only' | 'bdp_only' | 'sdp_only' | 'all';
+  partnerCode?: string;
+  teamStructure?: string;
+  userRole?: string;
+}
+
+export function SubsidyCalculator({ 
+  onCapacityChange, 
+  onStateChange,
+  onCustomerTypeChange,
+  initialCapacity = 5,
+  initialState = "",
+  initialCustomerType = "residential",
+  compact = false,
+  showCommission = 'none',
+  teamStructure = 'direct',
+  userRole = 'ddp'
+}: SubsidyCalculatorProps) {
+  const [capacity, setCapacity] = useState(initialCapacity);
+  const [selectedState, setSelectedState] = useState(initialState);
+  const [panelType, setPanelType] = useState<"dcr" | "non_dcr">("dcr");
+  const [inverterType, setInverterType] = useState<InverterType>("hybrid");
+  const [customCapacity, setCustomCapacity] = useState(initialCapacity.toString());
+  const [customerType, setCustomerType] = useState<CustomerType>(initialCustomerType);
+  const [selectedEmiTenure, setSelectedEmiTenure] = useState<number>(60);
+  const [interestRate, setInterestRate] = useState<number>(6);
+  const [interestRateInput, setInterestRateInput] = useState<string>("6");
+  const [electricityUnitRate, setElectricityUnitRate] = useState<number>(7);
+  const [electricityRateInput, setElectricityRateInput] = useState<string>("7");
+  const [downPaymentPercent, setDownPaymentPercent] = useState<number>(15);
+  const [downPaymentInput, setDownPaymentInput] = useState<string>("15");
+  const [customerName, setCustomerName] = useState<string>("");
+  const [customerPhone, setCustomerPhone] = useState<string>("");
+  const [customerEmail, setCustomerEmail] = useState<string>("");
+  const [partnerName, setPartnerName] = useState<string>("");
+  const [partnerPhone, setPartnerPhone] = useState<string>("");
+  const [installationAddress, setInstallationAddress] = useState<string>("");
+  const [isSendingEmail, setIsSendingEmail] = useState<boolean>(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState<boolean>(false);
+  const [show3DVisualization, setShow3DVisualization] = useState<boolean>(false);
+  const [customRatePerWatt, setCustomRatePerWatt] = useState<number | null>(null);
+  const [customRateInput, setCustomRateInput] = useState<string>("");
+  const [includeBatteryCost, setIncludeBatteryCost] = useState<boolean>(false);
+  const [batteryCostType, setBatteryCostType] = useState<BatteryCostType>("lead_acid");
+  const [inverterCapacityKW, setInverterCapacityKW] = useState<number>(0);
+  const [includeNetMetering, setIncludeNetMetering] = useState<boolean>(true);
+  const [itemRates, setItemRates] = useState<ItemRates>({...DEFAULT_ITEM_RATES});
+  const [ratesApplied, setRatesApplied] = useState<boolean>(false);
+  
+  const { toast } = useToast();
+  
+  const maxCapacity = customerTypeConfig[customerType].maxCapacity;
+
+  const defaultRate = panelType === "dcr" 
+    ? (inverterType === "hybrid" ? DCR_HYBRID_RATE_PER_WATT : DCR_ONGRID_RATE_PER_WATT) 
+    : ((customerType === "commercial" || customerType === "industrial") ? NON_DCR_COMMERCIAL_RATE_PER_WATT : (inverterType === "hybrid" ? NON_DCR_HYBRID_RATE_PER_WATT : NON_DCR_ONGRID_RATE_PER_WATT));
+  
+  const result = useMemo(() => calculateSubsidy(capacity, selectedState, panelType, inverterType, customerType, interestRate, electricityUnitRate, downPaymentPercent, customRatePerWatt, includeBatteryCost, batteryCostType, inverterCapacityKW), [capacity, selectedState, panelType, inverterType, customerType, interestRate, electricityUnitRate, downPaymentPercent, customRatePerWatt, includeBatteryCost, batteryCostType, inverterCapacityKW]);
+  const commission = useMemo(() => calculateCommission(capacity, panelType, customerType, teamStructure, userRole), [capacity, panelType, customerType, teamStructure, userRole]);
+  
+  // Get EMI for selected tenure
+  const selectedEmi = useMemo(() => {
+    switch (selectedEmiTenure) {
+      case 36: return result.emi36Months;
+      case 48: return result.emi48Months;
+      case 60: return result.emi60Months;
+      case 72: return result.emi72Months;
+      case 84: return result.emi84Months;
+      case 96: return result.emi96Months;
+      case 108: return result.emi108Months;
+      case 120: return result.emi120Months;
+      default: return result.emi60Months;
+    }
+  }, [result, selectedEmiTenure]);
+  
+  useEffect(() => {
+    if (inverterType === "hybrid") {
+      if (![3, 5, 6].includes(capacity)) {
+        setCapacity(3);
+        setCustomCapacity("3");
+      }
+    } else if (panelType === "non_dcr" && inverterType === "ongrid") {
+      if (capacity < 8) {
+        setCapacity(8);
+        setCustomCapacity("8");
+      }
+    } else if (panelType === "dcr" && inverterType === "ongrid") {
+      if (capacity < 3) {
+        setCapacity(3);
+        setCustomCapacity("3");
+      }
+    }
+  }, [panelType, inverterType]);
+
+  // Capacity options based on customer type, panel type, and inverter type
+  const capacityOptions = useMemo(() => {
+    if (inverterType === "hybrid") {
+      return [3, 5, 6];
+    }
+    if (panelType === "dcr" && inverterType === "ongrid") {
+      if (customerType === "residential") {
+        return [3, 4, 5, 6, 7, 8, 9, 10];
+      } else if (customerType === "commercial") {
+        return [3, 5, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100];
+      } else {
+        return [5, 10, 15, 20, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
+      }
+    }
+    if (panelType === "non_dcr" && inverterType === "ongrid") {
+      if (customerType === "residential") {
+        return [8, 9, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100];
+      } else if (customerType === "commercial") {
+        return [8, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100];
+      } else {
+        return [8, 10, 15, 20, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
+      }
+    }
+    if (customerType === "residential") {
+      return [3, 5, 6, 8, 10];
+    } else if (customerType === "commercial") {
+      return [10, 15, 20, 25, 30, 40, 50, 60, 75, 100];
+    } else {
+      return [5, 10, 15, 20, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
+    }
+  }, [customerType, panelType, inverterType]);
+  
+  function handleCapacityChange(value: number) {
+    const clampedValue = Math.max(1, Math.min(maxCapacity, value));
+    setCapacity(clampedValue);
+    setCustomCapacity(clampedValue.toString());
+    onCapacityChange?.(clampedValue);
+  }
+  
+  function handleCustomCapacityChange(value: string) {
+    setCustomCapacity(value);
+    const numValue = parseFloat(value);
+    if (!isNaN(numValue) && numValue >= 1 && numValue <= maxCapacity) {
+      setCapacity(numValue);
+      onCapacityChange?.(numValue);
+    }
+  }
+  
+  function handleStateChange(state: string) {
+    setSelectedState(state);
+    onStateChange?.(state);
+  }
+  
+  function handleCustomerTypeChange(type: CustomerType) {
+    setCustomerType(type);
+    onCustomerTypeChange?.(type);
+    // Reset capacity to appropriate default for new customer type
+    const newMaxCapacity = customerTypeConfig[type].maxCapacity;
+    if (capacity > newMaxCapacity) {
+      handleCapacityChange(type === "residential" ? 3 : 25);
+    } else if (type !== "residential" && capacity < 10) {
+      handleCapacityChange(10);
+    }
+  }
+  
+  const getProposalData = useCallback((): ProposalData => {
+    const effectiveMonthlyPayment = Math.max(0, selectedEmi - result.monthlySavings);
+    
+    return {
+      customerName,
+      partnerName,
+      partnerPhone,
+      installationAddress,
+      capacity,
+      panelType,
+      inverterType,
+      customerType,
+      totalCost: result.totalCost,
+      centralSubsidy: result.centralSubsidy,
+      stateSubsidy: result.stateSubsidy,
+      totalSubsidy: result.totalSubsidy,
+      netCost: result.netCost,
+      downPayment: result.downPayment,
+      downPaymentPercent: result.downPaymentPercent,
+      loanAmount: result.loanAmount,
+      selectedTenure: selectedEmiTenure,
+      selectedEmi,
+      interestRate,
+      electricityRate: electricityUnitRate,
+      monthlyGeneration: result.monthlyGeneration,
+      monthlySavings: result.monthlySavings,
+      annualSavings: result.annualSavings,
+      effectiveMonthlyPayment,
+      paybackYears: result.paybackYears,
+      state: selectedState,
+      ratePerWatt: result.ratePerWatt,
+      emi36Months: result.emi36Months,
+      emi48Months: result.emi48Months,
+      emi60Months: result.emi60Months,
+      emi72Months: result.emi72Months,
+      emi84Months: result.emi84Months,
+      emi96Months: result.emi96Months,
+      emi108Months: result.emi108Months,
+      emi120Months: result.emi120Months,
+      includeBattery: includeBatteryCost,
+      batteryCostAmount: result.batteryCostAmount,
+      loanWithoutSubsidy: result.loanWithoutSubsidy,
+      emiA36: result.emiA36,
+      emiA48: result.emiA48,
+      emiA60: result.emiA60,
+      emiA72: result.emiA72,
+      emiA84: result.emiA84,
+      emiA96: result.emiA96,
+      emiA108: result.emiA108,
+      emiA120: result.emiA120,
+      inverterModelName: result.inverterModelName,
+      inverterCapacityKW: result.inverterCapacityKW,
+      inverterUpcharge: result.inverterUpcharge,
+      includeNetMetering,
+      itemRates,
+    };
+  }, [capacity, panelType, inverterType, customerType, result, selectedEmiTenure, selectedEmi, interestRate, electricityUnitRate, selectedState, customerName, partnerName, partnerPhone, installationAddress, includeBatteryCost, includeNetMetering, itemRates, ratesApplied]);
+  
+  async function saveProposalLead(source: string = "calculator") {
+    if (!customerName.trim() || !customerPhone.trim() || !capacity || !panelType || !inverterType) return;
+    try {
+      await fetch("/api/proposal-leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerName: customerName.trim(),
+          phone: customerPhone.trim(),
+          email: customerEmail.trim() || null,
+          plantCapacity: String(capacity),
+          plantType: panelType,
+          inverterType,
+          address: installationAddress.trim() || null,
+          state: selectedState || null,
+          totalCost: result?.totalCost || null,
+          netCost: result?.netCost || null,
+          subsidy: result?.totalSubsidy || null,
+          source,
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to save proposal lead:", err);
+    }
+  }
+
+  async function handleDownloadProposal() {
+    saveProposalLead("pdf_download");
+    // Use detailed client-side jsPDF generator for rich formatting with images
+    try {
+      const data = getProposalData();
+      // Load PM Surya Ghar image for PDF
+      const imageData = await loadImageAsBase64(pmSuryaGharImage);
+      data.pmSuryaGharImageData = imageData;
+      const doc = generateProposalPDF(data);
+      doc.save(`Divyanshi_Solar_Proposal_${capacity}kW_${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      // Fallback: generate PDF without image
+      const data = getProposalData();
+      const doc = generateProposalPDF(data);
+      doc.save(`Divyanshi_Solar_Proposal_${capacity}kW_${new Date().toISOString().split('T')[0]}.pdf`);
+    }
+  }
+  
+  async function handleShareWhatsApp() {
+    saveProposalLead("whatsapp_share");
+    const data = getProposalData();
+    
+    console.log("[WhatsApp] Starting PDF generation...");
+    
+    setIsGeneratingPDF(true);
+    
+    try {
+      // Generate the SAME detailed PDF as download (client-side with jsPDF)
+      console.log("[WhatsApp] Generating detailed PDF client-side...");
+      const imageData = await loadImageAsBase64(pmSuryaGharImage);
+      data.pmSuryaGharImageData = imageData;
+      const doc = generateProposalPDF(data);
+      
+      // Convert PDF to blob for upload
+      const pdfBlob = doc.output('blob');
+      console.log("[WhatsApp] PDF blob size:", pdfBlob.size);
+      
+      // Upload to server to get shareable URL
+      const formData = new FormData();
+      formData.append('pdf', pdfBlob, 'proposal.pdf');
+      
+      console.log("[WhatsApp] Uploading PDF to server...");
+      const response = await fetch("/api/proposal/upload-pdf", {
+        method: "POST",
+        body: formData
+      });
+      
+      console.log("[WhatsApp] Upload response status:", response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[WhatsApp] Upload error:", errorText);
+        throw new Error(`PDF upload failed: ${errorText}`);
+      }
+      
+      const pdfResponse = await response.json();
+      console.log("[WhatsApp] Upload response:", JSON.stringify(pdfResponse));
+      
+      // Build PDF download URL
+      const baseUrl = window.location.origin;
+      const pdfUrl = pdfResponse.downloadUrl ? `${baseUrl}${pdfResponse.downloadUrl}` : '';
+      console.log("[WhatsApp] PDF URL:", pdfUrl);
+      
+      const message = `*Divyanshi Solar (Prayga India Private Limited) - Solar Proposal*
+_Registered with - Nation Wide Discoms_
+
+*Plant Details:*
+- Capacity: ${data.capacity} kW ${data.panelType === "dcr" ? "DCR" : "Non-DCR"}
+- Inverter: ${data.inverterType === "hybrid" ? "3-in-1 Hybrid" : "Ongrid"}
+
+*Cost Breakdown:*
+- Material Cost: Rs ${formatINRPlain(data.totalCost)}
+- Govt. Subsidy: Rs ${formatINRPlain(data.totalSubsidy)}
+- Net Cost: Rs ${formatINRPlain(data.netCost)}
+
+*Payment Structure:*
+- Down Payment (${data.downPaymentPercent}% of Plant Cost): Rs ${formatINRPlain(data.downPayment)}
+- Loan Amount: Rs ${formatINRPlain(data.loanAmount)}
+- EMI (${data.selectedTenure} months): Rs ${formatINRPlain(data.selectedEmi)}/month
+
+*Your Savings @ Rs ${data.electricityRate}/unit:*
+- Monthly: Rs ${formatINRPlain(data.monthlySavings)}
+- Annual: Rs ${formatINRPlain(data.annualSavings)}
+- Effective EMI: Rs ${formatINRPlain(data.effectiveMonthlyPayment)}/month
+${data.partnerName ? `
+*Your District Partner:*
+${data.partnerName}${data.partnerPhone ? ` | +91-${data.partnerPhone}` : ''}` : ''}
+${pdfUrl ? `
+*Download Detailed PDF Proposal:*
+${pdfUrl}` : ''}
+
+Website: https://divyanshisolar.in`;
+      
+      const whatsappUrl = `https://wa.me/91${customerPhone}?text=${encodeURIComponent(message)}`;
+      window.open(whatsappUrl, '_blank');
+    } catch (error: any) {
+      console.error("WhatsApp share error:", error);
+      // Fallback: share without PDF link
+      const message = `*Divyanshi Solar (Prayga India Private Limited) - Solar Proposal*
+
+*Plant Details:*
+- Capacity: ${data.capacity} kW ${data.panelType === "dcr" ? "DCR" : "Non-DCR"}
+- Inverter: ${data.inverterType === "hybrid" ? "3-in-1 Hybrid" : "Ongrid"}
+
+*Cost Breakdown:*
+- Material Cost: Rs ${formatINRPlain(data.totalCost)}
+- Govt. Subsidy: Rs ${formatINRPlain(data.totalSubsidy)}
+- Net Cost: Rs ${formatINRPlain(data.netCost)}
+
+*Payment Structure:*
+- Down Payment (${data.downPaymentPercent}% of Plant Cost): Rs ${formatINRPlain(data.downPayment)}
+- Loan Amount: Rs ${formatINRPlain(data.loanAmount)}
+- EMI (${data.selectedTenure} months): Rs ${formatINRPlain(data.selectedEmi)}/month
+
+*Your Savings @ Rs ${data.electricityRate}/unit:*
+- Monthly: Rs ${formatINRPlain(data.monthlySavings)}
+- Annual: Rs ${formatINRPlain(data.annualSavings)}
+- Effective EMI: Rs ${formatINRPlain(data.effectiveMonthlyPayment)}/month
+
+Website: https://divyanshisolar.in`;
+      
+      const whatsappUrl = `https://wa.me/91${customerPhone}?text=${encodeURIComponent(message)}`;
+      window.open(whatsappUrl, '_blank');
+      
+      toast({
+        title: "PDF Generation Failed",
+        description: "Sharing without PDF link. You can still download the PDF separately.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  }
+  
+  async function handleShareEmail() {
+    if (!customerEmail || !customerEmail.includes('@')) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!customerName.trim()) {
+      toast({
+        title: "Customer Name Required",
+        description: "Please enter the customer name to send the proposal",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    saveProposalLead("email_proposal");
+    
+    // Capture ALL form values synchronously BEFORE setting loading state
+    // This ensures values are preserved even if component state changes during async operation
+    const emailPayload = {
+      customerEmail: customerEmail,
+      customerName: customerName || "Valued Customer",
+      capacity: capacity,
+      netCost: result.netCost,
+      subsidy: result.totalSubsidy,
+      totalCost: result.totalCost,
+      panelType: panelType,
+      inverterType: inverterType,
+      downPayment: result.downPayment,
+      downPaymentPercent: result.downPaymentPercent,
+      loanAmount: result.loanAmount,
+      selectedEmi: selectedEmi,
+      selectedTenure: selectedEmiTenure,
+      monthlySavings: result.monthlySavings,
+      annualSavings: result.annualSavings,
+      monthlyGeneration: result.monthlyGeneration,
+      paybackYears: result.paybackYears,
+      partnerName: partnerName || undefined,
+      partnerPhone: partnerPhone || undefined,
+      installationAddress: installationAddress || undefined
+    };
+    
+    // Log for debugging mobile vs desktop differences
+    console.log("Email payload being sent:", JSON.stringify(emailPayload, null, 2));
+    
+    setIsSendingEmail(true);
+    
+    try {
+      // Send proposal data to server - PDF will NOT be attached due to size limits
+      // The email contains all proposal details in HTML format
+      const apiResult = await apiRequest("POST", "/api/email/send-proposal", emailPayload);
+      
+      if (apiResult.success) {
+        toast({
+          title: "Email Sent Successfully",
+          description: `Proposal sent to ${emailPayload.customerEmail}`,
+        });
+      } else {
+        throw new Error(apiResult.message || "Failed to send email");
+      }
+    } catch (error: any) {
+      console.error("Email send error:", error);
+      toast({
+        title: "Email Send Failed",
+        description: error.message || "Could not send email. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSendingEmail(false);
+    }
+  }
+  
+  if (compact) {
+    return (
+      <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Sun className="h-5 w-5 text-orange-500" />
+            <span className="font-medium">Capacity: {capacity} kW</span>
+          </div>
+          <Badge variant="secondary" className="text-green-600 dark:text-green-400">
+            {result.subsidyEligible ? `Subsidy: ${formatINR(result.totalSubsidy)}` : "No Subsidy"}
+          </Badge>
+        </div>
+        
+        <div className="flex gap-2 flex-wrap">
+          {capacityOptions.map((kw) => (
+            <Button
+              key={kw}
+              type="button"
+              variant={capacity === kw ? "default" : "outline"}
+              size="sm"
+              onClick={() => handleCapacityChange(kw)}
+              data-testid={`button-capacity-${kw}kw`}
+            >
+              {kw} kW
+            </Button>
+          ))}
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <span className="text-muted-foreground">System Cost:</span>
+            <p className="font-medium">{formatINR(result.totalCost)}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Your Cost:</span>
+            <p className="font-medium text-primary">{formatINR(result.netCost)}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <Card data-testid="card-subsidy-calculator">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Sun className="h-6 w-6 text-orange-500" />
+          <CardTitle>PM Surya Ghar Yojana Subsidy Calculator</CardTitle>
+        </div>
+        <CardDescription>
+          Calculate your subsidy amount, estimated savings, and partner commission under the government scheme
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Customer Type Selection */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {(Object.entries(customerTypeConfig) as [CustomerType, typeof customerTypeConfig[CustomerType]][]).map(([type, config]) => {
+            const Icon = config.icon;
+            return (
+              <div
+                key={type}
+                onClick={() => handleCustomerTypeChange(type)}
+                className={`p-4 rounded-lg cursor-pointer transition-all ${
+                  customerType === type 
+                    ? "bg-primary/10 border-2 border-primary" 
+                    : "bg-muted/50 border-2 border-transparent hover-elevate"
+                }`}
+                data-testid={`button-customer-type-${type}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    customerType === type ? "bg-primary text-primary-foreground" : "bg-muted"
+                  }`}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="font-medium">{config.label}</p>
+                    <p className="text-xs text-muted-foreground">{config.description}</p>
+                  </div>
+                </div>
+                {config.subsidyEligible && (
+                  <Badge className="mt-2 bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300">
+                    Subsidy Eligible
+                  </Badge>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        
+        {/* 3D Visualization Toggle */}
+        <div className="flex items-center justify-between gap-4 p-4 bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg border border-primary/20">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+              <Grid3X3 className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <p className="font-medium">3D Panel Placement Tool</p>
+              <p className="text-xs text-muted-foreground">Visualize solar panels on your rooftop in 3D</p>
+            </div>
+          </div>
+          <Button
+            variant={show3DVisualization ? "default" : "outline"}
+            onClick={() => setShow3DVisualization(!show3DVisualization)}
+            data-testid="button-toggle-3d"
+          >
+            {show3DVisualization ? "Hide 3D View" : "Show 3D View"}
+          </Button>
+        </div>
+        
+        {/* 3D Solar Panel Visualization */}
+        {show3DVisualization && (
+          <SolarPanel3D 
+            initialCapacity={capacity}
+            onCapacityChange={(newCapacity, panelCount) => {
+              handleCapacityChange(newCapacity);
+            }}
+          />
+        )}
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="space-y-4">
+            <Label>Panel Type</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={panelType === "dcr" ? "default" : "outline"}
+                className="flex-1"
+                onClick={() => { 
+                  setPanelType("dcr"); 
+                  setCustomRatePerWatt(null); 
+                  setCustomRateInput(""); 
+                  if (customerType === "residential" && ![3, 5, 6].includes(capacity)) {
+                    handleCapacityChange(3);
+                  }
+                }}
+                data-testid="button-panel-dcr"
+              >
+                DCR
+              </Button>
+              <Button
+                type="button"
+                variant={panelType === "non_dcr" ? "default" : "outline"}
+                className="flex-1"
+                onClick={() => { setPanelType("non_dcr"); setCustomRatePerWatt(null); setCustomRateInput(""); }}
+                data-testid="button-panel-non-dcr"
+              >
+                Non-DCR
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {panelType === "dcr" 
+                ? (result.subsidyEligible ? "DCR panels are eligible for government subsidy" : "DCR panels (subsidy only for residential)")
+                : `Non-DCR panels have no subsidy (${inverterType === "hybrid" ? `Rs ${NON_DCR_HYBRID_RATE_PER_WATT}/W Hybrid` : `Rs ${NON_DCR_ONGRID_RATE_PER_WATT}/W Ongrid`})`}
+            </p>
+          </div>
+          
+          <div className="space-y-4">
+            <Label>Inverter Type</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={inverterType === "hybrid" ? "default" : "outline"}
+                className="flex-1"
+                onClick={() => {
+                  setInverterType("hybrid");
+                  setCustomRatePerWatt(null);
+                  setInverterCapacityKW(0);
+                  setCustomRateInput("");
+                  if (panelType === "non_dcr" && customerType === "residential") {
+                    if (capacity < 3 || capacity > 6) {
+                      handleCapacityChange(3);
+                    }
+                  }
+                }}
+                data-testid="button-inverter-hybrid"
+              >
+                3-in-1 Hybrid
+              </Button>
+              <Button
+                type="button"
+                variant={inverterType === "ongrid" ? "default" : "outline"}
+                className="flex-1"
+                onClick={() => {
+                  setInverterType("ongrid");
+                  setCustomRatePerWatt(null);
+                  setInverterCapacityKW(0);
+                  setCustomRateInput("");
+                }}
+                data-testid="button-inverter-ongrid"
+              >
+                Ongrid
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {panelType === "dcr" 
+                ? (inverterType === "hybrid" 
+                  ? `3-in-1 Hybrid Inverter @ Rs ${DCR_HYBRID_RATE_PER_WATT}/W (3, 5, 6 kW only)` 
+                  : `Ongrid Inverter @ Rs ${DCR_ONGRID_RATE_PER_WATT}/W (3-10 kW)`)
+                : (inverterType === "hybrid"
+                  ? `3-in-1 Hybrid Inverter @ Rs ${NON_DCR_HYBRID_RATE_PER_WATT}/W (3, 5, 6 kW only)`
+                  : `Ongrid Inverter @ Rs ${NON_DCR_ONGRID_RATE_PER_WATT}/W (above 8 kW)`)}
+            </p>
+            {/* Inverter Capacity Selector */}
+            <p className="text-xs text-muted-foreground mt-2">
+              Inverter Capacity: {result.inverterCapacityKW}kW — {result.inverterModelName}
+              {result.inverterUpcharge > 0 && <span className="text-orange-600 font-medium"> (+{formatINR(result.inverterUpcharge)} upcharge)</span>}
+            </p>
+            <div className="flex gap-1 flex-wrap mt-1">
+              {getInverterOptions(capacity, inverterType).map((kw) => (
+                <Button
+                  key={`inv-${kw}`}
+                  type="button"
+                  variant={result.inverterCapacityKW === kw ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setInverterCapacityKW(kw)}
+                  data-testid={`button-inv-cap-${kw}kw`}
+                >
+                  {kw}kW
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <IndianRupee className="h-4 w-4 text-muted-foreground" />
+              <Label>Plant Rate (Per Watt)</Label>
+            </div>
+            <Input
+              type="number"
+              min={defaultRate}
+              max="200"
+              value={customRateInput}
+              onChange={(e) => {
+                setCustomRateInput(e.target.value);
+                const val = parseFloat(e.target.value);
+                if (!isNaN(val) && val > 0) {
+                  if (val < defaultRate) {
+                    setCustomRatePerWatt(defaultRate);
+                  } else {
+                    setCustomRatePerWatt(val);
+                  }
+                } else if (e.target.value === "") {
+                  setCustomRatePerWatt(null);
+                }
+              }}
+              onBlur={() => {
+                if (customRatePerWatt !== null && customRatePerWatt < defaultRate) {
+                  setCustomRatePerWatt(defaultRate);
+                  setCustomRateInput(defaultRate.toString());
+                }
+              }}
+              placeholder={`Default: Rs ${defaultRate}/W`}
+              data-testid="input-custom-rate-per-watt"
+            />
+            <p className="text-xs text-muted-foreground">
+              {customRatePerWatt ? `Custom: Rs ${customRatePerWatt}/W` : `Default: Rs ${defaultRate}/W (${panelType === "dcr" ? "DCR" : "Non-DCR"})`}
+              <span className="text-red-500 font-medium"> (Min: Rs {defaultRate}/W)</span>
+            </p>
+            {customRatePerWatt && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => { setCustomRatePerWatt(null); setCustomRateInput(""); }}
+                data-testid="button-reset-rate"
+              >
+                Reset to Default
+              </Button>
+            )}
+          </div>
+          
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <Label>Solar Plant Capacity</Label>
+              <Badge variant="outline" className="font-mono text-lg">
+                {capacity} kW
+              </Badge>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {capacityOptions.map((kw) => (
+                <Button
+                  key={kw}
+                  type="button"
+                  variant={capacity === kw ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleCapacityChange(kw)}
+                  data-testid={`button-capacity-${kw}kw-full`}
+                >
+                  {kw} kW
+                </Button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min="1"
+                max={maxCapacity}
+                value={customCapacity}
+                onChange={(e) => handleCustomCapacityChange(e.target.value)}
+                placeholder="Custom kW"
+                className="w-full"
+                data-testid="input-custom-capacity"
+              />
+              <span className="text-sm text-muted-foreground whitespace-nowrap">kW</span>
+            </div>
+            <p className="text-xs text-muted-foreground text-center">
+              {customerType === "residential" 
+                ? `Residential: 1-${maxCapacity} kW (Rs ${result.ratePerWatt}/Watt)`
+                : `${customerTypeConfig[customerType].label}: 1-${maxCapacity} kW (Rs ${result.ratePerWatt}/Watt)`}
+            </p>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-muted-foreground" />
+              <Label htmlFor="state-select">Select State</Label>
+            </div>
+            <Select value={selectedState} onValueChange={handleStateChange}>
+              <SelectTrigger id="state-select" data-testid="select-state">
+                <SelectValue placeholder="Select your state for additional subsidies" />
+              </SelectTrigger>
+              <SelectContent>
+                {indianStates.map((state) => (
+                  <SelectItem key={state} value={state}>
+                    {state} {stateSubsidies[state] ? `(+${formatINR(stateSubsidies[state].ratePerKw)}/kW)` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedState && stateSubsidies[selectedState] && panelType === "dcr" && (
+              <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
+                {stateSubsidies[selectedState].label}: {formatINR(stateSubsidies[selectedState].ratePerKw)}/kW (Max {formatINR(stateSubsidies[selectedState].maxSubsidy)})
+              </Badge>
+            )}
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-muted/30 rounded-lg">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <IndianRupee className="h-4 w-4 text-muted-foreground" />
+              <Label htmlFor="interest-rate">Loan Interest Rate (%)</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                id="interest-rate"
+                type="text"
+                inputMode="decimal"
+                value={interestRateInput}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                    setInterestRateInput(val);
+                    const numVal = parseFloat(val);
+                    if (!isNaN(numVal) && numVal >= 1 && numVal <= 25) {
+                      setInterestRate(numVal);
+                    }
+                  }
+                }}
+                onBlur={() => {
+                  const numVal = parseFloat(interestRateInput);
+                  if (isNaN(numVal) || numVal < 1) {
+                    setInterestRate(6);
+                    setInterestRateInput("6");
+                  } else if (numVal > 25) {
+                    setInterestRate(25);
+                    setInterestRateInput("25");
+                  } else {
+                    setInterestRate(numVal);
+                    setInterestRateInput(numVal.toString());
+                  }
+                }}
+                className="w-full"
+                data-testid="input-interest-rate"
+              />
+              <span className="text-sm text-muted-foreground whitespace-nowrap">% p.a.</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Bank loan interest rate for EMI calculation
+            </p>
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Wallet className="h-4 w-4 text-muted-foreground" />
+              <Label htmlFor="down-payment">Down Payment (%)</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                id="down-payment"
+                type="text"
+                inputMode="numeric"
+                value={downPaymentInput}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "" || /^\d*$/.test(val)) {
+                    setDownPaymentInput(val);
+                    const numVal = parseInt(val);
+                    if (!isNaN(numVal) && numVal >= 0 && numVal <= 100) {
+                      setDownPaymentPercent(numVal);
+                    }
+                  }
+                }}
+                onBlur={() => {
+                  const numVal = parseInt(downPaymentInput);
+                  if (isNaN(numVal) || numVal < 0) {
+                    setDownPaymentPercent(30);
+                    setDownPaymentInput("30");
+                  } else if (numVal > 100) {
+                    setDownPaymentPercent(100);
+                    setDownPaymentInput("100");
+                  } else {
+                    setDownPaymentPercent(numVal);
+                    setDownPaymentInput(numVal.toString());
+                  }
+                }}
+                className="w-full"
+                data-testid="input-down-payment"
+              />
+              <span className="text-sm text-muted-foreground whitespace-nowrap">%</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {downPaymentPercent}% of plant cost ({formatINR(Math.round(result.totalCost * (downPaymentPercent / 100)))})
+            </p>
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-muted-foreground" />
+              <Label htmlFor="electricity-rate">Electricity Rate (Rs/kWh)</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                id="electricity-rate"
+                type="text"
+                inputMode="decimal"
+                value={electricityRateInput}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                    setElectricityRateInput(val);
+                    const numVal = parseFloat(val);
+                    if (!isNaN(numVal) && numVal >= 1 && numVal <= 20) {
+                      setElectricityUnitRate(numVal);
+                    }
+                  }
+                }}
+                onBlur={() => {
+                  const numVal = parseFloat(electricityRateInput);
+                  if (isNaN(numVal) || numVal < 1) {
+                    setElectricityUnitRate(7);
+                    setElectricityRateInput("7");
+                  } else if (numVal > 20) {
+                    setElectricityUnitRate(20);
+                    setElectricityRateInput("20");
+                  } else {
+                    setElectricityUnitRate(numVal);
+                    setElectricityRateInput(numVal.toString());
+                  }
+                }}
+                className="w-full"
+                data-testid="input-electricity-rate"
+              />
+              <span className="text-sm text-muted-foreground whitespace-nowrap">Rs/kWh</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Your electricity bill rate for savings
+            </p>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="p-4 bg-muted/50 rounded-lg space-y-1">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <IndianRupee className="h-4 w-4" />
+              <span className="text-sm">System Cost</span>
+            </div>
+            <p className="text-xl font-semibold font-mono">{formatINR(result.totalCost)}</p>
+            <p className="text-xs text-muted-foreground">Rs {result.ratePerWatt}/Watt</p>
+          </div>
+          
+          {panelType === "dcr" && (
+            <div className="p-4 bg-green-50 dark:bg-green-950/30 rounded-lg space-y-1">
+              <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+                <TrendingDown className="h-4 w-4" />
+                <span className="text-sm">Central Subsidy</span>
+              </div>
+              <p className="text-xl font-semibold font-mono text-green-600 dark:text-green-400">
+                - {formatINR(result.centralSubsidy)}
+              </p>
+              {capacity > 3 && (
+                <p className="text-xs text-muted-foreground">Capped at Rs 78,000</p>
+              )}
+            </div>
+          )}
+          
+          {panelType === "dcr" && result.stateSubsidy > 0 && (
+            <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg space-y-1">
+              <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                <MapPin className="h-4 w-4" />
+                <span className="text-sm">State Subsidy</span>
+              </div>
+              <p className="text-xl font-semibold font-mono text-blue-600 dark:text-blue-400">
+                - {formatINR(result.stateSubsidy)}
+              </p>
+            </div>
+          )}
+          
+          <div className="p-4 bg-primary/10 rounded-lg space-y-1">
+            <div className="flex items-center gap-2 text-primary">
+              <IndianRupee className="h-4 w-4" />
+              <span className="text-sm">Your Net Cost</span>
+            </div>
+            <p className="text-xl font-semibold font-mono text-primary">{formatINR(result.netCost)}</p>
+          </div>
+          
+          <div className="p-4 bg-orange-50 dark:bg-orange-950/30 rounded-lg space-y-1">
+            <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400">
+              <Zap className="h-4 w-4" />
+              <span className="text-sm">Annual Savings</span>
+            </div>
+            <p className="text-xl font-semibold font-mono text-orange-600 dark:text-orange-400">
+              {formatINR(result.annualSavings)}
+            </p>
+          </div>
+        </div>
+        
+        {panelType === "dcr" && result.totalSubsidy > 0 && (
+          <div className="p-4 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/30 dark:to-blue-950/30 rounded-lg">
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">Total Subsidy (Central + State)</p>
+              <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+                {formatINR(result.totalSubsidy)}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {showCommission !== 'none' && (
+          <Card className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30 border-purple-200 dark:border-purple-800">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg text-purple-700 dark:text-purple-300">
+                <Users className="w-5 h-5" />
+                {(showCommission === 'ddp_only' || showCommission === 'bdp_only' || showCommission === 'sdp_only') ? 'Your Commission' : 'Partner Commission Structure'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {(() => {
+                const ddpRate = panelType === "dcr" ? (teamStructure === "marketing_team" ? 4000 : 5000) : (teamStructure === "marketing_team" ? 1500 : 2000);
+                const ddpRateLabel = `Rs ${(capacity * ddpRate).toLocaleString("en-IN")} (Rs ${ddpRate.toLocaleString("en-IN")}/kW)`;
+                const bdpRateLabel = panelType === "dcr"
+                  ? (teamStructure === "marketing_team" 
+                    ? `Rs ${(capacity * 1500).toLocaleString("en-IN")} (Rs 1,500/kW)`
+                    : `Rs ${(capacity * 2500).toLocaleString("en-IN")} (Rs 2,500/kW)`)
+                  : (teamStructure === "marketing_team" ? "Rs 500/kW" : "Rs 1,000/kW");
+                const ddpSummary = panelType === "dcr"
+                  ? teamStructure === "marketing_team" ? "DCR Commission: All capacities: Rs 4,000/kW" : "DCR Commission: All capacities: Rs 5,000/kW"
+                  : "Non-DCR Commission: Non-DCR Commission: All capacities: Rs 2,000/kW";
+                const bdpSummary = panelType === "dcr"
+                  ? "DCR Commission: All capacities: Rs 2,500/kW"
+                  : "All capacities: Rs 1,000/kW";
+                const fullSummary = panelType === "dcr"
+                  ? "All capacities: DDP Rs 5,000/kW | BDP Rs 2,500/kW"
+                  : "All capacities: DDP Rs 2,000/kW | BDP Rs 1,000/kW";
+
+                if (showCommission === 'ddp_only') return (
+                  <div className="text-center">
+                    <div className="p-4 bg-background rounded-lg">
+                      <p className="text-sm text-muted-foreground mb-1">Your Commission</p>
+                      <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">{formatINR(commission.ddpCommission)}</p>
+                      <p className="text-xs text-muted-foreground mt-2">{ddpRateLabel}</p>
+                    </div>
+                  </div>
+                );
+                if (showCommission === "sdp_only") return (
+                  <div className="text-center">
+                    <div className="p-4 bg-background rounded-lg">
+                      <p className="text-sm text-muted-foreground mb-1">Your SDP Commission</p>
+                      <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{formatINR(commission.sdpCommission)}</p>
+                      <p className="text-xs text-muted-foreground mt-2">{panelType === "dcr" ? "Rs 2,000/kW" : "Rs 1,000/kW"}</p>
+                    </div>
+                  </div>
+                );
+                if (showCommission === 'bdp_only') return (
+                  <div className="text-center">
+                    <div className="p-4 bg-background rounded-lg">
+                      <p className="text-sm text-muted-foreground mb-1">Your Commission</p>
+                      <p className="text-3xl font-bold text-pink-600 dark:text-pink-400">{formatINR(commission.bdpCommission)}</p>
+                      <p className="text-xs text-muted-foreground mt-2">{bdpRateLabel}</p>
+                    </div>
+                  </div>
+                );
+                return (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                      <div className="p-4 bg-background rounded-lg">
+                        <p className="text-sm text-muted-foreground mb-1">DDP Commission</p>
+                        <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{formatINR(commission.ddpCommission)}</p>
+                        <p className="text-xs text-muted-foreground">{ddpRateLabel}</p>
+                      </div>
+                      <div className="p-4 bg-background rounded-lg">
+                        <p className="text-sm text-muted-foreground mb-1">BDP Commission</p>
+                        <p className="text-2xl font-bold text-pink-600 dark:text-pink-400">{formatINR(commission.bdpCommission)}</p>
+                        <p className="text-xs text-muted-foreground">{bdpRateLabel}</p>
+                      </div>
+                      <div className="p-4 bg-purple-100 dark:bg-purple-900/50 rounded-lg">
+                        <p className="text-sm font-medium text-purple-700 dark:text-purple-300 mb-1">Total Commission</p>
+                        <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">{formatINR(commission.totalCommission)}</p>
+                        <p className="text-xs text-muted-foreground">DDP + BDP</p>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </CardContent>
+          </Card>
+        )}
+        
+        <Card className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-green-200 dark:border-green-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg text-green-700 dark:text-green-300">
+              <Zap className="w-5 h-5" />
+              Power Generation & Savings
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+              <div className="p-3 bg-background rounded-lg">
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{result.dailyGeneration}</p>
+                <p className="text-xs text-muted-foreground">Units/Day</p>
+              </div>
+              <div className="p-3 bg-background rounded-lg">
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{result.monthlyGeneration}</p>
+                <p className="text-xs text-muted-foreground">Units/Month</p>
+              </div>
+              <div className="p-3 bg-background rounded-lg">
+                <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatINR(result.monthlySavings)}</p>
+                <p className="text-xs text-muted-foreground">Monthly Savings</p>
+              </div>
+              <div className="p-3 bg-background rounded-lg">
+                <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatINR(result.annualSavings)}</p>
+                <p className="text-xs text-muted-foreground">Annual Savings</p>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground text-center mt-3">
+              Based on 4 units/kW/day generation and Rs {electricityUnitRate} per unit electricity cost
+            </p>
+          </CardContent>
+        </Card>
+
+
+        {/* BATTERY COST TOGGLE */}
+        <Card className="bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30 border-amber-200 dark:border-amber-800">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-lg text-amber-700 dark:text-amber-300">
+                <BatteryCharging className="w-5 h-5" />
+                Add Battery Cost to Plant
+              </CardTitle>
+              <Button
+                type="button"
+                variant={includeBatteryCost ? "default" : "outline"}
+                size="sm"
+                onClick={() => setIncludeBatteryCost(!includeBatteryCost)}
+                className={includeBatteryCost ? "bg-amber-600 hover:bg-amber-700" : ""}
+              >
+                {includeBatteryCost ? "ON ✓" : "OFF"}
+              </Button>
+            </div>
+            <CardDescription>
+              Toggle to include battery cost in total plant cost for EMI calculation
+            </CardDescription>
+          </CardHeader>
+          {includeBatteryCost && (
+            <CardContent className="space-y-4">
+              <div className="flex gap-3">
+                <Button type="button" variant={batteryCostType === "lead_acid" ? "default" : "outline"} className="flex-1" onClick={() => setBatteryCostType("lead_acid")}>
+                  Lead Acid — Rs {BATTERY_COST_LEAD_ACID_PER_WATT}/W
+                </Button>
+                <Button type="button" variant={batteryCostType === "lithium_ion" ? "default" : "outline"} className="flex-1" onClick={() => setBatteryCostType("lithium_ion")}>
+                  Lithium Ion — Rs {BATTERY_COST_LITHIUM_ION_PER_WATT}/W
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                <div className="p-3 bg-background rounded-lg">
+                  <p className="text-xs text-muted-foreground">System</p>
+                  <p className="text-lg font-bold">{capacity} kW = {(capacity * 1000).toLocaleString("en-IN")} W</p>
+                </div>
+                <div className="p-3 bg-background rounded-lg">
+                  <p className="text-xs text-muted-foreground">Rate ({BATTERY_COST_RATES[batteryCostType].label})</p>
+                  <p className="text-lg font-bold">Rs {BATTERY_COST_RATES[batteryCostType].rate}/W</p>
+                </div>
+                <div className="p-3 bg-amber-100 dark:bg-amber-900/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground">Battery Cost</p>
+                  <p className="text-lg font-bold text-amber-700 dark:text-amber-300">{formatINR(result.batteryCostAmount)}</p>
+                </div>
+              </div>
+              <div className="p-3 bg-muted/50 rounded-lg text-center">
+                <p className="text-sm"><strong>Total Plant Cost:</strong> {formatINR(result.totalCost - result.batteryCostAmount)} (Solar) + {formatINR(result.batteryCostAmount)} (Battery) = <strong className="text-primary">{formatINR(result.totalCost)}</strong></p>
+                <p className="text-xs text-muted-foreground mt-1">Subsidy applies to solar panels only — battery cost is not subsidised</p>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+
+        {/* EMI CALCULATOR ENHANCED */}
+        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200 dark:border-blue-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg text-blue-700 dark:text-blue-300">
+              <IndianRupee className="w-5 h-5" />
+              EMI Calculator — Loan Options & Power Savings
+            </CardTitle>
+            <CardDescription>Compare EMI with and without subsidy deduction (up to 120 months)</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Loan Summary - Two Options */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 bg-orange-50 dark:bg-orange-950/30 rounded-lg border-2 border-orange-200 dark:border-orange-800">
+                <p className="text-xs font-bold text-orange-600 dark:text-orange-400 mb-2">OPTION A — Without Subsidy Deduction</p>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between"><span className="text-muted-foreground">Plant Cost {includeBatteryCost ? "(+Battery)" : ""}</span><span className="font-mono font-semibold">{formatINR(result.totalCost)}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Down Payment ({result.downPaymentPercent}%)</span><span className="font-mono text-red-500">- {formatINR(result.downPayment)}</span></div>
+                  <div className="flex justify-between border-t pt-1 mt-1"><span className="font-bold">Net Loan (A)</span><span className="font-mono font-bold text-orange-600">{formatINR(result.loanWithoutSubsidy)}</span></div>
+                </div>
+              </div>
+              <div className="p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border-2 border-green-200 dark:border-green-800">
+                <p className="text-xs font-bold text-green-600 dark:text-green-400 mb-2">OPTION B — After Subsidy Deduction</p>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between"><span className="text-muted-foreground">Plant Cost {includeBatteryCost ? "(+Battery)" : ""}</span><span className="font-mono font-semibold">{formatINR(result.totalCost)}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Down Payment ({result.downPaymentPercent}%)</span><span className="font-mono text-red-500">- {formatINR(result.downPayment)}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Total Subsidy</span><span className="font-mono text-green-600">- {formatINR(result.totalSubsidy)}</span></div>
+                  <div className="flex justify-between border-t pt-1 mt-1"><span className="font-bold">Net Loan (B)</span><span className="font-mono font-bold text-green-600">{formatINR(result.loanAmount)}</span></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Tenure Selection */}
+            <div className="p-4 bg-background rounded-lg text-center">
+              <p className="text-sm text-muted-foreground mb-2">Select EMI Tenure (up to 120 Months)</p>
+              <div className="flex gap-1 flex-wrap justify-center">
+                {[36, 48, 60, 72, 84, 96, 108, 120].map((months) => (
+                  <Button key={months} type="button" variant={selectedEmiTenure === months ? "default" : "outline"} size="sm" onClick={() => setSelectedEmiTenure(months)} data-testid={`button-emi-${months}months`}>
+                    {months}M
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* EMI Comparison Table — Both Options */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="py-2 px-2 text-left">Tenure</th>
+                    <th className="py-2 px-2 text-right text-orange-600">{"EMI (A)"}<br/><span className="font-normal text-xs">W/o Subsidy</span></th>
+                    <th className="py-2 px-2 text-right text-green-600">{"EMI (B)"}<br/><span className="font-normal text-xs">After Subsidy</span></th>
+                    <th className="py-2 px-2 text-right text-green-600">{"You Save"}<br/><span className="font-normal text-xs">/month</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { months: 36, emiA: result.emiA36, emiB: result.emi36Months },
+                    { months: 48, emiA: result.emiA48, emiB: result.emi48Months },
+                    { months: 60, emiA: result.emiA60, emiB: result.emi60Months },
+                    { months: 72, emiA: result.emiA72, emiB: result.emi72Months },
+                    { months: 84, emiA: result.emiA84, emiB: result.emi84Months },
+                    { months: 96, emiA: result.emiA96, emiB: result.emi96Months },
+                    { months: 108, emiA: result.emiA108, emiB: result.emi108Months },
+                    { months: 120, emiA: result.emiA120, emiB: result.emi120Months },
+                  ].map(({ months, emiA, emiB }) => (
+                    <tr key={months} className={`border-b ${selectedEmiTenure === months ? "bg-primary/10 font-semibold" : ""}`}>
+                      <td className="py-2 px-2">{months}M ({(months / 12).toFixed(1)}yr)</td>
+                      <td className="py-2 px-2 text-right font-mono text-orange-600">{formatINR(emiA)}</td>
+                      <td className="py-2 px-2 text-right font-mono text-green-600">{formatINR(emiB)}</td>
+                      <td className="py-2 px-2 text-right font-mono text-green-700 font-bold">{formatINR(emiA - emiB)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="text-xs text-muted-foreground text-center">
+              Loan A: {formatINR(result.loanWithoutSubsidy)} | Loan B: {formatINR(result.loanAmount)} | Rate: {interestRate}% p.a.
+              {includeBatteryCost && ` | ${BATTERY_COST_RATES[batteryCostType].label} battery included`}
+            </div>
+
+            {/* Effective Payment */}
+            <div className="p-4 bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/50 dark:to-emerald-900/50 rounded-lg">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center items-center">
+                <div>
+                  <p className="text-sm text-muted-foreground">Monthly EMI ({selectedEmiTenure}M, Option B)</p>
+                  <p className="text-xl font-bold font-mono">{formatINR(selectedEmi)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-green-600 dark:text-green-400">- Monthly Power Savings</p>
+                  <p className="text-xl font-bold font-mono text-green-600 dark:text-green-400">- {formatINR(result.monthlySavings)}</p>
+                </div>
+                <div className="p-3 bg-background rounded-lg">
+                  <p className="text-sm font-medium text-primary">Effective Monthly Payment</p>
+                  <p className="text-2xl font-bold font-mono text-primary">
+                    {result.monthlySavings >= selectedEmi
+                      ? formatINR(0) + " (FREE!)"
+                      : formatINR(selectedEmi - result.monthlySavings)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Your actual pocket expense</p>
+                </div>
+              </div>
+            </div>
+
+            {result.monthlySavings >= selectedEmi && (
+              <div className="p-3 bg-green-100 dark:bg-green-900/50 rounded-lg text-center">
+                <p className="text-green-700 dark:text-green-300 font-medium">
+                  Your power savings cover the entire EMI! Solar pays for itself from Day 1!
+                </p>
+              </div>
+            )}
+
+            <p className="text-xs text-muted-foreground text-center">
+              Power savings based on 4 units/kW/day generation at Rs {electricityUnitRate}/unit electricity cost
+            </p>
+          </CardContent>
+        </Card>
+
+
+        <div className="p-4 bg-muted/30 rounded-lg">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+            <div>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">{result.paybackYears}</p>
+              <p className="text-sm text-muted-foreground">Years Payback Period</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold">25+</p>
+              <p className="text-sm text-muted-foreground">Years Panel Lifespan</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatINR(result.annualSavings * 25)}</p>
+              <p className="text-sm text-muted-foreground">Lifetime Savings</p>
+            </div>
+          </div>
+        </div>
+        
+        <Card className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30 border-orange-200 dark:border-orange-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg text-orange-700 dark:text-orange-300">
+              <Power className="w-5 h-5" />
+              3-in-1 Hybrid Inverter - Exclusive Features
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex items-start gap-3 p-3 bg-background rounded-lg">
+                <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center flex-shrink-0">
+                  <Zap className="w-4 h-4 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <p className="font-medium text-sm">Works During Power Cuts</p>
+                  <p className="text-xs text-muted-foreground">
+                    Our solar plant works even when grid power is off. Other solar plants stop working during power cuts.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 bg-background rounded-lg">
+                <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center flex-shrink-0">
+                  <BatteryCharging className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <p className="font-medium text-sm">Battery Ready for Night Use</p>
+                  <p className="text-xs text-muted-foreground">
+                    Add a battery later to store power for night usage. Other plants cannot support battery storage.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-orange-700 dark:text-orange-300 pt-2 border-t border-orange-200 dark:border-orange-800">
+              <Check className="w-4 h-4" />
+              <span className="font-medium">Included: 3-in-1 Hybrid Inverter with your solar plant at no extra cost</span>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/30 dark:to-indigo-950/30 border-purple-200 dark:border-purple-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg text-purple-700 dark:text-purple-300">
+              <FileText className="w-5 h-5" />
+              Generate Customer Proposal
+            </CardTitle>
+            <CardDescription>
+              Create a professional PDF proposal to share with your customer
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="customer-name">Customer Name</Label>
+              <Input
+                id="customer-name"
+                type="text"
+                placeholder="Enter customer name for personalized proposal"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                data-testid="input-customer-name"
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="customer-phone">Customer WhatsApp Number</Label>
+                <Input
+                  id="customer-phone"
+                  type="tel"
+                  placeholder="Enter 10-digit mobile number"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  data-testid="input-customer-phone"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="customer-email">Customer Email (Optional)</Label>
+                <Input
+                  id="customer-email"
+                  type="email"
+                  placeholder="Enter email address"
+                  value={customerEmail}
+                  onChange={(e) => setCustomerEmail(e.target.value)}
+                  data-testid="input-customer-email"
+                />
+              </div>
+            </div>
+            
+            <div className="border-t pt-4">
+              <p className="text-sm font-medium text-muted-foreground mb-3">District Partner Details (for PDF Proposal)</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="partner-name">Partner Name</Label>
+                  <Input
+                    id="partner-name"
+                    type="text"
+                    placeholder="Enter district partner name"
+                    value={partnerName}
+                    onChange={(e) => setPartnerName(e.target.value)}
+                    data-testid="input-partner-name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="partner-phone">Partner Mobile Number</Label>
+                  <Input
+                    id="partner-phone"
+                    type="tel"
+                    placeholder="Enter 10-digit mobile number"
+                    value={partnerPhone}
+                    onChange={(e) => setPartnerPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    data-testid="input-partner-phone"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2 mt-4">
+                <Label htmlFor="installation-address">Proposed Plant Installation Site Address</Label>
+                <Input
+                  id="installation-address"
+                  type="text"
+                  placeholder="Enter complete address for solar plant installation"
+                  value={installationAddress}
+                  onChange={(e) => setInstallationAddress(e.target.value)}
+                  data-testid="input-installation-address"
+                />
+                <p className="text-xs text-muted-foreground">This address will appear on the proposal PDF</p>
+
+            <div className="border-t pt-4">
+              <p className="text-sm font-medium text-muted-foreground mb-3">Itemized Per-kW Rates (Rs/kW) — affects PDF quotation</p>
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                {([
+                  ["panels","Solar Panels"],["inverter","Inverter"],["structure","Structure"],
+                  ["wiring","Wiring"],["netMetering","Net Meter"],["transport","Transport"],
+                  ["installation","Installation"],["misc","Misc"],["service","Service 5yr"],
+                  ["contractor","Contractor"]
+                ] as [keyof ItemRates, string][]).map(([key,label]) => (
+                  <div key={key} className="space-y-1">
+                    <Label className="text-xs">{label}</Label>
+                    <Input type="number" min="0" max="100000" value={itemRates[key]}
+                      onChange={(e) => setItemRates(prev => ({...prev, [key]: parseInt(e.target.value)||0}))}
+                      className="h-8 text-xs font-mono" />
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2 mt-2 items-center">
+                <Button type="button" variant={includeNetMetering ? "default" : "outline"} size="sm"
+                  onClick={() => setIncludeNetMetering(!includeNetMetering)}>
+                  {includeNetMetering ? "Net Meter: ON" : "Net Meter: OFF"}
+                </Button>
+                <Button type="button" variant="default" size="sm"
+                  className="bg-primary"
+                  onClick={() => {
+                    const newRate = Math.round((itemRates.panels + itemRates.inverter + itemRates.structure + itemRates.wiring + (includeNetMetering ? itemRates.netMetering : 0) + itemRates.transport + itemRates.installation + itemRates.misc + itemRates.service + itemRates.contractor) / 1000);
+                    setCustomRatePerWatt(newRate);
+                    setCustomRateInput(newRate.toString());
+                    setRatesApplied(true);
+                  }}>
+                  Apply Rates to Plant Cost
+                </Button>
+                <Button type="button" variant="outline" size="sm"
+                  onClick={() => {
+                    setItemRates({...DEFAULT_ITEM_RATES});
+                    setCustomRatePerWatt(null);
+                    setCustomRateInput("");
+                    setRatesApplied(false);
+                  }}>
+                  Reset to Default
+                </Button>
+                {ratesApplied && <Badge className="bg-green-100 text-green-700">Rates Applied</Badge>}
+                <span className="text-xs text-muted-foreground ml-auto">
+                  Total: Rs {formatINRPlain(Object.values(itemRates).reduce((a,b)=>a+b,0))}/kW = Rs {formatINRPlain(Object.values(itemRates).reduce((a,b)=>a+b,0) * capacity)}{" "}
+                  ({capacity}kW)
+                </span>
+              </div>
+            </div>
+              </div>
+            </div>
+            
+            <div className="flex flex-wrap gap-3">
+              <Button
+                onClick={handleDownloadProposal}
+                className="flex items-center gap-2"
+                data-testid="button-download-proposal"
+              >
+                <Download className="w-4 h-4" />
+                Download PDF
+              </Button>
+              
+              <Button
+                onClick={handleShareWhatsApp}
+                disabled={customerPhone.length !== 10 || isGeneratingPDF}
+                variant="outline"
+                className="flex items-center gap-2 bg-green-50 hover:bg-green-100 dark:bg-green-950/50 dark:hover:bg-green-900/50 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800"
+                data-testid="button-share-whatsapp"
+              >
+                {isGeneratingPDF ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Generating PDF...
+                  </>
+                ) : (
+                  <>
+                    <MessageCircle className="w-4 h-4" />
+                    Share on WhatsApp
+                  </>
+                )}
+              </Button>
+              
+              <Button
+                onClick={handleShareEmail}
+                disabled={!customerEmail || !customerEmail.includes('@') || isSendingEmail}
+                variant="outline"
+                className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/50 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
+                data-testid="button-share-email"
+              >
+                {isSendingEmail ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="w-4 h-4" />
+                    Send via Email
+                  </>
+                )}
+              </Button>
+            </div>
+            
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <p className="text-xs text-muted-foreground">
+                <strong>Proposal includes:</strong> {capacity} kW {panelType === "dcr" ? "DCR" : "Non-DCR"} Plant | 
+                Material Cost: {formatINR(result.totalCost)} | 
+                Subsidy: {formatINR(result.totalSubsidy)} | 
+                Down Payment ({downPaymentPercent}% of Plant Cost): {formatINR(result.downPayment)} | 
+                EMI: {formatINR(selectedEmi)}/month ({selectedEmiTenure} months) | 
+                Monthly Savings: {formatINR(result.monthlySavings)}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <div className="text-xs text-muted-foreground space-y-1">
+          <p>* DCR Panel Rate: Rs {DCR_HYBRID_RATE_PER_WATT}/W (Hybrid Inverter) | Rs {DCR_ONGRID_RATE_PER_WATT}/W (Ongrid Inverter)</p>
+          <p>* Non-DCR Panel Rate: Ongrid Rs {NON_DCR_ONGRID_RATE_PER_WATT}/W | 3-in-1 Hybrid Rs {NON_DCR_HYBRID_RATE_PER_WATT}/W (3-6 KW only) | Commercial/Industrial Rs {NON_DCR_COMMERCIAL_RATE_PER_WATT}/W (No Subsidy)</p>
+          <p>* Central Subsidy (DCR only): Up to 2 kW - Rs 30,000/kW | 2-3 kW - Rs 18,000/kW | Above 3 kW - Capped at Rs 78,000</p>
+          <p>* State Subsidies (DCR only): Odisha - Rs 20,000/kW (Max Rs 60,000) | UP - Rs 10,000/kW (Max Rs 30,000)</p>
+          <p>* DCR Commission: All capacities - DDP Rs 5,000/kW | BDP Rs 2,500/kW</p>
+          <p>* Non-DCR Commission: All capacities - DDP Rs 2,000/kW | BDP Rs 1,000/kW</p>
+          <p>* Calculations based on average solar generation of 4 kWh/kW/day and Rs 7/kWh electricity tariff</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export { calculateSubsidy, getInverterOptions, calculateCommission, formatINR, stateSubsidies, DCR_HYBRID_RATE_PER_WATT, DCR_ONGRID_RATE_PER_WATT, NON_DCR_ONGRID_RATE_PER_WATT, NON_DCR_HYBRID_RATE_PER_WATT, NON_DCR_COMMERCIAL_RATE_PER_WATT, BATTERY_COST_LEAD_ACID_PER_WATT, BATTERY_COST_LITHIUM_ION_PER_WATT };
+export type { SubsidyResult, CommissionResult, InverterType };

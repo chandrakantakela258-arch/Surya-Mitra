@@ -98,7 +98,7 @@ const panelTypes = [
 
 const inverterTypes = [
   { value: "ongrid", label: "On-Grid Inverter" },
-  { value: "hybrid_3in1", label: "Hybrid 3-in-1 Inverter" },
+  { value: "hybrid_3in1", label: "Livguard Hybrid Inverter" },
 ];
 
 export default function AdminMeterInstallationReports() {

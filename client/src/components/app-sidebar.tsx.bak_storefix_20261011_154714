@@ -1,0 +1,641 @@
+import {
+  useLocation, Link } from "wouter";
+import {
+  useQuery } from "@tanstack/react-query";
+import logoImage from "@assets/88720521_logo_1766219255006.png";
+import {
+  Share2,
+  LayoutDashboard,
+  Users,
+  UserPlus,
+  FileText,
+  Sun,
+  LogOut,
+  Building2,
+  User,
+  Calculator,
+  Wallet,
+  Package,
+  ShoppingCart,
+  UserCheck,
+  MessageSquare,
+  HelpCircle,
+  Bell,
+  TrendingUp,
+  Target,
+  Award,
+  Zap,
+  Globe,
+  ChevronRight,
+  Gift,
+  Trophy,
+  Wrench,
+  Landmark,
+  CheckCircle,
+  Truck,
+  FileCheck,
+  ClipboardList,
+  IndianRupee,
+  Banknote,
+  Files,
+  Phone,
+  Settings,
+  Bot,
+  Mail,
+  AlertTriangle,
+, Store} from "lucide-react";
+import {
+  FeedbackDialog } from "@/components/feedback-dialog";
+import {
+  ChatbotAssistant } from "@/components/chatbot-assistant";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuBadge,
+} from "@/components/ui/sidebar";
+import {
+  Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+Button } from "@/components/ui/button";
+import {
+Badge } from "@/components/ui/badge";
+import {
+RoleBadge } from "@/components/status-badge";
+import {
+useAuth } from "@/lib/auth";
+import {
+apiRequest } from "@/lib/queryClient";
+import {
+useToast } from "@/hooks/use-toast";
+
+interface MenuItem {
+  title: string;
+  url: string;
+  icon: any;
+  badge?: string;
+  highlight?: boolean;
+}
+
+interface MenuSection {
+  label: string;
+  items: MenuItem[];
+}
+
+const adminMenuSections: MenuSection[] = [
+  {
+    label: "Billing \& Invoicing",
+    items: [
+      { title: "Billing Dashboard", url: "/admin/billing", icon: IndianRupee },
+      { title: "Raise Invoice", url: "/admin/billing/invoices/new", icon: Banknote, highlight: true },
+      { title: "Raise Quotation", url: "/admin/billing/quotations/new", icon: Files, highlight: true },
+      { title: "All Invoices", url: "/admin/billing/invoices", icon: FileCheck },
+      { title: "GST Invoice", url: "/admin/billing/approved-bills", icon: FileCheck },
+      { title: "All Quotations", url: "/admin/billing/quotations", icon: Files },
+      { title: "Bank Quotation", url: "/admin/billing/bank-quotations", icon: Landmark },
+      { title: "All Purchase Orders", url: "/admin/billing/purchase-orders", icon: Truck },
+      { title: "Vendors/Suppliers", url: "/admin/billing/vendors", icon: Truck },
+      { title: "Billing Customers", url: "/admin/billing/customers-billing", icon: Users },
+      { title: "Payment Receipts", url: "/admin/billing/receipts", icon: FileCheck },
+      { title: "Generate Ledger", url: "/admin/ledger", icon: FileText },
+      { title: "Products \& Stock", url: "/admin/billing/stock", icon: Package },
+    ],
+  },
+  {
+    label: "PM Surya Ghar Grievance",
+    icon: AlertTriangle,
+    adminOnly: true,
+    items: [
+      { title: "Grievance List", url: "/admin/grievance-list", icon: FileText },
+      { title: "Email Registry", url: "/admin/grievance-emails", icon: Mail },
+      { title: "Reminder Templates", url: "/admin/grievance-reminder-templates", icon: Bell },
+      { title: "Meter Testing", url: "/admin/meter-testing", icon: FileText },
+      { title: "Meter Utilization", url: "/admin/meter-utilization", icon: FileText },
+    ],
+  },
+  {
+    label: "Overview",
+    items: [
+      { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: "Partner Management",
+    items: [
+      { title: "Partner Approvals", url: "/admin/partners", icon: UserCheck },
+      { title: "Partner Hierarchy", url: "/admin/partner-hierarchy", icon: Users },
+      { title: "Shop Partners", url: "/admin/shop-partners", icon: Store },
+      { title: "All Customers", url: "/admin/customers", icon: Users },
+      { title: "Independent Customers", url: "/admin/independent-customers", icon: UserPlus },
+      { title: "Customer Leads", url: "/admin/customer-leads", icon: UserPlus },
+      { title: "Shop Partner Leads", url: "/admin/shop-partner-leads", icon: Users },
+      { title: "SOLAR BOT LEAD", url: "/admin/solar-bot-leads", icon: MessageSquare, highlight: true },
+      { title: "WhatsApp Dashboard", url: "/admin/whatsapp-dashboard", icon: MessageSquare },
+      { title: "WhatsApp Settings", url: "/admin/whatsapp-settings", icon: MessageSquare },
+      { title: "WhatsApp Contacts", url: "/admin/whatsapp-contacts", icon: Users },
+    ],
+  },
+  {
+    label: "Partner Chatbot",
+    items: [
+      { title: "Partner Chat Bot Leads", url: "/admin/partner-bot-leads", icon: MessageSquare, highlight: true },
+      { title: "Chatbot Settings", url: "/admin/chatbot-settings", icon: Settings },
+    ],
+  },
+  {
+    label: "Commerce",
+    items: [
+      { title: "Products", url: "/admin/products", icon: Package },
+      { title: "Orders", url: "/admin/orders", icon: ShoppingCart },
+      { title: "Commission Payouts", url: "/admin/payouts", icon: Wallet },
+      { title: "Site Expenses", url: "/admin/site-expenses", icon: FileText },
+    ],
+  },
+  {
+    label: "Customer Journey",
+    items: [
+      { title: "Step 1: File Submission", url: "/admin/customer-file-submissions", icon: FileText },
+      { title: "Step 2: Bank Loan", url: "/admin/bank-loan-submissions", icon: Landmark },
+      { title: "Step 3: Site Survey", url: "/admin/site-surveys", icon: ClipboardList },
+      { title: "Step 4: Loan Approval", url: "/admin/bank-loan-approvals", icon: CheckCircle },
+      { title: "Step 5: Disbursement", url: "/admin/loan-disbursements", icon: Wallet },
+      { title: "Step 6: Vendor PO", url: "/admin/vendor-purchase-orders", icon: ShoppingCart },
+      { title: "Step 7: Delivery", url: "/admin/goods-deliveries", icon: Truck },
+      { title: "Step 8: Installation", url: "/admin/site-execution-orders", icon: Wrench },
+      { title: "Step 9: Completion", url: "/admin/completion-reports", icon: FileCheck },
+      { title: "Step 10: Grid Connected", url: "/admin/meter-installation-reports", icon: Zap },
+      { title: "Step 11: Portal Submission", url: "/admin/portal-submission-reports", icon: Globe },
+      { title: "Step 12: Remaining Payment", url: "/admin/remaining-payment-reports", icon: Wallet },
+      { title: "Step 13: Subsidy Application", url: "/admin/subsidy-application-reports", icon: FileCheck },
+      { title: "Step 14: Subsidy Disbursement", url: "/admin/subsidy-disbursement-reports", icon: Banknote },
+    ],
+  },
+  {
+    label: "Tools",
+    items: [
+      { title: "Documents", url: "/admin/documents", icon: Files },
+      { title: "User Feedback", url: "/admin/feedback", icon: MessageSquare },
+      { title: "Service Requests", url: "/admin/service-requests", icon: Wrench },
+      { title: "Testimonials", url: "/admin/testimonials", icon: MessageSquare },
+      { title: "Vendor Approvals", url: "/admin/vendors", icon: Wrench },
+      { title: "Vendor Payments", url: "/admin/vendor-payments", icon: Wallet },
+      { title: "Broadcast", url: "/admin/notifications", icon: Bell },
+      { title: "Equipment Settings", url: "/admin/equipment-settings", icon: Settings },
+      { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },
+    { title: "Generate Proposal", url: "/generate-proposal", icon: FileText },
+    ],
+  },
+];
+
+const bdpMenuSections: MenuSection[] = [
+  {
+    label: "Overview",
+    items: [
+      { title: "Dashboard", url: "/bdp/dashboard", icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: "Partner Network",
+    items: [
+      { title: "Partners", url: "/bdp/partners", icon: Building2 },
+      { title: "Partner Hierarchy", url: "/bdp/partner-hierarchy", icon: Users },
+      { title: "Add District Partner", url: "/bdp/partners/new", icon: UserPlus, highlight: true },
+      { title: "Share Partner Link", url: "/bdp/share-link", icon: Gift, highlight: true },
+      { title: "Add State Partner", url: "/bdp/add-sdp", icon: Building2, highlight: true },
+      { title: "All Customers", url: "/bdp/customers", icon: Users },
+    ],
+  },
+  {
+    label: "Business",
+    items: [
+      { title: "Store", url: "/bdp/store", icon: ShoppingCart },
+      { title: "Commission Wallet", url: "/bdp/wallet", icon: Wallet },
+      { title: "Service Requests", url: "/bdp/service-requests", icon: Wrench },
+    ],
+  },
+  {
+    label: "Growth",
+    items: [
+      { title: "Leaderboard", url: "/leaderboard", icon: Trophy },
+    ],
+  },
+  {
+    label: "Solar Bot",
+    items: [
+      { title: "WhatsApp Campaigns", url: "/bdp/whatsapp", icon: MessageSquare },
+      { title: "Chat Bot Leads", url: "/bdp/bot-leads", icon: MessageSquare, highlight: true },
+      { title: "Partner Chat Leads", url: "/bdp/partner-chat-leads", icon: MessageSquare, highlight: true },
+      { title: "WhatsApp Contacts", url: "/bdp/whatsapp-contacts", icon: Users },
+    ],
+  },
+  {
+    label: "Tools",
+    items: [
+      { title: "My Profile", url: "/profile", icon: User },
+      { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },
+    { title: "Generate Proposal", url: "/generate-proposal", icon: FileText },
+    ],
+  },
+];
+
+const sdpMenuSections: MenuSection[] = [
+  {
+    label: "Overview",
+    items: [
+      { title: "Dashboard", url: "/sdp/dashboard", icon: LayoutDashboard },
+      { title: "Chat Bot Leads", url: "/sdp/bot-leads", icon: MessageSquare, highlight: true },
+      { title: "Partner Chat Leads", url: "/sdp/partner-chat-leads", icon: MessageSquare, highlight: true },
+    ],
+  },
+  {
+    label: "Partner Network",
+    items: [
+      { title: "District Partners", url: "/sdp/partners", icon: Building2 },
+      { title: "Partner Hierarchy", url: "/sdp/partner-hierarchy", icon: Users, highlight: false },
+      { title: "Add District Partner", url: "/sdp/partners/new", icon: UserPlus, highlight: true },
+      { title: "Share Partner Link", url: "/sdp/share-link", icon: Gift, highlight: true },
+    ],
+  },
+  {
+    label: "Customer Management",
+    items: [
+      { title: "Customers", url: "/sdp/customers", icon: Users },
+      { title: "Add Customer", url: "/sdp/customers/new", icon: UserPlus, highlight: true },
+      { title: "Share Customer Link", url: "/sdp/share-customer", icon: Share2, highlight: true },
+    ],
+  },
+  {
+    label: "Business",
+    items: [
+      { title: "Earnings", url: "/sdp/earnings", icon: Wallet },
+    ],
+  },
+  {
+    label: "Tools",
+    items: [
+      { title: "My Profile", url: "/profile", icon: User },
+      { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },
+    { title: "Generate Proposal", url: "/generate-proposal", icon: FileText },
+    ],
+  },
+];
+const ddpMenuSections: MenuSection[] = [
+  {
+    label: "Overview",
+    items: [
+      { title: "Dashboard", url: "/ddp/dashboard", icon: LayoutDashboard },
+      { title: "WhatsApp Campaigns", url: "/ddp/whatsapp", icon: MessageSquare },
+      { title: "Chat Bot Leads", url: "/ddp/bot-leads", icon: MessageSquare, highlight: true },
+    ],
+  },
+  {
+    label: "Customer Management",
+    items: [
+      { title: "Customers", url: "/ddp/customers", icon: Users },
+      { title: "Add Customer", url: "/ddp/customers/new", icon: UserPlus, highlight: true },
+      { title: "Share Customer Link", url: "/ddp/share-customer", icon: Share2, highlight: true },
+      { title: "Applications", url: "/ddp/applications", icon: FileText },
+    ],
+  },
+  {
+    label: "Business",
+    items: [
+      { title: "Store", url: "/ddp/store", icon: ShoppingCart },
+      { title: "Earnings", url: "/ddp/earnings", icon: Wallet },
+      { title: "Service Requests", url: "/ddp/service-requests", icon: Wrench },
+    ],
+  },
+  {
+    label: "Growth",
+    items: [
+      { title: "Leaderboard", url: "/leaderboard", icon: Trophy },
+    ],
+  },
+  {
+    label: "Solar Bot",
+    items: [
+      { title: "Chat Bot Leads", url: "/ddp/bot-leads", icon: MessageSquare, highlight: true },
+      { title: "WhatsApp Contacts", url: "/ddp/whatsapp-contacts", icon: Users },
+    ],
+  },
+  {
+    label: "Tools",
+    items: [
+      { title: "My Profile", url: "/profile", icon: User },
+      { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },
+    { title: "Generate Proposal", url: "/generate-proposal", icon: FileText },
+    ],
+  },
+];
+
+const customerPartnerMenuSections: MenuSection[] = [
+  {
+    label: "Overview",
+    items: [
+      { title: "Dashboard", url: "/customer-partner/dashboard", icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: "Referrals",
+    items: [
+      { title: "Refer Customer", url: "/customer-registration", icon: UserPlus, highlight: true },
+      { title: "My Referrals", url: "/customer-partner/referrals", icon: Users },
+      { title: "Earnings", url: "/customer-partner/earnings", icon: Wallet },
+    ],
+  },
+  {
+    label: "Tools",
+    items: [
+      { title: "My Profile", url: "/customer-partner/profile", icon: User },
+      { title: "Subsidy Calculator", url: "/calculator", icon: Calculator },
+    { title: "Generate Proposal", url: "/generate-proposal", icon: FileText },
+    ],
+  },
+];
+
+export function AppSidebar() {
+  const [location, setLocation] = useLocation();
+  const { user, logout } = useAuth();
+  const { toast } = useToast();
+
+  // Fetch notification count
+  const { data: notificationData } = useQuery<{ count: number }>({
+    queryKey: ["/api/notifications/unread-count"],
+    enabled: !!user,
+    refetchInterval: 30000,
+  });
+
+  const { data: stats } = useQuery<any>({
+    queryKey: user?.role === "sdp" ? ["/api/sdp/stats"] :
+              user?.role === "bdp" ? ["/api/bdp/stats"] :
+
+
+
+
+              user?.role === "customer_partner" ? ["/api/customer-partner/stats"] : 
+              ["/api/ddp/stats"],
+    enabled: !!user && user.role !== "admin",
+  });
+
+  const menuSections = user?.role === "admin" 
+    ? adminMenuSections 
+    : user?.role === "sdp"
+    ? sdpMenuSections
+    : user?.role === "bdp" 
+    ? bdpMenuSections 
+    : user?.role === "customer_partner"
+    ? customerPartnerMenuSections
+    : ddpMenuSections;
+
+  const unreadCount = notificationData?.count || 0;
+
+  async function handleLogout() {
+    try {
+      await apiRequest("POST", "/api/auth/logout", {});
+      logout();
+      toast({ title: "Logged out successfully" });
+      setLocation("/login");
+    } catch (error) {
+      toast({
+        title: "Logout failed",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    }
+  }
+
+  const userInitials = user?.name
+    ?.split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2) || "U";
+
+  const getRoleDisplayName = (role: string) => {
+    switch (role) {
+      case "admin": return "Administrator";
+      case "bdp": return "Business Development Partner";
+      case "ddp": return "District Development Partner";
+      case "customer_partner": return "Customer Partner";
+      default: return "Partner";
+    }
+  };
+
+  return (
+    <Sidebar>
+      <SidebarHeader className="border-b p-4">
+        <Link href="/" className="flex items-center group">
+          <img 
+            src={logoImage} 
+            alt="Divyanshi Digital Services Pvt Ltd" 
+            className="h-10 w-auto object-contain"
+          />
+        </Link>
+      </SidebarHeader>
+
+      {/* Quick Stats Banner */}
+      {user?.role !== "admin" && stats && (
+        <div className="mx-3 mt-3 p-3 rounded-lg bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20">
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp className="w-4 h-4 text-primary" />
+            <span className="text-xs font-medium text-primary">Quick Stats</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {user?.role === "bdp" ? (
+              <>
+                <div className="text-center">
+                  <p className="text-lg font-bold">{stats.totalPartners || 0}</p>
+                  <p className="text-[10px] text-muted-foreground">Partners</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold">{stats.totalCustomers || 0}</p>
+                  <p className="text-[10px] text-muted-foreground">Customers</p>
+                </div>
+              </>
+            ) : user?.role === "customer_partner" ? (
+              <>
+                <div className="text-center">
+                  <p className="text-lg font-bold">{stats.totalReferrals || 0}</p>
+                  <p className="text-[10px] text-muted-foreground">Referrals</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold">{stats.eligibleReferrals || 0}</p>
+                  <p className="text-[10px] text-muted-foreground">Eligible</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-center">
+                  <p className="text-lg font-bold">{stats.totalCustomers || 0}</p>
+                  <p className="text-[10px] text-muted-foreground">Customers</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold">{stats.completedInstallations || 0}</p>
+                  <p className="text-[10px] text-muted-foreground">Completed</p>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      <SidebarContent className="mt-2">
+        {menuSections.map((section) => (
+          <SidebarGroup key={section.label}>
+            <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
+              {section.label}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {section.items.map((item) => {
+                  const isActive = location === item.url || location.startsWith(item.url + "/");
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive}
+                        className={item.highlight && !isActive ? "text-primary" : ""}
+                      >
+                        <Link href={item.url} data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
+                          <item.icon className={`w-4 h-4 ${item.highlight && !isActive ? "text-primary" : ""}`} />
+                          <span className="font-medium">{item.title}</span>
+                          {item.highlight && !isActive && (
+                            <Zap className="w-3 h-3 ml-auto text-primary" />
+                          )}
+                        </Link>
+                      </SidebarMenuButton>
+                      {item.badge && (
+                        <SidebarMenuBadge>{item.badge}</SidebarMenuBadge>
+                      )}
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
+
+        {/* Support Section */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
+            Support
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <Link href="/notifications" data-testid="link-notifications">
+                    <Bell className="w-4 h-4" />
+                    <span className="font-medium">Notifications</span>
+                    {unreadCount > 0 && (
+                      <Badge variant="destructive" className="ml-auto text-[10px] px-1.5 py-0 min-w-[18px] h-[18px] flex items-center justify-center">
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </Badge>
+                    )}
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <ChatbotAssistant
+                  trigger={
+                    <button 
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none ring-offset-background transition-colors hover-elevate focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      data-testid="button-help-assistant"
+                    >
+                      <HelpCircle className="w-4 h-4" />
+                      <span className="font-medium">Help Assistant</span>
+                    </button>
+                  }
+                />
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Contact Section */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
+            Contact Us
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <div className="px-2 space-y-2 text-xs">
+              <a href="tel:9801005212" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors" data-testid="contact-chandrakant">
+                <Phone className="w-3 h-3" />
+                <span>Chandrakant Akela - 9801005212</span>
+              </a>
+              <a href="tel:8709248597" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors" data-testid="contact-abhijeet">
+                <Phone className="w-3 h-3" />
+                <span>Abhijeet Chauhan - 8709248597</span>
+              </a>
+              <a href="tel:8777684575" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors" data-testid="contact-sanjay">
+                <Phone className="w-3 h-3" />
+                <span>Sanjay Kumar - 8777684575</span>
+              </a>
+              <a href="tel:9123141987" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors" data-testid="contact-anil">
+                <Phone className="w-3 h-3" />
+                <span>Anil Kumar - 9123141987</span>
+              </a>
+            </div>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter className="border-t p-3">
+        {/* User Profile Card */}
+        <div className="p-3 rounded-lg bg-muted/50 mb-3">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-11 w-11 ring-2 ring-primary/20">
+              <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-bold">
+                {userInitials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold truncate" data-testid="text-user-name">
+                {user?.name || "User"}
+              </p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <RoleBadge role={user?.role || "ddp"} />
+              </div>
+              {user?.state && (
+                <p className="text-[10px] text-muted-foreground mt-1 truncate">
+                  {user.district ? `${user.district}, ` : ""}{user.state}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="space-y-1.5">
+          {user?.role !== "admin" && (
+            <FeedbackDialog
+              trigger={
+                <Button variant="outline" size="sm" className="w-full justify-start" data-testid="button-open-feedback">
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  Send Feedback
+                </Button>
+              }
+            />
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start text-muted-foreground hover:text-destructive"
+            onClick={handleLogout}
+            data-testid="button-logout"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Sign Out
+          </Button>
+        </div>
+      </SidebarFooter>
+    </Sidebar>
+  );
+}

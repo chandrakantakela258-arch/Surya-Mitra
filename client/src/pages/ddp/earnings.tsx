@@ -11,7 +11,8 @@ import { StatCard } from "@/components/stat-card";
 import { TableSkeleton } from "@/components/loading-skeleton";
 import { EmptyState } from "@/components/empty-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { dcrFixedCommission, dcrPerKwRates, nonDcrPerKwRates, inverterCommission, type Commission, type BankAccount, type IncentiveTarget } from "@shared/schema";
+import { useAuth } from "@/lib/auth";
+import { dcrFixedCommission, dcrPerKwRates, nonDcrPerKwRates, inverterCommission, marketingTeamDcrRates, marketingTeamNonDcrRates, type Commission, type BankAccount, type IncentiveTarget } from "@shared/schema";
 import { formatINR } from "@/components/subsidy-calculator";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -53,6 +54,8 @@ interface EnhancedSummary {
 }
 
 export default function DDPEarnings() {
+  const { user } = useAuth();
+  const isMarketing = user?.teamStructure === "marketing_team";
   const { toast } = useToast();
   const [bankForm, setBankForm] = useState({
     accountHolderName: "",
@@ -364,37 +367,37 @@ export default function DDPEarnings() {
             <div className="space-y-2">
               <p className="text-sm font-medium text-muted-foreground">DCR Panels (With Subsidy)</p>
               <div className="space-y-2">
-                <div className="p-3 rounded-lg bg-primary/10 flex items-center justify-between gap-4 flex-wrap">
-                  <span className="text-sm">3 kW</span>
-                  <Badge variant="outline" className="font-mono">
-                    {formatINR(dcrFixedCommission[3]?.ddp || 0)}
-                  </Badge>
-                </div>
-                <div className="p-3 rounded-lg bg-primary/10 flex items-center justify-between gap-4 flex-wrap">
-                  <span className="text-sm">5 kW</span>
-                  <Badge variant="outline" className="font-mono">
-                    {formatINR(dcrFixedCommission[5]?.ddp || 0)}
-                  </Badge>
-                </div>
-                <div className="p-3 rounded-lg bg-primary/10 flex items-center justify-between gap-4 flex-wrap">
-                  <span className="text-sm">6 kW & above</span>
-                  <Badge variant="outline" className="font-mono">
-                    {formatINR(dcrPerKwRates.ddp)}/kW
-                  </Badge>
-                </div>
+                {isMarketing ? (
+                  <div className="p-3 rounded-lg bg-primary/10 flex items-center justify-between gap-4 flex-wrap">
+                    <span className="text-sm">All capacities</span>
+                    <Badge variant="outline" className="font-mono">{formatINR(marketingTeamDcrRates.ddp)}/kW</Badge>
+                  </div>
+                ) : (
+                  <>
+                    <div className="p-3 rounded-lg bg-primary/10 flex items-center justify-between gap-4 flex-wrap">
+                      <span className="text-sm">3 kW</span>
+                      <Badge variant="outline" className="font-mono">{formatINR(dcrFixedCommission[3]?.ddp || 0)}</Badge>
+                    </div>
+                    <div className="p-3 rounded-lg bg-primary/10 flex items-center justify-between gap-4 flex-wrap">
+                      <span className="text-sm">5 kW</span>
+                      <Badge variant="outline" className="font-mono">{formatINR(dcrFixedCommission[5]?.ddp || 0)}</Badge>
+                    </div>
+                    <div className="p-3 rounded-lg bg-primary/10 flex items-center justify-between gap-4 flex-wrap">
+                      <span className="text-sm">6 kW & above</span>
+                      <Badge variant="outline" className="font-mono">{formatINR(dcrPerKwRates.ddp)}/kW</Badge>
+                    </div>
+                  </>
+                )}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">DCR Ongrid: Rs 66/W | DCR 3-in-1 Hybrid: Rs 75/W</p>
             </div>
-            
             <div className="space-y-2">
               <p className="text-sm font-medium text-muted-foreground">Non-DCR Panels (No Subsidy)</p>
               <div className="p-3 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-between gap-4 flex-wrap">
                 <span className="text-sm">All capacities</span>
                 <Badge variant="outline" className="font-mono">
-                  {formatINR(nonDcrPerKwRates.ddp)}/kW
+                  {formatINR(isMarketing ? marketingTeamNonDcrRates.ddp : nonDcrPerKwRates.ddp)}/kW
                 </Badge>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">Non-DCR Ongrid: Rs 45/W | Non-DCR 3-in-1 Hybrid: Rs 55/W (3-6 KW only)</p>
             </div>
 
             <div className="space-y-2">

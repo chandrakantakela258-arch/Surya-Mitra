@@ -1,0 +1,96 @@
+// Annexure-II Meter Utilization Certificate — measured row heights, no overlap
+import fs from "fs";
+const LETTERHEAD = "/root/surya-mitra-host/uploads/pdf-inserts/divyanshi_letterhead.jpg";
+const SIGNATURE = "/root/surya-mitra-host/uploads/pdf-inserts/divyanshi_director_signature.jpg";
+const BODY_TOP = 200;
+function drawHead(doc: any) {
+  try { if (fs.existsSync(LETTERHEAD)) doc.image(LETTERHEAD, 0, 0, { width: doc.page.width, height: doc.page.height }); } catch (e) {}
+}
+export function buildAnnexure2(doc: any, d: any) {
+  drawHead(doc);
+  const M = 45, W = doc.page.width - M * 2, DK = "#000000";
+  let y = BODY_TOP, h = 0;
+  doc.fillColor(DK).font("Helvetica-Bold").fontSize(12);
+  const t = "Annexure - II", tw = doc.widthOfString(t), tx = M + (W - tw) / 2;
+  doc.text(t, tx, y);
+  doc.moveTo(tx, y + 14).lineTo(tx + tw, y + 14).lineWidth(0.8).stroke(DK);
+  y += 28;
+  doc.fontSize(10).font("Helvetica-Bold");
+  doc.text(`Letter No:- ${d.letter_no || "__________"}`, M, y, { width: W / 2 });
+  doc.text(`Date: ${d.date_str || "__________"}`, M + W / 2, y, { width: W / 2, align: "right" });
+  y += 24;
+  doc.font("Helvetica-Bold").fontSize(10).text("To,", M, y); y += 15;
+  doc.font("Helvetica").fontSize(10);
+  doc.text("Chief Engineer (Project-I) Urban", M + 40, y); y += 13;
+  doc.text(d.discom || "SBPDCL", M + 40, y); y += 16;
+  const lab2 = d.lab || (String(d.discom || "").toUpperCase().includes("NBPDCL") ? "Chapra East" : `${d.circle || "____"} Circle`);
+  const sub = `Sub:- Submission of 80% or more utilization report of previously tested solar meters in ${lab2} MRT lab under ${d.discom || "SBPDCL"}.`;
+  h = doc.heightOfString(sub, { width: W }); doc.text(sub, M, y, { width: W }); y += h + 6;
+  doc.font("Helvetica-Bold").text("Ref:", M, y); y += 14;
+  doc.font("Helvetica");
+  const r1 = `1.  Letter No- ${d.ref1_no || "____"} dtd ${d.ref1_date || "______"} Regarding testing of solar meters under PM Surya Ghar Yojna.`;
+  h = doc.heightOfString(r1, { width: W - 30 }); doc.text(r1, M + 25, y, { width: W - 30 }); y += h + 3;
+  const r2 = `2.  Letter No- ${d.ref2_no || "____"} dtd ${d.ref2_date || "______"} (submitted by vendor testing previous lot)`;
+  h = doc.heightOfString(r2, { width: W - 30 }); doc.text(r2, M + 25, y, { width: W - 30 }); y += h + 10;
+  doc.font("Helvetica-Bold").text("Sir,", M, y); y += 18;
+  const body = `With reference to the subject mentioned above, it is to mention that all the solar meters submitted vide our Letter No- ${d.ref2_no || "____"} dtd ${d.ref2_date || "______"} in the ${d.mrt || lab2} MRT of ${d.discom || "SBPDCL"} has been successfully tested by the concerned MRT & following is the 80% or more utilization report of previously tested lot.`;
+  doc.font("Helvetica").fontSize(10);
+  h = doc.heightOfString(body, { width: W, align: "justify", lineGap: 2 });
+  doc.text(body, M, y, { width: W, align: "justify", lineGap: 2 }); y += h + 12;
+  const COLS = [28, 92, 88, 78, 92, 107];
+  const HEAD = ["S.No", "Solar Meter\nSerial No", "Solar Meter\nMake", "CA No", "PM Surya Ghar\nApplication No", "Consumer Details"];
+  const colX: number[] = [];
+  COLS.reduce((acc, w, i) => { colX[i] = M + acc; return acc + w; }, 0);
+  const vline = (a: number, b: number) => colX.forEach((x, i) => { if (i > 0) doc.moveTo(x, a).lineTo(x, b).lineWidth(0.7).stroke(DK); });
+  const brk = (need: number) => { if (y + need > doc.page.height - 95) { doc.addPage(); drawHead(doc); y = BODY_TOP; } };
+  function section(label: string, rows: any[]) {
+    brk(70);
+    doc.rect(M, y, W, 18).lineWidth(0.7).stroke(DK);
+    doc.font("Helvetica").fontSize(10).text(label, M, y + 5, { width: W, align: "center" });
+    y += 18;
+    doc.font("Helvetica").fontSize(9);
+    let hh = 0;
+    HEAD.forEach((s, i) => { hh = Math.max(hh, doc.heightOfString(s, { width: COLS[i] - 6 })); });
+    hh += 10;
+    doc.rect(M, y, W, hh).stroke(DK);
+    HEAD.forEach((s, i) => doc.text(s, colX[i] + 3, y + 4, { width: COLS[i] - 6 }));
+    vline(y, y + hh); y += hh;
+    if (!rows.length) { brk(34); doc.rect(M, y, W, 34).stroke(DK); vline(y, y + 34); y += 34; return; }
+    rows.forEach((it, idx) => {
+      const details = [it.consumer_name || "", it.division ? `Division: ${it.division}` : "", it.sub_division ? `Sub-Division: ${it.sub_division}` : ""].filter(Boolean).join("\n");
+      const vals = [String(idx + 1), it.meter_serial_no || "", it.meter_make || "", it.ca_no || "", it.app_no || "", details];
+      doc.font("Helvetica").fontSize(8.5);
+      let rh = 0;
+      vals.forEach((v, i) => { rh = Math.max(rh, doc.heightOfString(String(v), { width: COLS[i] - 6, lineGap: 1 })); });
+      rh += 8; brk(rh);
+      doc.rect(M, y, W, rh).stroke(DK);
+      vals.forEach((v, i) => doc.text(String(v), colX[i] + 3, y + 4, { width: COLS[i] - 6, lineGap: 1 }));
+      vline(y, y + rh); y += rh;
+    });
+  }
+  const items = d.items || [];
+  section("Single Phase Meter", items.filter((i: any) => !/three/i.test(i.phase || "Single Phase")));
+  section("Three Phase Meter", items.filter((i: any) => /three/i.test(i.phase || "")));
+  y += 14; brk(60);
+  const decl = `Declaration: if any of the above mentioned information is found incorrect at any given point, ${d.discom || "SBPDCL"} is free to de-list us from the PM Surya Ghar Portal & initiate any legal action against us.`;
+  doc.font("Helvetica-Bold").fontSize(10);
+  h = doc.heightOfString(decl, { width: W, lineGap: 2 });
+  doc.text(decl, M, y, { width: W, lineGap: 2 }); y += h + 20;
+  const a = d.agency || {}; brk(110);
+  doc.font("Helvetica").fontSize(10);
+  ["Thanks & Regards", "Sign & seal of the vendor"].forEach(l => {
+    const lh = doc.heightOfString(l, { width: W - 45 });
+    doc.text(l, M + 45, y, { width: W - 45 }); y += lh + 3;
+  });
+  try {
+    if (fs.existsSync(SIGNATURE)) { brk(80); doc.image(SIGNATURE, M + 45, y + 2, { width: 170 }); y += 72; }
+  } catch (e) {}
+  doc.font("Helvetica").fontSize(10);
+  [`Name: ${a.signatory || "Nivedita Singh"}`, `Agency Name- ${a.name || ""}`,
+   `Address of Agency- ${a.address || ""}`, `Contact no- ${a.contact || ""}`,
+   `Email id- ${a.email || ""}`].forEach(l => {
+    const lh = doc.heightOfString(l, { width: W - 45 });
+    doc.text(l, M + 45, y, { width: W - 45 }); y += lh + 3;
+  });
+  return y;
+}

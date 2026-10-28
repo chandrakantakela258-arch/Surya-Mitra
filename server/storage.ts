@@ -128,6 +128,7 @@ import {
   installationMilestones,
   calculateCommission,
   calculateBdpCommission,
+  calculateSdpCommission,
   defaultIncentiveTargets,
   type Document as DocumentType,
   type InsertDocument,
@@ -428,6 +429,7 @@ export interface IStorage {
   getCustomerFileSubmissionsByCustomerId(customerId: string): Promise<CustomerFileSubmission[]>;
   updateCustomerFileSubmission(id: string, data: Partial<CustomerFileSubmission>): Promise<CustomerFileSubmission | undefined>;
   deleteCustomerFileSubmission(id: string): Promise<void>;
+  deleteCustomer(id: string): Promise<boolean>;
   
   // Bank Loan Approval operations (Step 3 of Customer Journey)
   createBankLoanApproval(approval: InsertBankLoanApproval): Promise<BankLoanApproval>;
@@ -512,21 +514,18 @@ async function generatePartnerCode(role: string, bdpPartnerCode?: string): Promi
     }
     return `DSBDP${nextNum.toString().padStart(3, '0')}`;
   } else if (role === "ddp" && bdpPartnerCode) {
-    // Extract the 3-digit number from BDP code (e.g., "001" from "DSBDP001")
-    const bdpNum = bdpPartnerCode.slice(5); // Get "001" from "DSBDP001"
+    if (bdpPartnerCode.startsWith("DSSDP")) {
+      const [r2] = await db.select({ maxCode: sql`MAX(partner_code)` }).from(users).where(sql`partner_code LIKE 'DSSPDDP%'`);
+      let nextNum = 1001;
+      if (r2?.maxCode) nextNum = parseInt(r2.maxCode.slice(7), 10) + 1;
+      return `DSSPDDP${nextNum}`;
+    }
+    const bdpNum = bdpPartnerCode.slice(5);
     const prefix = `DSDDP${bdpNum}`;
-    
-    // Find max DDP code under this BDP
-    const [result] = await db.select({ maxCode: sql<string>`MAX(partner_code)` })
-      .from(users)
-      .where(sql`partner_code LIKE ${prefix + '___'}`);
-    
+    const [result] = await db.select({ maxCode: sql`MAX(partner_code)` }).from(users).where(sql`partner_code LIKE ${prefix + '___'}`);
     const maxCode = result?.maxCode;
     let nextNum = 1;
-    if (maxCode) {
-      const numPart = maxCode.slice(prefix.length); // Get last 3 digits
-      nextNum = parseInt(numPart, 10) + 1;
-    }
+    if (maxCode) nextNum = parseInt(maxCode.slice(prefix.length), 10) + 1;
     return `${prefix}${nextNum.toString().padStart(3, '0')}`;
   }
   return "";
@@ -627,7 +626,7 @@ export class DatabaseStorage implements IStorage {
     return db
       .select()
       .from(users)
-      .where(and(eq(users.parentId, parentId), eq(users.role, "ddp")))
+      .where(and(eq(users.parentId, parentId), sql`${users.role} IN ('ddp', 'sdp')`))
       .orderBy(desc(users.createdAt));
   }
 
@@ -900,21 +899,18 @@ export class DatabaseStorage implements IStorage {
     return commission || undefined;
   }
   
-  async createCommissionForCustomer(customerId: string, partnerId: string): Promise<{ ddpCommission: Commission | null; bdpCommission: Commission | null }> {
+  async createCommissionForCustomer(customerId: string, partnerId: string): Promise<{ ddpCommission: Commission | null; bdpCommission: Commission | null; sdpCommission: Commission | null }> {
     const customer = await this.getCustomer(customerId);
     if (!customer || !customer.proposedCapacity) {
-      return { ddpCommission: null, bdpCommission: null };
+      return { ddpCommission: null, bdpCommission: null, sdpCommission: null };
     }
-    
     const capacityKw = Math.round(parseFloat(customer.proposedCapacity) || 0);
     if (capacityKw <= 0) {
-      return { ddpCommission: null, bdpCommission: null };
+      return { ddpCommission: null, bdpCommission: null, sdpCommission: null };
     }
-    
     let ddpCommission: Commission | null = null;
     let bdpCommission: Commission | null = null;
-    
-    // Check for existing DDP commission
+    let sdpCommission: Commission | null = null;
     const existingDdpCommissions = await db
       .select()
       .from(commissions)
@@ -923,13 +919,10 @@ export class DatabaseStorage implements IStorage {
         eq(commissions.partnerId, partnerId),
         eq(commissions.partnerType, "ddp")
       ));
-    
     const panelType = customer.panelType || "dcr";
     const custType = customer.customerType || "residential";
     const ddpCommissionAmount = calculateCommission(capacityKw, panelType, custType);
-    
     if (existingDdpCommissions.length === 0) {
-      // Create DDP commission
       ddpCommission = await this.createCommission({
         partnerId,
         partnerType: "ddp",
@@ -941,52 +934,69 @@ export class DatabaseStorage implements IStorage {
         paidAt: null,
         notes: null,
       });
-      
-      // Update incentive progress for DDP
       await this.updateIncentiveProgress(partnerId, 1, capacityKw);
     } else {
       ddpCommission = existingDdpCommissions[0];
     }
-    
-    // Always check and create BDP commission (even if DDP already existed)
     const ddp = await this.getUser(partnerId);
     if (ddp?.parentId) {
-      const bdpCommissionAmount = calculateBdpCommission(capacityKw, panelType, custType);
-      
-      // Check for existing BDP commission
-      const existingBdpCommissions = await db
-        .select()
-        .from(commissions)
-        .where(and(
-          eq(commissions.customerId, customerId),
-          eq(commissions.partnerId, ddp.parentId),
-          eq(commissions.partnerType, "bdp")
-        ));
-      
-      if (existingBdpCommissions.length === 0) {
-        bdpCommission = await this.createCommission({
-          partnerId: ddp.parentId,
-          partnerType: "bdp",
-          customerId,
-          source: "installation",
-          capacityKw,
-          commissionAmount: bdpCommissionAmount,
-          status: "pending",
-          paidAt: null,
-          notes: null,
-        });
-        
-        // Update incentive progress for BDP
-        await this.updateIncentiveProgress(ddp.parentId, 1, capacityKw);
+      const parentUser = await this.getUser(ddp.parentId);
+      if (parentUser?.role === "sdp") {
+        const sdpCommissionAmount = calculateSdpCommission(capacityKw, panelType, custType);
+        const existingSdpCommissions = await db
+          .select()
+          .from(commissions)
+          .where(and(
+            eq(commissions.customerId, customerId),
+            eq(commissions.partnerId, ddp.parentId),
+            eq(commissions.partnerType, "sdp")
+          ));
+        if (existingSdpCommissions.length === 0) {
+          sdpCommission = await this.createCommission({
+            partnerId: ddp.parentId,
+            partnerType: "sdp",
+            customerId,
+            source: "installation",
+            capacityKw,
+            commissionAmount: sdpCommissionAmount,
+            status: "pending",
+            paidAt: null,
+            notes: null,
+          });
+          await this.updateIncentiveProgress(ddp.parentId, 1, capacityKw);
+        } else {
+          sdpCommission = existingSdpCommissions[0];
+        }
       } else {
-        bdpCommission = existingBdpCommissions[0];
+        const bdpCommissionAmount = calculateBdpCommission(capacityKw, panelType, custType);
+        const existingBdpCommissions = await db
+          .select()
+          .from(commissions)
+          .where(and(
+            eq(commissions.customerId, customerId),
+            eq(commissions.partnerId, ddp.parentId),
+            eq(commissions.partnerType, "bdp")
+          ));
+        if (existingBdpCommissions.length === 0) {
+          bdpCommission = await this.createCommission({
+            partnerId: ddp.parentId,
+            partnerType: "bdp",
+            customerId,
+            source: "installation",
+            capacityKw,
+            commissionAmount: bdpCommissionAmount,
+            status: "pending",
+            paidAt: null,
+            notes: null,
+          });
+          await this.updateIncentiveProgress(ddp.parentId, 1, capacityKw);
+        } else {
+          bdpCommission = existingBdpCommissions[0];
+        }
       }
     }
-    
-    return { ddpCommission, bdpCommission };
+    return { ddpCommission, bdpCommission, sdpCommission };
   }
-
-  // Admin operations
   async getAdminStats(): Promise<{
     totalBDPs: number;
     totalDDPs: number;
@@ -1015,7 +1025,7 @@ export class DatabaseStorage implements IStorage {
       .from(users)
       .where(and(
         eq(users.status, "pending"),
-        sql`${users.role} IN ('bdp', 'ddp')`
+        sql`${users.role} IN ('bdp', 'ddp', 'sdp')`
       ));
     
     const [completedCount] = await db
@@ -1047,7 +1057,7 @@ export class DatabaseStorage implements IStorage {
     return db
       .select()
       .from(users)
-      .where(sql`${users.role} IN ('bdp', 'ddp')`)
+      .where(sql`${users.role} IN ('bdp', 'ddp', 'sdp')`)
       .orderBy(desc(users.createdAt));
   }
 
@@ -1062,7 +1072,7 @@ export class DatabaseStorage implements IStorage {
     return db
       .select()
       .from(users)
-      .where(sql`${users.role} IN ('bdp', 'ddp')`)
+      .where(sql`${users.role} IN ('bdp', 'ddp', 'sdp')`)
       .orderBy(desc(users.createdAt))
       .limit(limit);
   }
@@ -2178,7 +2188,7 @@ export class DatabaseStorage implements IStorage {
   async getPartnersForMap(): Promise<User[]> {
     return await db.select().from(users)
       .where(and(
-        sql`${users.role} IN ('bdp', 'ddp')`,
+        sql`${users.role} IN ('bdp', 'ddp', 'sdp')`,
         eq(users.status, "approved")
       ));
   }
@@ -2526,6 +2536,31 @@ export class DatabaseStorage implements IStorage {
     return updated || undefined;
   }
   
+  async deleteCustomer(id: string): Promise<boolean> {
+    // Delete related records first to avoid foreign key constraints
+    try {
+      await db.delete(milestones).where(eq(milestones.customerId, id));
+      await db.delete(commissions).where(eq(commissions.customerId, id));
+      await db.delete(notifications).where(eq(notifications.customerId, id));
+      await db.delete(documents).where(eq(documents.customerId, id));
+      await db.execute(sql`DELETE FROM customer_vendor_assignments WHERE customer_id = ${id}`);
+      await db.execute(sql`DELETE FROM vendor_payments WHERE customer_id = ${id}`);
+      await db.execute(sql`DELETE FROM site_expenses WHERE customer_id = ${id}`);
+      await db.execute(sql`DELETE FROM bank_loan_submissions WHERE customer_id = ${id}`);
+      await db.execute(sql`DELETE FROM customer_file_submissions WHERE customer_id = ${id}`);
+      await db.execute(sql`DELETE FROM referrals WHERE referred_customer_id = ${id}`);
+      await db.execute(sql`DELETE FROM payments WHERE customer_id = ${id}`);
+      await db.execute(sql`DELETE FROM orders WHERE customer_id = ${id}`);
+      const result = await db.delete(customers).where(eq(customers.id, id));
+      return (result.rowCount ?? 0) > 0;
+    } catch (error) {
+      console.error("Delete customer cascade error:", error);
+      // Fallback: try SQL CASCADE
+      const result = await db.execute(sql`DELETE FROM customers WHERE id = ${id}`);
+      return (result.rowCount ?? 0) > 0;
+    }
+  }
+
   async deleteCustomerFileSubmission(id: string): Promise<void> {
     await db.delete(customerFileSubmissions).where(eq(customerFileSubmissions.id, id));
   }

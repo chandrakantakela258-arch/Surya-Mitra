@@ -337,7 +337,10 @@ export default function BDPDashboard() {
           <CardDescription>Calculate subsidy and savings for your customers</CardDescription>
         </CardHeader>
         <CardContent>
-          <SubsidyCalculator showCommission="bdp" />
+          <>
+{(() => { console.log("BDP CALC PROPS - teamStructure:", user?.teamStructure, "user:", user?.name); return null; })()}
+<SubsidyCalculator showCommission="bdp_only" teamStructure={user?.teamStructure || "direct"} userRole="bdp" />
+</>
         </CardContent>
       </Card>
     </div>

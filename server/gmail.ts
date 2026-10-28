@@ -1,4 +1,17 @@
 // Gmail Integration for DivyanshiSolar
+import nodemailer from 'nodemailer';
+
+function getSmtpTransporter() {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: false,
+    auth: {
+      user: process.env.SMTP_USER || 'chandrakant@divyanshisolar.in',
+      pass: process.env.SMTP_PASS || 'ainiqdxnakxtnqfq',
+    },
+  });
+}
 // Uses Replit's Gmail connection for secure email sending
 
 import { google } from 'googleapis';
@@ -100,7 +113,7 @@ export async function downloadFileAsBase64(url: string): Promise<{ data: string;
 }
 
 function createEmailMessage(to: string, subject: string, htmlContent: string, fromName: string = 'Divyanshi Solar', pdfAttachment?: { filename: string; data: string }, attachments?: EmailAttachment[]): string {
-  const fromEmail = connectionSettings?.settings?.email || 'noreply@divyanshisolar.com';
+  const fromEmail = connectionSettings?.settings?.email || 'noreply@divyanshisolar.in';
   const boundary = '----=_Part_' + Date.now().toString(36);
   
   const allAttachments: EmailAttachment[] = [];
@@ -164,8 +177,11 @@ function createEmailMessage(to: string, subject: string, htmlContent: string, fr
 export interface EmailOptions {
   to: string;
   subject: string;
-  htmlContent: string;
+  htmlContent?: string;
+  html?: string;
   fromName?: string;
+  cc?: string;
+  replyTo?: string;
   pdfAttachment?: {
     filename: string;
     data: string;
@@ -175,53 +191,31 @@ export interface EmailOptions {
 
 export async function sendEmail(options: EmailOptions): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
-    console.log('Attempting to send email to:', options.to);
-    
-    const gmail = await getUncachableGmailClient();
-    console.log('Gmail client obtained successfully');
-    
-    const encodedMessage = createEmailMessage(
-      options.to,
-      options.subject,
-      options.htmlContent,
-      options.fromName,
-      options.pdfAttachment,
-      options.attachments
-    );
-    
-    console.log('Sending email via Gmail API...');
-    const response = await gmail.users.messages.send({
-      userId: 'me',
-      requestBody: {
-        raw: encodedMessage
-      }
-    });
-    
-    console.log('Email sent successfully, messageId:', response.data.id);
-    return {
-      success: true,
-      messageId: response.data.id || undefined
-    };
-  } catch (error: any) {
-    console.error('Gmail send error:', error.message);
-    console.error('Full error:', JSON.stringify(error, null, 2));
-    
-    // Provide more specific error messages
-    let errorMessage = 'Failed to send email';
-    if (error.message?.includes('Gmail not connected')) {
-      errorMessage = 'Gmail is not connected. Please reconnect your Gmail account.';
-    } else if (error.message?.includes('invalid_grant')) {
-      errorMessage = 'Gmail authorization expired. Please reconnect your Gmail account.';
-    } else if (error.message?.includes('X_REPLIT_TOKEN')) {
-      errorMessage = 'Authentication issue. Please try again.';
-    } else if (error.message) {
-      errorMessage = error.message;
+    console.log("Sending email via SMTP to:", options.to);
+    const transporter = getSmtpTransporter();
+    const attachments: any[] = [];
+    if (options.pdfAttachment) {
+      attachments.push({ filename: options.pdfAttachment.filename, content: Buffer.from(options.pdfAttachment.data, "base64"), contentType: "application/pdf" });
     }
-    
-    return {
-      success: false,
-      error: errorMessage
-    };
+    if (options.attachments && options.attachments.length > 0) {
+      for (const att of options.attachments) {
+        attachments.push({ filename: att.filename, content: Buffer.from(att.data, "base64"), contentType: att.mimeType });
+      }
+    }
+    const info = await transporter.sendMail({
+      from: (options.fromName ? options.fromName + " <" + (process.env.SMTP_USER || "chandrakant@divyanshisolar.in") + ">" : process.env.SMTP_FROM || "Divyanshi Solar <chandrakant@divyanshisolar.in>"),
+      to: options.to,
+      cc: options.cc || undefined,
+      replyTo: options.replyTo || undefined,
+      subject: options.subject,
+      html: options.html || options.htmlContent || "",
+      attachments: attachments.length > 0 ? attachments : undefined,
+    });
+    console.log("Email sent via SMTP, messageId:", info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error: any) {
+    console.error("SMTP send error:", error.message);
+    return { success: false, error: error.message || "Failed to send email" };
   }
 }
 
@@ -264,7 +258,7 @@ export function createProposalEmailTemplate(data: ProposalEmailData): string {
   } = data;
 
   const panelTypeLabel = panelType === 'dcr' ? 'DCR (Subsidy Eligible)' : 'Non-DCR';
-  const inverterTypeLabel = inverterType === 'hybrid' ? '3-in-1 Hybrid Inverter' : 'Ongrid Inverter';
+  const inverterTypeLabel = inverterType === 'hybrid' ? 'Livguard Hybrid Inverter' : 'Ongrid Inverter';
 
   return `
 <!DOCTYPE html>
@@ -284,8 +278,8 @@ export function createProposalEmailTemplate(data: ProposalEmailData): string {
           <tr>
             <td style="background-color: #FF6600; padding: 30px 40px; text-align: center;">
               <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Divyanshi Solar</h1>
-              <p style="color: #ffffff; margin: 10px 0 0; font-size: 13px;">Authorized Marketing Partner of Hewtech System Pvt. Ltd.</p>
-              <p style="color: #ffffffcc; margin: 5px 0 0; font-size: 11px;">Registered with - SBPDCL & NBPDCL</p>
+              <p style="color: #ffffff; margin: 10px 0 0; font-size: 13px;"></p>
+              <p style="color: #ffffffcc; margin: 5px 0 0; font-size: 11px;">${panelType === "non_dcr" ? "Authorised Distributor for Solar Products of Livguard Energy Technologies Pvt. Ltd" : "Registered National Vendor under PM-Surya Ghar: Muft Bijli Yojana Rooftop Solar Program"}</p>
             </td>
           </tr>
           
@@ -428,7 +422,7 @@ export function createProposalEmailTemplate(data: ProposalEmailData): string {
               <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
                 <tr>
                   <td align="center">
-                    <a href="https://divyanshisolar.com" style="display: inline-block; background-color: #FF6600; color: #ffffff; text-decoration: none; padding: 15px 40px; border-radius: 5px; font-weight: bold; font-size: 16px;">Schedule Free Site Survey</a>
+                    <a href="https://divyanshisolar.in" style="display: inline-block; background-color: #FF6600; color: #ffffff; text-decoration: none; padding: 15px 40px; border-radius: 5px; font-weight: bold; font-size: 16px;">Schedule Free Site Survey</a>
                   </td>
                 </tr>
               </table>
@@ -454,11 +448,12 @@ export function createProposalEmailTemplate(data: ProposalEmailData): string {
           
           <!-- Footer -->
           <tr>
-            <td style="background-color: #333333; padding: 25px 40px; text-align: center;">
-              <p style="color: #ffffff; margin: 0 0 5px; font-size: 14px;">Hewtech System Pvt. Ltd. (Registered with - SBPDCL & NBPDCL)</p>
-              <p style="color: #cccccc; margin: 0 0 5px; font-size: 11px;">Golu Babu Market, Ashiyana Digha Road, Rajiv Nagar, Patna, 800025</p>
+            <td style="background-color: #e8761a; padding: 25px 40px; text-align: center;">
+              <p style="color: #ffffff; margin: 0 0 5px; font-size: 14px;">Divyanshi Solar${panelType === "non_dcr" ? " — Authorised Distributor for Solar Products of Livguard Energy Technologies Pvt. Ltd" : " (Registered National Vendor under PM-Surya Ghar: Muft Bijli Yojana Rooftop Solar Program)"}</p>
+              ${panelType !== "non_dcr" ? '<p style="color: #cccccc; margin: 0 0 5px; font-size: 11px;">Registered Office — Jaipur: Plot No. C-3/258, Flat No. G-2, Room-1, Shreyansh Apartment, Chitrakoot Scheme, Vaishali Nagar, Jaipur, Rajasthan 302021</p>' : ''}
+              <p style="color: #cccccc; margin: 0 0 5px; font-size: 11px;">${panelType === "non_dcr" ? "Chandrakant Akela — 9801005212, Bank of India Building, Naubatpur, Mashurhi Road, Vill-Piprawan, Panchayat Jaitipur, Block-Naubatpur, Patna, Bihar 801109" : "Branch Office — Bihar: Chandrakant Akela — 9801005212, Bank of India Building, Naubatpur, Mashurhi Road, Vill-Piprawan, Panchayat Jaitipur, Block-Naubatpur, Patna, Bihar 801109"}</p>
               <p style="color: #999999; margin: 0; font-size: 12px;">
-                www.divyanshisolar.com | info@divyanshisolar.com
+                https://divyanshisolar.in | chandrakant@divyanshisolar.com
               </p>
             </td>
           </tr>
@@ -503,8 +498,8 @@ export function createWelcomeEmailTemplate(customerName: string, partnerName?: s
             </td>
           </tr>
           <tr>
-            <td style="background-color: #333333; padding: 20px; text-align: center;">
-              <p style="color: #999999; margin: 0; font-size: 12px;">www.divyanshisolar.com</p>
+            <td style="background-color: #e8761a; padding: 20px; text-align: center;">
+              <p style="color: #999999; margin: 0; font-size: 12px;">https://divyanshisolar.in</p>
             </td>
           </tr>
         </table>
@@ -567,7 +562,7 @@ export function createCustomerForwardEmailTemplate(data: CustomerForwardEmailDat
           <tr>
             <td style="background: linear-gradient(135deg, #f97316, #ea580c); padding: 24px; text-align: center;">
               <h1 style="color:#fff;margin:0;font-size:22px;">New Customer Registration</h1>
-              <p style="color:#fff;margin:6px 0 0;font-size:14px;opacity:0.9;">Divyanshi Solar - Hewtech System Pvt. Ltd.</p>
+              <p style="color:#fff;margin:6px 0 0;font-size:14px;opacity:0.9;">Divyanshi Solar - Divyanshi Solar</p>
             </td>
           </tr>
           <tr>
@@ -634,7 +629,7 @@ export function createCustomerForwardEmailTemplate(data: CustomerForwardEmailDat
           </tr>
           <tr>
             <td style="background-color:#333;padding:20px;text-align:center;">
-              <p style="color:#999;margin:0;font-size:12px;">www.divyanshisolar.com</p>
+              <p style="color:#999;margin:0;font-size:12px;">https://divyanshisolar.in</p>
             </td>
           </tr>
         </table>

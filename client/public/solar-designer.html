@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solar Mounting Structure Designer</title>
+<style>
+  :root {
+    --bg:#0f1117;--bg2:#171b26;--bg3:#1e2333;
+    --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.14);
+    --text:#e8eaf0;--text2:#9aa0b4;--text3:#5d6480;
+    --accent:#f59e0b;--accent2:#fbbf24;
+    --blue:#3b82f6;--green:#10b981;--orange:#f97316;
+    --font:'Segoe UI',system-ui,-apple-system,sans-serif;
+    --mono:'JetBrains Mono','Consolas',monospace;
+    --radius:10px;--radius-lg:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;line-height:1.6}
+  header{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:62px;position:sticky;top:0;z-index:100}
+  .logo{display:flex;align-items:center;gap:10px}
+  .logo-icon{width:34px;height:34px;background:linear-gradient(135deg,#f59e0b,#f97316);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px}
+  .logo-text{font-size:15px;font-weight:600;letter-spacing:-0.01em}
+  .logo-sub{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em}
+  .header-badge{background:rgba(245,158,11,0.12);color:var(--accent);border:1px solid rgba(245,158,11,0.25);font-size:11px;padding:4px 10px;border-radius:20px;font-weight:500;letter-spacing:.03em}
+  .container{max-width:1320px;margin:0 auto;padding:2rem 1.5rem}
+  .grid-main{display:grid;grid-template-columns:360px 1fr;gap:20px;align-items:start}
+  @media(max-width:960px){.grid-main{grid-template-columns:1fr}}
+  .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-bottom:16px}
+  .card-title{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+  .card-title .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0}
+  .card-title .dot.blue{background:#3b82f6}
+  .card-title .dot.green{background:#10b981}
+  .field{margin-bottom:13px}
+  .field:last-child{margin-bottom:0}
+  .field-label{font-size:12px;color:var(--text2);margin-bottom:5px;display:flex;justify-content:space-between;align-items:baseline}
+  .field-val{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--accent2)}
+  .field-conv{font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:2px}
+  input[type=range]{width:100%;height:4px;appearance:none;background:var(--bg3);border-radius:2px;outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{appearance:none;width:16px;height:16px;background:var(--accent);border-radius:50%;cursor:pointer;border:2px solid var(--bg);box-shadow:0 0 0 2px rgba(245,158,11,0.3)}
+  input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--accent);border-radius:50%;cursor:pointer;border:2px solid var(--bg)}
+  select{width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:8px 10px;border-radius:var(--radius);font-size:13px;font-family:var(--font);outline:none;cursor:pointer}
+  select:focus{border-color:var(--accent)}
+  select option{background:var(--bg3)}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .metrics-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+  @media(max-width:700px){.metrics-grid{grid-template-columns:repeat(2,1fr)}}
+  .metric{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;transition:border-color .2s}
+  .metric.ok{border-color:rgba(16,185,129,0.3)}
+  .metric.warn{border-color:rgba(249,115,22,0.4)}
+  .metric.blue{border-color:rgba(59,130,246,0.3)}
+  .metric .mv{font-size:19px;font-weight:700;font-family:var(--mono);color:var(--text);line-height:1.2}
+  .metric.ok .mv{color:var(--green)}
+  .metric.warn .mv{color:var(--orange)}
+  .metric.blue .mv{color:#60a5fa}
+  .metric .ml{font-size:10px;color:var(--text3);margin-top:3px;text-transform:uppercase;letter-spacing:.05em}
+  .canvas-wrap{background:var(--bg3);border-radius:var(--radius);overflow:hidden;border:1px solid var(--border)}
+  .canvas-wrap svg{display:block;width:100%}
+  .bom-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:12px;min-width:560px}
+  th{background:var(--bg3);padding:8px 12px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border)}
+  td{padding:8px 12px;border-bottom:1px solid var(--border);color:var(--text2);font-family:var(--mono);font-size:11.5px}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:rgba(255,255,255,0.02);color:var(--text)}
+  .tag{display:inline-block;font-size:10px;padding:2px 7px;border-radius:4px;font-weight:600;letter-spacing:.03em;font-family:var(--font)}
+  .tag-ok{background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.25)}
+  .tag-warn{background:rgba(249,115,22,0.15);color:#fb923c;border:1px solid rgba(249,115,22,0.25)}
+  .tag-info{background:rgba(59,130,246,0.12);color:#93c5fd;border:1px solid rgba(59,130,246,0.2)}
+  .tag-blue{background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3)}
+  .section-head{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;border:none;font-family:var(--font)}
+  .btn-primary{background:var(--accent);color:#0f1117}
+  .btn-primary:hover{background:var(--accent2)}
+  .btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border2)}
+  .btn-ghost:hover{background:var(--bg3);color:var(--text)}
+  .btn-row{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+  .panel-info-box{background:rgba(59,130,246,0.07);border:1px solid rgba(59,130,246,0.2);border-radius:var(--radius);padding:12px 14px;margin-top:10px;font-size:12px;line-height:1.9;font-family:var(--mono);color:#93c5fd}
+  .mode-btn{flex:1;padding:7px 10px;border-radius:var(--radius);font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);font-family:var(--font);transition:all .15s}
+  .mode-btn.active{background:var(--accent);color:#0f1117;border-color:var(--accent)}
+  .mode-btn:not(.active):hover{background:var(--bg2);color:var(--text)}
+  @media print{header,.btn-row{display:none}body{background:#fff;color:#111}.card{background:#fff;border-color:#ddd}.metric{background:#f8f8f8}.canvas-wrap{background:#f8f8f8}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <div class="logo-icon">&#9728;</div>
+    <div>
+      <div class="logo-text">Solar Structure Designer</div>
+      <div class="logo-sub">Mounting Structure Analysis Tool</div>
+    </div>
+  </div>
+  <span class="header-badge">Imperial Units &mdash; ft / lbs</span>
+</header>
+
+<div class="container">
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="window.print()">&#128424; Print / Save PDF</button>
+    <button class="btn btn-ghost" onclick="resetDefaults()">&#8635; Reset defaults</button>
+    <button class="btn btn-ghost" id="copybtn" onclick="copyReport()">&#128203; Copy report</button>
+  </div>
+  <div class="grid-main">
+    <!-- LEFT PANEL -->
+    <div>
+
+      <!-- PANEL CONFIGURATION -->
+      <div class="card">
+        <div class="card-title"><span class="dot blue"></span>Panel Configuration</div>
+
+        <div class="field">
+          <div class="field-label">Panel wattage <span class="field-val" id="wattv">550 W</span></div>
+          <select id="watt" onchange="render()">
+            <option value="250">250 W</option>
+            <option value="300">300 W</option>
+            <option value="350">350 W</option>
+            <option value="400">400 W</option>
+            <option value="440">440 W</option>
+            <option value="500">500 W</option>
+            <option value="550" selected>550 W</option>
+            <option value="600">600 W</option>
+            <option value="650">650 W</option>
+            <option value="700">700 W</option>
+          </select>
+        </div>
+
+        <div class="two-col">
+          <div class="field">
+            <div class="field-label">Panel length <span class="field-val" id="plenv">7.05 ft</span></div>
+            <input type="range" id="plen" min="4" max="9" step="0.05" value="7.05" oninput="render()">
+            <div class="field-conv" id="plenm">&#8776; 2149 mm</div>
+          </div>
+          <div class="field">
+            <div class="field-label">Panel width <span class="field-val" id="pwidv">3.54 ft</span></div>
+            <input type="range" id="pwid" min="2" max="5" step="0.05" value="3.54" oninput="render()">
+            <div class="field-conv" id="pwidm">&#8776; 1079 mm</div>
+          </div>
+        </div>
+
+        <div class="two-col">
+          <div class="field">
+            <div class="field-label">Gap between panels <span class="field-val" id="pgapv">0.08 ft</span></div>
+            <input type="range" id="pgap" min="0" max="0.5" step="0.01" value="0.08" oninput="render()">
+            <div class="field-conv" id="pgapm">&#8776; 25 mm</div>
+          </div>
+          <div class="field">
+            <div class="field-label">Row spacing <span class="field-val" id="rspv">1.0 ft</span></div>
+            <input type="range" id="rsp" min="0" max="4" step="0.1" value="1.0" oninput="render()">
+            <div class="field-conv" id="rspm">&#8776; 305 mm</div>
+          </div>
+        </div>
+
+        <div class="two-col">
+          <div class="field">
+            <div class="field-label">Panels per row <span class="field-val" id="pprv">2</span></div>
+            <input type="range" id="ppr" min="1" max="10" step="1" value="2" oninput="render()">
+          </div>
+          <div class="field">
+            <div class="field-label">Number of rows <span class="field-val" id="nrowv">2</span></div>
+            <input type="range" id="nrow" min="1" max="6" step="1" value="2" oninput="render()">
+          </div>
+        </div>
+
+        <div class="panel-info-box" id="panelInfo"></div>
+      </div>
+
+      <!-- STRUCTURE GEOMETRY -->
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>Structure Geometry</div>
+        <div style="display:flex;gap:6px;margin-bottom:14px">
+          <button id="modeLegs" class="mode-btn active" onclick="setMode('legs')">Set Leg Heights</button>
+          <button id="modeTilt" class="mode-btn" onclick="setMode('tilt')">Set Tilt Angle</button>
+        </div>
+        <div id="tiltInputs" style="display:none">
+          <div class="field">
+            <div class="field-label">Tilt angle <span class="field-val" id="tiltv">25 deg</span></div>
+            <input type="range" id="tiltIn" min="5" max="45" step="1" value="25" oninput="syncFromTilt()">
+            <div class="field-conv">Optimal for India: 10 to 30 deg depending on latitude</div>
+          </div>
+          <div class="field">
+            <div class="field-label">Front leg height H1 <span class="field-val" id="h1vt">2 ft 0 in</span></div>
+            <input type="range" id="h1t" min="0.5" max="10" step="0.25" value="2" oninput="syncFromTilt()">
+            <div class="field-conv" id="h1mt">approx 0.61 m</div>
+          </div>
+          <div style="background:var(--bg3);border:1px solid rgba(16,185,129,0.25);border-radius:var(--radius);padding:10px 12px;font-size:12px;font-family:var(--mono);color:#34d399;margin-top:4px" id="tiltCalcBox">H2 auto-calculated</div>
+        </div>
+        <div id="legInputs">
+          <div class="field"><div class="field-label">Rear leg height H2 <span class="field-val" id="h2v">7 ft 0 in</span></div><input type="range" id="h2" min="1" max="14" step="0.25" value="7" oninput="syncFromLegs()"><div class="field-conv" id="h2m">approx 2.13 m</div></div>
+          <div class="field"><div class="field-label">Front leg height H1 <span class="field-val" id="h1v">2 ft 0 in</span></div><input type="range" id="h1" min="0.5" max="10" step="0.25" value="2" oninput="syncFromLegs()"><div class="field-conv" id="h1m">approx 0.61 m</div></div>
+          <div style="background:var(--bg3);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius);padding:10px 12px;font-size:12px;font-family:var(--mono);color:var(--accent2);margin-top:4px" id="legCalcBox">Tilt auto-calculated</div>
+        </div>
+      </div>
+
+      <!-- LOADS & SITE -->
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>Loads &amp; Site Conditions</div>
+        <div class="field"><div class="field-label">Wind pressure (psf) <span class="field-val" id="windv">16.0 psf</span></div><input type="range" id="wind" min="2" max="50" step="0.5" value="16" oninput="render()"><div class="field-conv" id="windm">&#8776; 0.77 kPa</div></div>
+        <div class="field"><div class="field-label">Snow load (psf) <span class="field-val" id="snowv">10.0 psf</span></div><input type="range" id="snow" min="0" max="60" step="0.5" value="10" oninput="render()"><div class="field-conv" id="snowm">&#8776; 0.48 kPa</div></div>
+        <div class="field"><div class="field-label" style="margin-bottom:6px">Material</div><select id="matl" onchange="render()"><option value="steel">Galvanised Steel (GI)</option><option value="alum">Aluminium Alloy 6061-T6</option><option value="ss">Stainless Steel 304</option></select></div>
+        <div class="field"><div class="field-label" style="margin-bottom:6px">Mounting surface</div><select id="surface" onchange="render()"><option value="roof">Roof &mdash; pitched / flat</option><option value="ground">Ground mount</option><option value="carport">Carport / canopy</option></select></div>
+        <div class="field"><div class="field-label" style="margin-bottom:6px">Profile section (inches SHS)</div><select id="profile" onchange="render()"><option value="1.5">1&#189;&times;1&#189;&times;&#8539;" SHS</option><option value="2" selected>2&times;2&times;&#8539;" SHS</option><option value="2.5">2&#189;&times;2&#189;&times;3/16" SHS</option><option value="3">3&times;3&times;&#188;" SHS</option><option value="4">4&times;4&times;&#188;" SHS</option></select></div>
+      </div>
+
+      <!-- QUICK SUMMARY -->
+      <div class="card">
+        <div class="card-title"><span class="dot green"></span>Quick Summary</div>
+        <pre id="summary" style="font-size:12px;line-height:1.9;color:var(--text2);font-family:var(--mono);white-space:pre-wrap"></pre>
+      </div>
+
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div>
+      <div class="metrics-grid" id="metrics"></div>
+
+      <div class="card">
+        <div class="section-head">Isometric Structure View</div>
+        <div class="canvas-wrap"><svg id="canvas" viewBox="0 0 720 360"></svg></div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">Side Elevation &mdash; Cross Section with Loads</div>
+        <div class="canvas-wrap"><svg id="elev" viewBox="0 0 720 250"></svg></div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">Bill of Materials</div>
+        <div class="bom-wrap"><table id="bom"></table></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const FT2M=0.3048,PSF2KPA=0.04788,LB2KG=0.4536,FT2MM=304.8;
+let currentMode='legs'; // 'legs' or 'tilt'
+
+function setMode(mode){
+  currentMode=mode;
+  document.getElementById('modeLegs').classList.toggle('active', mode==='legs');
+  document.getElementById('modeTilt').classList.toggle('active', mode==='tilt');
+  document.getElementById('legInputs').style.display=mode==='legs'?'':'none';
+  document.getElementById('tiltInputs').style.display=mode==='tilt'?'':'none';
+  render();
+}
+
+function syncFromLegs(){
+  // legs mode: H1 and H2 set directly, tilt derived
+  render();
+}
+
+function syncFromTilt(){
+  // tilt mode: tilt + H1 set, H2 derived
+  const tiltDeg=fv('tiltIn'), H1=fv('h1t'), L=fv('plen');
+  const tiltRad=tiltDeg*Math.PI/180;
+  const H2=H1+Math.tan(tiltRad)*L;
+  // sync back to leg sliders (clamped)
+  const h2clamped=Math.min(14,Math.max(1,Math.round(H2*4)/4));
+  document.getElementById('h2').value=h2clamped;
+  document.getElementById('h1').value=Math.min(10,Math.max(0.5,Math.round(fv('h1t')*4)/4));
+  setEl('tiltv',tiltDeg+' deg');
+  setEl('h1vt',ftIn(H1));
+  setEl('h1mt','approx '+(H1*FT2M).toFixed(2)+' m');
+  setEl('tiltCalcBox','H2 = '+ftIn(h2clamped)+'  (approx '+(h2clamped*FT2M).toFixed(2)+' m) | Tilt = '+tiltDeg+' deg | H1 = '+ftIn(H1));
+  render();
+}
+
+function ftIn(ft){
+  const f=Math.floor(ft),i=Math.round((ft-f)*12);
+  if(i===12)return(f+1)+' ft 0 in';
+  if(i===0)return f+' ft 0 in';
+  return f+' ft '+i+' in';
+}
+function ftDec(ft){return ft.toFixed(2)+' ft';}
+
+const PROFILES={
+  '1.5':{b:1.5,t:0.125,S:0.173,wt:2.36,label:'1.5x1.5x1/8"'},
+  '2':  {b:2.0,t:0.125,S:0.319,wt:3.21,label:'2x2x1/8"'},
+  '2.5':{b:2.5,t:0.1875,S:0.652,wt:5.87,label:'2.5x2.5x3/16"'},
+  '3':  {b:3.0,t:0.25,S:1.40,wt:9.25,label:'3x3x1/4"'},
+  '4':  {b:4.0,t:0.25,S:2.66,wt:12.65,label:'4x4x1/4"'},
+};
+const MATERIALS={
+  steel:{name:'GI Steel',fy:36,color:'#94a3b8'},
+  alum: {name:'Alum 6061',fy:35,color:'#7dd3fc'},
+  ss:   {name:'SS 304',fy:30,color:'#a5b4fc'},
+};
+
+// Typical panel weights by wattage (lbs)
+function panelWeight(w){
+  const map={250:33,300:37,350:41,400:46,440:50,500:55,550:60,600:64,650:68,700:73};
+  return map[w]||Math.round(w*0.11);
+}
+
+function fv(id){return parseFloat(document.getElementById(id).value);}
+function fi(id){return parseInt(document.getElementById(id).value);}
+function sel(id){return document.getElementById(id).value;}
+function setEl(id,t){const e=document.getElementById(id);if(e)e.textContent=t;}
+function setHtml(id,h){const e=document.getElementById(id);if(e)e.innerHTML=h;}
+
+function render(){
+  // Panel config
+  const watt=fi('watt'),plen=fv('plen'),pwid=fv('pwid');
+  const pgap=fv('pgap'),rsp=fv('rsp');
+  const ppr=fi('ppr'),nrow=fi('nrow');
+
+  // Derived geometry — structure spans from panel dims
+  const W=(pwid+pgap)*ppr;          // total bay width = panels across * (panel width + gap)
+  const L=plen;                      // rafter span = panel length (portrait mount)
+  const bays=ppr;                    // bays = panels per row (one column per gap)
+  const rows=nrow;
+  const totalPanels=ppr*nrow;
+  const plantKW=(totalPanels*watt/1000);
+  const pWtEach=panelWeight(watt);
+  const panelDeadPSF=(pWtEach/(plen*pwid));  // lb/ft²
+
+  // Structure geometry — mode-aware
+  let H1,H2;
+  if(currentMode==='tilt'){
+    H1=fv('h1t');
+    const tiltDeg=fv('tiltIn'),tRad=tiltDeg*Math.PI/180;
+    H2=Math.min(14,Math.max(1,H1+Math.tan(tRad)*L));
+    setEl('tiltv',tiltDeg+' deg');
+    setEl('h1vt',ftIn(H1));
+    setEl('h1mt','approx '+(H1*FT2M).toFixed(2)+' m');
+    setEl('tiltCalcBox','H2 = '+ftIn(H2)+'  (approx '+(H2*FT2M).toFixed(2)+' m) | Tilt = '+tiltDeg+' deg | H1 = '+ftIn(H1));
+  } else {
+    H2=fv('h2'); H1=fv('h1');
+    const derivedTilt=Math.atan2(H2-H1,L)*180/Math.PI;
+    setEl('h2v',ftIn(H2)); setEl('h2m','approx '+(H2*FT2M).toFixed(2)+' m');
+    setEl('h1v',ftIn(H1)); setEl('h1m','approx '+(H1*FT2M).toFixed(2)+' m');
+    setEl('legCalcBox','Tilt = '+Math.round(derivedTilt*10)/10+' deg  |  H2-H1 = '+ftIn(H2-H1));
+  }
+  const wind=fv('wind'),snow=fv('snow');
+  const mat=MATERIALS[sel('matl')],prof=PROFILES[sel('profile')],surf=sel('surface');
+
+  // Display panel values
+  setEl('wattv',watt+' W');
+  setEl('plenv',plen.toFixed(2)+' ft'); setEl('plenm','≈ '+Math.round(plen*FT2MM)+' mm');
+  setEl('pwidv',pwid.toFixed(2)+' ft'); setEl('pwidm','≈ '+Math.round(pwid*FT2MM)+' mm');
+  setEl('pgapv',pgap.toFixed(2)+' ft'); setEl('pgapm','≈ '+Math.round(pgap*FT2MM)+' mm');
+  setEl('rspv',rsp.toFixed(1)+' ft');   setEl('rspm','≈ '+Math.round(rsp*FT2MM)+' mm');
+  setEl('pprv',ppr); setEl('nrowv',nrow);
+
+  // Panel info box
+  setHtml('panelInfo',
+    'Total panels  : <b>'+totalPanels+'</b> nos\n'+
+    'Plant capacity: <b>'+plantKW.toFixed(2)+' kWp</b>\n'+
+    'Array width   : <b>'+ftIn(W)+'</b>  ('+Math.round(W*FT2MM)+' mm)\n'+
+    'Array length  : <b>'+ftIn(L*(rows)+(rsp*(rows-1)))+'</b> total\n'+
+    'Panel weight  : <b>'+pWtEach+' lb</b> each  (≈ '+Math.round(pWtEach*LB2KG)+' kg)\n'+
+    'Dead load     : <b>'+panelDeadPSF.toFixed(2)+' psf</b>'
+  );
+
+  // Display structure values
+  setEl('windv',wind.toFixed(1)+' psf'); setEl('windm','≈ '+(wind*PSF2KPA).toFixed(2)+' kPa');
+  setEl('snowv',snow.toFixed(1)+' psf'); setEl('snowm','≈ '+(snow*PSF2KPA).toFixed(2)+' kPa');
+
+  // Structural calcs
+  const tiltRad=Math.atan2(H2-H1,L),tilt=tiltRad*180/Math.PI;
+  const totalArea=W*L*rows;
+  const snowAdj=snow*Math.cos(tiltRad);
+  const wTotal=(panelDeadPSF+wind+snowAdj)*1.5;
+  const UDL=wTotal*(W/bays);        // per rafter, tributary width = W/bays
+  const M_max=UDL*L*L/8;
+  const V_max=UDL*L/2;
+  const M_resist=(mat.fy*1000*prof.S)/12;
+  const util=M_max/M_resist,utilPct=Math.round(util*100);
+  const r_ft=(prof.b/Math.sqrt(12))/12,slender=Math.round(((H1+H2)/2)/r_ft);
+  const nRaff=(bays+1)*rows,nPurl=(Math.ceil(L/2)+1)*bays*rows;
+  const nFL=(bays+1)*rows,nRL=(bays+1)*rows;
+  const totalLen=nRaff*L+nPurl*(W/bays)+nFL*H1+nRL*H2+bays*rows*6;
+  const structWt=Math.round(totalLen*prof.wt);
+  const legLoad=Math.round(wTotal*L*(W/bays)/4*bays*rows);
+  const ok=utilPct<=85,so=slender<=150;
+
+  // 8 metric cards
+  setHtml('metrics',
+    '<div class="metric blue"><div class="mv">'+totalPanels+'</div><div class="ml">Total panels</div></div>'+
+    '<div class="metric blue"><div class="mv">'+plantKW.toFixed(2)+'</div><div class="ml">Plant kWp</div></div>'+
+    '<div class="metric"><div class="mv">'+Math.round(tilt)+'°</div><div class="ml">Tilt angle</div></div>'+
+    '<div class="metric"><div class="mv">'+totalArea.toFixed(0)+' ft²</div><div class="ml">Array area</div></div>'+
+    '<div class="metric '+(ok?'ok':'warn')+'"><div class="mv">'+utilPct+'%</div><div class="ml">Bending util.</div></div>'+
+    '<div class="metric '+(so?'ok':'warn')+'"><div class="mv">'+slender+'</div><div class="ml">Slenderness</div></div>'+
+    '<div class="metric"><div class="mv">'+structWt+' lb</div><div class="ml">Struct. weight</div></div>'+
+    '<div class="metric"><div class="mv">'+legLoad+' lb</div><div class="ml">Leg load</div></div>'
+  );
+
+  setEl('summary',
+    'Plant capacity  :  '+plantKW.toFixed(2)+' kWp\n'+
+    'Total panels    :  '+totalPanels+' nos  ('+ppr+' per row × '+nrow+' rows)\n'+
+    'Panel size      :  '+ftIn(plen)+' × '+ftIn(pwid)+'  ('+Math.round(plen*FT2MM)+'×'+Math.round(pwid*FT2MM)+' mm)\n'+
+    'Inter-panel gap :  '+ftIn(pgap)+'  ('+Math.round(pgap*FT2MM)+' mm)\n'+
+    'Row spacing     :  '+ftIn(rsp)+'  ('+Math.round(rsp*FT2MM)+' mm)\n'+
+    'Array footprint :  '+ftIn(W)+' W × '+ftIn(L)+' D\n'+
+    'Tilt angle      :  '+Math.round(tilt)+'°\n'+
+    'Max moment      :  '+Math.round(M_max)+' lb·ft  |  Cap = '+Math.round(M_resist)+' lb·ft\n'+
+    'Struct weight   :  '+structWt+' lb  ('+Math.round(structWt*LB2KG)+' kg)\n'+
+    'Status          :  '+(ok&&so?'✓ All checks pass':'⚠ Review required')
+  );
+
+  drawIso(H1,H2,L,W,bays,rows,mat,tilt,utilPct,plen,pwid,pgap,rsp,ppr,nrow);
+  drawElev(H1,H2,L,W,tilt,mat,M_max,M_resist,V_max,UDL,rsp,nrow);
+  drawBOM(prof,mat,nRaff,L,nPurl,W/bays,nFL,H1,nRL,H2,bays,rows,structWt,surf,utilPct,slender,totalArea,totalPanels,M_max,M_resist,util,pWtEach,watt,plantKW,plen,pwid,pgap,rsp);
+}
+
+function drawIso(H1,H2,L,W,bays,rows,mat,tilt,utilPct,plen,pwid,pgap,rsp,ppr,nrow){
+  const col=mat.color,rc=utilPct<=85?'#3b82f6':'#f97316';
+  const sx=1,sy=0.45,sz=0.55,svz=0.95;
+  function isoRaw(x,y,z){return[x*sx-y*sy,-x*sx*0.2-y*sz-z*svz];}
+
+  const rowSpan=L+rsp; // total depth per row including spacing
+  const pts=[];
+  for(let b=0;b<=bays;b++)for(let r=0;r<rows;r++){
+    const yF=r*rowSpan,yR=r*rowSpan+L;
+    pts.push(isoRaw(b*(W/bays),yF,0),isoRaw(b*(W/bays),yF,H1),isoRaw(b*(W/bays),yR,0),isoRaw(b*(W/bays),yR,H2));
+  }
+  pts.push(isoRaw(-1.5,0,H2),isoRaw(W+2,0,0));
+  const minX=Math.min(...pts.map(p=>p[0])),maxX=Math.max(...pts.map(p=>p[0]));
+  const minY=Math.min(...pts.map(p=>p[1])),maxY=Math.max(...pts.map(p=>p[1]));
+  const padL=90,padR=80,padT=30,padB=40,vw=720;
+  const vh=Math.max(280,Math.round((maxY-minY)*40)+padT+padB+60);
+  const scale=Math.min((vw-padL-padR)/(maxX-minX||1),(vh-padT-padB)/(maxY-minY||1),50);
+  function iso(x,y,z){const[rx,ry]=isoRaw(x,y,z);return[Math.round((rx-minX)*scale+padL),Math.round((ry-minY)*scale+padT)];}
+  document.getElementById('canvas').setAttribute('viewBox','0 0 '+vw+' '+vh);
+
+  const bw=W/bays; // width per bay
+  let p=['<defs><marker id="da" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/></marker></defs>'];
+
+  // Ground shadow
+  const[gx,gy]=iso(W/2,rows*rowSpan/2,0);
+  p.push('<ellipse cx="'+gx+'" cy="'+(gy+10)+'" rx="'+Math.round(W*scale*0.5)+'" ry="'+Math.round(scale*0.35)+'" fill="#1e293b" opacity="0.5"/>');
+
+  // Footings
+  for(let b=0;b<=bays;b++)for(let r=0;r<rows;r++){
+    const yF=r*rowSpan,yR=r*rowSpan+L;
+    const[fx,fy]=iso(b*bw,yF,0),[rx2,ry2]=iso(b*bw,yR,0);
+    p.push('<circle cx="'+fx+'" cy="'+fy+'" r="5" fill="#374151" stroke="#4b5563" stroke-width="1"/>');
+    p.push('<circle cx="'+rx2+'" cy="'+ry2+'" r="5" fill="#374151" stroke="#4b5563" stroke-width="1"/>');
+  }
+  // Legs
+  for(let b=0;b<=bays;b++)for(let r=0;r<rows;r++){
+    const yF=r*rowSpan,yR=r*rowSpan+L;
+    const[ax,ay]=iso(b*bw,yF,0),[bx2,by_]=iso(b*bw,yF,H1);
+    const[cx2,cy2]=iso(b*bw,yR,0),[dx,dy]=iso(b*bw,yR,H2);
+    p.push('<line x1="'+ax+'" y1="'+ay+'" x2="'+bx2+'" y2="'+by_+'" stroke="'+col+'" stroke-width="3" stroke-linecap="round"/>');
+    p.push('<line x1="'+cx2+'" y1="'+cy2+'" x2="'+dx+'" y2="'+dy+'" stroke="'+col+'" stroke-width="3" stroke-linecap="round"/>');
+  }
+  // Purlins
+  for(let b=0;b<bays;b++)for(let r=0;r<rows;r++){
+    const yF=r*rowSpan,yR=r*rowSpan+L;
+    const[p1x,p1y]=iso(b*bw,yF,H1),[p2x,p2y]=iso((b+1)*bw,yF,H1);
+    const[q1x,q1y]=iso(b*bw,yR,H2),[q2x,q2y]=iso((b+1)*bw,yR,H2);
+    p.push('<line x1="'+p1x+'" y1="'+p1y+'" x2="'+p2x+'" y2="'+p2y+'" stroke="'+col+'" stroke-width="2.5" stroke-linecap="round"/>');
+    p.push('<line x1="'+q1x+'" y1="'+q1y+'" x2="'+q2x+'" y2="'+q2y+'" stroke="'+col+'" stroke-width="2.5" stroke-linecap="round"/>');
+  }
+  // Rafters
+  for(let b=0;b<=bays;b++)for(let r=0;r<rows;r++){
+    const yF=r*rowSpan,yR=r*rowSpan+L;
+    const[r1x,r1y]=iso(b*bw,yF,H1),[r2x,r2y]=iso(b*bw,yR,H2);
+    p.push('<line x1="'+r1x+'" y1="'+r1y+'" x2="'+r2x+'" y2="'+r2y+'" stroke="'+rc+'" stroke-width="3.5" stroke-linecap="round"/>');
+  }
+  // Individual panels with gaps
+  for(let r=0;r<rows;r++){
+    for(let b=0;b<bays;b++){
+      const yF=r*rowSpan,yR=r*rowSpan+plen;
+      const xL=b*bw+pgap/2,xR=xL+pwid;
+      const t0=0,t1=plen/L; // fraction along rafter
+      const[a1,a2]=iso(xL,yF,H1+(H2-H1)*0),[b1,b2]=iso(xR,yF,H1+(H2-H1)*0);
+      const[c1,c2]=iso(xR,yR,H1+(H2-H1)*t1),[d1,d2]=iso(xL,yR,H1+(H2-H1)*t1);
+      p.push('<polygon points="'+a1+','+a2+' '+b1+','+b2+' '+c1+','+c2+' '+d1+','+d2+'" fill="#1e40af" fill-opacity="0.3" stroke="#3b82f6" stroke-width="0.8" stroke-opacity="0.6"/>');
+      // Panel grid lines (3 horizontal)
+      for(let i=1;i<3;i++){
+        const t=i/3*plen/L;
+        const[lx1,ly1]=iso(xL,yF+i/3*plen,H1+(H2-H1)*t),[lx2,ly2]=iso(xR,yF+i/3*plen,H1+(H2-H1)*t);
+        p.push('<line x1="'+lx1+'" y1="'+ly1+'" x2="'+lx2+'" y2="'+ly2+'" stroke="#3b82f6" stroke-width="0.4" stroke-opacity="0.4"/>');
+      }
+    }
+  }
+  // Dim labels
+  const[d1x,d1y]=iso(-0.9,0,0),[d2x,d2y]=iso(-0.9,0,H1),[d3x,d3y]=iso(-0.9,L,H2);
+  const fs=Math.max(9,Math.min(12,Math.round(scale*0.5)));
+  p.push('<line x1="'+d1x+'" y1="'+d1y+'" x2="'+d2x+'" y2="'+d2y+'" stroke="#475569" stroke-width="0.8" stroke-dasharray="3 2" marker-end="url(#da)" marker-start="url(#da)"/>');
+  p.push('<text x="'+(d2x-6)+'" y="'+Math.round((d1y+d2y)/2+4)+'" fill="#64748b" font-size="'+fs+'" font-family="monospace" text-anchor="end">H1='+ftIn(H1)+'</text>');
+  p.push('<line x1="'+d3x+'" y1="'+d2y+'" x2="'+d3x+'" y2="'+d3y+'" stroke="#475569" stroke-width="0.8" stroke-dasharray="3 2" marker-end="url(#da)" marker-start="url(#da)"/>');
+  p.push('<text x="'+(d3x-6)+'" y="'+Math.round((d2y+d3y)/2+4)+'" fill="#64748b" font-size="'+fs+'" font-family="monospace" text-anchor="end">H2='+ftIn(H2)+'</text>');
+  const[t1x,t1y]=iso(W+0.5,0,H1),[,t2y]=iso(W+0.5,L,H2);
+  p.push('<text x="'+(t1x+4)+'" y="'+Math.round((t1y+t2y)/2+4)+'" fill="#60a5fa" font-size="'+Math.min(13,fs+2)+'" font-family="monospace" font-weight="700">'+Math.round(tilt)+'° tilt</text>');
+  document.getElementById('canvas').innerHTML=p.join('');
+}
+
+function drawElev(H1,H2,L,W,tilt,mat,Mmax,Mresist,Vmax,UDL,rsp,nrow){
+  const col=mat.color;
+  const ml=110,mr=160,mt=30,mb=55,pw=720-ml-mr,ph=250-mt-mb;
+  const sc=Math.min(pw/L,ph/Math.max(H2,H1))*0.82,ox=ml,oy=250-mb;
+  const fx1=ox,fy1=oy-H1*sc,fx2=ox+L*sc,fy2=oy-H2*sc;
+  let p=['<defs><marker id="da3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/></marker><marker id="da3r" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round"/></marker></defs>'];
+  p.push('<line x1="'+(ox-30)+'" y1="'+oy+'" x2="'+(ox+L*sc+80)+'" y2="'+oy+'" stroke="#334155" stroke-width="0.5" stroke-dasharray="6 4"/>');
+  p.push('<text x="'+(ox-34)+'" y="'+(oy+4)+'" fill="#475569" font-size="10" font-family="monospace" text-anchor="end">GL</text>');
+  p.push('<line x1="'+fx1+'" y1="'+oy+'" x2="'+fx1+'" y2="'+fy1+'" stroke="'+col+'" stroke-width="6" stroke-linecap="round"/>');
+  p.push('<line x1="'+fx2+'" y1="'+oy+'" x2="'+fx2+'" y2="'+fy2+'" stroke="'+col+'" stroke-width="6" stroke-linecap="round"/>');
+  p.push('<line x1="'+fx1+'" y1="'+fy1+'" x2="'+fx2+'" y2="'+fy2+'" stroke="#3b82f6" stroke-width="7" stroke-linecap="round"/>');
+  p.push('<polygon points="'+fx1+','+fy1+' '+fx2+','+fy2+' '+fx2+','+(fy2+8)+' '+fx1+','+(fy1+8)+'" fill="#1e40af" fill-opacity="0.2"/>');
+  const mx=(fx1+fx2)/2,my=(fy1+fy2)/2;
+  p.push('<circle cx="'+Math.round(mx)+'" cy="'+Math.round(my-18)+'" r="9" fill="#fbbf24" opacity="0.9"/>');
+  p.push('<circle cx="'+Math.round(mx)+'" cy="'+Math.round(my-18)+'" r="14" fill="none" stroke="#fbbf24" stroke-width="1" opacity="0.3"/>');
+  for(let i=0;i<=8;i++){const t=i/8,ax=fx1+t*(fx2-fx1),ay=fy1+t*(fy2-fy1),len=20,dx2=-(fy2-fy1),dy2=(fx2-fx1),dl=Math.sqrt(dx2*dx2+dy2*dy2)||1,nx=dx2/dl*len,ny=dy2/dl*len;p.push('<line x1="'+Math.round(ax+nx)+'" y1="'+Math.round(ay+ny)+'" x2="'+Math.round(ax+4)+'" y2="'+Math.round(ay+4)+'" stroke="#ef4444" stroke-width="1.2" opacity="0.55" marker-end="url(#da3r)"/>');}
+  p.push('<text x="'+Math.round((fx1+fx2)/2)+'" y="'+Math.round((fy1+fy2)/2-32)+'" fill="#f87171" font-size="10" font-family="monospace" text-anchor="middle">w = '+Math.round(UDL)+' lb/ft</text>');
+  // Row spacing indicator
+  if(nrow>1&&rsp>0){
+    const rspPx=rsp*sc;
+    p.push('<line x1="'+(fx2+16)+'" y1="'+fy2+'" x2="'+(fx2+16)+'" y2="'+(fy2+rspPx)+'" stroke="#10b981" stroke-width="1" stroke-dasharray="2 2" marker-end="url(#da3)" marker-start="url(#da3)"/>');
+    p.push('<text x="'+(fx2+20)+'" y="'+(fy2+rspPx/2+4)+'" fill="#34d399" font-size="9" font-family="monospace">rsp='+ftIn(rsp)+'</text>');
+  }
+  p.push('<line x1="'+(fx1-38)+'" y1="'+oy+'" x2="'+(fx1-38)+'" y2="'+fy1+'" stroke="#475569" stroke-width="0.8" marker-end="url(#da3)" marker-start="url(#da3)"/>');
+  p.push('<text x="'+(fx1-42)+'" y="'+((oy+fy1)/2+4)+'" fill="#64748b" font-size="10" font-family="monospace" text-anchor="end">H1='+ftIn(H1)+'</text>');
+  p.push('<line x1="'+(fx2+28)+'" y1="'+oy+'" x2="'+(fx2+28)+'" y2="'+fy2+'" stroke="#475569" stroke-width="0.8" marker-end="url(#da3)" marker-start="url(#da3)"/>');
+  p.push('<text x="'+(fx2+32)+'" y="'+((oy+fy2)/2+4)+'" fill="#64748b" font-size="10" font-family="monospace" text-anchor="start">H2='+ftIn(H2)+'</text>');
+  p.push('<line x1="'+fx1+'" y1="'+(oy+28)+'" x2="'+fx2+'" y2="'+(oy+28)+'" stroke="#475569" stroke-width="0.8" marker-end="url(#da3)" marker-start="url(#da3)"/>');
+  p.push('<text x="'+((fx1+fx2)/2)+'" y="'+(oy+42)+'" fill="#64748b" font-size="10" font-family="monospace" text-anchor="middle">L = '+ftIn(L)+'</text>');
+  const r2=42,a1=Math.PI,a2=Math.PI-Math.atan2(H2-H1,L);
+  p.push('<path d="M '+Math.round(fx1+r2*Math.cos(a1))+' '+Math.round(fy1+r2*Math.sin(a1))+' A '+r2+' '+r2+' 0 0 1 '+Math.round(fx1+r2*Math.cos(a2))+' '+Math.round(fy1+r2*Math.sin(a2))+'" fill="none" stroke="#3b82f6" stroke-width="1" stroke-dasharray="3 2"/>');
+  p.push('<text x="'+(fx1-62)+'" y="'+(fy1-12)+'" fill="#60a5fa" font-size="10" font-family="monospace">'+Math.round(tilt)+'° tilt</text>');
+  p.push('<text x="'+(fx2+32)+'" y="'+(fy2-14)+'" fill="#94a3b8" font-size="10" font-family="monospace">M = '+Math.round(Mmax)+' lb·ft</text>');
+  p.push('<text x="'+(fx2+32)+'" y="'+fy2+'" fill="#94a3b8" font-size="10" font-family="monospace">V = '+Math.round(Vmax)+' lb</text>');
+  p.push('<text x="'+(fx2+32)+'" y="'+(fy2+14)+'" fill="#94a3b8" font-size="10" font-family="monospace">Cap = '+Math.round(Mresist)+' lb·ft</text>');
+  document.getElementById('elev').innerHTML=p.join('');
+}
+
+function drawBOM(prof,mat,nRaff,L,nPurl,bw,nFL,H1,nRL,H2,bays,rows,swt,surf,util,slender,area,panels,Mmax,Mresist,utilRatio,pWt,watt,plantKW,plen,pwid,pgap,rsp){
+  const ok=util<=85,so=slender<=150;
+  const anchor=surf==='roof'?'Roof hook / L-bracket':surf==='ground'?'Conc. footing + base plate':'Column base plate';
+  const totalPanelWt=Math.round(panels*pWt);
+  const bd=[
+    ['Solar panels',watt+'W PV module — portrait mount',panels,ftIn(plen)+'×'+ftIn(pwid),totalPanelWt+' lb','<span class="tag tag-blue">'+plantKW.toFixed(2)+' kWp</span>'],
+    ['Rafter (inclined)',prof.label+' '+mat.name,nRaff,ftIn(L)+' each',Math.round(nRaff*L*prof.wt)+' lb',ok?'<span class="tag tag-ok">OK</span>':'<span class="tag tag-warn">Upgrade</span>'],
+    ['Purlin (cross beam)',prof.label+' '+mat.name,nPurl,ftIn(bw)+' each',Math.round(nPurl*bw*prof.wt)+' lb','<span class="tag tag-info">—</span>'],
+    ['Front column (H1)',prof.label+' '+mat.name,nFL,ftIn(H1)+' each',Math.round(nFL*H1*prof.wt)+' lb',so?'<span class="tag tag-ok">OK</span>':'<span class="tag tag-warn">Slender</span>'],
+    ['Rear column (H2)',prof.label+' '+mat.name,nRL,ftIn(H2)+' each',Math.round(nRL*H2*prof.wt)+' lb',so?'<span class="tag tag-ok">OK</span>':'<span class="tag tag-warn">Slender</span>'],
+    ['Cross bracing','1×1×1/8" L-angle galv.',bays*rows*2,'~6 ft each',Math.round(bays*rows*2*6*0.80)+' lb','<span class="tag tag-info">—</span>'],
+    ['Module rail','1-5/8" alum. strut rail',rows*2,'Per row — '+ftIn(bays*bw+pgap),Math.round(rows*2*(bays*bw)*1.0)+' lb','<span class="tag tag-info">—</span>'],
+    ['Module clamps','Mid + end clamps set',panels*2,'Per panel',Math.round(panels*2*0.3)+' lb','<span class="tag tag-info">—</span>'],
+    ['Inter-panel spacer','Gap = '+ftIn(pgap)+' ('+Math.round(pgap*FT2MM)+' mm)',bays>1?(bays-1)*rows:0,'Per row gap','—','<span class="tag tag-info">—</span>'],
+    ['Row spacing gap','Clear spacing = '+ftIn(rsp)+' ('+Math.round(rsp*FT2MM)+' mm)',rows>1?rows-1:0,'Between rows','—','<span class="tag tag-info">—</span>'],
+    ['Foundation / anchor',anchor,(bays+1)*rows*2,'Points','Site specific','<span class="tag tag-info">Engineer</span>'],
+    ['Hardware','1/2" & 3/8" HDG bolt sets',Math.round((nRaff+nPurl+nFL+nRL)*4),'Nos','~'+Math.round((nRaff+nPurl+nFL+nRL)*0.18)+' lb','<span class="tag tag-ok">—</span>'],
+    ['Bending check','Design verification','—','M='+Math.round(Mmax)+' / Cap='+Math.round(Mresist)+' lb·ft','Util='+util+'%',ok?'<span class="tag tag-ok">Pass ('+util+'%)</span>':'<span class="tag tag-warn">Fail ('+util+'%)</span>'],
+    ['TOTAL structure','(excl. panels)','—','—','<strong>'+swt+' lb ('+Math.round(swt*LB2KG)+' kg)</strong>',ok&&so?'<span class="tag tag-ok">Compliant</span>':'<span class="tag tag-warn">Review</span>'],
+  ];
+  document.getElementById('bom').innerHTML='<thead><tr><th>Component</th><th>Specification</th><th>Qty</th><th>Size / Note</th><th>Weight</th><th>Status</th></tr></thead><tbody>'+bd.map(r=>'<tr>'+r.map(c=>'<td>'+c+'</td>').join('')+'</tr>').join('')+'</tbody>';
+}
+
+function resetDefaults(){
+  setMode('legs');
+  document.getElementById('watt').value=550;
+  document.getElementById('plen').value=7.05;
+  document.getElementById('pwid').value=3.54;
+  document.getElementById('pgap').value=0.08;
+  document.getElementById('rsp').value=1.0;
+  document.getElementById('ppr').value=2;
+  document.getElementById('nrow').value=2;
+  document.getElementById('h2').value=7;
+  document.getElementById('h1').value=2;
+  document.getElementById('wind').value=16;
+  document.getElementById('snow').value=10;
+  document.getElementById('matl').value='steel';
+  document.getElementById('surface').value='roof';
+  document.getElementById('profile').value='2';
+  render();
+}
+
+function copyReport(){
+  navigator.clipboard.writeText('Solar Mounting Structure Report\n\n'+document.getElementById('summary').textContent).then(()=>{
+    const b=document.getElementById('copybtn');const o=b.textContent;b.textContent='✓ Copied!';setTimeout(()=>b.textContent=o,1500);
+  });
+}
+
+render();
+</script>
+</body>
+</html>

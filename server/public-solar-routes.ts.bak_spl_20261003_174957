@@ -1,0 +1,50 @@
+import type { Express, Request, Response } from "express";
+import { pool } from "./db";
+
+export function registerPublicSolarRoutes(app: Express) {
+  app.post("/api/public/solar-enquiry", async (req: Request, res: Response) => {
+    const b = req.body || {};
+    const phone = String(b.phone || "").replace(/\D/g, "").slice(-10);
+    const name = String(b.name || "").trim();
+    if (phone.length !== 10) return res.status(400).json({ error: "10-digit mobile number required" });
+    if (!name) return res.status(400).json({ error: "Name required" });
+    try {
+      const { rows } = await pool.query(
+        `INSERT INTO solar_bot_leads
+           (phone, mobile_number, name, consumer_number, visit_address,
+            shop_name, shop_owner, shop_lat, shop_lng, shop_accuracy, lead_source, status, language)
+         VALUES ($1,$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'New','hi')
+         ON CONFLICT (phone) DO UPDATE SET
+           name = COALESCE(NULLIF(EXCLUDED.name,''), solar_bot_leads.name),
+           consumer_number = COALESCE(NULLIF(EXCLUDED.consumer_number,''), solar_bot_leads.consumer_number),
+           visit_address = COALESCE(NULLIF(EXCLUDED.visit_address,''), solar_bot_leads.visit_address),
+           shop_name = COALESCE(solar_bot_leads.shop_name, EXCLUDED.shop_name),
+           shop_owner = COALESCE(solar_bot_leads.shop_owner, EXCLUDED.shop_owner),
+           shop_lat = COALESCE(solar_bot_leads.shop_lat, EXCLUDED.shop_lat),
+           shop_lng = COALESCE(solar_bot_leads.shop_lng, EXCLUDED.shop_lng),
+           lead_source = COALESCE(solar_bot_leads.lead_source, EXCLUDED.lead_source)
+         RETURNING id`,
+        [phone, name, b.consumer_number || null, b.visit_address || null,
+         b.shop_name || null, b.shop_owner || null,
+         b.shop_lat || null, b.shop_lng || null, b.shop_accuracy || null,
+         b.lead_source || "qr_standee"]);
+      console.info("[QR lead]", phone, "| shop:", b.shop_name || "direct", "| geo:", b.shop_lat ? "yes" : "no");
+      res.json({ ok: true, id: rows[0].id });
+    } catch (e: any) {
+      console.error("[QR lead error]", e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/admin/shop-leads", async (_req: Request, res: Response) => {
+    try {
+      const { rows } = await pool.query(
+        `SELECT COALESCE(NULLIF(shop_name,''),'(direct)') AS shop_name, shop_owner,
+                count(*) AS leads, max(created_at) AS last_lead,
+                max(shop_lat) AS lat, max(shop_lng) AS lng
+           FROM solar_bot_leads WHERE lead_source IS NOT NULL
+          GROUP BY 1,2 ORDER BY leads DESC`);
+      res.json(rows);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+}

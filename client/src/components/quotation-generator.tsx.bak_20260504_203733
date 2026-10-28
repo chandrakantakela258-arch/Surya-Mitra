@@ -1,0 +1,441 @@
+import { useState, useRef } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { FileText, Printer, X, Download, Building2, Shield } from "lucide-react";
+import { formatINR } from "@/components/subsidy-calculator";
+import type { SubsidyResult } from "@/components/subsidy-calculator";
+import type { Customer } from "@shared/schema";
+
+const BOM = [
+  { item: "Mono Bifacial Solar Module (540Wp)", make: "WAAREE / ADANI" },
+  { item: "Grid Tie / Hybrid Inverter", make: "SOLARYAAN / GROWATT" },
+  { item: "G.I. Pipe Mounting Structure (60x40x2mm)", make: "HINDUSTAR" },
+  { item: "DC Cable — 1C x 2.5 SQMM", make: "POLYCAB" },
+  { item: "AC Cable — 1C x 2.5 SQMM", make: "POLYCAB" },
+  { item: "PVC Conduit Pipes — 20mm", make: "POLYCAB" },
+  { item: "Earthing Cable — 1C x 2.5 SQMM", make: "REPUTED" },
+  { item: "Lightning Arrestor Cable — 1C x 16 SQMM", make: "REPUTED" },
+  { item: "ACDB / DCDB — MCB & SPD", make: "L&T / HAVELLS & ELMEX" },
+];
+
+interface QuotationGeneratorProps {
+  customer: Customer;
+  subsidyInfo: SubsidyResult | null;
+  open: boolean;
+  onClose: () => void;
+}
+
+export function QuotationGenerator({ customer, subsidyInfo, open, onClose }: QuotationGeneratorProps) {
+  const [view, setView] = useState<"config" | "preview">("config");
+  const [discount, setDiscount] = useState("0");
+  const [validity, setValidity] = useState("15");
+  const [notes, setNotes] = useState("");
+  const [roof, setRoof] = useState(customer.roofType || "RCC Flat Roof");
+  const printRef = useRef<HTMLDivElement>(null);
+
+  const capacity = parseFloat(customer.proposedCapacity || "0") || 0;
+  const panels = Math.ceil(capacity * 1000 / 540);
+  const totalCost = subsidyInfo?.totalCost || 0;
+  const subsidyAmount = subsidyInfo?.totalSubsidy || 0;
+  const netCost = subsidyInfo?.netCost || 0;
+  const disc = parseInt(discount) || 0;
+  const afterDisc = netCost - disc;
+  const gst = Math.round(afterDisc * 0.18);
+  const grand = afterDisc + gst;
+
+  const invType = customer.inverterType === "ongrid" || customer.inverterType === "on-grid"
+    ? `${capacity <= 3.5 ? "3.4" : capacity <= 5 ? "5" : capacity <= 6 ? "6" : "10"} KW On-Grid`
+    : `${capacity <= 3.5 ? "3.4" : capacity <= 5 ? "5" : capacity <= 6 ? "6" : "10"} KW Hybrid`;
+
+  const today = new Date();
+  const fmtDate = today.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  const qn = `SXP/${today.getFullYear()}/${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}/${Math.floor(Math.random() * 9000 + 1000)}`;
+
+  const handlePrint = () => {
+    const content = printRef.current;
+    if (!content) return;
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(`<!DOCTYPE html><html><head><title>Quotation - ${customer.name}</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, sans-serif; color: #222; background: #fff; }
+        @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+      </style></head><body>${content.innerHTML}</body></html>`);
+    w.document.close();
+    setTimeout(() => { w.print(); }, 500);
+  };
+
+  if (!open) return null;
+
+  // ===== CONFIG VIEW =====
+  if (view === "config") return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FileText className="w-5 h-5" />
+            Generate Quotation — {customer.name}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Customer Auto-populated */}
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-semibold text-sm">Customer Details</h3>
+                <Badge variant="secondary" className="text-xs">Auto-populated</Badge>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
+                <div><strong className="text-foreground">{customer.name}</strong></div>
+                <div>{customer.phone}</div>
+                <div>{customer.email || "—"}</div>
+                <div>{customer.address}, {customer.district}, {customer.state} - {customer.pincode}</div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Subsidy Rates from Calculator */}
+          {subsidyInfo && (
+            <Card className="border-green-200 bg-green-50/50 dark:bg-green-950/20">
+              <CardContent className="pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-sm text-green-800 dark:text-green-300">PM Surya Ghar — Subsidy Rates</h3>
+                  <Badge className="bg-green-600 text-xs">From Calculator</Badge>
+                </div>
+                <div className="grid grid-cols-4 gap-3 text-center">
+                  <div className="bg-white dark:bg-background rounded-lg p-3 border">
+                    <p className="text-[10px] text-muted-foreground uppercase font-semibold">Capacity</p>
+                    <p className="text-lg font-bold">{capacity} KW</p>
+                    <p className="text-[10px] text-muted-foreground">{panels} panels</p>
+                  </div>
+                  <div className="bg-white dark:bg-background rounded-lg p-3 border">
+                    <p className="text-[10px] text-muted-foreground uppercase font-semibold">System Cost</p>
+                    <p className="text-lg font-bold">{formatINR(totalCost)}</p>
+                  </div>
+                  <div className="bg-white dark:bg-background rounded-lg p-3 border">
+                    <p className="text-[10px] text-green-600 uppercase font-semibold">CFA Subsidy</p>
+                    <p className="text-lg font-bold text-green-600">{formatINR(subsidyAmount)}</p>
+                  </div>
+                  <div className="bg-white dark:bg-background rounded-lg p-3 border">
+                    <p className="text-[10px] text-muted-foreground uppercase font-semibold">After Subsidy</p>
+                    <p className="text-lg font-bold text-primary">{formatINR(netCost)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Overrides */}
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <Label className="text-xs">Discount (₹)</Label>
+              <Input type="number" value={discount} onChange={e => setDiscount(e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <Label className="text-xs">Validity (Days)</Label>
+              <Input type="number" value={validity} onChange={e => setValidity(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Roof Type</Label>
+              <Input value={roof} onChange={e => setRoof(e.target.value)} />
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs">Additional Notes</Label>
+            <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Extra notes for this quotation..." />
+          </div>
+
+          {/* Pricing Summary */}
+          <div className="grid grid-cols-5 gap-2">
+            {[
+              { l: "Cost", v: formatINR(totalCost) },
+              { l: "Subsidy", v: `-${formatINR(subsidyAmount)}`, c: "text-green-600" },
+              { l: "Discount", v: disc > 0 ? `-${formatINR(disc)}` : "—" },
+              { l: "GST 18%", v: formatINR(gst) },
+              { l: "Grand Total", v: formatINR(grand), c: "text-primary font-bold" },
+            ].map((p, i) => (
+              <div key={i} className="bg-muted/50 rounded-lg p-2 text-center">
+                <p className="text-[10px] text-muted-foreground uppercase">{p.l}</p>
+                <p className={`text-sm font-bold ${p.c || ""}`}>{p.v}</p>
+              </div>
+            ))}
+          </div>
+
+          <Button onClick={() => setView("preview")} className="w-full">
+            Preview Quotation →
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
+  // ===== PRINT PREVIEW =====
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto p-0">
+        {/* Toolbar */}
+        <div className="sticky top-0 z-10 bg-background border-b p-3 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setView("config")}>← Edit</Button>
+            <span className="text-sm text-muted-foreground">Quotation Preview</span>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handlePrint}>
+              <Printer className="w-4 h-4 mr-1" /> Print / PDF
+            </Button>
+            <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
+          </div>
+        </div>
+
+        {/* Printable Document */}
+        <div ref={printRef}>
+          <div style={{ maxWidth: 800, margin: "0 auto", padding: 24, fontFamily: "system-ui, sans-serif", color: "#222" }}>
+
+            {/* Header */}
+            <div style={{ borderBottom: "3px solid #1565C0", paddingBottom: 20, marginBottom: 20, display: "flex", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: "#1565C0", marginBottom: 2 }}>Solarixa Power</div>
+                <div style={{ fontSize: 11, color: "#666", marginBottom: 2 }}>A Unit of Prayga India Private Limited</div>
+                <div style={{ fontSize: 10, color: "#888", lineHeight: 1.7, maxWidth: 340 }}>
+                  CIN: U74999RJ2021PTC075073<br/>
+                  Head Office: Plot No. C-3/258, Shreyansh Apartment, Chitrakoot Scheme, Vaishali Nagar, Jaipur, Rajasthan 302021<br/>
+                  Bihar Branch: Bank of India Building, Naubatpur, Mashurhi Road, Vill- Piprawan, Block- Naubatpur, Patna, Bihar 801109<br/>
+                  Web: <strong style={{ color: "#1565C0" }}>solarixapower.com</strong>
+                </div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 28, fontWeight: 800, color: "#1565C0" }}>QUOTATION</div>
+                <div style={{ fontSize: 11, color: "#777", marginTop: 8 }}>Ref: <strong style={{ color: "#1565C0" }}>{qn}</strong></div>
+                <div style={{ fontSize: 11, color: "#777", marginTop: 2 }}>Date: {fmtDate}</div>
+                <div style={{ fontSize: 11, color: "#777", marginTop: 2 }}>Valid: {validity} days</div>
+              </div>
+            </div>
+
+            {/* PM Surya Ghar Badge */}
+            <div style={{ background: "#E8F5E9", padding: "8px 16px", borderRadius: 6, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#2E7D32" }}>✓ Empanelled National Vendor — PM Surya Ghar: Muft Bijli Yojana</span>
+              <span style={{ fontSize: 9, color: "#558B2F" }}>Valid up to 13/04/2031</span>
+            </div>
+
+            {/* Customer + System */}
+            <div style={{ display: "flex", gap: 24, marginBottom: 24 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#1565C0", letterSpacing: 1, marginBottom: 6 }}>PREPARED FOR</div>
+                <div style={{ fontSize: 15, fontWeight: 800 }}>{customer.name}</div>
+                <div style={{ fontSize: 11, color: "#666", lineHeight: 1.8, marginTop: 4 }}>
+                  {customer.address}<br/>
+                  {customer.district}, {customer.state} — {customer.pincode}<br/>
+                  Phone: {customer.phone}
+                  {customer.email && <><br/>Email: {customer.email}</>}
+                </div>
+              </div>
+              <div style={{ flex: 1, background: "#F8F9FB", borderRadius: 8, padding: "14px 18px", border: "1px solid #EEF0F4" }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#1565C0", letterSpacing: 1, marginBottom: 8 }}>SYSTEM: {capacity} KW ROOFTOP SOLAR</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  {[
+                    { l: "Modules", v: `${panels} × 540Wp` },
+                    { l: "Inverter", v: invType },
+                    { l: "Roof", v: roof },
+                    { l: "Phase", v: "Single Phase" },
+                    { l: "Module Warranty", v: "25 Years" },
+                    { l: "Performance", v: "30 Years" },
+                  ].map((x, i) => (
+                    <div key={i}>
+                      <div style={{ fontSize: 8, color: "#999", fontWeight: 600 }}>{x.l}</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, marginTop: 1 }}>{x.v}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* BOM Table */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#1565C0", letterSpacing: 1, marginBottom: 10 }}>BILL OF MATERIALS</div>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: "#F5F7FA" }}>
+                    {["#", "Item Description", "Qty", "Make / Brand"].map((h, i) => (
+                      <th key={i} style={{ padding: "8px 12px", textAlign: "left", fontWeight: 700, color: "#666", borderBottom: "2px solid #E2E5EA", fontSize: 10 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {BOM.map((b, i) => (
+                    <tr key={i} style={{ background: i % 2 ? "#FAFBFC" : "#FFF" }}>
+                      <td style={{ padding: "8px 12px", color: "#999", fontWeight: 600, borderBottom: "1px solid #F5F5F5" }}>{i + 1}</td>
+                      <td style={{ padding: "8px 12px", fontWeight: 500, borderBottom: "1px solid #F5F5F5" }}>
+                        {b.item}{i === 0 && <span style={{ color: "#999", marginLeft: 6, fontSize: 10 }}>({panels} nos.)</span>}
+                      </td>
+                      <td style={{ padding: "8px 12px", color: "#777", borderBottom: "1px solid #F5F5F5" }}>{i === 0 ? panels : i === 1 ? 1 : "As req."}</td>
+                      <td style={{ padding: "8px 12px", fontWeight: 600, borderBottom: "1px solid #F5F5F5" }}>{b.make}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pricing */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#1565C0", letterSpacing: 1, marginBottom: 10 }}>PRICING BREAKDOWN</div>
+              <div style={{ maxWidth: 440 }}>
+                {[
+                  { l: "Total System Cost", v: formatINR(totalCost) },
+                  { l: "PM Surya Ghar Subsidy", v: `– ${formatINR(subsidyAmount)}`, g: true },
+                  ...(disc > 0 ? [{ l: "Discount", v: `– ${formatINR(disc)}`, g: true }] : []),
+                  { l: "Net Payable (Before GST)", v: formatINR(afterDisc), b: true },
+                  { l: "GST @ 18%", v: formatINR(gst) },
+                  { l: "Grand Total Payable", v: formatINR(grand), b: true, hl: true },
+                ].map((r: any, i) => (
+                  <div key={i} style={{
+                    display: "flex", justifyContent: "space-between", padding: r.b ? "10px 14px" : "7px 14px",
+                    marginBottom: 3, borderRadius: 6,
+                    background: r.hl ? "#E3F2FD" : r.b ? "#F5F7FA" : "transparent",
+                    borderBottom: r.b ? "none" : "1px solid #F5F5F5",
+                  }}>
+                    <span style={{ fontSize: 12, fontWeight: r.b ? 700 : 500, color: "#444" }}>{r.l}</span>
+                    <span style={{ fontSize: r.b ? 16 : 13, fontWeight: 800, color: r.g ? "#2E7D32" : r.hl ? "#0D47A1" : "#222" }}>{r.v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Warranty */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#1565C0", letterSpacing: 1, marginBottom: 10 }}>WARRANTY & PERFORMANCE</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
+                {[{ l: "Module Mfg.", v: "25 Years" }, { l: "Performance", v: "30 Years" }, { l: "Inverter", v: "10 Years" }].map((w, i) => (
+                  <div key={i} style={{ background: "#F0F7FF", borderRadius: 8, padding: 12, textAlign: "center", border: "1px solid #D0E4F7" }}>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: "#1565C0" }}>{w.v}</div>
+                    <div style={{ fontSize: 9, color: "#0284C7", fontWeight: 600, marginTop: 2 }}>{w.l}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontSize: 11, color: "#777" }}>90% output for first 10 years; 80% for next 20 years.</div>
+            </div>
+
+            {/* Bank Details */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#1565C0", letterSpacing: 1, marginBottom: 10 }}>BANK ACCOUNT DETAILS</div>
+              <div style={{ background: "#F5F7FA", borderRadius: 8, padding: "14px 18px", border: "1px solid #E8EBF0", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                {[
+                  { l: "Account Name", v: "Prayga India Pvt Ltd" }, { l: "Bank", v: "ICICI Bank" },
+                  { l: "A/c No.", v: "777705700552" }, { l: "IFSC", v: "ICIC0007727" },
+                  { l: "Branch", v: "Kanakpura, Jaipur" }, { l: "Type", v: "Current Account" },
+                ].map((b, i) => (
+                  <div key={i}>
+                    <div style={{ fontSize: 8, fontWeight: 600, color: "#999" }}>{b.l}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, marginTop: 2 }}>{b.v}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Documents Required */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#1565C0", letterSpacing: 1, marginBottom: 8 }}>DOCUMENTS REQUIRED (SELF-ATTESTED)</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+                {["Latest Electricity Bill", "Property Tax Receipt", "Aadhaar Card", "PAN Card", "Two Passport Photos", "Cancelled Cheque"].map((d, i) => (
+                  <div key={i} style={{ padding: "5px 10px", background: "#FAFBFC", borderRadius: 4, border: "1px solid #EEF0F4", fontSize: 11, color: "#555" }}>
+                    <span style={{ color: "#1565C0", fontWeight: 700, marginRight: 4 }}>•</span>{d}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Terms */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#C62828", letterSpacing: 1, marginBottom: 8 }}>TERMS & CONDITIONS</div>
+              <div style={{ fontSize: 11, color: "#666", lineHeight: 2 }}>
+                {[
+                  "Any additional work beyond this scope will be charged separately.",
+                  "18% GST is applicable on all services.",
+                  `This quotation is valid for ${validity} days from the date of issue.`,
+                  "Subsidy amount subject to government approval under PM Surya Ghar Yojana.",
+                  "Advance payment required at booking confirmation.",
+                  "Balance due before material dispatch and after project completion.",
+                ].map((n, i) => (
+                  <div key={i}><span style={{ color: "#C62828", fontWeight: 700, marginRight: 6 }}>{i + 1}.</span>{n}</div>
+                ))}
+                {notes && <div style={{ marginTop: 8, padding: "8px 12px", background: "#FFF3E0", borderRadius: 6, border: "1px solid #FFE0B2" }}><strong style={{ color: "#E65100" }}>Note:</strong> {notes}</div>}
+              </div>
+            </div>
+
+            {/* ANNEXURE — REC Empanelment */}
+            <div style={{ background: "#FAFBFC", borderRadius: 8, padding: 20, marginBottom: 24, border: "1px solid #E2E5EA" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#1565C0", letterSpacing: 1, marginBottom: 14 }}>ANNEXURE — REC EMPANELMENT CERTIFICATE</div>
+              <div style={{ background: "#FFF", borderRadius: 8, border: "1px solid #E2E5EA", overflow: "hidden" }}>
+                <div style={{ padding: "12px 16px", borderBottom: "2px solid #1565C0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 6, background: "linear-gradient(135deg,#1565C0,#0D47A1)", display: "flex", alignItems: "center", justifyContent: "center", color: "#FFF", fontSize: 12, fontWeight: 800 }}>REC</div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800 }}>REC Limited</div>
+                      <div style={{ fontSize: 9, color: "#888" }}>(A Government of India Enterprise)</div>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right", fontSize: 10, color: "#888" }}>
+                    Ref: REC/RTS/Empanelment/2026-27/412<br/>
+                    <strong style={{ color: "#1565C0" }}>Date: 15/04/2026</strong>
+                  </div>
+                </div>
+                <div style={{ padding: 16 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 4 }}>Subject: Empanelment as National Vendor under PM-Surya Ghar: Muft Bijli Yojana Rooftop Solar Program</div>
+                  <div style={{ fontSize: 10, color: "#777", marginBottom: 10 }}>Ref: MNRE Office Memorandum No. 318/17/2024 — Grid Connected Rooftop — Part-5 dated 29.05.2024</div>
+                  <div style={{ fontSize: 11, color: "#444", lineHeight: 1.8, marginBottom: 14 }}>
+                    It is hereby informed that <strong>M/s PRAYGA INDIA PRIVATE LIMITED</strong> has been empanelled as a <strong style={{ color: "#1565C0" }}>National Vendor</strong> for working under PM-Surya Ghar: Muft Bijli Yojana Rooftop Solar Program on MNRE's National Portal.
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                    {[
+                      { l: "Empanelment Valid", v: "13/04/2031", s: "Five Years" },
+                      { l: "BG Valid", v: "13/04/2031", s: "Claim: 12/07/2031" },
+                      { l: "Classification", v: "National Vendor", s: "All India" },
+                    ].map((x, i) => (
+                      <div key={i} style={{ background: "#F0F7FF", borderRadius: 6, padding: "10px 12px", border: "1px solid #D0E4F7" }}>
+                        <div style={{ fontSize: 8, fontWeight: 600, color: "#1565C0", textTransform: "uppercase" as const }}>{x.l}</div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: "#0D47A1", marginTop: 3 }}>{x.v}</div>
+                        <div style={{ fontSize: 9, color: "#777", marginTop: 1 }}>{x.s}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginTop: 12, textAlign: "right" as const, fontSize: 9, color: "#888", fontStyle: "italic" as const }}>
+                    Issued by: DGM / RTS Vendor Management Vertical, REC Limited, Gurugram-122001
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Signatures */}
+            <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 20 }}>
+              <div>
+                <div style={{ fontSize: 9, color: "#999", fontWeight: 600, marginBottom: 6 }}>CUSTOMER ACCEPTANCE</div>
+                <div style={{ width: 200, borderBottom: "1.5px dashed #CBD5E1", paddingBottom: 50 }}></div>
+                <div style={{ fontSize: 9, color: "#888", marginTop: 6 }}>Signature & Date</div>
+              </div>
+              <div style={{ textAlign: "right" as const }}>
+                <div style={{ fontSize: 9, color: "#999", fontWeight: 600, marginBottom: 6 }}>FOR PRAYGA INDIA PVT LTD</div>
+                <div style={{ width: 200, borderBottom: "1.5px dashed #CBD5E1", paddingBottom: 50, marginLeft: "auto" }}></div>
+                <div style={{ fontSize: 9, color: "#888", marginTop: 6 }}>Authorized Signatory & Seal</div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div style={{ marginTop: 20, paddingTop: 12, borderTop: "1px solid #E2E5EA", textAlign: "center" as const }}>
+              <div style={{ fontSize: 10, color: "#999" }}>
+                Prayga India Pvt Ltd · CIN: U74999RJ2021PTC075073 · <strong style={{ color: "#1565C0" }}>solarixapower.com</strong>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

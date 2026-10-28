@@ -1,13 +1,15 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link as WouterLink, useLocation } from "wouter";
 import { Loader2, ArrowLeft, Sun, IndianRupee, TrendingDown, CheckCircle2, Home, User, Phone, Mail, MapPin, Zap, Navigation, CreditCard, FileText, Camera, Upload, X, Image, Grid3X3, Ruler } from "lucide-react";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
+import { GeotagCamera } from "@/components/geotag-camera";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
@@ -73,14 +75,14 @@ const publicCustomerFormSchema = z.object({
     z.number({ required_error: "Monthly bill is required" }).min(1, "Monthly bill must be greater than 0")
   ),
   // Location - Required
-  latitude: z.string().min(1, "Latitude is required - please capture your GPS location"),
-  longitude: z.string().min(1, "Longitude is required - please capture your GPS location"),
+  latitude: z.string().optional().or(z.literal("")),
+  longitude: z.string().optional().or(z.literal("")),
   // Customer Type
   customerType: z.enum(customerTypes).default("residential"),
   unitType: z.string().optional().or(z.literal("")),
   commercialUnitDescription: z.string().optional().or(z.literal("")),
   // Roof Details - Required
-  roofType: z.enum(roofTypes),
+  roofType: z.enum(roofTypes).optional(),
   roofArea: z.preprocess(
     (val) => (val === "" || val === null || val === undefined) ? undefined : Number(val),
     z.number({ required_error: "Roof area is required" }).min(1, "Roof area must be greater than 0")
@@ -99,6 +101,19 @@ const publicCustomerFormSchema = z.object({
   documents: z.array(z.string()).optional().default([]),
   // Optional
   referralCode: z.string().optional(),
+  // Extended Address
+  landmark: z.string().optional().or(z.literal("")),
+  subDistrict: z.string().optional().or(z.literal("")),
+  block: z.string().optional().or(z.literal("")),
+  villagePanchayat: z.string().optional().or(z.literal("")),
+  // Co-Applicant
+  coApplicantName: z.string().optional().or(z.literal("")),
+  coApplicantPhone: z.string().optional().or(z.literal("")),
+  coApplicantDob: z.string().optional().or(z.literal("")),
+  coApplicantRelation: z.string().optional().or(z.literal("")),
+  // Financial
+  annualIncome: z.string().optional().or(z.literal("")),
+  smartMeter: z.string().optional().or(z.literal("")),
 }).refine((data) => {
   if (data.customerType === "commercial" && (!data.unitType || data.unitType.trim() === "")) {
     return false;
@@ -251,6 +266,7 @@ export default function CustomerRegistration() {
 
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [sitePhotos, setSitePhotos] = useState<string[]>([]);
+  const [showGeotagCamera, setShowGeotagCamera] = useState(false);
   const [isUploadingSitePhotos, setIsUploadingSitePhotos] = useState(false);
   const [showRoofLayout, setShowRoofLayout] = useState(false);
   const [roofSurveyData, setRoofSurveyData] = useState<RoofSurveyData | null>(null);
@@ -266,11 +282,21 @@ export default function CustomerRegistration() {
       state: "",
       city: "",
       pincode: "",
+      landmark: "",
+      subDistrict: "",
+      block: "",
+      villagePanchayat: "",
+      coApplicantName: "",
+      coApplicantPhone: "",
+      coApplicantDob: "",
+      coApplicantRelation: "",
+      annualIncome: "",
       aadharNumber: "",
       panNumber: "",
       // Electricity Details
       electricityBoard: "",
       consumerNumber: "",
+      smartMeter: "",
       sanctionedLoad: "",
       avgMonthlyBill: undefined,
       // Location
@@ -299,6 +325,10 @@ export default function CustomerRegistration() {
       referralCode: "",
     },
   });
+
+  // Auto-fill referral code from URL
+  const urlRefCode = new URLSearchParams(window.location.search).get("ref") || "";
+  useEffect(() => { if (urlRefCode) form.setValue("referralCode", urlRefCode); }, [urlRefCode]);
 
   const handleGetLocation = () => {
     if (!navigator.geolocation) {
@@ -439,7 +469,7 @@ export default function CustomerRegistration() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between gap-4 h-16">
               <WouterLink href="/">
-                <img src={logoImage} alt="Divyanshi Solar" className="h-12 w-auto object-contain" />
+                <img src={logoImage} alt="Divyanshi Digital Services Pvt Ltd" className="h-12 w-auto object-contain" />
               </WouterLink>
               <ThemeToggle />
             </div>
@@ -479,7 +509,7 @@ export default function CustomerRegistration() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-4 h-16">
             <WouterLink href="/">
-              <img src={logoImage} alt="Divyanshi Solar" className="h-12 w-auto object-contain cursor-pointer" />
+              <img src={logoImage} alt="Divyanshi Digital Services Pvt Ltd" className="h-12 w-auto object-contain cursor-pointer" />
             </WouterLink>
             <div className="flex items-center gap-2">
               <WouterLink href="/login">
@@ -511,268 +541,165 @@ export default function CustomerRegistration() {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+
+            {/* Personal Information */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <User className="w-5 h-5" />
                   Personal Information
                 </CardTitle>
+                <CardDescription>Your basic details for the solar application</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField control={form.control} name="name" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Full Name *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter your full name" {...field} data-testid="input-name" />
-                      </FormControl>
+                      <FormControl><Input placeholder="Enter your full name" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
-                  )}
-                />
-                
+                  )} />
+                  <FormField control={form.control} name="phone" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone Number *</FormLabel>
+                      <FormControl><Input placeholder="10-digit mobile number" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Phone Number *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="10-digit mobile number" {...field} data-testid="input-phone" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email (Optional)</FormLabel>
-                        <FormControl>
-                          <Input type="email" placeholder="your@email.com" {...field} data-testid="input-email" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <FormField control={form.control} name="email" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl><Input placeholder="your@email.com" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="aadharNumber" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-orange-600 font-semibold">Aadhaar Number (Important)</FormLabel>
+                      <FormControl><Input placeholder="12-digit Aadhaar number" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
+                <FormField control={form.control} name="panNumber" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-orange-600 font-semibold">PAN Number (Important)</FormLabel>
+                    <FormControl><Input placeholder="e.g., ABCDE1234F" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="address" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Complete Address *</FormLabel>
+                    <FormControl><Input placeholder="House no., Street, Locality" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField control={form.control} name="state" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>State *</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger></FormControl>
+                        <SelectContent>{indianStatesData.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="district" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>District *</FormLabel>
+                      <FormControl><Input placeholder="Enter district" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="pincode" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Pincode *</FormLabel>
+                      <FormControl><Input placeholder="6-digit pincode" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
                 </div>
               </CardContent>
             </Card>
 
+
+            {/* Extended Address */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <MapPin className="w-5 h-5" />
-                  Address Details
+                  Address Details (Extended)
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="address"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Full Address *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="House/Building, Street, Area" {...field} data-testid="input-address" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="state"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>State *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-state">
-                              <SelectValue placeholder="Select state" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {indianStatesData.map((state) => (
-                              <SelectItem key={state} value={state}>{state}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="district"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>District *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value} disabled={!watchState}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-district">
-                              <SelectValue placeholder={watchState ? "Select district" : "Select state first"} />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {availableDistricts.map((district) => (
-                              <SelectItem key={district} value={district}>{district}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                  <FormField control={form.control} name="landmark" render={({ field }) => (
+                    <FormItem><FormLabel>Landmark</FormLabel><FormControl><Input placeholder="Near temple, school, etc." {...field} /></FormControl></FormItem>
+                  )} />
+                  <FormField control={form.control} name="subDistrict" render={({ field }) => (
+                    <FormItem><FormLabel>Sub-District / Tehsil</FormLabel><FormControl><Input placeholder="Sub-district name" {...field} /></FormControl></FormItem>
+                  )} />
+                  <FormField control={form.control} name="block" render={({ field }) => (
+                    <FormItem><FormLabel>Block</FormLabel><FormControl><Input placeholder="Block name" {...field} /></FormControl></FormItem>
+                  )} />
+                  <FormField control={form.control} name="villagePanchayat" render={({ field }) => (
+                    <FormItem><FormLabel>Village / Panchayat</FormLabel><FormControl><Input placeholder="Village or Panchayat" {...field} /></FormControl></FormItem>
+                  )} />
                 </div>
+              </CardContent>
+            </Card>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="city"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>City</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value} disabled={!watchDistrict}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-city">
-                              <SelectValue placeholder={watchDistrict ? "Select city" : "Select district first"} />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {availableCities.map((city) => (
-                              <SelectItem key={city} value={city}>{city}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="pincode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Pincode *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="6-digit pincode" maxLength={6} {...field} data-testid="input-pincode" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+            {/* Co-Applicant Details */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Co-Applicant Details <span className="text-sm text-muted-foreground font-normal">(Optional)</span></CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField control={form.control} name="coApplicantName" render={({ field }) => (
+                    <FormItem><FormLabel>Co-Applicant Name</FormLabel><FormControl><Input placeholder="Full name" {...field} /></FormControl></FormItem>
+                  )} />
+                  <FormField control={form.control} name="coApplicantPhone" render={({ field }) => (
+                    <FormItem><FormLabel>Co-Applicant Mobile</FormLabel><FormControl><Input placeholder="10-digit number" {...field} /></FormControl></FormItem>
+                  )} />
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="aadharNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-orange-600 dark:text-orange-400 font-semibold">Aadhaar Number (Important)</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="12-digit Aadhaar number" 
-                            maxLength={12}
-                            className="border-orange-300 dark:border-orange-700 focus:border-orange-500"
-                            {...field} 
-                            data-testid="input-aadhar"
-                          />
-                        </FormControl>
-                        <p className="text-xs text-orange-600 dark:text-orange-400">Required for subsidy application</p>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="panNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-orange-600 dark:text-orange-400 font-semibold">PAN Number (Important)</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="ABCDE1234F" 
-                            maxLength={10}
-                            className="border-orange-300 dark:border-orange-700 focus:border-orange-500"
-                            {...field} 
-                            onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                            data-testid="input-pan"
-                          />
-                        </FormControl>
-                        <p className="text-xs text-orange-600 dark:text-orange-400">Required for subsidy and tax purposes</p>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                  <FormField
-                    control={form.control}
-                    name="latitude"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Latitude *</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="e.g., 28.6139" 
-                            {...field} 
-                            value={field.value || ""}
-                            data-testid="input-latitude"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="longitude"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Longitude *</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="e.g., 77.2090" 
-                            {...field} 
-                            value={field.value || ""}
-                            data-testid="input-longitude"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <Button 
-                    type="button" 
-                    variant="outline"
-                    onClick={handleGetLocation}
-                    disabled={isGettingLocation}
-                    className="gap-2"
-                    data-testid="button-capture-gps"
-                  >
-                    {isGettingLocation ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Navigation className="w-4 h-4" />
-                    )}
-                    {isGettingLocation ? "Getting Location..." : "Capture GPS Location"}
-                  </Button>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <FormField control={form.control} name="coApplicantDob" render={({ field }) => (
+                    <FormItem><FormLabel>Date of Birth</FormLabel><FormControl><Input type="date" {...field} /></FormControl></FormItem>
+                  )} />
+                  <FormField control={form.control} name="coApplicantRelation" render={({ field }) => (
+                    <FormItem><FormLabel>Relation with Applicant</FormLabel><Select onValueChange={field.onChange} value={field.value || ""}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Select relation" /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="spouse">Spouse</SelectItem>
+                        <SelectItem value="father">Father</SelectItem>
+                        <SelectItem value="mother">Mother</SelectItem>
+                        <SelectItem value="son">Son</SelectItem>
+                        <SelectItem value="daughter">Daughter</SelectItem>
+                        <SelectItem value="brother">Brother</SelectItem>
+                        <SelectItem value="sister">Sister</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select></FormItem>
+                  )} />
+                  <FormField control={form.control} name="annualIncome" render={({ field }) => (
+                    <FormItem><FormLabel>Annual Income</FormLabel><Select onValueChange={field.onChange} value={field.value || ""}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Select range" /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="below_1L">Below 1 Lakh</SelectItem>
+                        <SelectItem value="1L_3L">1 - 3 Lakh</SelectItem>
+                        <SelectItem value="3L_5L">3 - 5 Lakh</SelectItem>
+                        <SelectItem value="5L_10L">5 - 10 Lakh</SelectItem>
+                        <SelectItem value="10L_25L">10 - 25 Lakh</SelectItem>
+                        <SelectItem value="above_25L">Above 25 Lakh</SelectItem>
+                      </SelectContent>
+                    </Select></FormItem>
+                  )} />
                 </div>
               </CardContent>
             </Card>
@@ -826,6 +753,18 @@ export default function CustomerRegistration() {
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField control={form.control} name="smartMeter" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Smart Meter Installed?</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          <SelectItem value="yes">Yes</SelectItem>
+                          <SelectItem value="no">No</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormItem>
+                  )} />
                   <FormField
                     control={form.control}
                     name="sanctionedLoad"
@@ -1071,7 +1010,7 @@ export default function CustomerRegistration() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="hybrid">3-in-1 Hybrid Inverter (3, 5, 6 kW)</SelectItem>
+                            <SelectItem value="hybrid">Livguard Hybrid Inverter (3, 5, 6 kW)</SelectItem>
                             <SelectItem value="ongrid">Ongrid Inverter</SelectItem>
                           </SelectContent>
                         </Select>
@@ -1102,7 +1041,7 @@ export default function CustomerRegistration() {
                     
                     if (iType === "hybrid") {
                       capacityOptions = [3, 5, 6];
-                      capacityNote = "3-in-1 Hybrid Inverter available only in 3, 5, 6 kW";
+                      capacityNote = "Livguard Hybrid Inverter available only in 3, 5, 6 kW";
                     } else if (pType === "dcr" && iType === "ongrid") {
                       capacityOptions = isResidential 
                         ? [3, 4, 5, 6, 7, 8, 9, 10]
@@ -1345,106 +1284,112 @@ export default function CustomerRegistration() {
               </CardContent>
             </Card>
 
+            {/* Roof Dimensions */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Ruler className="w-5 h-5" />
+                  Roof Dimensions
+                </CardTitle>
+                <CardDescription>Enter roof measurements for solar panel placement</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Roof Length (ft) *</label>
+                    <Input type="number" placeholder="e.g., 30" value={roofSurveyData?.roofLength || ""} onChange={(e) => setRoofSurveyData(prev => ({ ...prev, roofLength: e.target.value, roofBreadth: prev?.roofBreadth || "" }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Roof Breadth (ft) *</label>
+                    <Input type="number" placeholder="e.g., 20" value={roofSurveyData?.roofBreadth || ""} onChange={(e) => setRoofSurveyData(prev => ({ ...prev, roofBreadth: e.target.value, roofLength: prev?.roofLength || "" }))} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Geotagged Site Photos */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Camera className="w-5 h-5" />
-                  Site Photos (Optional)
+                  Site Photos with Geotag
                 </CardTitle>
-                <CardDescription>
-                  Upload up to 6 photos of your roof/site from different angles
-                </CardDescription>
+                <CardDescription>Take photos stamped with GPS location, date & time</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {sitePhotos.length > 0 && (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {sitePhotos.map((url, index) => (
-                      <div key={index} className="relative group rounded-lg overflow-hidden border" data-testid={`site-photo-${index}`}>
+                      <div key={index} className="relative group rounded-lg overflow-hidden border">
                         <img src={url} alt={`Site photo ${index + 1}`} className="w-full h-32 object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => removeSitePhoto(index)}
-                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                          data-testid={`button-remove-site-photo-${index}`}
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                        <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs text-center py-1">
-                          Photo {index + 1}
-                        </div>
+                        <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => setSitePhotos(prev => prev.filter((_, i) => i !== index))}><X className="h-3 w-3" /></Button>
                       </div>
                     ))}
                   </div>
                 )}
-                {sitePhotos.length < 6 && (
-                  <label className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-6 cursor-pointer hover:border-primary transition-colors" data-testid="upload-site-photos-area">
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      capture="environment"
-                      onChange={handleSitePhotoUpload}
-                      className="hidden"
-                      data-testid="input-site-photos"
-                    />
-                    {isUploadingSitePhotos ? (
-                      <Loader2 className="w-8 h-8 animate-spin text-muted-foreground mb-2" />
-                    ) : (
-                      <Camera className="w-8 h-8 text-muted-foreground mb-2" />
-                    )}
-                    <p className="text-sm font-medium">{isUploadingSitePhotos ? "Uploading..." : "Tap to take photo or upload"}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {sitePhotos.length}/6 photos uploaded - JPG, PNG (Max 5MB each)
-                    </p>
-                  </label>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Ruler className="w-5 h-5" />
-                  Roof Survey & Measurements
-                </CardTitle>
-                <CardDescription>
-                  Capture roof dimensions, GPS location, and photos for accurate solar panel placement
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <RoofSurvey onDataChange={setRoofSurveyData} />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Grid3X3 className="w-5 h-5" />
-                  3D Roof Layout Planner
-                </CardTitle>
-                <CardDescription>
-                  Visualize solar panel placement on your roof - adjust dimensions, panel count, and view from different angles
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button
-                  type="button"
-                  variant={showRoofLayout ? "secondary" : "outline"}
-                  className="w-full mb-4"
-                  onClick={() => setShowRoofLayout(!showRoofLayout)}
-                  data-testid="button-toggle-roof-layout"
-                >
-                  <Grid3X3 className="w-4 h-4 mr-2" />
-                  {showRoofLayout ? "Hide Roof Layout Planner" : "Open Roof Layout Planner"}
-                </Button>
-                {showRoofLayout && (
-                  <SolarPanel3D
-                    initialCapacity={parseFloat(form.getValues("proposedCapacity") || "3")}
-                    onCapacityChange={(capacity) => {
-                      form.setValue("proposedCapacity", String(capacity));
+                {/* GeotagCamera */}
+                {showGeotagCamera && (
+                  <GeotagCamera
+                    addressLine={[form.getValues?.()?.address || address, form.getValues?.()?.district || district, form.getValues?.()?.state || selectedState].filter(Boolean).join(", ")}
+                    onClose={() => setShowGeotagCamera(false)}
+                    onCapture={async (blob: Blob, gpsData: any) => {
+                      setShowGeotagCamera(false);
+                      try {
+                        const fd = new FormData();
+                        fd.append("documents", blob, "site-photo-geotagged.jpg");
+                        const res = await fetch("/api/uploads/documents", { method: "POST", body: fd, credentials: "include" });
+                        if (res.ok) {
+                          const result = await res.json();
+                          const url = result.urls?.[0];
+                          if (url) {
+                            setSitePhotos(prev => [...prev, url]);
+                            toast({ title: "Photo saved with geotag" });
+                          }
+                        }
+                      } catch {
+                        setSitePhotos(prev => [...prev, URL.createObjectURL(blob)]);
+                      }
                     }}
                   />
                 )}
+                {sitePhotos.length < 6 && (
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowGeotagCamera(true)}
+                      className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-primary/40 rounded-xl hover:bg-primary/5 transition-colors cursor-pointer gap-1"
+                    >
+                      <Camera className="w-7 h-7 text-primary" />
+                      <span className="text-sm font-medium text-primary">📍 Tap to Take Geotagged Photo</span>
+                      <span className="text-xs text-muted-foreground">Live GPS shown on camera viewfinder</span>
+                    </button>
+                    <label className="flex items-center justify-center w-full h-12 border border-dashed rounded-lg cursor-pointer hover:bg-muted/50 gap-2">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                      <span className="text-xs text-muted-foreground font-medium">Upload Photo from Gallery</span>
+                      <input type="file" className="hidden" accept="image/*" multiple onChange={async (e) => {
+                        const files = Array.from(e.target.files || []);
+                        if (!files.length) return;
+                        if (sitePhotos.length + files.length > 6) { toast({ title: "Maximum 6 photos allowed", variant: "destructive" }); return; }
+                        setIsUploadingSitePhotos(true);
+                        try {
+                          for (const file of files) {
+                            const fd = new FormData();
+                            fd.append("documents", file, file.name);
+                            const res = await fetch("/api/uploads/documents", { method: "POST", body: fd, credentials: "include" });
+                            if (res.ok) {
+                              const result = await res.json();
+                              const url = result.urls?.[0];
+                              if (url) setSitePhotos(prev => [...prev, url]);
+                            }
+                          }
+                        } catch { toast({ title: "Upload failed", variant: "destructive" }); }
+                        finally { setIsUploadingSitePhotos(false); }
+                        e.target.value = "";
+                      }} />
+                    </label>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground text-center">{sitePhotos.length}/6 photos</p>
               </CardContent>
             </Card>
 
@@ -1462,7 +1407,7 @@ export default function CustomerRegistration() {
                   render={({ field }) => (
                     <FormItem>
                       <FormControl>
-                        <Input placeholder="Enter referral code" {...field} data-testid="input-referral-code" />
+                        <Input placeholder="Enter referral code" {...field} data-testid="input-referral-code" readOnly={!!urlRefCode} className={urlRefCode ? "bg-muted font-mono" : ""} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

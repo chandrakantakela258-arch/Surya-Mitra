@@ -7,6 +7,7 @@ import { customerFormSchema, roofTypes } from "@shared/schema";
 import { indianStatesData, getDistrictsForState, getCitiesForDistrict, getDiscomsForState } from "@shared/india-data";
 import { SolarPanel3D } from "@/components/solar-panel-3d";
 import { RoofSurvey, type RoofSurveyData } from "@/components/roof-survey";
+import { GeotagCamera } from "@/components/geotag-camera";
 
 // Unit types for commercial and industrial installations
 const commercialUnitTypes = [
@@ -46,6 +47,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -181,9 +183,31 @@ export default function CustomerForm() {
   const [sitePhotos, setSitePhotos] = useState<string[]>([]);
   const [isUploadingSitePhotos, setIsUploadingSitePhotos] = useState(false);
   const [showRoofLayout, setShowRoofLayout] = useState(false);
+  const [showGeotagCamera, setShowGeotagCamera] = useState(false);
   const [roofSurveyData, setRoofSurveyData] = useState<RoofSurveyData | null>(null);
   const documentInputRef = useRef<HTMLInputElement>(null);
   const sitePhotoInputRef = useRef<HTMLInputElement>(null);
+  const capturedGpsRef = useRef<{lat: string, lng: string} | null>(null);
+  const [gpsStatus, setGpsStatus] = useState<"idle"|"getting"|"got"|"failed">("idle");
+
+  const getCameraWithGPS = () => {
+    // Open camera immediately
+    sitePhotoInputRef.current?.click();
+    // Get GPS in background simultaneously
+    setGpsStatus("getting");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude.toFixed(6);
+        const lng = pos.coords.longitude.toFixed(6);
+        capturedGpsRef.current = { lat, lng };
+        form.setValue("latitude", lat, { shouldValidate: true });
+        form.setValue("longitude", lng, { shouldValidate: true });
+        setGpsStatus("got");
+      },
+      () => { setGpsStatus("failed"); },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  };
 
   const handleDocumentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.length) return;
@@ -266,6 +290,9 @@ export default function CustomerForm() {
       longitude: "",
       electricityBoard: "",
       consumerNumber: "",
+      division: "",
+      subDivision: "",
+      smartMeter: "",
       sanctionedLoad: "",
       avgMonthlyBill: undefined,
       roofType: "",
@@ -616,76 +643,84 @@ export default function CustomerForm() {
                   )}
                 />
               </div>
+            </CardContent>
+          </Card>
 
-              <Separator />
 
-              {/* GPS Location */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-medium">GPS Location</span>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={getCurrentLocation}
-                    disabled={isGettingLocation}
-                    data-testid="button-get-location"
-                  >
-                    {isGettingLocation ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Getting Location...
-                      </>
-                    ) : (
-                      <>
-                        <Navigation className="mr-2 h-4 w-4" />
-                        Capture GPS
-                      </>
-                    )}
-                  </Button>
+          {/* Extended Address & Co-Applicant */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Address Details (Extended)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Landmark</Label>
+                  <Input placeholder="Near temple, school, etc." {...form.register("landmark")} />
                 </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="latitude"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Latitude *</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="e.g., 28.613939" 
-                            data-testid="input-latitude"
-                            {...field}
-                            value={field.value || ""}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                <div className="space-y-1">
+                  <Label className="text-xs">Sub-District / Tehsil</Label>
+                  <Input placeholder="Sub-district name" {...form.register("subDistrict")} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Block</Label>
+                  <Input placeholder="Block name" {...form.register("block")} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Village / Panchayat</Label>
+                  <Input placeholder="Village or Panchayat" {...form.register("villagePanchayat")} />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-                  <FormField
-                    control={form.control}
-                    name="longitude"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Longitude *</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="e.g., 77.209023" 
-                            data-testid="input-longitude"
-                            {...field}
-                            value={field.value || ""}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+
+          {/* Co-Applicant Details */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Co-Applicant Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Co-Applicant Name</Label>
+                  <Input placeholder="Full name" {...form.register("coApplicantName")} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Co-Applicant Mobile</Label>
+                  <Input placeholder="10-digit number" {...form.register("coApplicantPhone")} />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Date of Birth</Label>
+                  <Input type="date" {...form.register("coApplicantDob")} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Relation with Applicant</Label>
+                  <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" {...form.register("coApplicantRelation")}>
+                    <option value="">Select relation</option>
+                    <option value="spouse">Spouse</option>
+                    <option value="father">Father</option>
+                    <option value="mother">Mother</option>
+                    <option value="son">Son</option>
+                    <option value="daughter">Daughter</option>
+                    <option value="brother">Brother</option>
+                    <option value="sister">Sister</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Annual Income (Applicant)</Label>
+                  <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" {...form.register("annualIncome")}>
+                    <option value="">Select range</option>
+                    <option value="below_1L">Below 1 Lakh</option>
+                    <option value="1L_3L">1 - 3 Lakh</option>
+                    <option value="3L_5L">3 - 5 Lakh</option>
+                    <option value="5L_10L">5 - 10 Lakh</option>
+                    <option value="10L_25L">10 - 25 Lakh</option>
+                    <option value="above_25L">Above 25 Lakh</option>
+                  </select>
                 </div>
               </div>
             </CardContent>
@@ -745,6 +780,66 @@ export default function CustomerForm() {
                   )}
                 />
 
+                <FormField
+                  control={form.control}
+                  name="division"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Division</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="DISCOM division"
+                          data-testid="input-division"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="subDivision"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Sub-Division</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="DISCOM sub-division"
+                          data-testid="input-sub-division"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+
+                <FormField
+                  control={form.control}
+                  name="smartMeter"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Smart Meter Installed?</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="yes">Yes</SelectItem>
+                          <SelectItem value="no">No</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name="sanctionedLoad"
@@ -1000,7 +1095,7 @@ export default function CustomerForm() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="hybrid">3-in-1 Hybrid Inverter (3, 5, 6 kW)</SelectItem>
+                            <SelectItem value="hybrid">Livguard Hybrid Inverter (3, 5, 6 kW)</SelectItem>
                             <SelectItem value="ongrid">Ongrid Inverter</SelectItem>
                           </SelectContent>
                         </Select>
@@ -1031,7 +1126,7 @@ export default function CustomerForm() {
                     
                     if (iType === "hybrid") {
                       capacityOptions = [3, 5, 6];
-                      capacityNote = "3-in-1 Hybrid Inverter available only in 3, 5, 6 kW";
+                      capacityNote = "Livguard Hybrid Inverter available only in 3, 5, 6 kW";
                     } else if (pType === "dcr" && iType === "ongrid") {
                       capacityOptions = isResidential 
                         ? [3, 4, 5, 6, 7, 8, 9, 10]
@@ -1301,113 +1396,235 @@ export default function CustomerForm() {
             </CardContent>
           </Card>
 
-          {/* Site Photos Upload */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Camera className="w-5 h-5 text-primary" />
-                Site Photos (Optional)
-              </CardTitle>
-              <CardDescription>
-                Upload up to 6 photos of the customer's roof/site from different angles
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {sitePhotos.length > 0 && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {sitePhotos.map((url, index) => (
-                    <div key={index} className="relative group rounded-lg overflow-hidden border" data-testid={`site-photo-${index}`}>
-                      <img src={url} alt={`Site photo ${index + 1}`} className="w-full h-32 object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => removeSitePhoto(index)}
-                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                        data-testid={`button-remove-site-photo-${index}`}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                      <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs text-center py-1">
-                        Photo {index + 1}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {sitePhotos.length < 6 && (
-                <div
-                  className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-6 text-center cursor-pointer transition-colors hover:border-primary/50"
-                  onClick={() => sitePhotoInputRef.current?.click()}
-                  data-testid="upload-site-photos-area"
-                >
-                  <input
-                    ref={sitePhotoInputRef}
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    capture="environment"
-                    className="hidden"
-                    onChange={handleSitePhotoUpload}
-                    data-testid="input-site-photos"
-                  />
-                  {isUploadingSitePhotos ? (
-                    <Loader2 className="w-10 h-10 mx-auto mb-3 animate-spin text-muted-foreground" />
-                  ) : (
-                    <Camera className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
-                  )}
-                  <p className="text-sm font-medium">{isUploadingSitePhotos ? "Uploading..." : "Click to take photo or upload"}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {sitePhotos.length}/6 photos - JPG, PNG (Max 5MB each)
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Roof Survey & Measurements */}
+          {/* Roof Dimensions */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Ruler className="w-5 h-5 text-primary" />
-                Roof Survey & Measurements
+                Roof Dimensions
               </CardTitle>
               <CardDescription>
-                Capture roof dimensions, GPS location, and photos for accurate solar panel placement
+                Enter roof measurements for accurate solar panel placement
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <RoofSurvey onDataChange={setRoofSurveyData} />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Roof Length (ft) *</label>
+                  <Input
+                    type="number"
+                    placeholder="e.g., 30"
+                    value={roofSurveyData?.roofLength || ""}
+                    onChange={(e) => setRoofSurveyData(prev => ({ ...prev, roofLength: e.target.value, roofBreadth: prev?.roofBreadth || "" } as any))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Roof Breadth (ft) *</label>
+                  <Input
+                    type="number"
+                    placeholder="e.g., 20"
+                    value={roofSurveyData?.roofBreadth || ""}
+                    onChange={(e) => setRoofSurveyData(prev => ({ ...prev, roofBreadth: e.target.value, roofLength: prev?.roofLength || "" } as any))}
+                  />
+                </div>
+              </div>
             </CardContent>
           </Card>
 
-          {/* 3D Roof Layout Planner */}
+          {/* Geotagged Site Photos - NoteCam Style */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Grid3X3 className="w-5 h-5 text-primary" />
-                3D Roof Layout Planner
+                <Camera className="w-5 h-5 text-primary" />
+                Site Photos with Geotag
               </CardTitle>
               <CardDescription>
-                Visualize solar panel placement on the roof - adjust dimensions, panel count, and view from different angles
+                GPS location, date &amp; time will be stamped on each photo automatically.
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <Button
-                type="button"
-                variant={showRoofLayout ? "secondary" : "outline"}
-                className="w-full mb-4"
-                onClick={() => setShowRoofLayout(!showRoofLayout)}
-                data-testid="button-toggle-roof-layout"
-              >
-                <Grid3X3 className="w-4 h-4 mr-2" />
-                {showRoofLayout ? "Hide Roof Layout Planner" : "Open Roof Layout Planner"}
-              </Button>
-              {showRoofLayout && (
-                <SolarPanel3D
-                  initialCapacity={parseFloat(form.getValues("proposedCapacity") || "3")}
-                  onCapacityChange={(capacity) => {
-                    form.setValue("proposedCapacity", String(capacity));
+            <CardContent className="space-y-4">
+
+              {/* GPS Status - compact */}
+              {gpsStatus === "got" && capturedGpsRef.current && (
+                <div className="flex items-center gap-2 p-2 rounded-lg text-xs bg-green-50 text-green-700 border border-green-200">
+                  <Navigation className="w-3 h-3" />
+                  GPS: {capturedGpsRef.current.lat}, {capturedGpsRef.current.lng}
+                </div>
+              )}
+              {gpsStatus === "failed" && (
+                <div className="flex items-center gap-2 p-2 rounded-lg text-xs bg-red-50 text-red-700 border border-red-200">
+                  <Navigation className="w-3 h-3" />
+                  GPS unavailable — photo will be saved without coordinates
+                </div>
+              )}
+
+              {/* Photo Grid */}
+              {sitePhotos.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {sitePhotos.map((url, index) => (
+                    <div key={index} className="relative group rounded-lg overflow-hidden border">
+                      <img src={url} alt={`Site photo ${index + 1}`} className="w-full h-32 object-cover" />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => setSitePhotos(prev => prev.filter((_, i) => i !== index))}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Camera Button */}
+              {showGeotagCamera && (
+                <GeotagCamera
+                  addressLine={[form.getValues().address, form.getValues().district, form.getValues().state].filter(Boolean).join(", ")}
+                  onClose={() => setShowGeotagCamera(false)}
+                  onCapture={async (blob, gpsData) => {
+                    setShowGeotagCamera(false);
+                    if (gpsData) {
+                      capturedGpsRef.current = gpsData;
+                      form.setValue("latitude", gpsData.lat, { shouldValidate: true });
+                      form.setValue("longitude", gpsData.lng, { shouldValidate: true });
+                      setGpsStatus("got");
+                    }
+                    try {
+                      const fd = new FormData();
+                      fd.append("documents", blob, "site-photo-geotagged.jpg");
+                      const res = await fetch("/api/uploads/documents", { method: "POST", body: fd, credentials: "include" });
+                      if (res.ok) {
+                        const result = await res.json();
+                        const url = result.urls?.[0];
+                        if (url) {
+                          setSitePhotos(prev => [...prev, url]);
+                          toast({ title: "Photo saved", description: gpsData ? "Geotagged successfully" : "Saved (GPS unavailable)" });
+                        }
+                      }
+                    } catch {
+                      const url = URL.createObjectURL(blob);
+                      setSitePhotos(prev => [...prev, url]);
+                    }
                   }}
                 />
+              )}
+              {sitePhotos.length < 6 && (
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowGeotagCamera(true)}
+                    className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-primary/40 rounded-xl hover:bg-primary/5 transition-colors cursor-pointer gap-2"
+                  >
+                    <Camera className="w-7 h-7 text-primary" />
+                    <span className="text-sm font-medium text-primary">📍 Tap to Take Geotagged Photo</span>
+                    <span className="text-xs text-muted-foreground">Live GPS shown on camera viewfinder</span>
+                  </button>
+                  <label className="flex items-center justify-center w-full h-12 border border-dashed rounded-lg cursor-pointer hover:bg-muted/50 gap-2">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <span className="text-xs text-muted-foreground font-medium">📤 Upload Photo from Gallery</span>
+                    <input type="file" className="hidden" accept="image/*" multiple onChange={async (e) => {
+                      const files = Array.from(e.target.files || []);
+                      if (!files.length) return;
+                      if (sitePhotos.length + files.length > 6) { toast({ title: "Maximum 6 photos", variant: "destructive" }); return; }
+                      setIsUploadingSitePhotos(true);
+                      try {
+                        for (const file of files) {
+                          const fd = new FormData();
+                          fd.append("documents", file, file.name);
+                          const res = await fetch("/api/uploads/documents", { method: "POST", body: fd, credentials: "include" });
+                          if (res.ok) { const r = await res.json(); if (r.urls?.[0]) setSitePhotos(p => [...p, r.urls[0]]); }
+                        }
+                      } catch {} finally { setIsUploadingSitePhotos(false); }
+                      e.target.value = "";
+                    }} />
+                  </label>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    capture="environment"
+                    ref={sitePhotoInputRef}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const gps = capturedGpsRef.current;
+                      const formValues = form.getValues();
+                      const addressLine = [formValues.address, formValues.district, formValues.state, formValues.pincode].filter(Boolean).join(", ");
+                      const now = new Date();
+                      const dateStr = now.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+                      const timeStr = now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+                      const img = new Image();
+                      img.onload = () => {
+                        const canvas = document.createElement("canvas");
+                        const W = img.width;
+                        const H = img.height;
+                        canvas.width = W;
+                        canvas.height = H;
+                        const ctx = canvas.getContext("2d")!;
+                        // Draw full photo
+                        ctx.drawImage(img, 0, 0, W, H);
+                        // Stamp lines
+                        const fs = Math.max(20, W * 0.032);
+                        const padding = Math.max(16, W * 0.02);
+                        const lineH = fs * 1.6;
+                        const stampLines = [
+                          gps ? `Latitude: ${gps.lat}` : "Latitude: N/A",
+                          gps ? `Longitude: ${gps.lng}` : "Longitude: N/A",
+                          `Date: ${dateStr}`,
+                          `Time: ${timeStr}`,
+                          ...(addressLine ? [addressLine.slice(0, 50)] : []),
+                        ];
+                        const boxH = stampLines.length * lineH + padding;
+                        const boxY = H - boxH - padding;
+                        // Dark semi-transparent box
+                        ctx.fillStyle = "rgba(0,0,0,0.6)";
+                        ctx.fillRect(padding - 10, boxY - 10, W * 0.72, boxH + 20);
+                        // White text lines
+                        stampLines.forEach((line, i) => {
+                          ctx.font = `bold ${fs}px Arial`;
+                          ctx.fillStyle = "#ffffff";
+                          ctx.fillText(line, padding, boxY + lineH * (i + 1));
+                        });
+                        // Brand bottom-right in orange
+                        ctx.font = `bold italic ${Math.max(18, W * 0.026)}px Arial`;
+                        ctx.fillStyle = "#f97316";
+                        const brand = "Powered by Divyanshi Digital Services Pvt Ltd";
+                        ctx.fillText(brand, W - ctx.measureText(brand).width - padding, H - padding);
+
+                        canvas.toBlob(async (blob) => {
+                          if (!blob) return;
+                          try {
+                            const formData = new FormData();
+                            formData.append("documents", blob, "site-photo-geotagged.jpg");
+                            const response = await fetch("/api/uploads/documents", {
+                              method: "POST",
+                              body: formData,
+                              credentials: "include",
+                            });
+                            if (response.ok) {
+                              const result = await response.json();
+                              const uploadedUrl = result.urls?.[0];
+                              if (uploadedUrl) {
+                                setSitePhotos(prev => [...prev, uploadedUrl]);
+                                toast({ title: "Photo saved", description: gps ? "Geotagged successfully" : "Saved (GPS unavailable)" });
+                              }
+                            }
+                          } catch {
+                            const url = URL.createObjectURL(blob);
+                            setSitePhotos(prev => [...prev, url]);
+                          }
+                        }, "image/jpeg", 0.9);
+                      };
+                      img.src = URL.createObjectURL(file);
+                      e.target.value = "";
+                    }}
+                  />
+                  <p className="text-xs text-muted-foreground text-center">
+                    {sitePhotos.length}/6 photos • JPG, PNG (Max 5MB each)
+                  </p>
+                </div>
               )}
             </CardContent>
           </Card>

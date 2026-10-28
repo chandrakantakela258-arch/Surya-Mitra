@@ -158,7 +158,7 @@ export default function IBSolarPanelsPage() {
           <Link href="/">
             <img 
               src={logoImage} 
-              alt="Divyanshi Solar" 
+              alt="Divyanshi Digital Services Pvt Ltd" 
               className="h-10 w-auto object-contain cursor-pointer"
             />
           </Link>
@@ -399,7 +399,7 @@ export default function IBSolarPanelsPage() {
       <footer className="border-t bg-muted/30 py-8">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
           <p>IB Solar panels are manufactured by IB Energy (IB Group) - India's leading solar panel manufacturer.</p>
-          <p className="mt-2">Divyanshi Solar is an authorized distributor and installation partner.</p>
+          <p className="mt-2">Divyanshi Digital Services Pvt Ltd is an authorized distributor and installation partner.</p>
         </div>
       </footer>
     </div>

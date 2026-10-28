@@ -1,0 +1,188 @@
+import type { Express, Request, Response, NextFunction } from "express";
+import { pool } from "./db";
+import bcrypt from "bcrypt";
+import crypto from "crypto";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+
+// Divyanshi Shop Solar partner channel: development partners register shops,
+// each shop gets a token dashboard and its own customer referral link.
+const SHOP_DIR = path.join(process.cwd(), "uploads", "shop-photos");
+fs.mkdirSync(SHOP_DIR, { recursive: true });
+
+const shopUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, SHOP_DIR),
+    filename: (_req, file, cb) => {
+      const ext = (path.extname(file.originalname) || ".jpg").toLowerCase().slice(0, 5);
+      cb(null, `${Date.now()}-${crypto.randomBytes(6).toString("hex")}${ext}`);
+    },
+  }),
+  limits: { fileSize: 8 * 1024 * 1024, files: 2 },
+  fileFilter: (_req, file, cb) =>
+    /^image\//.test(file.mimetype) ? cb(null, true) : cb(new Error("Only image files are allowed")),
+});
+
+const ten = (v: any) => String(v ?? "").replace(/\D/g, "").slice(-10);
+const txt = (v: any, n: number) => { const s = String(v ?? "").trim(); return s ? s.slice(0, n) : null; };
+const num = (v: any) => { const x = Number(v); return Number.isFinite(x) ? x : null; };
+const rmFiles = (files: any) => {
+  for (const f of Object.values(files || {}).flat() as any[]) {
+    try { fs.unlinkSync(f.path); } catch {}
+  }
+};
+
+async function requireShopDev(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = (req as any).session?.userId;
+    if (!userId) return res.status(401).json({ error: "Not logged in" });
+    const { rows } = await pool.query("SELECT id, name, role FROM users WHERE id = $1", [userId]);
+    const u = rows[0];
+    if (!u || (u.role !== "shop_dev" && u.role !== "admin"))
+      return res.status(403).json({ error: "Shop Development Partner access required" });
+    (req as any).shopDev = u;
+    next();
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+}
+
+async function uniqueCode(prefix: string, table: string, col: string) {
+  for (let i = 0; i < 12; i++) {
+    const code = prefix + crypto.randomBytes(3).toString("hex").toUpperCase();
+    const { rowCount } = await pool.query(`SELECT 1 FROM ${table} WHERE ${col} = $1`, [code]);
+    if (!rowCount) return code;
+  }
+  throw new Error("Could not allocate a unique code");
+}
+
+export function registerShopPartnerRoutes(app: Express) {
+  // --- Shop Development Partner self-registration (public, active immediately)
+  app.post("/api/shop/dev/register", async (req: Request, res: Response) => {
+    try {
+      const b = req.body || {};
+      const name = txt(b.name, 150);
+      const phone = ten(b.whatsapp ?? b.phone);
+      const password = String(b.password ?? "");
+      if (!name) return res.status(400).json({ error: "Name is required" });
+      if (phone.length !== 10) return res.status(400).json({ error: "Enter a valid 10-digit WhatsApp number" });
+      if (password.length < 6) return res.status(400).json({ error: "Password must be at least 6 characters" });
+
+      const { rowCount } = await pool.query("SELECT 1 FROM users WHERE username = $1 OR phone = $1", [phone]);
+      if (rowCount) return res.status(409).json({ error: "This number is already registered. Please log in instead." });
+
+      const hashed = await bcrypt.hash(password, 10);
+      const partnerCode = await uniqueCode("DSD", "users", "partner_code");
+      const referralCode = await uniqueCode("DSDR", "users", "referral_code");
+      const { rows } = await pool.query(
+        `INSERT INTO users (username, password, name, email, phone, role, status,
+                            district, state, address, latitude, longitude, location_updated_at,
+                            partner_code, referral_code)
+         VALUES ($1,$2,$3,$4,$1,'shop_dev','approved',$5,$6,$7,$8,$9,now(),$10,$11)
+         RETURNING id, name, phone, partner_code`,
+        [phone, hashed, name, `${phone}@shop.divyanshisolar.in`,
+         txt(b.district, 100), txt(b.state, 100), txt(b.address, 500),
+         txt(b.latitude, 32), txt(b.longitude, 32), partnerCode, referralCode]
+      );
+      (req as any).session.userId = rows[0].id;
+      res.json({ ok: true, partner: rows[0], loginWith: phone });
+    } catch (e: any) {
+      console.error("[shop-dev register]", e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // --- Add a Shop Solar Partner (both standee photos compulsory)
+  app.post("/api/shop/partners", requireShopDev,
+    shopUpload.fields([{ name: "boardPhoto", maxCount: 1 }, { name: "counterPhoto", maxCount: 1 }]),
+    async (req: Request, res: Response) => {
+      const files: any = req.files || {};
+      try {
+        const b = req.body || {};
+        const board = files.boardPhoto?.[0];
+        const counter = files.counterPhoto?.[0];
+        if (!board || !counter) {
+          rmFiles(files);
+          return res.status(400).json({ error: "Both the shop board photo and the counter photo with the Divyanshi standee are required" });
+        }
+        const shopName = txt(b.shopName, 200);
+        const ownerName = txt(b.ownerName, 150);
+        const waNum = ten(b.ownerWhatsapp);
+        if (!shopName || !ownerName || waNum.length !== 10) {
+          rmFiles(files);
+          return res.status(400).json({ error: "Shop name, owner name and a valid 10-digit WhatsApp number are required" });
+        }
+        const { rowCount } = await pool.query("SELECT 1 FROM shop_partners WHERE owner_whatsapp = $1", [waNum]);
+        if (rowCount) {
+          rmFiles(files);
+          return res.status(409).json({ error: "A shop is already registered on this WhatsApp number" });
+        }
+
+        const shopCode = await uniqueCode("DSS", "shop_partners", "shop_code");
+        const token = crypto.randomBytes(24).toString("hex");
+        const { rows } = await pool.query(
+          `INSERT INTO shop_partners
+             (shop_code, shop_name, owner_name, owner_whatsapp, latitude, longitude, google_location,
+              address, district, state, board_photo, counter_photo, dev_partner_id, dashboard_token)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+           RETURNING id, shop_code, shop_name, owner_name, owner_whatsapp, dashboard_token`,
+          [shopCode, shopName, ownerName, waNum, num(b.latitude), num(b.longitude), txt(b.googleLocation, 500),
+           txt(b.address, 500), txt(b.district, 100), txt(b.state, 100),
+           `/uploads/shop-photos/${board.filename}`, `/uploads/shop-photos/${counter.filename}`,
+           (req as any).shopDev.id, token]
+        );
+        const shop = rows[0];
+        res.json({
+          ok: true,
+          shop,
+          dashboardUrl: `/shop/${token}`,
+          customerUrl: `/?shop=${shop.shop_code}`,
+        });
+      } catch (e: any) {
+        rmFiles(files);
+        console.error("[shop add]", e.message);
+        res.status(500).json({ error: e.message });
+      }
+    });
+
+  // --- Shops registered by the logged-in development partner
+  app.get("/api/shop/dev/partners", requireShopDev, async (req: Request, res: Response) => {
+    try {
+      const dev = (req as any).shopDev;
+      const all = dev.role === "admin" && req.query.all === "1";
+      const { rows } = await pool.query(
+        `SELECT s.id, s.shop_code, s.shop_name, s.owner_name, s.owner_whatsapp, s.district, s.state,
+                s.latitude, s.longitude, s.google_location, s.board_photo, s.counter_photo,
+                s.dashboard_token, s.is_active, s.created_at,
+                u.name AS dev_partner_name,
+                (SELECT count(*) FROM customers c WHERE c.shop_partner_id = s.id) AS customer_count
+           FROM shop_partners s
+           LEFT JOIN users u ON u.id = s.dev_partner_id
+          ${all ? "" : "WHERE s.dev_partner_id = $1"}
+          ORDER BY s.created_at DESC`,
+        all ? [] : [dev.id]
+      );
+      res.json(rows);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // --- Shop owner dashboard, opened from the WhatsApp link (token only, no password)
+  app.get("/api/shop/dash/:token", async (req: Request, res: Response) => {
+    try {
+      const token = String(req.params.token || "");
+      if (!/^[a-f0-9]{48}$/.test(token)) return res.status(400).json({ error: "Invalid dashboard link" });
+      const { rows } = await pool.query(
+        `SELECT id, shop_code, shop_name, owner_name, owner_whatsapp, district, state, is_active
+           FROM shop_partners WHERE dashboard_token = $1`, [token]
+      );
+      const shop = rows[0];
+      if (!shop) return res.status(404).json({ error: "This dashboard link is not valid" });
+      if (!shop.is_active) return res.status(403).json({ error: "This shop is no longer active" });
+
+      const { rows: customers } = await pool.query(
+        `SELECT id, name, phone, district, proposed_capacity, panel_type, status, created_at
+           FROM customers WHERE shop_partner_id = $1 ORDER BY created_at DESC LIMIT 500`, [shop.id]
+      );
+      res.json({ shop, customerUrl: `/?shop=${shop.shop_code}`, customers });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+}

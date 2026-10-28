@@ -307,7 +307,7 @@ export default function DDPDashboard() {
           <CardDescription>Calculate subsidy and savings for your customers</CardDescription>
         </CardHeader>
         <CardContent>
-          <SubsidyCalculator showCommission="ddp" />
+          <SubsidyCalculator showCommission="ddp_only" teamStructure={user?.teamStructure || "direct"} userRole="ddp" />
         </CardContent>
       </Card>
     </div>

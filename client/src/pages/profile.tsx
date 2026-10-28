@@ -90,7 +90,7 @@ export default function ProfilePage() {
     return null;
   }
 
-  const roleLabel = user.role === "bdp" ? "Business Development Partner" : "District Development Partner";
+  const roleLabel = user.role === "bdp" ? "Business Development Partner" : user.role === "sdp" ? "State Development Partner" : "District Development Partner";
 
   return (
     <div className="space-y-6">

@@ -1,0 +1,1913 @@
+import { Link as WouterLink } from "wouter";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { HeroSlider } from "@/components/hero-slider";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { WhatsAppWidget } from "@/components/WhatsAppWidget";
+import { SubsidyCalculator } from "@/components/subsidy-calculator";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import logoImage from "@assets/88720521_logo_1766219255006.png";
+import { SiLinkedin, SiX, SiFacebook, SiInstagram, SiWhatsapp, SiYoutube } from "react-icons/si";
+import { 
+  Sun, 
+  Zap, 
+  IndianRupee, 
+  FileText, 
+  Users, 
+  CheckCircle2,
+  CheckCircle, 
+  ArrowRight,
+  Leaf,
+  Home,
+  Calculator,
+  Battery,
+  Wifi,
+  Shield,
+  TrendingUp,
+  Menu,
+  X,
+  MapPin,
+  BarChart3,
+  Phone,
+  Mail,
+  MapPinned,
+  Building2,
+  ClipboardList,
+  Sparkles,
+  ChevronDown,
+  Globe,
+  Award,
+  Headphones,
+  AlertTriangle,
+  Clock,
+  Map,
+  Store,
+  Eye,
+  CreditCard,
+  ShoppingCart
+} from "lucide-react";
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import type { Product } from "@shared/schema";
+
+function formatINR(amount: number): string {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
+
+const categoryLabels: Record<string, string> = {
+  solar_package: "Solar Package",
+  marketing_material: "Marketing Material",
+  accessory: "Accessory",
+};
+
+interface BuyerDetails {
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+}
+
+export default function LandingPage() {
+  const { toast } = useToast();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [socialMediaOpen, setSocialMediaOpen] = useState(false);
+  const [floatingSocialOpen, setFloatingSocialOpen] = useState(false);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [buyerDetails, setBuyerDetails] = useState<BuyerDetails>({
+    name: "",
+    phone: "",
+    email: "",
+    address: "",
+  });
+
+  const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
+    queryKey: ["/api/products"],
+  });
+
+  const createOrderMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("POST", "/api/public/orders/create", data);
+      return response;
+    },
+    onSuccess: async (data: any) => {
+      const options = {
+        key: data.razorpayKeyId,
+        amount: data.amount,
+        currency: data.currency,
+        name: "DivyanshiSolar",
+        description: selectedProduct?.name || "Order Payment",
+        order_id: data.razorpayOrderId,
+        handler: async function (response: any) {
+          try {
+            await apiRequest("POST", "/api/public/orders/verify-payment", {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            });
+            setShowCheckout(false);
+            setSelectedProduct(null);
+            setBuyerDetails({ name: "", phone: "", email: "", address: "" });
+            toast({
+              title: "Payment Successful",
+              description: "Your order has been placed successfully! We will contact you shortly.",
+            });
+          } catch (error: any) {
+            toast({
+              title: "Payment Verification Failed",
+              description: error.message || "Please contact support.",
+              variant: "destructive",
+            });
+          }
+        },
+        prefill: {
+          name: buyerDetails.name,
+          email: buyerDetails.email,
+          contact: buyerDetails.phone,
+        },
+        theme: {
+          color: "#f59e0b",
+        },
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Order Failed",
+        description: error.message || "Failed to create order. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleBuyNow = (product: Product) => {
+    setSelectedProduct(product);
+    setShowCheckout(true);
+  };
+
+  const handlePayment = () => {
+    if (!buyerDetails.name || !buyerDetails.phone) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter your name and phone number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!/^\d{10}$/.test(buyerDetails.phone.replace(/\D/g, '').slice(-10))) {
+      toast({
+        title: "Invalid Phone",
+        description: "Please enter a valid 10-digit phone number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!selectedProduct) return;
+
+    createOrderMutation.mutate({
+      items: [{
+        productId: selectedProduct.id,
+        quantity: 1,
+      }],
+      customerName: buyerDetails.name,
+      customerPhone: buyerDetails.phone,
+      customerEmail: buyerDetails.email,
+      customerAddress: buyerDetails.address,
+    });
+  };
+
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth" });
+    }
+    setMobileMenuOpen(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-gradient-to-r from-background via-background to-background/95 backdrop-blur-md border-b border-primary/10 shadow-lg shadow-primary/5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between gap-4 h-16">
+            {/* Logo - Prominent */}
+            <div className="flex items-center">
+              <img 
+                src={logoImage} 
+                alt="Prayga India Private Limited - Powering Every Home" 
+                className="h-14 sm:h-16 md:h-18 w-auto object-contain drop-shadow-sm"
+              />
+            </div>
+
+            {/* Desktop Navigation */}
+            <nav className="hidden lg:flex items-center gap-1 bg-muted/30 rounded-full px-2 py-1 border border-border/50">
+              <button 
+                onClick={() => scrollToSection("about")} 
+                className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-200"
+                data-testid="nav-about"
+              >
+                <Building2 className="w-4 h-4 text-blue-500" />
+                About Us
+              </button>
+              <button 
+                onClick={() => scrollToSection("sunpunch")} 
+                className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-200"
+                data-testid="nav-sunpunch"
+              >
+                <Battery className="w-4 h-4 text-purple-500" />
+                SunPunch
+              </button>
+              <WouterLink href="/ib-solar-panels">
+                <button 
+                  className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-200"
+                  data-testid="nav-ib-solar-panels"
+                >
+                  <Sun className="w-4 h-4 text-amber-500" />
+                  IB Solar Panels
+                </button>
+              </WouterLink>
+              <WouterLink href="/network-map">
+                <button 
+                  className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-200"
+                  data-testid="nav-network-map"
+                >
+                  <Map className="w-4 h-4 text-indigo-500" />
+                  Partner Map
+                </button>
+              </WouterLink>
+              <button 
+                onClick={() => scrollToSection("store")} 
+                className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-200"
+                data-testid="nav-store"
+              >
+                <Store className="w-4 h-4 text-orange-500" />
+                Store
+              </button>
+              <WouterLink href="/vendor-registration">
+                <button 
+                  className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-200"
+                  data-testid="nav-vendor-registration"
+                >
+                  <ClipboardList className="w-4 h-4 text-teal-500" />
+                  Vendor
+                </button>
+              </WouterLink>
+              <WouterLink href="/customer-registration">
+                <button 
+                  className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-all duration-200"
+                  data-testid="nav-customer-registration"
+                >
+                  <ClipboardList className="w-4 h-4" />
+                  Customer Registration
+                </button>
+              </WouterLink>
+              <WouterLink href="/my-installation">
+                <button 
+                  className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-200"
+                  data-testid="nav-customer-dashboard"
+                >
+                  <Eye className="w-4 h-4 text-green-500" />
+                  Customer Dashboard
+                </button>
+              </WouterLink>
+            </nav>
+
+            {/* Right Side Actions */}
+            <div className="flex items-center gap-2">
+              <WouterLink href="/login">
+                <Button variant="ghost" size="sm" data-testid="button-login">
+                  Login
+                </Button>
+              </WouterLink>
+              
+              {/* Mobile Menu Button */}
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="lg:hidden"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                data-testid="button-mobile-menu"
+              >
+                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </Button>
+            </div>
+          </div>
+
+          {/* Mobile Navigation */}
+          {mobileMenuOpen && (
+            <nav className="lg:hidden py-4 border-t">
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                <button 
+                  onClick={() => scrollToSection("about")} 
+                  className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left"
+                  data-testid="mobile-nav-about"
+                >
+                  <Building2 className="w-4 h-4 text-primary" />
+                  About Us
+                </button>
+                <button 
+                  onClick={() => scrollToSection("sunpunch")} 
+                  className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left"
+                  data-testid="mobile-nav-sunpunch"
+                >
+                  <Battery className="w-4 h-4 text-purple-500" />
+                  SunPunch
+                </button>
+                <WouterLink href="/ib-solar-panels" onClick={() => setMobileMenuOpen(false)}>
+                  <div 
+                    className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left"
+                    data-testid="mobile-nav-ib-solar-panels"
+                  >
+                    <Sun className="w-4 h-4 text-amber-500" />
+                    IB Solar Panels
+                  </div>
+                </WouterLink>
+                <WouterLink href="/network-map" onClick={() => setMobileMenuOpen(false)}>
+                  <div 
+                    className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left"
+                    data-testid="mobile-nav-network-map"
+                  >
+                    <Map className="w-4 h-4 text-indigo-500" />
+                    Partner Network Map
+                  </div>
+                </WouterLink>
+                <button 
+                  onClick={() => scrollToSection("store")} 
+                  className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left w-full"
+                  data-testid="mobile-nav-store"
+                >
+                  <Store className="w-4 h-4 text-orange-500" />
+                  Store
+                </button>
+                <WouterLink href="/vendor-registration" onClick={() => setMobileMenuOpen(false)}>
+                  <div 
+                    className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left"
+                    data-testid="mobile-nav-vendor-registration"
+                  >
+                    <ClipboardList className="w-4 h-4 text-teal-500" />
+                    Vendor Registration
+                  </div>
+                </WouterLink>
+                <WouterLink href="/customer-registration" onClick={() => setMobileMenuOpen(false)}>
+                  <div 
+                    className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium bg-primary/10 text-primary transition-colors text-left"
+                    data-testid="mobile-nav-customer-registration"
+                  >
+                    <ClipboardList className="w-4 h-4" />
+                    Customer Registration
+                  </div>
+                </WouterLink>
+                <WouterLink href="/my-installation" onClick={() => setMobileMenuOpen(false)}>
+                  <div 
+                    className="flex items-center gap-2 p-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left"
+                    data-testid="mobile-nav-customer-dashboard"
+                  >
+                    <Eye className="w-4 h-4 text-green-500" />
+                    Customer Dashboard
+                  </div>
+                </WouterLink>
+              </div>
+              <div className="flex flex-col gap-2 pt-2 border-t">
+                <a href="tel:+919801005212">
+                  <Button variant="secondary" size="sm" className="w-full gap-2">
+                    <Phone className="w-4 h-4" />
+                    Call: +91 9801005212
+                  </Button>
+                </a>
+              </div>
+              
+              {/* Foldable Social Media Section */}
+              <Collapsible open={socialMediaOpen} onOpenChange={setSocialMediaOpen} className="mt-3">
+                <CollapsibleTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="w-full justify-between gap-2"
+                    data-testid="button-mobile-social-toggle"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Globe className="w-4 h-4 text-primary" />
+                      Follow Us
+                    </span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${socialMediaOpen ? "rotate-180" : ""}`} />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-2">
+                  <div className="flex items-center justify-center gap-4 p-3 bg-muted/30 rounded-lg">
+                    <a 
+                      href="https://wa.me/919801005212" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="p-2 rounded-full bg-green-500/10 text-green-600 hover:bg-green-500/20 transition-colors"
+                      data-testid="mobile-social-whatsapp"
+                    >
+                      <SiWhatsapp className="w-5 h-5" />
+                    </a>
+                    <a 
+                      href="https://www.facebook.com/nayabharatdivyanshi" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="p-2 rounded-full bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 transition-colors"
+                      data-testid="mobile-social-facebook"
+                    >
+                      <SiFacebook className="w-5 h-5" />
+                    </a>
+                    <a 
+                      href="https://www.instagram.com/chandu532/" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="p-2 rounded-full bg-pink-500/10 text-pink-600 hover:bg-pink-500/20 transition-colors"
+                      data-testid="mobile-social-instagram"
+                    >
+                      <SiInstagram className="w-5 h-5" />
+                    </a>
+                    <a 
+                      href="https://twitter.com/divyanshisolar" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="p-2 rounded-full bg-slate-500/10 text-slate-600 dark:text-slate-400 hover:bg-slate-500/20 transition-colors"
+                      data-testid="mobile-social-twitter"
+                    >
+                      <SiX className="w-5 h-5" />
+                    </a>
+                    <a 
+                      href="https://www.youtube.com/@divyanshisolar" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="p-2 rounded-full bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-colors"
+                      data-testid="mobile-social-youtube"
+                    >
+                      <SiYoutube className="w-5 h-5" />
+                    </a>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            </nav>
+          )}
+        </div>
+      </header>
+
+      {/* Hero Section */}
+      <section className="relative py-20 lg:py-32 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 -z-10" />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-4xl mx-auto">
+            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-6">
+              <Sun className="w-4 h-4" />
+              PM Surya Ghar Yojana Partner Network
+            </div>
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6">
+              Power Your Home with
+              <span className="text-primary block mt-2">Affordable Solar Energy</span>
+            </h1>
+            <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+              Join India's largest rooftop solar installation program. Get up to Rs 78,000 subsidy 
+              and reduce your electricity bills to zero.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <a href="#check-subsidy">
+                <Button size="lg" className="gap-2 w-full sm:w-auto" data-testid="hero-subsidy-button">
+                  <Calculator className="w-5 h-5" />
+                  Check Your Subsidy
+                </Button>
+              </a>
+              <WouterLink href="/register">
+                <Button size="lg" variant="outline" className="gap-2 w-full sm:w-auto" data-testid="hero-partner-button">
+                  Join Prayga India Private Limited Partner Network
+                  <ArrowRight className="w-5 h-5" />
+                </Button>
+              </WouterLink>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Hero Image Slider - Full Width */}
+        <div className="mt-12">
+          <HeroSlider />
+        </div>
+
+        {/* Subsidy Calculator Section */}
+        <section id="check-subsidy" className="mt-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <SubsidyCalculator showCommission="none" />
+          </div>
+        </section>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+          {/* Stats */}
+          <div className="mt-16 grid grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card>
+              <CardContent className="p-6 text-center">
+                <div className="text-3xl font-bold text-primary">1 Crore+</div>
+                <div className="text-sm text-muted-foreground mt-1">Target Households</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6 text-center">
+                <div className="text-3xl font-bold text-primary">Rs 78,000</div>
+                <div className="text-sm text-muted-foreground mt-1">Max Subsidy (3 kW)</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6 text-center">
+                <div className="text-3xl font-bold text-primary">25+ Years</div>
+                <div className="text-sm text-muted-foreground mt-1">Panel Life</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6 text-center">
+                <div className="text-3xl font-bold text-primary">Zero</div>
+                <div className="text-sm text-muted-foreground mt-1">Electricity Bills</div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Why Solar is Essential Section */}
+      <section className="py-20 bg-gradient-to-b from-primary/5 to-background">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 bg-destructive/10 text-destructive px-4 py-2 rounded-full text-sm font-medium mb-6">
+              <AlertTriangle className="w-4 h-4" />
+              India's Energy Challenge
+            </div>
+            <h2 className="text-3xl font-bold mb-4">Why Every Indian Home Needs Solar</h2>
+            <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+              With rising electricity costs and growing energy demands, rooftop solar is no longer optional—it's essential for India's energy security and your family's financial future.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+            <Card className="border-l-4 border-l-destructive">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-destructive/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <TrendingUp className="w-6 h-6 text-destructive" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg mb-2">Rising Electricity Costs</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Electricity tariffs have increased by 30-50% in the last 5 years across most Indian states. Solar locks in your energy costs for 25+ years.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-orange-500">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-orange-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Zap className="w-6 h-6 text-orange-500" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg mb-2">Growing Energy Demand</h3>
+                    <p className="text-sm text-muted-foreground">
+                      With EVs, ACs, and smart appliances, household energy consumption is doubling every decade. Solar ensures you're prepared.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-yellow-500">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-yellow-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Clock className="w-6 h-6 text-yellow-500" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg mb-2">Limited Time Subsidy</h3>
+                    <p className="text-sm text-muted-foreground">
+                      PM Surya Ghar Yojana offers up to Rs 78,000 subsidy only until 2027. After that, you pay full price for the same system.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-primary">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <IndianRupee className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg mb-2">Earn From Surplus Power</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Net metering allows you to sell excess electricity back to the grid. Turn your rooftop into a passive income source.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-green-500">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Leaf className="w-6 h-6 text-green-500" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg mb-2">720 Million Tonnes CO2 Saved</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Over 25 years, PM Surya Ghar installations will reduce carbon emissions equivalent to planting 3 billion trees.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-blue-500">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Users className="w-6 h-6 text-blue-500" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg mb-2">17 Lakh Jobs Created</h3>
+                    <p className="text-sm text-muted-foreground">
+                      The solar revolution is creating employment across manufacturing, installation, and maintenance sectors nationwide.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="bg-primary/5 border-primary/20">
+            <CardContent className="p-8">
+              <div className="grid md:grid-cols-2 gap-8 items-center">
+                <div>
+                  <h3 className="text-2xl font-bold mb-4">The Math is Simple</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
+                      <span><strong>300+ units</strong> electricity savings per month with 3kW system</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
+                      <span><strong>Rs 3,000-5,000</strong> monthly savings on electricity bills</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
+                      <span><strong>4-5 years payback</strong> period after subsidy</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
+                      <span><strong>Rs 15-20 lakh savings</strong> over 25-year panel life</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-5xl font-bold text-primary mb-2">30 Lakh+</div>
+                  <div className="text-lg text-muted-foreground mb-4">Indian Homes Already Solar Powered</div>
+                  <WouterLink href="/subsidy-calculator">
+                    <Button size="lg" className="gap-2" data-testid="button-check-savings">
+                      <Calculator className="w-5 h-5" />
+                      Calculate Your Savings
+                    </Button>
+                  </WouterLink>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      {/* About Us Section */}
+      <section id="about" className="py-20 bg-muted/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-4">About Prayga India Private Limited</h2>
+            <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+              Prayga India Private Limited is an  (Registered National Vendor under PM-Surya Ghar: Muft Bijli Yojana Rooftop Solar Program), committed to helping 
+              Indian households transition to clean, reliable, and affordable solar energy.
+            </p>
+          </div>
+
+          {/* Company Background */}
+          <Card className="mb-8">
+            <CardContent className="p-6">
+              <h3 className="font-semibold text-xl mb-4">Our Legacy</h3>
+              <p className="text-muted-foreground mb-4">
+                Prayga India Private Limited is a brand of <span className="font-medium text-foreground">Divyanshi Digital Services Pvt. Ltd.</span>, 
+                a company incorporated on 11th December 2017, with a strong legacy of executing large-scale, 
+                technology-driven infrastructure projects across India.
+              </p>
+              <p className="text-muted-foreground mb-4">
+                For the last 8 years, we have been closely associated with Hitachi Payment Services Pvt. Ltd., 
+                delivering mission-critical financial infrastructure:
+              </p>
+              <div className="grid sm:grid-cols-3 gap-4 mb-4">
+                <div className="p-4 bg-muted/50 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-primary">300+</div>
+                  <div className="text-sm text-muted-foreground">White Label ATMs Installed</div>
+                </div>
+                <div className="p-4 bg-muted/50 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-primary">500+</div>
+                  <div className="text-sm text-muted-foreground">ATMs Sourced for Banks</div>
+                </div>
+                <div className="p-4 bg-muted/50 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-primary">5,000+</div>
+                  <div className="text-sm text-muted-foreground">Partners Onboarded</div>
+                </div>
+              </div>
+              <p className="text-muted-foreground">
+                This deep experience in nationwide deployment, compliance, partner management, and operations 
+                forms the backbone of Prayga India Private Limited. Today, we are applying the same execution excellence to 
+                the renewable energy sector.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Mission */}
+          <Card className="mb-8">
+            <CardContent className="p-6">
+              <h3 className="font-semibold text-xl mb-4">Our Mission</h3>
+              <p className="text-muted-foreground">
+                To empower Indian households with clean, affordable, and reliable solar energy by delivering 
+                high-quality rooftop solar solutions under PM Surya Ghar Yojana—while reducing electricity costs, 
+                strengthening energy independence, and safeguarding the future of the next generation.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Values */}
+          <h3 className="font-semibold text-xl mb-6 text-center">Our Values</h3>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <Card>
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <Shield className="w-6 h-6 text-primary" />
+                </div>
+                <h4 className="font-semibold text-lg mb-2">Trust & Transparency</h4>
+                <p className="text-muted-foreground text-sm">
+                  We operate with complete honesty in pricing, processes, and commitments—building long-term 
+                  trust with customers, partners, and institutions.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <Zap className="w-6 h-6 text-primary" />
+                </div>
+                <h4 className="font-semibold text-lg mb-2">Execution Excellence</h4>
+                <p className="text-muted-foreground text-sm">
+                  Backed by years of national infrastructure deployment, we focus on timely installation, 
+                  regulatory compliance, and operational reliability.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <Leaf className="w-6 h-6 text-primary" />
+                </div>
+                <h4 className="font-semibold text-lg mb-2">Sustainability First</h4>
+                <p className="text-muted-foreground text-sm">
+                  Every solar installation is a step toward reducing carbon emissions and protecting 
+                  India's environmental future.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <Users className="w-6 h-6 text-primary" />
+                </div>
+                <h4 className="font-semibold text-lg mb-2">Partner Empowerment</h4>
+                <p className="text-muted-foreground text-sm">
+                  We believe in inclusive growth by enabling local partners, installers, and entrepreneurs 
+                  to grow with us.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <Home className="w-6 h-6 text-primary" />
+                </div>
+                <h4 className="font-semibold text-lg mb-2">Nation Building</h4>
+                <p className="text-muted-foreground text-sm">
+                  From digital payments to renewable energy, our work is aligned with India's vision of 
+                  self-reliance, energy security, and economic resilience.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <FileText className="w-6 h-6 text-primary" />
+                </div>
+                <h4 className="font-semibold text-lg mb-2">Customer-Centric Approach</h4>
+                <p className="text-muted-foreground text-sm">
+                  We design solutions around household needs—simple processes, dependable systems, 
+                  and long-term support.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Renewable Energy Introduction */}
+      <section id="renewable-energy" className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <h2 className="text-3xl font-bold mb-6">Why Renewable Energy?</h2>
+              <p className="text-muted-foreground mb-6">
+                India receives abundant sunlight throughout the year, making it ideal for solar power generation. 
+                By harnessing this clean, renewable energy, you can significantly reduce your carbon footprint while 
+                saving money on electricity bills.
+              </p>
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-primary mt-0.5" />
+                  <div>
+                    <div className="font-medium">Clean & Green</div>
+                    <div className="text-sm text-muted-foreground">Zero emissions, sustainable power for your home</div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-primary mt-0.5" />
+                  <div>
+                    <div className="font-medium">Energy Independence</div>
+                    <div className="text-sm text-muted-foreground">Generate your own electricity, reduce grid dependency</div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-primary mt-0.5" />
+                  <div>
+                    <div className="font-medium">Cost Savings</div>
+                    <div className="text-sm text-muted-foreground">Reduce electricity bills by up to 90%</div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-primary mt-0.5" />
+                  <div>
+                    <div className="font-medium">Government Support</div>
+                    <div className="text-sm text-muted-foreground">Attractive subsidies make solar affordable for everyone</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Card className="bg-primary/5 border-primary/20">
+                <CardContent className="p-6 text-center">
+                  <Leaf className="w-10 h-10 text-primary mx-auto mb-3" />
+                  <div className="font-semibold">Eco-Friendly</div>
+                  <div className="text-sm text-muted-foreground">Reduce 3-4 tons CO2/year</div>
+                </CardContent>
+              </Card>
+              <Card className="bg-primary/5 border-primary/20">
+                <CardContent className="p-6 text-center">
+                  <IndianRupee className="w-10 h-10 text-primary mx-auto mb-3" />
+                  <div className="font-semibold">Savings</div>
+                  <div className="text-sm text-muted-foreground">Rs 10,000-20,000/year</div>
+                </CardContent>
+              </Card>
+              <Card className="bg-primary/5 border-primary/20">
+                <CardContent className="p-6 text-center">
+                  <Home className="w-10 h-10 text-primary mx-auto mb-3" />
+                  <div className="font-semibold">Property Value</div>
+                  <div className="text-sm text-muted-foreground">Increases home value</div>
+                </CardContent>
+              </Card>
+              <Card className="bg-primary/5 border-primary/20">
+                <CardContent className="p-6 text-center">
+                  <TrendingUp className="w-10 h-10 text-primary mx-auto mb-3" />
+                  <div className="font-semibold">Net Metering</div>
+                  <div className="text-sm text-muted-foreground">Sell excess power</div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* PM Surya Ghar Yojana Section */}
+      <section id="pm-surya-ghar" className="py-20 bg-muted/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-full text-sm font-medium mb-4">
+              <Sun className="w-4 h-4" />
+              Government of India Initiative
+            </div>
+            <h2 className="text-3xl font-bold mb-4">PM Surya Ghar Yojana</h2>
+            <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+              A flagship scheme by the Government of India to provide subsidized solar electricity to 1 crore households 
+              through rooftop solar installations.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 mb-12">
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="font-semibold text-xl mb-4">Subsidy Structure</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center py-2 border-b">
+                    <span>Up to 2 kW</span>
+                    <span className="font-semibold text-primary">Rs 30,000/kW</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b">
+                    <span>2-3 kW (additional)</span>
+                    <span className="font-semibold text-primary">Rs 18,000/kW</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2">
+                    <span>Maximum (3 kW)</span>
+                    <span className="font-semibold text-primary">Rs 78,000</span>
+                  </div>
+                </div>
+                <div className="mt-4 p-3 bg-primary/10 rounded-lg text-sm">
+                  <strong>Note:</strong> Additional state subsidies available in Odisha (+Rs 20,000/kW) and 
+                  Uttar Pradesh (+Rs 10,000/kW)
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="font-semibold text-xl mb-4">Eligibility Criteria</h3>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-primary mt-0.5" />
+                    <span>Indian citizen with valid electricity connection</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-primary mt-0.5" />
+                    <span>Own a house with suitable rooftop space</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-primary mt-0.5" />
+                    <span>Residential electricity consumer</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-primary mt-0.5" />
+                    <span>DCR-compliant solar panels mandatory for subsidy</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-primary mt-0.5" />
+                    <span>No previous solar subsidy availed</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="text-center">
+            <WouterLink href="/subsidy-calculator">
+              <Button size="lg" className="gap-2" data-testid="pmsghy-subsidy-button">
+                <Calculator className="w-5 h-5" />
+                Calculate Your Subsidy
+              </Button>
+            </WouterLink>
+          </div>
+        </div>
+      </section>
+
+      {/* Steps to Apply */}
+      <section id="steps" className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-4">Steps to Apply for PM Surya Ghar Yojana</h2>
+            <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+              Our streamlined process makes it easy to get solar panels installed on your rooftop
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              { step: 1, title: "Register Online", desc: "Visit the PM Surya Ghar portal or contact our partner to register your application" },
+              { step: 2, title: "Submit Documents", desc: "Provide electricity bill, Aadhaar, bank details, and property documents" },
+              { step: 3, title: "Site Survey", desc: "Our technical team visits your home to assess rooftop suitability" },
+              { step: 4, title: "DISCOM Approval", desc: "Your local electricity board approves the net metering connection" },
+              { step: 5, title: "Installation", desc: "Professional installation by certified technicians (1-2 days)" },
+              { step: 6, title: "Get Subsidy", desc: "Subsidy directly credited to your bank account after inspection" },
+            ].map((item) => (
+              <Card key={item.step}>
+                <CardContent className="p-6">
+                  <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold mb-4">
+                    {item.step}
+                  </div>
+                  <h3 className="font-semibold text-lg mb-2">{item.title}</h3>
+                  <p className="text-muted-foreground text-sm">{item.desc}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* SunPunch Inverter Section */}
+      <section id="sunpunch" className="py-20 bg-muted/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 bg-accent text-accent-foreground px-4 py-2 rounded-full text-sm font-medium mb-4">
+              <Zap className="w-4 h-4" />
+              Recommended Technology
+            </div>
+            <h2 className="text-3xl font-bold mb-4">SunPunch Trimax 3-in-1 Inverter</h2>
+            <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+              India's only On-Grid + Off-Grid + Hybrid inverter by Statcon Powertech. 
+              The most versatile solar inverter for your home.
+            </p>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className="space-y-6">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Card className="bg-card" data-testid="card-sunpunch-functionality">
+                  <CardContent className="p-4 flex items-start gap-3">
+                    <Battery className="w-8 h-8 text-primary flex-shrink-0" />
+                    <div>
+                      <div className="font-medium">3-in-1 Functionality</div>
+                      <div className="text-sm text-muted-foreground">On-Grid, Off-Grid & Hybrid modes</div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-card" data-testid="card-sunpunch-wifi">
+                  <CardContent className="p-4 flex items-start gap-3">
+                    <Wifi className="w-8 h-8 text-primary flex-shrink-0" />
+                    <div>
+                      <div className="font-medium">WiFi Monitoring</div>
+                      <div className="text-sm text-muted-foreground">Remote monitoring via app</div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-card" data-testid="card-sunpunch-backflow">
+                  <CardContent className="p-4 flex items-start gap-3">
+                    <Shield className="w-8 h-8 text-primary flex-shrink-0" />
+                    <div>
+                      <div className="font-medium">Backflow Prevention</div>
+                      <div className="text-sm text-muted-foreground">Safe grid-tie operation</div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-card" data-testid="card-sunpunch-efficiency">
+                  <CardContent className="p-4 flex items-start gap-3">
+                    <TrendingUp className="w-8 h-8 text-primary flex-shrink-0" />
+                    <div>
+                      <div className="font-medium">99% MPPT Efficiency</div>
+                      <div className="text-sm text-muted-foreground">Maximum power harvest</div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="font-semibold text-xl mb-6">Why Choose SunPunch Trimax?</h3>
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-primary mt-0.5" />
+                    <div>
+                      <div className="font-medium">Power Backup During Outages</div>
+                      <div className="text-sm text-muted-foreground">
+                        Unlike standard on-grid inverters, Trimax provides backup power when the grid goes down
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-primary mt-0.5" />
+                    <div>
+                      <div className="font-medium">Parallel Operation</div>
+                      <div className="text-sm text-muted-foreground">
+                        Connect up to 12 units in parallel for larger installations
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-primary mt-0.5" />
+                    <div>
+                      <div className="font-medium">High PV Input</div>
+                      <div className="text-sm text-muted-foreground">
+                        Supports up to 500Vdc PV input for flexible panel configurations
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-primary mt-0.5" />
+                    <div>
+                      <div className="font-medium">Made in India</div>
+                      <div className="text-sm text-muted-foreground">
+                        Manufactured by Statcon Powertech, a trusted Indian company
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 p-4 bg-primary/10 rounded-lg">
+                  <div className="text-sm font-medium mb-2">Available Models:</div>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="bg-background px-3 py-1 rounded-md text-sm">3.5 kW</span>
+                    <span className="bg-background px-3 py-1 rounded-md text-sm">5.5 kW</span>
+                    <span className="bg-background px-3 py-1 rounded-md text-sm">6.2 kW</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Store / Product Catalogue Section */}
+      <section id="store" className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-4">
+              <Store className="w-4 h-4" />
+              Our Products
+            </div>
+            <h2 className="text-3xl font-bold mb-4">Solar Products & Packages</h2>
+            <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+              Browse our range of solar packages, accessories, and marketing materials. Book your solar system online with a small booking amount.
+            </p>
+          </div>
+
+          {productsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-64 rounded-lg" />
+              ))}
+            </div>
+          ) : products && products.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {products.map((product) => (
+                <Card key={product.id} data-testid={`card-store-product-${product.id}`}>
+                  {product.imageUrl ? (
+                    <div className="w-full h-48 overflow-hidden rounded-t-lg">
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-full h-48 bg-muted rounded-t-lg flex items-center justify-center">
+                      {product.category === "solar_package" ? (
+                        <Sun className="w-16 h-16 text-primary/40" />
+                      ) : (
+                        <Store className="w-16 h-16 text-muted-foreground/40" />
+                      )}
+                    </div>
+                  )}
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <h3 className="font-semibold text-lg" data-testid={`text-product-name-${product.id}`}>{product.name}</h3>
+                      <Badge variant="outline">
+                        {categoryLabels[product.category] || product.category}
+                      </Badge>
+                    </div>
+                    {product.description && (
+                      <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{product.description}</p>
+                    )}
+                    {product.category === "solar_package" && product.bookingAmount ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Plant Cost:</span>
+                          <span className="font-medium">{formatINR(product.price)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Booking Amount:</span>
+                          <span className="text-xl font-bold text-primary">{formatINR(product.bookingAmount)}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Price:</span>
+                        <span className="text-2xl font-bold">{formatINR(product.price)}</span>
+                      </div>
+                    )}
+                    <div className="mt-4">
+                      <Button 
+                        className="w-full gap-2" 
+                        onClick={() => handleBuyNow(product)}
+                        data-testid={`button-buy-${product.id}`}
+                      >
+                        <ShoppingCart className="w-4 h-4" />
+                        {product.category === "solar_package" && product.bookingAmount ? "Book Now" : "Buy Now"}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Store className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">Products coming soon</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Our solar product catalog is being updated. Please check back shortly.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </section>
+
+      {/* State-wise Progress Section */}
+      <section id="state-progress" className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-4">
+              <BarChart3 className="w-4 h-4" />
+              Our Working States
+            </div>
+            <h2 className="text-3xl font-bold mb-4">State-wise Progress Under PM Surya Ghar Yojana</h2>
+            <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+              DivyanshiSolar is actively partnering across four key states in India. 
+              See our installation progress and reach.
+            </p>
+          </div>
+
+          {/* National Stats */}
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-10">
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="text-xl font-bold text-primary" data-testid="text-national-applications">60,64,816</div>
+                <div className="text-xs text-muted-foreground">Applications (India)</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="text-xl font-bold text-primary" data-testid="text-national-installations">23,52,835</div>
+                <div className="text-xs text-muted-foreground">Installations</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="text-xl font-bold text-primary" data-testid="text-national-households">29,28,701</div>
+                <div className="text-xs text-muted-foreground">Households Covered</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="text-xl font-bold text-primary" data-testid="text-national-capacity">8636.5 MW</div>
+                <div className="text-xs text-muted-foreground">Capacity Installed</div>
+              </CardContent>
+            </Card>
+            <Card className="col-span-2 lg:col-span-1">
+              <CardContent className="p-4 text-center">
+                <div className="text-xl font-bold text-primary" data-testid="text-national-subsidy">Rs 16,849.96 Cr</div>
+                <div className="text-xs text-muted-foreground">Subsidy Released</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* State Tabs */}
+          <Tabs defaultValue="bihar" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 h-auto gap-2 bg-transparent p-0">
+              <TabsTrigger 
+                value="bihar" 
+                className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border"
+                data-testid="tab-bihar"
+              >
+                <MapPin className="w-4 h-4" />
+                Bihar
+              </TabsTrigger>
+              <TabsTrigger 
+                value="jharkhand" 
+                className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border"
+                data-testid="tab-jharkhand"
+              >
+                <MapPin className="w-4 h-4" />
+                Jharkhand
+              </TabsTrigger>
+              <TabsTrigger 
+                value="uttar-pradesh" 
+                className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border"
+                data-testid="tab-up"
+              >
+                <MapPin className="w-4 h-4" />
+                Uttar Pradesh
+              </TabsTrigger>
+              <TabsTrigger 
+                value="odisha" 
+                className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border"
+                data-testid="tab-odisha"
+              >
+                <MapPin className="w-4 h-4" />
+                Odisha
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="bihar" className="mt-6">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                      <MapPin className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-xl">Bihar</h3>
+                      <p className="text-sm text-muted-foreground">Active Partner Network</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-xl font-bold" data-testid="text-bihar-applications">58,650</div>
+                      <div className="text-xs text-muted-foreground">Applications</div>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-xl font-bold" data-testid="text-bihar-installations">15,391</div>
+                      <div className="text-xs text-muted-foreground">Installations</div>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-xl font-bold" data-testid="text-bihar-households">16,039</div>
+                      <div className="text-xs text-muted-foreground">Households Covered</div>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-xl font-bold" data-testid="text-bihar-capacity">55.25 MW</div>
+                      <div className="text-xs text-muted-foreground">Capacity Installed</div>
+                    </div>
+                    <div className="p-4 bg-primary/10 rounded-lg text-center col-span-2 lg:col-span-1">
+                      <div className="text-xl font-bold text-primary" data-testid="text-bihar-subsidy">Rs 110.49 Cr</div>
+                      <div className="text-xs text-muted-foreground">Subsidy Released</div>
+                    </div>
+                  </div>
+                  <p className="text-muted-foreground">
+                    Bihar is making strong progress under PM Surya Ghar Yojana with over 58,650 applications and nearly 15,391 installations completed. 
+                    Our partner network covers major districts including Patna, Gaya, Bhagalpur, and Muzaffarpur.
+                  </p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="jharkhand" className="mt-6">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                      <MapPin className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-xl">Jharkhand</h3>
+                      <p className="text-sm text-muted-foreground">Growing Partner Network</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-xl font-bold" data-testid="text-jharkhand-applications">8,654</div>
+                      <div className="text-xs text-muted-foreground">Applications</div>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-xl font-bold" data-testid="text-jharkhand-installations">1,698</div>
+                      <div className="text-xs text-muted-foreground">Installations</div>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-xl font-bold" data-testid="text-jharkhand-households">1,700</div>
+                      <div className="text-xs text-muted-foreground">Households Covered</div>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-xl font-bold" data-testid="text-jharkhand-capacity">6.82 MW</div>
+                      <div className="text-xs text-muted-foreground">Capacity Installed</div>
+                    </div>
+                    <div className="p-4 bg-primary/10 rounded-lg text-center col-span-2 lg:col-span-1">
+                      <div className="text-xl font-bold text-primary" data-testid="text-jharkhand-subsidy">Rs 11.67 Cr</div>
+                      <div className="text-xs text-muted-foreground">Subsidy Released</div>
+                    </div>
+                  </div>
+                  <p className="text-muted-foreground">
+                    Jharkhand is steadily growing under PM Surya Ghar Yojana with over 8,654 applications and 1,698 installations completed. 
+                    Our network is expanding in Ranchi, Jamshedpur, Dhanbad, and Bokaro regions.
+                  </p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="uttar-pradesh" className="mt-6">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                      <MapPin className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-xl">Uttar Pradesh</h3>
+                      <p className="text-sm text-muted-foreground">Highest Target State (+Rs 10,000/kW Additional Subsidy)</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-xl font-bold" data-testid="text-up-applications">11,19,758</div>
+                      <div className="text-xs text-muted-foreground">Applications</div>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-xl font-bold" data-testid="text-up-installations">3,70,887</div>
+                      <div className="text-xs text-muted-foreground">Installations</div>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-xl font-bold" data-testid="text-up-households">3,75,666</div>
+                      <div className="text-xs text-muted-foreground">Households Covered</div>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-xl font-bold" data-testid="text-up-capacity">1,269.88 MW</div>
+                      <div className="text-xs text-muted-foreground">Capacity Installed</div>
+                    </div>
+                    <div className="p-4 bg-primary/10 rounded-lg text-center col-span-2 lg:col-span-1">
+                      <div className="text-xl font-bold text-primary" data-testid="text-up-subsidy">Rs 2,563.72 Cr</div>
+                      <div className="text-xs text-muted-foreground">Subsidy Released</div>
+                    </div>
+                  </div>
+                  <p className="text-muted-foreground">
+                    Uttar Pradesh leads with over 10 lakh applications and 3.75 lakh installations. The state offers an additional 
+                    Rs 10,000/kW subsidy. We operate across Lucknow, Varanasi, Agra, Kanpur, and more.
+                  </p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="odisha" className="mt-6">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                      <MapPin className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-xl">Odisha</h3>
+                      <p className="text-sm text-muted-foreground">Best State Subsidy (+Rs 20,000/kW Additional Subsidy)</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-xl font-bold" data-testid="text-odisha-applications">1,81,066</div>
+                      <div className="text-xs text-muted-foreground">Applications</div>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-xl font-bold" data-testid="text-odisha-installations">37,202</div>
+                      <div className="text-xs text-muted-foreground">Installations</div>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-xl font-bold" data-testid="text-odisha-households">37,551</div>
+                      <div className="text-xs text-muted-foreground">Households Covered</div>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                      <div className="text-xl font-bold" data-testid="text-odisha-capacity">116.67 MW</div>
+                      <div className="text-xs text-muted-foreground">Capacity Installed</div>
+                    </div>
+                    <div className="p-4 bg-primary/10 rounded-lg text-center col-span-2 lg:col-span-1">
+                      <div className="text-xl font-bold text-primary" data-testid="text-odisha-subsidy">Rs 170.35 Cr</div>
+                      <div className="text-xs text-muted-foreground">Subsidy Released</div>
+                    </div>
+                  </div>
+                  <p className="text-muted-foreground">
+                    Odisha has 1.54 lakh applications with 25,544 installations completed. The state offers the highest additional 
+                    subsidy of Rs 20,000/kW. Our network covers Bhubaneswar, Cuttack, Rourkela, and Puri.
+                  </p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+
+          <div className="mt-8 text-center">
+            <p className="text-sm text-muted-foreground mb-4">
+              Data sourced from PM Surya Ghar portal (pmsuryaghar.gov.in). Last updated: December 2024.
+            </p>
+            <WouterLink href="/register">
+              <Button className="gap-2" data-testid="button-state-become-partner">
+                <Users className="w-4 h-4" />
+                Join Prayga India Private Limited Partner Network
+              </Button>
+            </WouterLink>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 bg-primary text-primary-foreground">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl font-bold mb-4">Ready to Go Solar?</h2>
+          <p className="text-lg opacity-90 mb-8">
+            Join thousands of households already benefiting from subsidized solar electricity. 
+            Calculate your subsidy or join our partner network today.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <WouterLink href="/subsidy-calculator">
+              <Button size="lg" variant="secondary" className="gap-2 w-full sm:w-auto" data-testid="cta-subsidy-button">
+                <Calculator className="w-5 h-5" />
+                Check Your Subsidy
+              </Button>
+            </WouterLink>
+            <WouterLink href="/register">
+              <Button size="lg" variant="outline" className="gap-2 w-full sm:w-auto bg-transparent border-primary-foreground text-primary-foreground hover:bg-primary-foreground/10" data-testid="cta-partner-button">
+                <Users className="w-5 h-5" />
+                Join Prayga India Private Limited Partner Network
+              </Button>
+            </WouterLink>
+          </div>
+        </div>
+      </section>
+
+      {/* Contact Us Section */}
+      <section id="contact" className="py-20 bg-muted/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-4">Contact Us</h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Get in touch with our team for solar installation inquiries or partnership opportunities
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6">
+            <Card>
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <MapPinned className="w-6 h-6 text-primary" />
+                </div>
+                <h3 className="font-semibold text-lg mb-2">Office Address</h3>
+                <p className="text-muted-foreground text-sm">
+                  Prayga India Private Limited (Registered National Vendor under PM-Surya Ghar: Muft Bijli Yojana Rooftop Solar Program)<br />
+                  Plot No. C-3/258, Shreyansh Apartment,<br />
+                  Chitrakoot Scheme, Vaishali Nagar, Jaipur, Rajasthan 302021
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <Phone className="w-6 h-6 text-primary" />
+                </div>
+                <h3 className="font-semibold text-lg mb-2">Chandrakant Akela</h3>
+                <p className="text-muted-foreground text-sm">
+                  <a href="tel:9801005212" className="hover:text-primary">9801005212</a>
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <Phone className="w-6 h-6 text-primary" />
+                </div>
+                <h3 className="font-semibold text-lg mb-2">Abhijeet Chauhan</h3>
+                <p className="text-muted-foreground text-sm">
+                  <a href="tel:8709248597" className="hover:text-primary">8709248597</a>
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <Phone className="w-6 h-6 text-primary" />
+                </div>
+                <h3 className="font-semibold text-lg mb-2">Sanjay Kumar</h3>
+                <p className="text-muted-foreground text-sm">
+                  <a href="tel:8777684575" className="hover:text-primary">8777684575</a>
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <Phone className="w-6 h-6 text-primary" />
+                </div>
+                <h3 className="font-semibold text-lg mb-2">Anil Kumar</h3>
+                <p className="text-muted-foreground text-sm">
+                  <a href="tel:9123141987" className="hover:text-primary">9123141987</a>
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-12 border-t">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-4 gap-8 mb-8">
+            {/* Company Info */}
+            <div className="md:col-span-2">
+              <div className="mb-4">
+                <img 
+                  src={logoImage} 
+                  alt="Prayga India Private Limited" 
+                  className="h-12 w-auto object-contain"
+                />
+              </div>
+              <p className="text-sm text-muted-foreground mb-1">
+                A brand of Divyanshi Digital Services Pvt. Ltd.
+              </p>
+              <p className="text-sm text-muted-foreground mb-1">
+                
+              </p>
+              <p className="text-sm text-muted-foreground mb-4">
+                Registered National Vendor under PM-Surya Ghar: Muft Bijli Yojana Rooftop Solar Program
+              </p>
+              <p className="text-xs text-muted-foreground">
+                CIN: U93090BR2017PTC036522
+              </p>
+              <p className="text-xs text-muted-foreground">
+                GST: 10AAGCD4586K1ZK
+              </p>
+            </div>
+
+            {/* Quick Links */}
+            <div>
+              <h4 className="font-semibold mb-4">Quick Links</h4>
+              <div className="flex flex-col gap-2">
+                <WouterLink href="/subsidy-calculator" className="text-sm text-muted-foreground hover:text-foreground">
+                  Subsidy Calculator
+                </WouterLink>
+                <WouterLink href="/network-map" className="text-sm text-muted-foreground hover:text-foreground">
+                  Partner Network Map
+                </WouterLink>
+                <WouterLink href="/vendor-registration" className="text-sm text-muted-foreground hover:text-foreground">
+                  Vendor Registration
+                </WouterLink>
+                <WouterLink href="/login" className="text-sm text-muted-foreground hover:text-foreground">
+                  Partner Login
+                </WouterLink>
+                <WouterLink href="/register" className="text-sm text-muted-foreground hover:text-foreground">
+                  Join Partner Network
+                </WouterLink>
+              </div>
+            </div>
+
+            {/* Legal */}
+            <div>
+              <h4 className="font-semibold mb-4">Legal</h4>
+              <div className="flex flex-col gap-2">
+                <WouterLink href="/about-us" className="text-sm text-muted-foreground hover:text-foreground">
+                  About Us
+                </WouterLink>
+                <WouterLink href="/privacy-policy" className="text-sm text-muted-foreground hover:text-foreground">
+                  Privacy Policy
+                </WouterLink>
+                <WouterLink href="/terms-and-conditions" className="text-sm text-muted-foreground hover:text-foreground">
+                  Terms and Conditions
+                </WouterLink>
+                <WouterLink href="/disclaimer" className="text-sm text-muted-foreground hover:text-foreground">
+                  Disclaimer
+                </WouterLink>
+              </div>
+            </div>
+          </div>
+
+          {/* Social Media */}
+          <div className="flex justify-center gap-4 mb-8">
+            <a 
+              href="https://www.linkedin.com/in/chandrakant-akela-a1479a18" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-colors"
+              data-testid="link-linkedin"
+            >
+              <SiLinkedin className="w-5 h-5" />
+            </a>
+            <a 
+              href="https://x.com/chandu532" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-colors"
+              data-testid="link-twitter"
+            >
+              <SiX className="w-5 h-5" />
+            </a>
+            <a 
+              href="https://www.facebook.com/nayabharatdivyanshi" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-colors"
+              data-testid="link-facebook"
+            >
+              <SiFacebook className="w-5 h-5" />
+            </a>
+            <a 
+              href="https://www.instagram.com/chandu532/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-colors"
+              data-testid="link-instagram"
+            >
+              <SiInstagram className="w-5 h-5" />
+            </a>
+          </div>
+
+          {/* Bottom Bar */}
+          <div className="pt-8 border-t flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="text-sm text-muted-foreground">
+              2024 Divyanshi Digital Services Pvt. Ltd. All rights reserved.
+            </div>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <span>Powering India with Solar Energy</span>
+            </div>
+          </div>
+        </div>
+      </footer>
+
+      {/* Floating Social Media Sidebar - Foldable */}
+      <div className="fixed right-0 top-1/2 -translate-y-1/2 z-50 flex flex-col items-end gap-1">
+        {/* Toggle Button */}
+        <button
+          onClick={() => setFloatingSocialOpen(!floatingSocialOpen)}
+          className="w-10 h-10 bg-primary text-primary-foreground rounded-l-md flex items-center justify-center shadow-lg transition-all"
+          data-testid="button-floating-social-toggle"
+          title={floatingSocialOpen ? "Close" : "Follow Us"}
+        >
+          {floatingSocialOpen ? <X className="w-5 h-5" /> : <Globe className="w-5 h-5" />}
+        </button>
+        
+        {/* Social Links - Animated */}
+        <div className={`flex flex-col gap-1 transition-all duration-300 ${floatingSocialOpen ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"}`}>
+          <a 
+            href="https://wa.me/919801005212" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="w-10 h-10 bg-green-500 text-white rounded-l-md flex items-center justify-center hover:w-12 transition-all shadow-lg"
+            data-testid="floating-whatsapp"
+            title="WhatsApp"
+          >
+            <SiWhatsapp className="w-5 h-5" />
+          </a>
+          <a 
+            href="tel:+919801005212" 
+            className="w-10 h-10 bg-orange-500 text-white rounded-l-md flex items-center justify-center hover:w-12 transition-all shadow-lg"
+            data-testid="floating-call"
+            title="Call Us"
+          >
+            <Phone className="w-5 h-5" />
+          </a>
+          <a 
+            href="https://www.facebook.com/nayabharatdivyanshi/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="w-10 h-10 bg-blue-600 text-white rounded-l-md flex items-center justify-center hover:w-12 transition-all shadow-lg"
+            data-testid="floating-facebook"
+            title="Facebook"
+          >
+            <SiFacebook className="w-5 h-5" />
+          </a>
+          <a 
+            href="https://www.instagram.com/chandu532/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="w-10 h-10 bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 text-white rounded-l-md flex items-center justify-center hover:w-12 transition-all shadow-lg"
+            data-testid="floating-instagram"
+            title="Instagram"
+          >
+            <SiInstagram className="w-5 h-5" />
+          </a>
+          <a 
+            href="https://www.linkedin.com/in/chandrakant-akela-a1479a18" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="w-10 h-10 bg-blue-700 text-white rounded-l-md flex items-center justify-center hover:w-12 transition-all shadow-lg"
+            data-testid="floating-linkedin"
+            title="LinkedIn"
+          >
+            <SiLinkedin className="w-5 h-5" />
+          </a>
+          <a 
+            href="https://www.youtube.com/@divyanshidigitalservicespv2324" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="w-10 h-10 bg-red-600 text-white rounded-l-md flex items-center justify-center hover:w-12 transition-all shadow-lg"
+            data-testid="floating-youtube"
+            title="YouTube"
+          >
+            <SiYoutube className="w-5 h-5" />
+          </a>
+        </div>
+      </div>
+
+
+      {/* Checkout Dialog */}
+      <Dialog open={showCheckout} onOpenChange={(open) => {
+        setShowCheckout(open);
+        if (!open) setSelectedProduct(null);
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="w-5 h-5" />
+              {selectedProduct?.category === "solar_package" && selectedProduct?.bookingAmount ? "Book Solar System" : "Buy Now"}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedProduct && (
+                <span className="block mt-1">
+                  {selectedProduct.name} - {formatINR(
+                    selectedProduct.category === "solar_package" && selectedProduct.bookingAmount 
+                      ? selectedProduct.bookingAmount 
+                      : selectedProduct.price
+                  )}
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Your Name *</Label>
+              <Input
+                value={buyerDetails.name}
+                onChange={(e) => setBuyerDetails({ ...buyerDetails, name: e.target.value })}
+                placeholder="Enter your full name"
+                data-testid="input-buyer-name"
+              />
+            </div>
+            <div>
+              <Label>Phone Number *</Label>
+              <Input
+                value={buyerDetails.phone}
+                onChange={(e) => setBuyerDetails({ ...buyerDetails, phone: e.target.value })}
+                placeholder="Enter 10-digit phone number"
+                data-testid="input-buyer-phone"
+              />
+            </div>
+            <div>
+              <Label>Email (optional)</Label>
+              <Input
+                value={buyerDetails.email}
+                onChange={(e) => setBuyerDetails({ ...buyerDetails, email: e.target.value })}
+                placeholder="Enter email address"
+                data-testid="input-buyer-email"
+              />
+            </div>
+            <div>
+              <Label>Address (optional)</Label>
+              <Input
+                value={buyerDetails.address}
+                onChange={(e) => setBuyerDetails({ ...buyerDetails, address: e.target.value })}
+                placeholder="Enter your address"
+                data-testid="input-buyer-address"
+              />
+            </div>
+            {selectedProduct && (
+              <div className="pt-4 border-t">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">
+                    {selectedProduct.category === "solar_package" && selectedProduct.bookingAmount ? "Booking Amount" : "Total Amount"}
+                  </span>
+                  <span className="text-2xl font-bold text-primary">
+                    {formatINR(
+                      selectedProduct.category === "solar_package" && selectedProduct.bookingAmount 
+                        ? selectedProduct.bookingAmount 
+                        : selectedProduct.price
+                    )}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowCheckout(false); setSelectedProduct(null); }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handlePayment}
+              disabled={createOrderMutation.isPending}
+              data-testid="button-pay-now"
+            >
+              <CreditCard className="w-4 h-4 mr-2" />
+              {createOrderMutation.isPending ? "Processing..." : `Pay ${selectedProduct ? formatINR(
+                selectedProduct.category === "solar_package" && selectedProduct.bookingAmount 
+                  ? selectedProduct.bookingAmount 
+                  : selectedProduct.price
+              ) : ""}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <WhatsAppWidget />
+    </div>
+  );
+}

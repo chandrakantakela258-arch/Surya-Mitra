@@ -1,0 +1,201 @@
+import { useEffect, useState } from "react";
+
+type Shop = {
+  id: number; shop_code: string; shop_name: string; owner_name: string; owner_whatsapp: string;
+  district: string | null; state: string | null; board_photo: string; counter_photo: string;
+  dashboard_token: string; customer_count: string; created_at: string;
+};
+
+const origin = () => (typeof window === "undefined" ? "" : window.location.origin);
+
+const INVITE_MSG = `*\u2600\uFE0F DIVYANSHI SHOP SOLAR PARTNER PROGRAM \u2600\uFE0F*\n\n*\uD83C\uDFEA \u0905\u092C \u0906\u092A\u0915\u0940 \u0926\u0941\u0915\u093E\u0928 \u092C\u0928\u0947\u0917\u0940 \u0905\u0924\u093F\u0930\u093F\u0915\u094D\u0924 \u0915\u092E\u093E\u0908 \u0915\u093E \u091C\u0930\u093F\u092F\u093E! \uD83D\uDCB0*\n\n\u092A\u094D\u0930\u093F\u092F \u0926\u0941\u0915\u093E\u0928\u0926\u093E\u0930 \u092E\u093F\u0924\u094D\u0930,\n\n\u0915\u094D\u092F\u093E \u0906\u092A \u0905\u092A\u0928\u0940 \u0926\u0941\u0915\u093E\u0928 \u0938\u0947 \u0939\u0940 \u0905\u0924\u093F\u0930\u093F\u0915\u094D\u0924 \u0915\u092E\u093E\u0908 \u0915\u0930\u0928\u093E \u091A\u093E\u0939\u0924\u0947 \u0939\u0948\u0902? \u0905\u092C \u091C\u0941\u0921\u093C\u093F\u090F Divyanshi Shop Solar Partner Program \u0938\u0947 \u0914\u0930 \u0905\u092A\u0928\u0947 \u0917\u094D\u0930\u093E\u0939\u0915\u094B\u0902 \u0915\u094B Solar \u0932\u0917\u0935\u093E\u0928\u0947 \u092E\u0947\u0902 \u092E\u0926\u0926 \u0915\u0930\u0915\u0947 \u0915\u092E\u093E\u0908 \u0915\u093E \u0905\u0935\u0938\u0930 \u092A\u094D\u0930\u093E\u092A\u094D\u0924 \u0915\u0940\u091C\u093F\u090F\u0964 \uD83D\uDE80\n\n*\uD83C\uDF1F \u0906\u092A\u0915\u094B \u0915\u094D\u092F\u093E \u092E\u093F\u0932\u0947\u0917\u093E?*\n\n\uD83D\uDCB0 \u0939\u0930 \u0938\u092B\u0932 Solar Lead \u092A\u0930 \u20B910,000 \u0924\u0915 \u0915\u092E\u093E\u0928\u0947 \u0915\u093E \u0905\u0935\u0938\u0930!\n\n\uD83E\uDEA7 \u0906\u092A\u0915\u0940 \u0926\u0941\u0915\u093E\u0928 \u0915\u0947 \u0915\u093E\u0909\u0902\u091F\u0930 \u092A\u0930 \u0932\u0917\u093E\u0928\u0947 \u0915\u0947 \u0932\u093F\u090F \u0906\u0915\u0930\u094D\u0937\u0915 Table Standee\n\n\u2600\uFE0F \u0917\u094D\u0930\u093E\u0939\u0915\u094B\u0902 \u0915\u094B PM Surya Ghar Muft Bijli Yojana \u0915\u0940 \u091C\u093E\u0928\u0915\u093E\u0930\u0940 \u0926\u0947\u0928\u0947 \u0915\u093E \u0905\u0935\u0938\u0930\n\n\uD83D\uDCF2 \u0906\u0938\u093E\u0928 Referral Process \u0914\u0930 Customer Lead Tracking \u0915\u0940 \u0938\u0941\u0935\u093F\u0927\u093E\n\n*\uD83C\uDFE1 \u0906\u092A\u0915\u0947 \u0917\u094D\u0930\u093E\u0939\u0915\u094B\u0902 \u0915\u0947 \u0932\u093F\u090F Solar \u0915\u0947 \u0936\u093E\u0928\u0926\u093E\u0930 \u0935\u093F\u0915\u0932\u094D\u092A!*\n\n\u0938\u0930\u0915\u093E\u0930\u0940 \u092F\u094B\u091C\u0928\u093E \u0915\u0947 \u0905\u0902\u0924\u0930\u094D\u0917\u0924 \u092A\u093E\u0924\u094D\u0930 \u0917\u094D\u0930\u093E\u0939\u0915\u094B\u0902 \u0915\u094B \u0932\u093E\u0917\u0942 \u0928\u093F\u092F\u092E\u094B\u0902 \u0915\u0947 \u0905\u0928\u0941\u0938\u093E\u0930 \u20B978,000 \u0924\u0915 \u0915\u0940 \u0915\u0947\u0902\u0926\u094D\u0930\u0940\u092F \u0938\u092C\u094D\u0938\u093F\u0921\u0940 \u0924\u0925\u093E \u0915\u0941\u091B \u0930\u093E\u091C\u094D\u092F\u094B\u0902 \u092E\u0947\u0902 \u0905\u0924\u093F\u0930\u093F\u0915\u094D\u0924 \u0930\u093E\u091C\u094D\u092F \u0938\u092C\u094D\u0938\u093F\u0921\u0940 \u0915\u093E \u0932\u093E\u092D \u092E\u093F\u0932 \u0938\u0915\u0924\u093E \u0939\u0948\u0964 \u0906\u0938\u093E\u0928 \u090B\u0923 \u0938\u0941\u0935\u093F\u0927\u093E \u092D\u0940 \u092C\u0948\u0902\u0915 \u0915\u0940 \u092A\u093E\u0924\u094D\u0930\u0924\u093E \u090F\u0935\u0902 \u0938\u094D\u0935\u0940\u0915\u0943\u0924\u093F \u0915\u0947 \u0905\u0927\u0940\u0928 \u0909\u092A\u0932\u092C\u094D\u0927 \u0939\u094B \u0938\u0915\u0924\u0940 \u0939\u0948\u0964\n\n*\u26A1 1\uFE0F\u20E3 On-Grid Solar Plant*\n\u2705 \u0915\u0947\u0935\u0932 \u0932\u0917\u092D\u0917 \u20B912,000 \u0938\u0947 \u0936\u0941\u0930\u0941\u0906\u0924\u0940 Down Payment \u0915\u0947 \u0935\u093F\u0915\u0932\u094D\u092A \u0915\u0947 \u0938\u093E\u0925\u0964\n\n*\uD83D\uDD0B 2\uFE0F\u20E3 Hybrid Solar Plant with Battery*\n\u2705 \u0915\u0947\u0935\u0932 \u0932\u0917\u092D\u0917 \u20B951,000 \u0938\u0947 \u0936\u0941\u0930\u0941\u0906\u0924\u0940 Down Payment \u0915\u0947 \u0935\u093F\u0915\u0932\u094D\u092A \u0915\u0947 \u0938\u093E\u0925\u0964\n\n_\u0928\u094B\u091F: \u0935\u093E\u0938\u094D\u0924\u0935\u093F\u0915 \u0915\u0940\u092E\u0924, Down Payment, \u0938\u092C\u094D\u0938\u093F\u0921\u0940 \u0914\u0930 EMI \u0917\u094D\u0930\u093E\u0939\u0915 \u0915\u0940 \u092A\u093E\u0924\u094D\u0930\u0924\u093E, \u0938\u093F\u0938\u094D\u091F\u092E \u0915\u094D\u0937\u092E\u0924\u093E, \u092C\u0948\u0902\u0915 \u0915\u0940 \u0936\u0930\u094D\u0924\u094B\u0902 \u0924\u0925\u093E \u0932\u093E\u0917\u0942 \u0938\u0930\u0915\u093E\u0930\u0940 \u092F\u094B\u091C\u0928\u093E \u092A\u0930 \u0928\u093F\u0930\u094D\u092D\u0930 \u0915\u0930\u0947\u0902\u0917\u0947\u0964_\n\n*\uD83C\uDFAF \u0906\u092A\u0915\u094B \u0915\u094D\u092F\u093E \u0915\u0930\u0928\u093E \u0939\u0948?*\n\n1\uFE0F\u20E3 Divyanshi Shop Solar Partner \u092C\u0928\u0947\u0902\u0964\n2\uFE0F\u20E3 \u0905\u092A\u0928\u0940 \u0926\u0941\u0915\u093E\u0928 \u092A\u0930 Table Standee \u0932\u0917\u093E\u090F\u0901\u0964\n3\uFE0F\u20E3 \u0905\u092A\u0928\u0947 \u0917\u094D\u0930\u093E\u0939\u0915\u094B\u0902 \u0915\u094B Solar \u0915\u0940 \u091C\u093E\u0928\u0915\u093E\u0930\u0940 \u0926\u0947\u0902\u0964\n4\uFE0F\u20E3 \u0907\u091A\u094D\u091B\u0941\u0915 \u0917\u094D\u0930\u093E\u0939\u0915 \u0915\u0940 Lead \u0939\u092E\u0947\u0902 \u092D\u0947\u091C\u0947\u0902\u0964\n5\uFE0F\u20E3 \u0928\u093F\u0930\u094D\u0927\u093E\u0930\u093F\u0924 \u0936\u0930\u094D\u0924\u094B\u0902 \u0915\u0947 \u0905\u0928\u0941\u0938\u093E\u0930 \u0938\u092B\u0932 Lead \u092A\u0930 Incentive \u092A\u094D\u0930\u093E\u092A\u094D\u0924 \u0915\u0930\u0947\u0902\u0964\n\n\uD83C\uDF1E \u0938\u094B\u091A\u093F\u090F, \u0906\u092A\u0915\u0940 \u0926\u0941\u0915\u093E\u0928 \u092A\u0930 \u0906\u0928\u0947 \u0935\u093E\u0932\u093E \u0915\u094B\u0908 \u0917\u094D\u0930\u093E\u0939\u0915 Solar \u0932\u0917\u0935\u093E\u0928\u093E \u091A\u093E\u0939\u0924\u093E \u0939\u0948\u2014\u0906\u092A \u0909\u0938\u0915\u0940 \u092E\u0926\u0926 \u092D\u0940 \u0915\u0930 \u0938\u0915\u0924\u0947 \u0939\u0948\u0902 \u0914\u0930 \u0905\u092A\u0928\u0947 \u092C\u093F\u091C\u0928\u0947\u0938 \u0915\u0947 \u0932\u093F\u090F \u0905\u0924\u093F\u0930\u093F\u0915\u094D\u0924 \u0915\u092E\u093E\u0908 \u0915\u093E \u0905\u0935\u0938\u0930 \u092D\u0940 \u092C\u0928\u093E \u0938\u0915\u0924\u0947 \u0939\u0948\u0902!\n\n*\uD83D\uDD25 \u0906\u091C \u0939\u0940 Divyanshi Shop Solar Partner \u092C\u0928\u0947\u0902!*\n\n*\u2600\uFE0F DIVYANSHI SOLAR*\n_Powering Every Home_\n\n*\uD83C\uDF3F Surya Urja Kranti \u2014 Har Ghar Solar, Har Partner Rozgar!*\n\n*\uD83D\uDCF2 \u0928\u0940\u091A\u0947 \u0926\u093F\u090F \u0932\u093F\u0902\u0915 \u092A\u0930 \u0905\u092A\u0928\u0940 \u0926\u0941\u0915\u093E\u0928 \u0930\u091C\u093F\u0938\u094D\u091F\u0930 \u0915\u0930\u0947\u0902:*`;
+
+export default function ShopPartnerDashboard() {
+  const [shops, setShops] = useState<Shop[]>([]);
+  const [me, setMe] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState<any>(null);
+  const [f, setF] = useState({ shopName: "", ownerName: "", ownerWhatsapp: "", district: "", state: "Bihar", address: "", googleLocation: "" });
+  const [coords, setCoords] = useState<{ lat: string; lng: string } | null>(null);
+  const [board, setBoard] = useState<File | null>(null);
+  const [counter, setCounter] = useState<File | null>(null);
+  const set = (k: string) => (e: any) => setF({ ...f, [k]: e.target.value });
+
+  const load = async () => {
+    setLoading(true); setErr("");
+    try {
+      const r = await fetch("/api/shop/dev/partners", { credentials: "include" });
+      fetch("/api/shop/dev/me", { credentials: "include" }).then(x => x.ok && x.json()).then(d => d && setMe(d)).catch(() => {});
+      if (r.status === 401 || r.status === 403) { window.location.href = "/login"; return; }
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setShops(d);
+    } catch (e: any) { setErr(e.message); } finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, []);
+
+  const locate = () => navigator.geolocation?.getCurrentPosition(
+    p => setCoords({ lat: p.coords.latitude.toFixed(6), lng: p.coords.longitude.toFixed(6) }),
+    () => setErr("Location permission refused — enter the Google Maps link instead.")
+  );
+
+  const submit = async (e: any) => {
+    e.preventDefault(); setErr("");
+    if (!board || !counter) return setErr("Both photos are required: the shop board, and the counter with the Divyanshi standee in the frame.");
+    setBusy(true);
+    try {
+      const fd = new FormData();
+      Object.entries(f).forEach(([k, v]) => fd.append(k, v));
+      if (coords) { fd.append("latitude", coords.lat); fd.append("longitude", coords.lng); }
+      fd.append("boardPhoto", board);
+      fd.append("counterPhoto", counter);
+      const r = await fetch("/api/shop/partners", { method: "POST", credentials: "include", body: fd });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setDone(d);
+      setF({ shopName: "", ownerName: "", ownerWhatsapp: "", district: "", state: "Bihar", address: "", googleLocation: "" });
+      setBoard(null); setCounter(null); setCoords(null); setOpen(false);
+      load();
+    } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+  };
+
+  const L = "block text-sm font-semibold text-slate-700 mb-1";
+  const I = "w-full rounded-lg border border-slate-300 px-3 py-3 text-base outline-none focus:border-orange-500 bg-white text-slate-900 font-bold placeholder:font-normal placeholder:text-slate-400";
+  const waShare = (shop: { owner_whatsapp: string; shop_name: string; dashboard_token: string }) =>
+    `https://wa.me/91${shop.owner_whatsapp}?text=${encodeURIComponent(
+      `${shop.shop_name} — आपका Divyanshi Shop Solar Partner डैशबोर्ड तैयार है।\n\n${origin()}/shop/${shop.dashboard_token}\n\nइस लिंक से आप अपने ग्राहकों को जोड़ सकते हैं और उनका स्टेटस देख सकते हैं।`)}`;
+
+  return (
+    <div className="min-h-screen bg-slate-50 px-4 py-6">
+      <div className="mx-auto w-full max-w-3xl">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">My Shop Partners</h1>
+            <p className="text-sm text-slate-600">{shops.length} shop{shops.length === 1 ? "" : "s"} registered</p>
+          </div>
+          <button onClick={() => { setOpen(!open); setDone(null); }}
+            className="rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-bold text-white">
+            {open ? "Close" : "+ Add Shop"}
+          </button>
+        </div>
+
+        {me?.partner_code && (
+          <div className="mt-4 rounded-xl border border-green-300 bg-green-50 p-4">
+            <p className="font-bold text-green-900">नई दुकान जोड़ें — WhatsApp पर भेजें</p>
+            <p className="mt-1 text-xs text-green-800">
+              दुकानदार को यह संदेश भेजें। वे खुद अपनी दुकान रजिस्टर करेंगे और वह आपके नाम पर जुड़ेगी।
+            </p>
+            <code className="mt-2 block break-all rounded bg-white p-2 text-xs">{origin()}/shop-join/{me.partner_code}</code>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <a href={`https://wa.me/?text=${encodeURIComponent(`${INVITE_MSG}\n👉 ${origin()}/shop-join/${me.partner_code}`)}`}
+                target="_blank" rel="noreferrer"
+                className="rounded-lg bg-green-600 px-4 py-2.5 text-sm font-bold text-white">
+                WhatsApp पर निमंत्रण भेजें
+              </a>
+              <button onClick={() => navigator.clipboard?.writeText(`${INVITE_MSG}\n👉 ${origin()}/shop-join/${me.partner_code}`)}
+                className="rounded-lg border border-green-600 px-4 py-2.5 text-sm font-semibold text-green-700">
+                संदेश कॉपी करें
+              </button>
+            </div>
+          </div>
+        )}
+
+        {done && (
+          <div className="mt-4 rounded-xl border border-green-300 bg-green-50 p-4">
+            <p className="font-bold text-green-900">{done.shop.shop_name} registered</p>
+            <p className="mt-2 text-xs font-semibold text-slate-700">Shop dashboard link</p>
+            <code className="block break-all rounded bg-white p-2 text-xs">{origin()}{done.dashboardUrl}</code>
+            <a href={waShare(done.shop)} target="_blank" rel="noreferrer"
+              className="mt-3 inline-block rounded-lg bg-green-600 px-4 py-2 text-sm font-bold text-white">
+              Send on WhatsApp to owner
+            </a>
+          </div>
+        )}
+
+        {open && (
+          <form onSubmit={submit} className="mt-4 space-y-4 rounded-xl bg-white p-5 shadow-sm">
+            <div><label className={L}>Shop name / दुकान का नाम *</label>
+              <input className={I} value={f.shopName} onChange={set("shopName")} required maxLength={200} /></div>
+            <div><label className={L}>Owner name / मालिक का नाम *</label>
+              <input className={I} value={f.ownerName} onChange={set("ownerName")} required maxLength={150} /></div>
+            <div><label className={L}>Owner WhatsApp / मालिक का व्हाट्सएप *</label>
+              <input className={I} value={f.ownerWhatsapp} onChange={set("ownerWhatsapp")} required inputMode="numeric" placeholder="10 digit number" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className={L}>District / जिला</label><input className={I} value={f.district} onChange={set("district")} /></div>
+              <div><label className={L}>State / राज्य</label><input className={I} value={f.state} onChange={set("state")} /></div>
+            </div>
+            <div><label className={L}>Shop address / दुकान का पता</label>
+              <input className={I} value={f.address} onChange={set("address")} maxLength={500} /></div>
+
+            <div className="rounded-lg border border-slate-200 p-3">
+              <label className={L}>Shop location *</label>
+              <button type="button" onClick={locate}
+                className="w-full rounded-lg border border-slate-300 px-3 py-3 text-sm font-semibold">
+                {coords ? `Saved: ${coords.lat}, ${coords.lng}` : "Capture location at the shop / दुकान पर लोकेशन लें"}
+              </button>
+              <input className={I + " mt-2"} value={f.googleLocation} onChange={set("googleLocation")}
+                placeholder="or paste a Google Maps link" maxLength={500} />
+            </div>
+
+            <div className="rounded-lg border-2 border-dashed border-orange-300 bg-orange-50 p-3">
+              <p className="text-sm font-bold text-orange-900">Standee photos — both required</p>
+              <p className="mb-3 text-xs text-orange-800">
+                स्टैंडी सही जगह लगाने के बाद ही फोटो लें। काउंटर की फोटो में Divyanshi स्टैंडी दिखनी चाहिए।
+              </p>
+              <label className={L}>1. Shop board photo *</label>
+              <input type="file" accept="image/*" capture="environment" className="mb-3 w-full text-sm"
+                onChange={e => setBoard(e.target.files?.[0] || null)} />
+              <label className={L}>2. Counter photo with Divyanshi standee *</label>
+              <input type="file" accept="image/*" capture="environment" className="w-full text-sm"
+                onChange={e => setCounter(e.target.files?.[0] || null)} />
+            </div>
+
+            {err && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{err}</div>}
+            <button disabled={busy} className="w-full rounded-lg bg-orange-600 px-3 py-3.5 text-base font-bold text-white disabled:opacity-60">
+              {busy ? "Saving..." : "Register Shop / दुकान रजिस्टर करें"}
+            </button>
+          </form>
+        )}
+
+        {err && !open && <div className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{err}</div>}
+        {loading && <p className="mt-6 text-sm text-slate-500">Loading...</p>}
+
+        <div className="mt-6 space-y-3">
+          {!loading && shops.length === 0 && (
+            <div className="rounded-xl bg-white p-8 text-center text-sm text-slate-500">
+              No shops yet. Visit a shop, place the standee, then tap <strong>+ Add Shop</strong>.
+            </div>
+          )}
+          {shops.map(s => (
+            <div key={s.id} className="rounded-xl bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-bold text-slate-900">{s.shop_name}</p>
+                  <p className="text-sm text-slate-600">{s.owner_name} · {s.owner_whatsapp}</p>
+                  <p className="text-xs text-slate-500">{[s.district, s.state].filter(Boolean).join(", ")} · {s.shop_code}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-orange-600">{s.customer_count}</p>
+                  <p className="text-xs text-slate-500">customers</p>
+                </div>
+              </div>
+              <div className="mt-3 flex gap-2">
+                <img src={s.board_photo} alt="Shop board" className="h-16 w-16 rounded object-cover" />
+                <img src={s.counter_photo} alt="Counter with standee" className="h-16 w-16 rounded object-cover" />
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <a href={waShare(s)} target="_blank" rel="noreferrer"
+                  className="rounded-lg bg-green-600 px-3 py-2 text-xs font-bold text-white">Send dashboard link</a>
+                <a href={`/shop/${s.dashboard_token}`} target="_blank" rel="noreferrer"
+                  className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold">Open dashboard</a>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

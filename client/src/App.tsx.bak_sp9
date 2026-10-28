@@ -1,0 +1,1269 @@
+import GrievanceForm from "./pages/grievance-form";
+import GrievanceEmailRegistry from "./pages/admin/grievance-email-registry";
+import GrievanceList from "./pages/admin/grievance-list";
+import MeterTesting from "./pages/admin/meter-testing";
+import AdminShopPartners from "./pages/admin/shop-partners";
+import ShopPartnerRegister from "./pages/shop-partner/register";
+import ShopScan from "./pages/shop-scan";
+import ShopJoin from "./pages/shop-partner/join";
+import ShopPartnerDashboard from "./pages/shop-partner/dashboard";
+import SolarEnquiry from "./pages/solar-enquiry";
+import CustomerInvite from "./pages/customer-invite";
+import ShopDashboard from "./pages/shop-dashboard";
+import ShopJoin from "./pages/shop-join";
+import ShopPartnerLeads from "./pages/admin/shop-partner-leads";
+import LedgerPage from "./pages/admin/ledger";
+import MeterUtilization from "./pages/admin/meter-utilization";
+import BankQuotations from "./pages/admin/bank-quotations";
+import GrievanceReminderTemplates from "./pages/admin/grievance-reminder-templates";
+import SDPDashboard from "@/pages/state-partner/dashboard";
+import { useState, useEffect, Component, ErrorInfo, ReactNode } from "react";
+import { Switch, Route, Redirect, useLocation } from "wouter";
+import { queryClient } from "./lib/queryClient";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
+import { AuthProvider, useAuth } from "@/lib/auth";
+import { ThemeProvider } from "@/lib/theme";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { AppSidebar } from "@/components/app-sidebar";
+import { Skeleton } from "@/components/ui/skeleton";
+import { NotificationBell } from "@/components/notification-bell";
+import { ChatbotAssistant } from "@/components/chatbot-assistant";
+import { OnboardingTutorial } from "@/components/onboarding-tutorial";
+import NotFound from "@/pages/not-found";
+import LandingPage from "@/pages/landing";
+import SubsidyCalculatorPage from "@/pages/subsidy-calculator";
+import LoginPage from "@/pages/login";
+import RegisterPage from "@/pages/register";
+import BDPDashboard from "@/pages/bdp/dashboard";
+import BDPPartners from "@/pages/bdp/partners";
+import PartnerDetail from "@/pages/bdp/partner-detail";
+import PartnerForm from "@/pages/bdp/partner-form";
+import BDPCustomers from "@/pages/bdp/customers";
+import DDPDashboard from "@/pages/ddp/dashboard";
+
+import SDPCustomers from "@/pages/state-partner/customers";
+import SDPCustomerForm from "@/pages/state-partner/customer-form";
+import SDPCustomerDetail from "@/pages/state-partner/customer-detail";
+import SDPEarnings from "@/pages/state-partner/earnings";
+import SDPPartners from "@/pages/state-partner/partners";
+import BDPPartnerHierarchy from "@/pages/bdp/partner-hierarchy";
+import SDPPartnerForm from "@/pages/state-partner/partner-form";
+import PartnerBotLeads from "@/pages/partner-bot-leads";
+import DDPCustomers from "@/pages/ddp/customers";
+import CustomerForm from "@/pages/ddp/customer-form";
+import DDPApplications from "@/pages/ddp/applications";
+import CustomerDetail from "@/pages/ddp/customer-detail";
+import DDPEarnings from "@/pages/ddp/earnings";
+import DDPStore from "@/pages/ddp/store";
+import BDPWallet from "@/pages/bdp/wallet";
+import CalculatorPage from "@/pages/calculator";
+import AdminDashboard from "@/pages/admin/dashboard";
+import AdminPartners from "@/pages/admin/partners";
+import AdminPartnerHierarchy from "@/pages/admin/partner-hierarchy";
+import AdminCustomers from "@/pages/admin/customers";
+import AdminCustomerDetail from "@/pages/admin/customer-detail";
+import AdminPayouts from "@/pages/admin/payouts";
+import AdminProducts from "@/pages/admin/products";
+import AdminOrders from "@/pages/admin/orders";
+import AdminFeedback from "@/pages/admin/feedback";
+import AdminNotificationSettings from "@/pages/admin/notifications-settings";
+import AdminVendors from "@/pages/admin/vendors";
+import AdminSiteExpenses from "@/pages/admin/site-expenses";
+import AdminBankLoanSubmissions from "@/pages/admin/bank-loan-submissions";
+import AdminSiteSurveys from "@/pages/admin/site-surveys";
+import AdminBankLoanApprovals from "@/pages/admin/bank-loan-approvals";
+import AdminLoanDisbursements from "@/pages/admin/loan-disbursements";
+import AdminVendorPurchaseOrders from "@/pages/admin/vendor-purchase-orders";
+import PurchaseOrderForm from "@/pages/admin/billing/purchase-order-form";
+import GSTFiling from "@/pages/admin/billing/gst-filing";
+import AdminGoodsDeliveries from "@/pages/admin/goods-deliveries";
+import AdminSiteExecutionOrders from "@/pages/admin/site-execution-orders";
+import AdminCompletionReports from "@/pages/admin/completion-reports";
+import AdminMeterInstallationReports from "@/pages/admin/meter-installation-reports";
+import AdminPortalSubmissionReports from "@/pages/admin/portal-submission-reports";
+import AdminRemainingPaymentReports from "@/pages/admin/remaining-payment-reports";
+import AdminSubsidyApplicationReports from "@/pages/admin/subsidy-application-reports";
+import AdminSubsidyDisbursementReports from "@/pages/admin/subsidy-disbursement-reports";
+import AdminCustomerFileSubmissions from "@/pages/admin/customer-file-submissions";
+import AdminIndependentCustomers from "@/pages/admin/independent-customers";
+import AdminDocuments from "@/pages/admin/documents";
+import AdminCustomerJourney from "@/pages/admin/customer-journey";
+import AdminServiceRequests from "@/pages/admin/service-requests";
+import AdminTestimonials from "@/pages/admin/testimonials";
+import AdminVendorPayments from "@/pages/admin/vendor-payments";
+import AdminCustomerLeads from "@/pages/admin/customer-leads";
+import AdminCrmDashboard from "@/pages/admin/crm-dashboard";
+import AdminChatbotSettings from "@/pages/admin/chatbot-settings";
+import AdminSolarBotLeads from "@/pages/admin/solar-bot-leads";
+import AdminPartnerChatbotLeads from "@/pages/admin/partner-chatbot-leads";
+import AdminPartnerBotLeads from "@/pages/admin/partner-bot-leads";
+import AdminWhatsAppDashboard from "@/pages/admin/whatsapp-dashboard";
+import AdminWhatsAppSettings from "@/pages/admin/whatsapp-settings";
+import AdminWhatsAppContacts from "@/pages/admin/whatsapp-contacts";
+import SolarBotPage from "@/pages/solar-bot";
+import AdminEquipmentSettings from "@/pages/admin/equipment-settings";
+import PartnerServiceRequests from "@/pages/partner-service-requests";
+import PartnerWhatsAppContacts from "@/pages/partner-whatsapp-contacts";
+import BDPShareLink from "@/pages/bdp/share-link";
+import SDPShareLink from "@/pages/sdp/share-link";
+import SDPPartnerHierarchy from "@/pages/sdp/partner-hierarchy";
+import ShareCustomerLink from "@/pages/share-customer-link";
+import BDPAddSDP from "@/pages/bdp/add-sdp";
+import JoinPartner from "@/pages/join-partner";
+import JoinBDP from "@/pages/join-bdp";
+import JoinBDP from "@/pages/join-bdp";
+import PartnerWhatsAppDashboard from "@/pages/partner-whatsapp";
+import ProfilePage from "@/pages/profile";
+import PrivacyPolicyPage from "@/pages/privacy-policy";
+import DisclaimerPage from "@/pages/disclaimer";
+import TermsAndConditionsPage from "@/pages/terms-and-conditions";
+import AboutUsPage from "@/pages/about-us";
+import NotificationsPage from "@/pages/notifications";
+import NewsPage from "@/pages/news";
+import PanelComparisonPage from "@/pages/panel-comparison";
+import IBSolarPanelsPage from "@/pages/ib-solar-panels";
+import LeaderboardPage from "@/pages/leaderboard";
+import ReferralsPage from "@/pages/referrals";
+import InstallationMap from "@/pages/installation-map";
+import NetworkMap from "@/pages/network-map";
+import VendorRegistration from "@/pages/vendor-registration";
+import CustomerRegistration from "@/pages/customer-registration";
+import CustomerDashboard from "@/pages/customer-dashboard";
+import CustomerPartnerDashboard from "@/pages/customer-partner/dashboard";
+import CustomerPartnerReferrals from "@/pages/customer-partner/referrals";
+import CustomerPartnerEarnings from "@/pages/customer-partner/earnings";
+import CustomerPartnerProfile from "@/pages/customer-partner/profile";
+import CustomerPartnerRegisterPage from "@/pages/customer-partner-register";
+import ForgotPasswordPage from "@/pages/forgot-password";
+import GenerateProposal from "@/pages/generate-proposal";
+import { MobileNav } from "@/components/mobile-nav";
+import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
+
+// Billing System
+import BillingDashboard from "@/pages/admin/billing/index";
+import InvoiceList from "@/pages/admin/billing/invoices";
+import ApprovedBills from "@/pages/admin/billing/approved-bills";
+import InvoiceForm from "@/pages/admin/billing/invoice-form";
+import InvoiceDetail from "@/pages/admin/billing/invoice-detail";
+import StockPage from "@/pages/admin/billing/stock";
+import PaymentReceipts from "@/pages/admin/billing/receipts";
+import VendorList from "@/pages/admin/billing/vendors";
+import BillingCustomerList from "@/pages/admin/billing/billing-customers";
+import QuotationForm from "@/pages/admin/billing/quotation-form";
+import QuotationList from "@/pages/admin/billing/quotations";
+import PurchaseOrderList from "@/pages/admin/billing/purchase-orders";
+
+function LoadingScreen() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="space-y-4 w-full max-w-md p-8">
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-8 w-3/4" />
+        <Skeleton className="h-8 w-1/2" />
+      </div>
+    </div>
+  );
+}
+
+function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
+  const { user, isLoading } = useAuth();
+  const [, setLocation] = useLocation();
+  const [shouldRedirect, setShouldRedirect] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isLoading) return;
+    
+    if (!user) {
+      setShouldRedirect("/login");
+      return;
+    }
+
+    if (allowedRoles && !allowedRoles.includes(user.role)) {
+      if (user.role === "admin") {
+        setShouldRedirect("/admin/dashboard");
+      } else if (user.role === "bdp") {
+        setShouldRedirect("/bdp/bot-leads");
+      } else if (user.role === "sdp") {
+        setShouldRedirect("/sdp/dashboard");
+      } else if (user.role === "customer_partner") {
+        setShouldRedirect("/customer-partner/dashboard");
+      } else {
+        setShouldRedirect("/ddp/bot-leads");
+      }
+    }
+  }, [user, isLoading, allowedRoles]);
+
+  useEffect(() => {
+    if (shouldRedirect) {
+      setLocation(shouldRedirect);
+    }
+  }, [shouldRedirect, setLocation]);
+
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  if (!user || (allowedRoles && !allowedRoles.includes(user.role))) {
+    return <LoadingScreen />;
+  }
+
+  return <>{children}</>;
+}
+
+
+function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const sidebarStyle = {
+    "--sidebar-width": "18rem",
+    "--sidebar-width-icon": "3.5rem",
+  } as React.CSSProperties;
+
+  return (
+    <SidebarProvider style={sidebarStyle}>
+      <div className="flex min-h-screen w-full">
+        <AppSidebar />
+        <div className="flex flex-col flex-1 min-w-0">
+          <header className="flex items-center justify-between gap-4 p-4 border-b sticky top-0 bg-background z-[60]">
+            <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <div className="flex items-center gap-2">
+              <NotificationBell />
+              <ThemeToggle />
+            </div>
+          </header>
+          <main className="flex-1 p-4 md:p-6 overflow-auto pb-20 md:pb-6">
+            {children}
+          </main>
+        </div>
+        <MobileNav />
+        <PWAInstallPrompt />
+        {user && (user.role === "bdp" || user.role === "ddp") && (
+          <OnboardingTutorial userRole={user.role} />
+        )}
+      </div>
+    </SidebarProvider>
+  );
+}
+
+function AuthenticatedRoutes() {
+  return (
+    <Switch>
+      {/* Admin Routes */}
+      <Route path="/admin/dashboard">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminDashboard />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/partners">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminPartners />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/partner-hierarchy">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminPartnerHierarchy />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/customer-journey">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminCustomerJourney />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/customers/:id">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminCustomerDetail />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/customers">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminCustomers />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/customer-leads">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminCustomerLeads />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/crm">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminCrmDashboard />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/partner-bot-leads">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminPartnerBotLeads />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/partner-chatbot-leads">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminPartnerChatbotLeads />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/solar-bot-leads">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminSolarBotLeads />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/whatsapp-dashboard">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminWhatsAppDashboard />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/whatsapp-settings">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminWhatsAppSettings />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/whatsapp-contacts">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminWhatsAppContacts />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/chatbot-settings">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminChatbotSettings />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/payouts">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminPayouts />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/products">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminProducts />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/orders">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminOrders />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/feedback">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminFeedback />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/service-requests">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminServiceRequests />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/testimonials">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminTestimonials />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/notifications">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminNotificationSettings />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/equipment-settings">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminEquipmentSettings />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/vendors">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminVendors />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/vendor-payments">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminVendorPayments />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/site-expenses">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminSiteExpenses />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/bank-loan-submissions">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminBankLoanSubmissions />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/site-surveys">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminSiteSurveys />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/bank-loan-approvals">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminBankLoanApprovals />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/loan-disbursements">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminLoanDisbursements />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/billing/purchase-orders/:editId/edit"><PurchaseOrderForm /></Route>
+      <Route path="/admin/billing/purchase-orders/new"><PurchaseOrderForm /></Route>
+      <Route path="/admin/billing/gst"><GSTFiling /></Route>
+      <Route path="/admin/vendor-purchase-orders">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminVendorPurchaseOrders />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/goods-deliveries">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminGoodsDeliveries />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/site-execution-orders">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminSiteExecutionOrders />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/completion-reports">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminCompletionReports />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/meter-installation-reports">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminMeterInstallationReports />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/portal-submission-reports">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminPortalSubmissionReports />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/remaining-payment-reports">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminRemainingPaymentReports />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/subsidy-application-reports">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminSubsidyApplicationReports />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/subsidy-disbursement-reports">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminSubsidyDisbursementReports />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/customer-file-submissions">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminCustomerFileSubmissions />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/independent-customers">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminIndependentCustomers />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/documents">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminDocuments />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+
+      {/* Billing System */}
+      <Route path="/admin/billing/approved-bills"><ApprovedBills /></Route>
+      <Route path="/admin/billing/invoices/new">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <InvoiceForm />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/billing/invoices/:id/edit">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <InvoiceForm />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/billing/invoices/:id">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <InvoiceDetail />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/billing/invoices">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <InvoiceList />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/billing/stock">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <StockPage />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/billing/vendors"><VendorList /></Route>
+      <Route path="/admin/billing/customers-billing"><BillingCustomerList /></Route>
+      <Route path="/admin/billing/receipts"><PaymentReceipts /></Route>
+      <Route path="/admin/billing/quotations"><QuotationList /></Route>
+      <Route path="/admin/billing/purchase-orders"><PurchaseOrderList /></Route>
+      <Route path="/admin/grievance-emails">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <GrievanceEmailRegistry />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/grievance-reminder-templates">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <GrievanceReminderTemplates />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/billing/bank-quotations">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <BankQuotations />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/meter-utilization">
+        <DashboardLayout>
+          <MeterUtilization />
+        </DashboardLayout>
+      </Route>
+      <Route path="/admin/ledger">
+        <LedgerPage />
+      </Route>
+      <Route path="/admin/shop-partner-leads">
+        <ShopPartnerLeads />
+      </Route>
+      <Route path="/shop-join/:code">
+        <ShopJoin />
+      </Route>
+      <Route path="/shop-scan">
+        <ShopScan />
+      </Route>
+      <Route path="/shop-partner/register">
+        <ShopPartnerRegister />
+      </Route>
+      <Route path="/shop-partner">
+        <ShopPartnerDashboard />
+      </Route>
+      <Route path="/admin/shop-partners">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminShopPartners />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/meter-testing">
+        <DashboardLayout>
+          <MeterTesting />
+        </DashboardLayout>
+      </Route>
+      <Route path="/admin/grievance-list">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <GrievanceList />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/billing/quotations/new">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <QuotationForm />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/billing">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <BillingDashboard />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+
+      {/* BDP Routes */}
+      <Route path="/bdp/dashboard">
+        <ProtectedRoute allowedRoles={["bdp", "admin"]}>
+          <DashboardLayout>
+            <BDPDashboard />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/bdp/whatsapp">
+        <ProtectedRoute allowedRoles={["bdp", "admin"]}>
+          <DashboardLayout>
+            <PartnerWhatsAppDashboard />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/bdp/partner-chat-leads">
+        <ProtectedRoute allowedRoles={["bdp", "admin"]}>
+          <DashboardLayout><PartnerBotLeads /></DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/bdp/bot-leads">
+        <ProtectedRoute allowedRoles={["bdp", "admin"]}>
+          <DashboardLayout>
+            <PartnerBotLeads />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/bdp/partner-hierarchy">
+        <ProtectedRoute allowedRoles={["bdp", "admin"]}>
+          <DashboardLayout>
+            <BDPPartnerHierarchy />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/state-partner/dashboard">
+        <ProtectedRoute allowedRoles={["sdp", "admin"]}>
+          <DashboardLayout>
+            <SDPDashboard />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/sdp/partner-hierarchy">
+        <ProtectedRoute allowedRoles={["sdp", "admin"]}>
+          <DashboardLayout><SDPPartnerHierarchy /></DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/sdp/share-link">
+        <ProtectedRoute allowedRoles={["sdp", "admin"]}>
+          <DashboardLayout><SDPShareLink /></DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/sdp/partners/new">
+        <ProtectedRoute allowedRoles={["sdp", "admin"]}>
+          <DashboardLayout>
+            <SDPPartnerForm />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/state-partner/partners/new">
+        <ProtectedRoute allowedRoles={["sdp", "admin"]}>
+          <DashboardLayout>
+            <SDPPartnerForm />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/sdp/partners">
+        <ProtectedRoute allowedRoles={["sdp", "admin"]}>
+          <DashboardLayout>
+            <SDPPartners />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/state-partner/partners">
+        <ProtectedRoute allowedRoles={["sdp", "admin"]}>
+          <DashboardLayout>
+            <SDPPartners />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/state-partner/customers/new">
+        <ProtectedRoute allowedRoles={["sdp", "admin"]}>
+          <DashboardLayout>
+            <SDPCustomerForm />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/state-partner/customers/:id">
+        <ProtectedRoute allowedRoles={["sdp", "admin"]}>
+          <DashboardLayout>
+            <SDPCustomerDetail />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/state-partner/customers">
+        <ProtectedRoute allowedRoles={["sdp", "admin"]}>
+          <DashboardLayout>
+            <SDPCustomers />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/state-partner/earnings">
+        <ProtectedRoute allowedRoles={["sdp", "admin"]}>
+          <DashboardLayout>
+            <SDPEarnings />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/ddp/whatsapp">
+        <ProtectedRoute allowedRoles={["ddp", "admin"]}>
+          <DashboardLayout>
+            <PartnerWhatsAppDashboard />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/ddp/dashboard">
+        <ProtectedRoute allowedRoles={["ddp", "admin"]}>
+          <DashboardLayout>
+            <DDPDashboard />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/sdp/share-customer">
+        <ProtectedRoute allowedRoles={["sdp", "admin"]}>
+          <DashboardLayout>
+            <ShareCustomerLink />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/sdp/partner-chat-leads">
+        <ProtectedRoute allowedRoles={["sdp", "admin"]}>
+          <DashboardLayout><PartnerBotLeads /></DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/sdp/bot-leads">
+        <ProtectedRoute allowedRoles={["sdp", "admin"]}>
+          <DashboardLayout>
+            <PartnerBotLeads />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/sdp/dashboard">
+        <ProtectedRoute allowedRoles={["sdp", "admin"]}>
+          <DashboardLayout>
+            <SDPDashboard />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/sdp/customers/new">
+        <ProtectedRoute allowedRoles={["sdp", "admin"]}>
+          <DashboardLayout>
+            <SDPCustomerForm />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/sdp/customers/:id">
+        <ProtectedRoute allowedRoles={["sdp", "admin"]}>
+          <DashboardLayout>
+            <SDPCustomerDetail />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/sdp/customers">
+        <ProtectedRoute allowedRoles={["sdp", "admin"]}>
+          <DashboardLayout>
+            <SDPCustomers />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/sdp/earnings">
+        <ProtectedRoute allowedRoles={["sdp", "admin"]}>
+          <DashboardLayout>
+            <SDPEarnings />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/ddp/share-customer">
+        <ProtectedRoute allowedRoles={["ddp", "admin"]}>
+          <DashboardLayout>
+            <ShareCustomerLink />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/ddp/bot-leads">
+        <ProtectedRoute allowedRoles={["ddp", "admin"]}>
+          <DashboardLayout>
+            <PartnerBotLeads />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/bdp/partners/new">
+        <ProtectedRoute allowedRoles={["bdp", "admin"]}>
+          <DashboardLayout>
+            <PartnerForm />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/bdp/share-link">
+        <ProtectedRoute allowedRoles={["bdp", "admin"]}>
+          <DashboardLayout>
+            <BDPShareLink />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/bdp/add-sdp">
+        <ProtectedRoute allowedRoles={["bdp", "admin"]}>
+          <DashboardLayout>
+            <BDPAddSDP />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/bdp/partners/:id">
+        <ProtectedRoute allowedRoles={["bdp", "admin"]}>
+          <DashboardLayout>
+            <PartnerDetail />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/bdp/partners">
+        <ProtectedRoute allowedRoles={["bdp", "admin"]}>
+          <DashboardLayout>
+            <BDPPartners />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/bdp/customers">
+        <ProtectedRoute allowedRoles={["bdp", "admin"]}>
+          <DashboardLayout>
+            <BDPCustomers />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/bdp/wallet">
+        <ProtectedRoute allowedRoles={["bdp", "admin"]}>
+          <DashboardLayout>
+            <BDPWallet />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/bdp/service-requests">
+        <ProtectedRoute allowedRoles={["bdp", "admin"]}>
+          <DashboardLayout>
+            <PartnerServiceRequests />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/bdp/store">
+        <ProtectedRoute allowedRoles={["bdp", "admin"]}>
+          <DashboardLayout>
+            <DDPStore />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/bdp/whatsapp-contacts">
+        <ProtectedRoute allowedRoles={["bdp", "admin"]}>
+          <DashboardLayout>
+            <PartnerWhatsAppContacts />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+
+      {/* DDP Routes */}
+      <Route path="/ddp/bot-leads">
+        <ProtectedRoute allowedRoles={["ddp", "admin"]}>
+          <DashboardLayout>
+            <DDPDashboard />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/ddp/customers/new">
+        <ProtectedRoute allowedRoles={["ddp", "admin"]}>
+          <DashboardLayout>
+            <CustomerForm />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/ddp/customers/:id">
+        <ProtectedRoute allowedRoles={["ddp", "admin"]}>
+          <DashboardLayout>
+            <CustomerDetail />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/ddp/customers">
+        <ProtectedRoute allowedRoles={["ddp", "admin"]}>
+          <DashboardLayout>
+            <DDPCustomers />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/ddp/applications">
+        <ProtectedRoute allowedRoles={["ddp", "admin"]}>
+          <DashboardLayout>
+            <DDPApplications />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/ddp/earnings">
+        <ProtectedRoute allowedRoles={["ddp", "admin"]}>
+          <DashboardLayout>
+            <DDPEarnings />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/ddp/store">
+        <ProtectedRoute allowedRoles={["ddp", "admin"]}>
+          <DashboardLayout>
+            <DDPStore />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/ddp/service-requests">
+        <ProtectedRoute allowedRoles={["ddp", "admin"]}>
+          <DashboardLayout>
+            <PartnerServiceRequests />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/ddp/whatsapp-contacts">
+        <ProtectedRoute allowedRoles={["ddp", "admin"]}>
+          <DashboardLayout>
+            <PartnerWhatsAppContacts />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+
+      {/* Customer Partner Routes */}
+      <Route path="/customer-partner/dashboard">
+        <ProtectedRoute allowedRoles={["customer_partner"]}>
+          <DashboardLayout>
+            <CustomerPartnerDashboard />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/customer-partner/referrals">
+        <ProtectedRoute allowedRoles={["customer_partner"]}>
+          <DashboardLayout>
+            <CustomerPartnerReferrals />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/customer-partner/earnings">
+        <ProtectedRoute allowedRoles={["customer_partner"]}>
+          <DashboardLayout>
+            <CustomerPartnerEarnings />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/customer-partner/profile">
+        <ProtectedRoute allowedRoles={["customer_partner"]}>
+          <DashboardLayout>
+            <CustomerPartnerProfile />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+
+      {/* SDP Routes */}
+      
+      <Route path="/sdp/customers/new">
+        <ProtectedRoute allowedRoles={["sdp", "admin"]}>
+          <DashboardLayout>
+            <CustomerForm />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/sdp/customers/:id">
+        <ProtectedRoute allowedRoles={["sdp", "admin"]}>
+          <DashboardLayout>
+            <CustomerDetail />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/sdp/earnings">
+        <ProtectedRoute allowedRoles={["sdp", "admin"]}>
+          <DashboardLayout>
+            <DDPEarnings />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+
+      {/* Shared Routes */}
+      <Route path="/calculator">
+        <ProtectedRoute>
+          <DashboardLayout>
+            <CalculatorPage />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/profile">
+        <ProtectedRoute allowedRoles={["bdp", "ddp", "sdp"]}>
+          <DashboardLayout>
+            <ProfilePage />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/notifications">
+        <ProtectedRoute allowedRoles={["bdp", "ddp", "admin"]}>
+          <DashboardLayout>
+            <NotificationsPage />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+
+      {/* Generate Proposal */}
+      <Route path="/generate-proposal">
+        <ProtectedRoute allowedRoles={["ddp", "sdp", "bdp", "admin"]}>
+          <DashboardLayout>
+            <GenerateProposal />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      {/* Fallback */}
+      <Route component={NotFound} />
+    </Switch>
+  );
+}
+
+function PublicRouter() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  return (
+    <Switch>
+      {/* Public pages - accessible without login */}
+      <Route path="/">
+        <LandingPage />
+      </Route>
+      <Route path="/subsidy-calculator">
+        <SubsidyCalculatorPage />
+      </Route>
+      <Route path="/privacy-policy">
+        <PrivacyPolicyPage />
+      </Route>
+      <Route path="/disclaimer">
+        <DisclaimerPage />
+      </Route>
+      <Route path="/terms-and-conditions">
+        <TermsAndConditionsPage />
+      </Route>
+      <Route path="/about-us">
+        <AboutUsPage />
+      </Route>
+      <Route path="/news">
+        <NewsPage />
+      </Route>
+      <Route path="/panels">
+        <PanelComparisonPage />
+      </Route>
+      <Route path="/ib-solar-panels">
+        <IBSolarPanelsPage />
+      </Route>
+      <Route path="/leaderboard">
+        <LeaderboardPage />
+      </Route>
+      <Route path="/installations">
+        <InstallationMap />
+      </Route>
+      <Route path="/network-map">
+        <NetworkMap />
+      </Route>
+      <Route path="/map">
+        <NetworkMap />
+      </Route>
+      <Route path="/solar-bot">
+        <SolarBotPage />
+      </Route>
+      <Route path="/vendor-registration">
+        <VendorRegistration />
+      </Route>
+      <Route path="/solar"><ShopScan /></Route>
+      <Route path="/solar-old"><SolarEnquiry /></Route>
+      <Route path="/c/:token"><CustomerInvite /></Route>
+      <Route path="/shop/:token"><ShopDashboard /></Route>
+      <Route path="/s/:token"><ShopJoin /></Route>
+      <Route path="/grievance"><GrievanceForm /></Route>
+      <Route path="/pm-surya-ghar-grievance"><GrievanceForm /></Route>
+      <Route path="/customer-registration">
+        <CustomerRegistration />
+      </Route>
+      <Route path="/register-solar">
+        <CustomerRegistration />
+      </Route>
+      <Route path="/my-installation">
+        <CustomerDashboard />
+      </Route>
+      <Route path="/track-installation">
+        <CustomerDashboard />
+      </Route>
+      <Route path="/customer-portal">
+        <CustomerDashboard />
+      </Route>
+      <Route path="/customer-partner-register">
+        <Redirect to="/register" />
+      </Route>
+      <Route path="/login">
+        {user ? (
+          <Redirect to={
+            user.role === "admin" ? "/admin/dashboard" : 
+            user.role === "bdp" ? "/bdp/bot-leads" : 
+            user.role === "customer_partner" ? "/customer-partner/dashboard" :
+            "/ddp/bot-leads"
+          } />
+        ) : (
+          <LoginPage />
+        )}
+      </Route>
+      <Route path="/forgot-password">
+        {user ? (
+          <Redirect to={
+            user.role === "admin" ? "/admin/dashboard" : 
+            user.role === "bdp" ? "/bdp/bot-leads" : 
+            user.role === "customer_partner" ? "/customer-partner/dashboard" :
+            "/ddp/bot-leads"
+          } />
+        ) : (
+          <ForgotPasswordPage />
+        )}
+      </Route>
+      <Route path="/join-bdp">
+        <JoinBDP />
+      </Route>
+      <Route path="/join/:code">
+        <JoinPartner />
+      </Route>
+      <Route path="/register">
+        {user ? (
+          <Redirect to={
+            user.role === "admin" ? "/admin/dashboard" : 
+            user.role === "bdp" ? "/bdp/bot-leads" : 
+            user.role === "customer_partner" ? "/customer-partner/dashboard" :
+            "/ddp/bot-leads"
+          } />
+        ) : (
+          <RegisterPage />
+        )}
+      </Route>
+      <Route>
+        <AuthenticatedRoutes />
+      </Route>
+    </Switch>
+  );
+}
+
+class AppErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("App crash:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: 40, textAlign: "center", fontFamily: "system-ui" }}>
+          <h2 style={{ color: "#e11d48" }}>Something went wrong</h2>
+          <p style={{ color: "#666", marginTop: 8 }}>{this.state.error?.message}</p>
+          <button
+            onClick={() => {
+              if ("caches" in window) caches.keys().then(ks => ks.forEach(k => caches.delete(k)));
+              if ("serviceWorker" in navigator) navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()));
+              localStorage.clear();
+              window.location.reload();
+            }}
+            style={{ marginTop: 16, padding: "10px 24px", background: "#f97316", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 16 }}
+          >
+            Clear Cache & Reload
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function App() {
+  return (
+    <AppErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <AuthProvider>
+            <TooltipProvider>
+              <Toaster />
+              <PublicRouter />
+            </TooltipProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </AppErrorBoundary>
+  );
+}
+
+export default App;

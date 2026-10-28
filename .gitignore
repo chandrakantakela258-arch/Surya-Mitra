@@ -4,3 +4,13 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gzecosystem.config.cjs
+node_modules/
+dist/
+.env
+.env.*
+ecosystem.config.cjs
+*.log
+*.pem
+*.key
+*.sql
+*.dump

@@ -5,7 +5,7 @@ export default function CalculatorPage() {
   const { user } = useAuth();
   
   // Determine commission visibility based on user role
-  const showCommission = user?.role === 'bdp' ? 'bdp_only' : user?.role === 'ddp' ? 'ddp_only' : 'none';
+  const showCommission = user?.role === 'bdp' ? 'bdp_only' : user?.role === 'ddp' ? 'ddp_only' : user?.role === 'sdp' ? 'sdp_only' : 'none';
   
   return (
     <div className="p-6 space-y-6">
@@ -16,7 +16,7 @@ export default function CalculatorPage() {
         </p>
       </div>
       
-      <SubsidyCalculator showCommission={showCommission} />
+      <SubsidyCalculator showCommission={showCommission} teamStructure={user?.role === 'sdp' ? 'marketing_team' : (user?.teamStructure || 'direct')} userRole={user?.role || 'ddp'} />
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="p-6 bg-muted/30 rounded-lg space-y-4">

@@ -1,0 +1,966 @@
+/**
+ * Invoice Form — /admin/billing/invoices/new
+ * Full GST-compliant invoice creation with:
+ *   - Company selector (Divyanshi / Prayga)
+ *   - Customer search + create inline
+ *   - Product catalog line items with auto-pricing
+ *   - Auto CGST/SGST vs IGST based on state
+ *   - Real-time totals with amount in words
+ *   - Post-save PDF download, Email, WhatsApp sharing
+ */
+import { useState, useEffect, useCallback } from "react";
+import { PLANT_TYPES } from "@/lib/plantTypes";
+import { useLocation } from "wouter";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Trash2, Save, ArrowLeft, Search, Loader2, ChevronDown, ChevronRight, Download, Mail, Send as SendIcon, Phone } from "lucide-react";
+
+// ── Types ────────────────────────────────────────────────────────────────────
+
+interface Company { id: number; name: string; gstin: string; state_code: string; invoice_prefix: string; }
+interface Product { id: number; name: string; hsn_code: string; unit: string; default_sale_price: string; gst_rate: string; category: string; }
+interface Customer { id: number; name: string; gstin: string | null; phone: string; email?: string; state: string; state_code: string; address: string; city: string; district?: string; customer_type: string; }
+
+interface LineItem {
+  key: string; product_id: number | null; description: string; serial_numbers?: string;
+  hsn_code: string; quantity: number; unit: string; rate: number;
+  discount_percent: number; gst_rate: number; cess_rate: number;
+  discount_amount: number; taxable_value: number;
+  cgst_rate: number; cgst_amount: number;
+  sgst_rate: number; sgst_amount: number;
+  igst_rate: number; igst_amount: number;
+  total_amount: number;
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function uid(): string { return Math.random().toString(36).slice(2, 9); }
+
+function formatINR(n: number): string {
+  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(n);
+}
+
+function emptyItem(): LineItem {
+  return {
+    key: uid(), product_id: null, description: "", hsn_code: "", quantity: 1, unit: "Nos",
+    rate: 0, discount_percent: 0, gst_rate: 12, cess_rate: 0,
+    discount_amount: 0, taxable_value: 0,
+    cgst_rate: 0, cgst_amount: 0, sgst_rate: 0, sgst_amount: 0,
+    igst_rate: 0, igst_amount: 0, total_amount: 0,
+  };
+}
+
+function calcItem(item: LineItem, sellerState: string, buyerState: string): LineItem {
+  const gross = item.quantity * item.rate;
+  const discAmt = Math.round(gross * item.discount_percent / 100 * 100) / 100;
+  const taxable = Math.round((gross - discAmt) * 100) / 100;
+  const inter = sellerState !== buyerState;
+  const cgstR = inter ? 0 : item.gst_rate / 2;
+  const sgstR = inter ? 0 : item.gst_rate / 2;
+  const igstR = inter ? item.gst_rate : 0;
+  const cgstA = Math.round(taxable * cgstR / 100 * 100) / 100;
+  const sgstA = Math.round(taxable * sgstR / 100 * 100) / 100;
+  const igstA = Math.round(taxable * igstR / 100 * 100) / 100;
+  const total = Math.round((taxable + cgstA + sgstA + igstA) * 100) / 100;
+  return { ...item, discount_amount: discAmt, taxable_value: taxable, cgst_rate: cgstR, cgst_amount: cgstA, sgst_rate: sgstR, sgst_amount: sgstA, igst_rate: igstR, igst_amount: igstA, total_amount: total };
+}
+
+const ONES = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"];
+const TENS = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"];
+function tw(n: number): string { if (n < 20) return ONES[n]; return TENS[Math.floor(n/10)] + (n%10 ? " "+ONES[n%10] : ""); }
+function thr(n: number): string { if (!n) return ""; const h=Math.floor(n/100),r=n%100; let s=h?ONES[h]+" Hundred":""; if(r) s+=(h?" and ":"")+tw(r); return s; }
+function amtWords(a: number): string {
+  if (a === 0) return "Zero Rupees Only";
+  const r=Math.floor(Math.abs(a)); let w="";
+  const cr=Math.floor(r/10000000),lk=Math.floor((r%10000000)/100000),th=Math.floor((r%100000)/1000),hd=r%1000;
+  if(cr) w+=thr(cr)+" Crore "; if(lk) w+=tw(lk)+" Lakh "; if(th) w+=tw(th)+" Thousand "; if(hd) w+=thr(hd);
+  return "Rupees " + w.trim() + " Only";
+}
+
+const INDIAN_STATES: Record<string, string> = {
+  "10": "Bihar", "08": "Rajasthan", "09": "Uttar Pradesh", "20": "Jharkhand",
+  "21": "Odisha", "22": "Chhattisgarh", "23": "Madhya Pradesh", "19": "West Bengal",
+  "27": "Maharashtra", "07": "Delhi", "06": "Haryana", "33": "Tamil Nadu",
+  "29": "Karnataka", "32": "Kerala", "36": "Telangana", "37": "Andhra Pradesh",
+  "24": "Gujarat", "03": "Punjab", "05": "Uttarakhand", "02": "Himachal Pradesh",
+  "11": "Sikkim", "18": "Assam", "01": "Jammu & Kashmir",
+};
+
+// ── Component ────────────────────────────────────────────────────────────────
+
+export default function InvoiceForm() {
+  const [, navigate] = useLocation();
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [segments, setSegments] = useState<Record<string, any[]>>({});
+  const [openSegs, setOpenSegs] = useState<Set<string>>(new Set());
+  const [expandedProds, setExpandedProds] = useState<Set<number>>(new Set());
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [savedInvoiceId, setSavedInvoiceId] = useState<number | null>(null);
+  const [savedInvoiceNo, setSavedInvoiceNo] = useState<string>("");
+  // PDF opens in new tab, no loading state needed
+
+  // Form state
+  const [companyId, setCompanyId] = useState<number>(1);
+  const [customerId, setCustomerId] = useState<string | null>(null);
+  const [invoiceType, setInvoiceType] = useState("tax_invoice");
+  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
+  const [invoiceNoOverride, setInvoiceNoOverride] = useState("");
+  const [useManualInvoiceNo, setUseManualInvoiceNo] = useState(false);
+  const [dueDate, setDueDate] = useState("");
+  const [notes, setNotes] = useState("");
+  const [terms, setTerms] = useState("100% Advance Payment before the goods dispatch.");
+  const [paymentMode, setPaymentMode] = useState("cash");
+  const [hypothecatedTo, setHypothecatedTo] = useState("");
+  const [items, setItems] = useState<LineItem[]>([emptyItem()]);
+
+  // BOS Auto-Calculate
+  const [bosKw, setBosKw] = useState<string>("");
+  const [bosType, setBosType] = useState<string>("hybrid_la_single");
+  const [bosPhase, setBosPhase] = useState<string>("single");
+
+  // Customer search
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+
+  // New customer inline
+  const [showNewCustomer, setShowNewCustomer] = useState(false);
+  const [newCust, setNewCust] = useState({ name: "", phone: "", gstin: "", address: "", city: "", state: "Bihar", state_code: "10", pin: "", email: "", consumer_number: "", plant_type: "" });
+
+  // Derived
+  const company = companies.find(c => c.id === companyId);
+  const sellerState = company?.state_code || "10";
+  const buyerState = selectedCustomer?.state_code || newCust.state_code || "10";
+  const isInter = sellerState !== buyerState;
+
+  // ── Load data ──────────────────────────────────────────────
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/billing/companies").then(r => r.json()),
+      fetch("/api/billing/products").then(r => r.json()),
+      fetch("/api/billing/products/segments").then(r => r.json()).catch(() => ({ segments: {} })),
+    ]).then(([co, pr, seg]) => {
+      setCompanies(co);
+      setProducts(pr);
+      if (seg && seg.segments) setSegments(seg.segments);
+      if (co.length) setCompanyId(co[0].id);
+    });
+  }, []);
+
+  // Search customers
+  useEffect(() => {
+    if (false) // allow empty search
+    if (customerSearch.length < 0) { setCustomers([]); return; }
+    const t = setTimeout(() => {
+      fetch(`/api/billing/customers/search?q=${encodeURIComponent(customerSearch)}`).then(r => r.json()).then(d => setCustomers(d.customers || []));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [customerSearch]);
+
+  // ── Recalculate items when state changes ───────────────────
+  const recalcItems = useCallback((currentItems: LineItem[]) => {
+    return currentItems.map(it => calcItem(it, sellerState, buyerState));
+  }, [sellerState, buyerState]);
+
+  useEffect(() => {
+    setItems(prev => recalcItems(prev));
+  }, [sellerState, buyerState, recalcItems]);
+
+  // ── Line item handlers ─────────────────────────────────────
+  const updateItem = (key: string, field: string, value: any) => {
+    setItems(prev => {
+      return prev.map(it => {
+        if (it.key !== key) return it;
+        const newIt = { ...it, [field]: value };
+        return calcItem(newIt, sellerState, buyerState);
+      });
+    });
+  };
+
+  const addFromCatalog = (catProd: any) => {
+    const p = products.find(x => x.id === catProd.id);
+    if (!p) return;
+    setItems(prev => {
+      const existing = prev.findIndex(i => i.product_id === p.id);
+      if (existing >= 0) {
+        return prev.map((it, idx) => {
+          if (idx !== existing) return it;
+          return calcItem({ ...it, quantity: it.quantity + 1 }, sellerState, buyerState);
+        });
+      }
+      const fresh = calcItem({
+        key: uid(), product_id: p.id, description: p.name,
+        hsn_code: p.hsn_code, quantity: 1, unit: p.unit,
+        rate: parseFloat(p.default_sale_price), discount_percent: 0,
+        gst_rate: parseFloat(p.gst_rate), cess_rate: 0,
+        discount_amount: 0, taxable_value: 0,
+        cgst_rate: 0, cgst_amount: 0, sgst_rate: 0, sgst_amount: 0,
+        igst_rate: 0, igst_amount: 0, total_amount: 0,
+      }, sellerState, buyerState);
+      const emptyIdx = prev.findIndex(i => !i.product_id && !i.description);
+      if (emptyIdx >= 0) return prev.map((it, idx) => idx === emptyIdx ? fresh : it);
+      return [...prev, fresh];
+    });
+  };
+
+  const toggleSeg = (s: string) => setOpenSegs(prev => { const n = new Set(prev); n.has(s) ? n.delete(s) : n.add(s); return n; });
+  const toggleProdDesc = (id: number) => setExpandedProds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const selectProduct = (key: string, productId: string) => {
+    const prod = products.find(p => p.id === parseInt(productId));
+    if (!prod) return;
+    setItems(prev => prev.map(it => {
+      if (it.key !== key) return it;
+      const newIt = {
+        ...it, product_id: prod.id, description: prod.name,
+        hsn_code: prod.hsn_code, unit: prod.unit,
+        rate: parseFloat(prod.default_sale_price), gst_rate: parseFloat(prod.gst_rate),
+      };
+      return calcItem(newIt, sellerState, buyerState);
+    }));
+  };
+
+  const addItem = () => setItems(prev => [...prev, emptyItem()]);
+  const removeItem = (key: string) => setItems(prev => {
+    const filtered = prev.filter(it => it.key !== key);
+    return filtered.length === 0 ? [emptyItem()] : filtered;
+  });
+
+  // ── Totals ─────────────────────────────────────────────────
+  const subtotal = items.reduce((s, i) => s + i.quantity * i.rate, 0);
+  const totalDiscount = items.reduce((s, i) => s + i.discount_amount, 0);
+  const taxableAmount = items.reduce((s, i) => s + i.taxable_value, 0);
+  const cgstTotal = items.reduce((s, i) => s + i.cgst_amount, 0);
+  const sgstTotal = items.reduce((s, i) => s + i.sgst_amount, 0);
+  const igstTotal = items.reduce((s, i) => s + i.igst_amount, 0);
+  const rawTotal = taxableAmount + cgstTotal + sgstTotal + igstTotal;
+  const grandTotal = Math.round(rawTotal);
+  const roundOff = Math.round((grandTotal - rawTotal) * 100) / 100;
+
+  // ── Select customer ────────────────────────────────────────
+  const pickCustomer = (c: Customer) => {
+    setSelectedCustomer(c);
+    setCustomerId(String(c.id));
+    setCustomerSearch(c.name);
+    setShowCustomerDropdown(false);
+    setNewCust(prev => ({
+      ...prev,
+      name: c.name || prev.name,
+      phone: c.phone || prev.phone,
+      email: (c as any).email || prev.email,
+      address: c.address || prev.address,
+      city: c.city || c.district || prev.city,
+      state: c.state || prev.state,
+      state_code: c.state_code || prev.state_code,
+      consumer_number: (c as any).consumer_number || prev.consumer_number,
+      plant_capacity: (c as any).plant_capacity || prev.plant_capacity,
+    }));
+  };
+
+  // ── Create customer inline ─────────────────────────────────
+  const createCustomer = async () => {
+    try {
+      const res = await fetch("/api/billing/customers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newCust) });
+      const created = await res.json();
+      pickCustomer(created);
+      setShowNewCustomer(false);
+    } catch (e) { console.error(e); }
+  };
+
+  // ── Submit — stays on page, sets savedInvoiceId ────────────
+  const handleSubmit = async () => {
+    if (!customerId) { alert("Please select a customer"); return; }
+    if (items.length === 0 || items.every(i => !i.description)) { alert("Add at least one line item"); return; }
+
+    setSaving(true);
+    try {
+      const payload = {
+        company_id: companyId,
+        customer_id: customerId,
+        invoice_type: invoiceType,
+        invoice_date: invoiceDate,
+        ...(useManualInvoiceNo && invoiceNoOverride.trim() ? { invoice_no: invoiceNoOverride.trim() } : {}),
+        due_date: dueDate || null,
+        place_of_supply: buyerState,
+        notes, hypothecated_to: hypothecatedTo || null, terms: paymentMode === "cash" ? terms + "\n\nNOTE: Please make a 70% advance payment to dispatch the item and the remaining 30% after the item reaches the execution site." : terms,
+        // Include customer contact info for PDF generation
+        buyer_phone: newCust.phone || selectedCustomer?.phone || "",
+        buyer_email: newCust.email || (selectedCustomer as any)?.email || "",
+        items: items.filter(i => i.description).map(i => ({
+          product_id: i.product_id,
+          description: i.serial_numbers ? `${i.description}\nSerial No: ${i.serial_numbers}` : i.description,
+          hsn_code: i.hsn_code, quantity: i.quantity, unit: i.unit,
+          rate: i.rate, discount_percent: i.discount_percent,
+          gst_rate: i.gst_rate, cess_rate: i.cess_rate, serial_numbers: i.serial_numbers || null,
+        })),
+      };
+
+      const res = await fetch("/api/billing/invoices", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const data = await res.json();
+
+      if (res.ok) {
+        const id = data.invoice?.id || data.id;
+        const no = data.invoice?.invoice_no || data.invoice_no || "";
+        setSavedInvoiceId(id);
+        setSavedInvoiceNo(no);
+        // Don't navigate away — stay on page to show share options
+      } else {
+        const errMsg = data.error || "Failed to create invoice";
+        if (errMsg.includes("duplicate key") && errMsg.includes("invoice_no")) {
+          alert(`⚠️ Invoice number "${invoiceNoOverride || "(auto)"}" is already used by another invoice.\n\nPlease enter a different invoice number, or click the "Manual ON / auto" toggle to switch back to auto-generation.`);
+        } else {
+          alert("Error: " + errMsg);
+        }
+      }
+    } catch (e: any) {
+      alert("Error: " + e.message);
+    } finally { setSaving(false); }
+  };
+
+  // ── PDF / Email / WhatsApp ─────────────────────────────────
+  function getPdfUrl(): string {
+    return `${window.location.origin}/api/billing/invoices/${savedInvoiceId}/pdf`;
+  }
+
+  function downloadPDF() {
+    if (!savedInvoiceId) return;
+    window.open(`/api/billing/invoices/${savedInvoiceId}/pdf`, "_blank");
+  }
+
+  async function sendEmail() {
+    if (!savedInvoiceId) return;
+    const email = newCust.email || (selectedCustomer as any)?.email;
+    if (!email) { alert("Enter customer email first"); return; }
+    try {
+      const res = await fetch(`/api/billing/invoices/${savedInvoiceId}/send-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("✅ Email sent to " + email);
+      } else {
+        alert("Email failed: " + (data.error || "Unknown error"));
+      }
+    } catch (err) { console.error(err); alert("Failed to send email"); }
+  }
+
+  function sendWhatsApp() {
+    if (!savedInvoiceId) return;
+    const phone = newCust.phone || selectedCustomer?.phone;
+    if (!phone) { alert("Enter customer WhatsApp number first"); return; }
+    const clean = phone.replace(/[^0-9]/g, "");
+    const wa = clean.startsWith("91") ? clean : "91" + clean;
+    const pdfUrl = getPdfUrl();
+    const custName = newCust.name || selectedCustomer?.name || "Customer";
+
+    const itemLines = items
+      .filter(i => i.description)
+      .slice(0, 5)
+      .map((i, idx) => `${idx + 1}. ${i.description} × ${i.quantity} = ${formatINR(i.total_amount)}`)
+      .join("\n");
+    const moreCount = items.filter(i => i.description).length - 5;
+    const moreText = moreCount > 0 ? `\n... and ${moreCount} more items` : "";
+
+    const msg = encodeURIComponent(
+      `*Invoice ${savedInvoiceNo} — Divyanshi Solar* ☀️\n\n` +
+      `Dear ${custName},\n\n` +
+      `${itemLines}${moreText}\n\n` +
+      `*Total: ${formatINR(grandTotal)}*\n\n` +
+      `📄 PDF: ${pdfUrl}\n\n` +
+      `Thank you!\n_Divyanshi Solar_ | 📞 9801005212`
+    );
+    window.open(`https://wa.me/${wa}?text=${msg}`, "_blank");
+  }
+
+  // ── Segment colors ─────────────────────────────────────────
+  const colors: Record<string, string> = {
+    "Solar Panels": "#f59e0b", "Ongrid Inverter": "#10b981", "Offgrid Inverter": "#06b6d4",
+    "Acid Lead Battery": "#ef4444", "Lithium Battery": "#22c55e", "Grid Interactive Hybrid": "#6366f1",
+    "Small Inverters": "#f97316", "Solar Inverter IPD 21": "#3b82f6",
+    "Solar High Frequency Inverter IP65": "#8b5cf6",
+  };
+
+  return (
+    <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/admin/billing")}>
+            <ArrowLeft className="w-4 h-4 mr-1" />Back
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold">Create Invoice</h1>
+            <p className="text-sm text-gray-500">GST-compliant tax invoice</p>
+          </div>
+        </div>
+        {savedInvoiceId && (
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={downloadPDF}  size="sm">
+              <Download className="w-4 h-4 mr-1" /> PDF
+            </Button>
+            <Button variant="outline" onClick={sendEmail} size="sm" className="text-blue-600 border-blue-300 hover:bg-blue-50">
+              <Mail className="w-4 h-4 mr-1" /> Email
+            </Button>
+            <Button variant="outline" onClick={sendWhatsApp} size="sm" className="text-green-600 border-green-300 hover:bg-green-50">
+              <Phone className="w-4 h-4 mr-1" /> WhatsApp
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: Form */}
+        <div className="lg:col-span-2 space-y-6">
+
+          {/* Company + Invoice Details */}
+          <Card>
+            <CardHeader><CardTitle className="text-base">Invoice Details</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="col-span-2">
+                <Label>Billing Company</Label>
+                <Select value={String(companyId)} onValueChange={v => setCompanyId(parseInt(v))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {companies.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Invoice Type</Label>
+                <Select value={invoiceType} onValueChange={setInvoiceType}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="tax_invoice">Tax Invoice</SelectItem>
+                    <SelectItem value="proforma">Proforma</SelectItem>
+                    <SelectItem value="credit_note">Credit Note</SelectItem>
+                    <SelectItem value="debit_note">Debit Note</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Invoice Date</Label>
+                <Input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} />
+              </div>
+              <div className="col-span-2 md:col-span-1">
+                <div className="flex items-center justify-between mb-1">
+                  <Label className="text-xs font-semibold">Invoice No. (for GST reference)</Label>
+                  <button type="button" onClick={() => setUseManualInvoiceNo(v => !v)}
+                    className={`text-xs px-3 py-1 rounded-full font-bold border-2 cursor-pointer transition-all ${useManualInvoiceNo ? "bg-orange-500 text-white border-orange-600 shadow-sm" : "bg-white text-gray-600 border-gray-400 hover:border-gray-600"}`}>
+                    {useManualInvoiceNo ? "✓ Manual ON — click to auto" : "Click to enter manually"}
+                  </button>
+                </div>
+                <Input
+                  placeholder={useManualInvoiceNo ? "Type invoice number here..." : "Auto-generated — click button above to edit"}
+                  value={invoiceNoOverride}
+                  onChange={e => setInvoiceNoOverride(e.target.value)}
+                  disabled={!useManualInvoiceNo}
+                  className={useManualInvoiceNo ? "border-2 border-orange-500 bg-orange-50 font-medium text-orange-900 placeholder:text-orange-300" : "bg-gray-100 text-gray-400 cursor-not-allowed"}
+                />
+              </div>
+              <div>
+                <Label>Due Date</Label>
+                <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+              </div>
+              <div>
+                <Label>GSTIN</Label>
+                <Input value={company?.gstin || ""} disabled className="bg-gray-50" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Customer Selection */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base">Bill To (Customer)</CardTitle>
+              <Button variant="outline" size="sm" onClick={() => setShowNewCustomer(!showNewCustomer)}>
+                <Plus className="w-3 h-3 mr-1" />{showNewCustomer ? "Cancel" : "New Customer"}
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {showNewCustomer ? (
+                <div style={{display:"flex",flexDirection:"column",gap:"12px"}}>
+                  <div><Label>Name *</Label><Input value={newCust.name} onChange={e => setNewCust({...newCust, name: e.target.value})} /></div>
+                  <div><Label>Phone</Label><Input value={newCust.phone} onChange={e => setNewCust({...newCust, phone: e.target.value})} /></div>
+                  <div><Label>Email</Label><Input value={newCust.email} onChange={e => setNewCust({...newCust, email: e.target.value})} /></div>
+                  <div><Label>GSTIN (B2B)</Label><Input value={newCust.gstin} onChange={e => setNewCust({...newCust, gstin: e.target.value})} placeholder="Leave blank for B2C" /></div>
+                  <div><Label>Address</Label><Input value={newCust.address} onChange={e => setNewCust({...newCust, address: e.target.value})} /></div>
+                  <div><Label>City</Label><Input value={newCust.city} onChange={e => setNewCust({...newCust, city: e.target.value})} /></div>
+                  <div>
+                    <Label>State</Label>
+                    <Select value={newCust.state_code} onValueChange={v => setNewCust({...newCust, state_code: v, state: INDIAN_STATES[v] || ""})}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>{Object.entries(INDIAN_STATES).map(([code, name]) => <SelectItem key={code} value={code}>{name}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div><Label>PIN</Label><Input value={newCust.pin} onChange={e => setNewCust({...newCust, pin: e.target.value})} /></div>
+                  <div><Label>Consumer Number</Label><Input value={newCust.consumer_number} onChange={e => setNewCust({...newCust, consumer_number: e.target.value})} /></div>
+                  <div><Label>Plant Capacity (kW)</Label><Input value={newCust.plant_capacity} onChange={e => setNewCust({...newCust, plant_capacity: e.target.value})} /></div>
+                  <div style={{display:"flex",justifyContent:"flex-end"}}><Button size="sm" onClick={createCustomer} disabled={!newCust.name}>Create & Select</Button></div>
+                </div>
+              ) : (
+                <div className="relative">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input
+                      className="pl-9"
+                      placeholder="Search customer by name, phone, or GSTIN..."
+                      value={customerSearch}
+                      onChange={e => { setCustomerSearch(e.target.value); setShowCustomerDropdown(true); }}
+                      onFocus={() => { if(customerSearch.length===0){ fetch('/api/billing/customers/search?q=').then(r=>r.json()).then(d=>{ setCustomers(d.customers||[]); setShowCustomerDropdown(true); }); } else setShowCustomerDropdown(true); }}
+                    />
+                  </div>
+                  {showCustomerDropdown && customers.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {customers.map(c => (
+                        <button key={c.id} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 border-b last:border-0" onClick={() => pickCustomer(c)}>
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-sm">{c.name}</span>
+                            <Badge variant="outline" className="text-xs">{c.customer_type}</Badge>
+                          </div>
+                          <div className="text-xs text-gray-500">{c.phone} {c.gstin ? `| ${c.gstin}` : ""} | {c.state}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {selectedCustomer && (
+                    <div className="mt-3 p-3 bg-blue-50 rounded-lg text-sm">
+                      <div className="flex justify-between">
+                        <span className="font-medium">{selectedCustomer.name}</span>
+                        <Badge>{selectedCustomer.customer_type}</Badge>
+                      </div>
+                      <div className="text-gray-600 mt-1">
+                        {selectedCustomer.phone} | {selectedCustomer.state} ({selectedCustomer.state_code})
+                        {selectedCustomer.gstin && <span> | GSTIN: {selectedCustomer.gstin}</span>}
+                      </div>
+                      {isInter && (
+                        <div className="mt-1 text-orange-600 font-medium text-xs">
+                          ⚠ Inter-state supply — IGST will apply
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* BOS Auto-Calculate */}
+          <Card className="border-blue-200 bg-blue-50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-blue-800">⚡ BOS Auto-Calculate — Add All BOS Items by Plant Capacity</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-xs">Plant Capacity (kW)</Label>
+                  <Input type="number" placeholder="e.g. 5" value={bosKw} onChange={e => setBosKw(e.target.value)} className="h-8 text-sm" />
+                </div>
+                <div>
+                  <Label className="text-xs">System Type</Label>
+                  <Select value={bosType} onValueChange={setBosType}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ongrid_single">On-Grid Single Phase</SelectItem>
+                      <SelectItem value="ongrid_three">On-Grid Three Phase</SelectItem>
+                      <SelectItem value="hybrid_la_single">Hybrid Lead Acid — Single Phase</SelectItem>
+                      <SelectItem value="hybrid_la_three">Hybrid Lead Acid — Three Phase</SelectItem>
+                      <SelectItem value="hybrid_li_single">Hybrid Lithium — Single Phase</SelectItem>
+                      <SelectItem value="hybrid_li_three">Hybrid Lithium — Three Phase</SelectItem>
+                      <SelectItem value="vfd_offgrid_single">VFD Off-Grid — Single Phase</SelectItem>
+                      <SelectItem value="vfd_offgrid_three">VFD Off-Grid — Three Phase</SelectItem>
+                      <SelectItem value="vfd_autogrid_single">VFD Auto-Grid — Single Phase</SelectItem>
+                      <SelectItem value="vfd_autogrid_three">VFD Auto-Grid — Three Phase</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs text-blue-700 bg-white rounded p-2 border border-blue-100">
+                {(() => {
+                  const kw = parseFloat(bosKw) || 0;
+                  const rateMap: Record<string,number> = { ongrid_single:8000, ongrid_three:8000, hybrid_la_single:10000, hybrid_la_three:10000, hybrid_li_single:10000, hybrid_li_three:10000, vfd_offgrid_single:6000, vfd_offgrid_three:6000, vfd_autogrid_single:4800, vfd_autogrid_three:5000 };
+                  const bosRate = rateMap[bosType] || 5500;
+                  return <>
+                    <span>BOS: ₹{(kw * bosRate).toLocaleString("en-IN")}</span>
+                    <span>Transport: ₹{(kw * 2000).toLocaleString("en-IN")}</span>
+                    <span>Installation: ₹{(kw * 3500).toLocaleString("en-IN")}</span>
+                    <span>Misc: ₹{(kw * 3000).toLocaleString("en-IN")}</span>
+                    <span>Net Metering: ₹{(kw * 2000).toLocaleString("en-IN")}</span>
+                    <span className="font-bold">Total: ₹{(kw*(bosRate+2000+3500+3000+2000)).toLocaleString("en-IN")}</span>
+                  </>;
+                })()}
+              </div>
+              <Button size="sm" className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs" onClick={() => {
+                const kw = parseFloat(bosKw);
+                if (!kw || kw <= 0) return;
+                const rateMap: Record<string,number> = { ongrid_single:8000, ongrid_three:8000, hybrid_la_single:10000, hybrid_la_three:10000, hybrid_li_single:10000, hybrid_li_three:10000, vfd_offgrid_single:6000, vfd_offgrid_three:6000, vfd_autogrid_single:4800, vfd_autogrid_three:5000 };
+                const bosRate = rateMap[bosType] || 5500;
+                const newItems = [
+                  { description: `BOS (Balance of System) — ${bosType.replace("_"," ")} ${kw}kW`, hsn_code: "8504", quantity: kw, unit: "kW", rate: bosRate,  gst_rate: 18, product_id: null },
+                  { description: `Transportation Charges — ${kw}kW Plant`,                          hsn_code: "9967", quantity: kw, unit: "kW", rate: 2000,    gst_rate: 18, product_id: null },
+                  { description: `Installation Charges — ${kw}kW Plant`,                            hsn_code: "9987", quantity: kw, unit: "kW", rate: 3500,    gst_rate: 18, product_id: null },
+                  { description: `Miscellaneous Expenses — ${kw}kW Plant`,                          hsn_code: "9987", quantity: kw, unit: "kW", rate: 3000,    gst_rate: 18, product_id: null },
+                  { description: `Net Metering Charges — ${kw}kW Plant`,                            hsn_code: "9987", quantity: kw, unit: "kW", rate: 2000,    gst_rate: 18, product_id: null },
+                ].map(i => ({ ...emptyItem(), key: Math.random().toString(36).slice(2), product_id: null, description: i.description, hsn_code: i.hsn_code, quantity: i.quantity, unit: i.unit, rate: i.rate, gst_rate: i.gst_rate, discount_percent: 0, cess_rate: 0 }));
+                setItems(prev => {
+                  const clean = prev.filter(x => x.description || x.product_id);
+                  return [...clean, ...newItems];
+                });
+              }}>
+                ➕ Add All BOS + Services to Invoice ({bosKw || "0"} kW)
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Product Catalog */}
+          {Object.keys(segments).length > 0 && (
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-sm">📦 Product Catalog — Click to Add</CardTitle></CardHeader>
+              <CardContent className="pt-0">
+                <div className="max-h-[350px] overflow-y-auto space-y-1">
+                  {Object.entries(segments).map(([seg, prods]) => (
+                    <div key={seg} className="border rounded-lg overflow-hidden">
+                      <button onClick={() => toggleSeg(seg)} className="w-full flex items-center justify-between p-2 px-3 hover:bg-gray-50 text-sm font-medium" style={{ borderLeft: "4px solid " + (colors[seg] || "#6b7280") }}>
+                        <span>{seg} <span className="text-xs text-gray-400 ml-1">({(prods as any[]).length})</span></span>
+                        {openSegs.has(seg) ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                      </button>
+                      {openSegs.has(seg) && (
+                        <div className="border-t divide-y">
+                          {(prods as any[]).map((p: any) => {
+                            const descOpen = expandedProds.has(p.id);
+                            return (
+                            <div key={p.id} className="border-b last:border-0">
+                              <div className="flex items-center justify-between p-1.5 px-3 hover:bg-green-50 cursor-pointer text-xs" onClick={() => addFromCatalog(p)}>
+                                <span className="truncate font-medium" style={{ color: "var(--foreground, #1f2937)" }}>{p.name}</span>
+                                <div className="flex items-center gap-1 ml-2 shrink-0">
+                                  <span className="text-green-700 font-semibold whitespace-nowrap">₹{parseFloat(p.price || p.default_sale_price || "0").toLocaleString("en-IN")}</span>
+                                  {p.description && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); toggleProdDesc(p.id); }}
+                                      className={`p-0.5 rounded transition-colors ${descOpen ? "bg-blue-100 text-blue-700" : "hover:bg-gray-200 text-gray-400"}`}
+                                      title="View description"
+                                    >
+                                      {descOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                              {descOpen && p.description && (
+                                <div className="bg-blue-50/60 border-t border-blue-100 px-3 py-1.5 text-xs" style={{ color: "#374151" }}>
+                                  <span className="font-semibold text-blue-700">Description: </span>{p.description}
+                                </div>
+                              )}
+                            </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Line Items */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base">Line Items</CardTitle>
+              <Button variant="outline" size="sm" onClick={addItem}><Plus className="w-3 h-3 mr-1" />Add Item</Button>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-xs text-gray-500 uppercase">
+                      <th className="text-left pb-2 w-8">#</th>
+                      <th className="text-left pb-2 min-w-[200px]">Product / Description</th>
+                      <th className="text-left pb-2 w-20">HSN</th>
+                      <th className="text-right pb-2 w-16">Qty</th>
+                      <th className="text-right pb-2 w-24">Rate</th>
+                      <th className="text-right pb-2 w-16">Disc%</th>
+                      <th className="text-right pb-2 w-20">GST%</th>
+                      <th className="text-right pb-2 w-24">Taxable</th>
+                      <th className="text-right pb-2 w-20">{isInter ? "IGST" : "CGST"}</th>
+                      {!isInter && <th className="text-right pb-2 w-20">SGST</th>}
+                      <th className="text-right pb-2 w-24">Total</th>
+                      <th className="w-8"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((item, idx) => (
+                      <tr key={item.key} className="border-b last:border-0">
+                        <td className="py-2 text-gray-400">{idx + 1}</td>
+                        <td className="py-2 pr-2">
+                          <Select value={item.product_id ? String(item.product_id) : ""} onValueChange={v => selectProduct(item.key, v)}>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select product..." /></SelectTrigger>
+                            <SelectContent>
+                              {products.map(p => (
+                                <SelectItem key={p.id} value={String(p.id)}>
+                                  <span className="text-xs">{p.name} — {formatINR(parseFloat(p.default_sale_price))}</span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Input className="mt-1 h-7 text-xs" placeholder="Custom description" value={item.description} onChange={e => updateItem(item.key, "description", e.target.value)} />
+                          <Input className="mt-1 h-7 text-xs" placeholder="Serial No. (Panel/Inverter/Battery)" value={item.serial_numbers || ""} onChange={e => updateItem(item.key, "serial_numbers", e.target.value)} />
+                        </td>
+                        <td className="py-2"><Input className="h-8 text-xs w-20" value={item.hsn_code} onChange={e => updateItem(item.key, "hsn_code", e.target.value)} /></td>
+                        <td className="py-2"><Input type="number" className="h-8 text-xs text-right w-16" min={0} value={item.quantity} onChange={e => updateItem(item.key, "quantity", parseFloat(e.target.value) || 0)} /></td>
+                        <td className="py-2"><Input type="number" className="h-8 text-xs text-right w-24" min={0} value={item.rate} onChange={e => updateItem(item.key, "rate", parseFloat(e.target.value) || 0)} /></td>
+                        <td className="py-2"><Input type="number" className="h-8 text-xs text-right w-16" min={0} max={100} value={item.discount_percent} onChange={e => updateItem(item.key, "discount_percent", parseFloat(e.target.value) || 0)} /></td>
+                        <td className="py-2">
+                          <Select value={String(item.gst_rate)} onValueChange={v => updateItem(item.key, "gst_rate", parseFloat(v))}>
+                            <SelectTrigger className="h-8 text-xs w-20"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {[0, 5, 12, 18, 28].map(r => <SelectItem key={r} value={String(r)}>{r}%</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </td>
+                        <td className="py-2 text-right text-xs font-medium">{formatINR(item.taxable_value)}</td>
+                        <td className="py-2 text-right text-xs">{formatINR(isInter ? item.igst_amount : item.cgst_amount)}</td>
+                        {!isInter && <td className="py-2 text-right text-xs">{formatINR(item.sgst_amount)}</td>}
+                        <td className="py-2 text-right text-xs font-bold">{formatINR(item.total_amount)}</td>
+                        <td className="py-2">
+                          {items.length > 1 && (
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-400 hover:text-red-600" onClick={() => removeItem(item.key)}>
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Notes & Terms */}
+          <Card>
+            <CardContent className="pt-6 space-y-4">
+              {/* Payment Mode — shown for proforma invoices */}
+              {invoiceType === "proforma" && (
+                <div>
+                  <Label className="text-sm font-semibold mb-2 block">Payment Mode</Label>
+                  <div className="flex gap-3 flex-wrap">
+                    {[
+                      { value: "cash",    label: "💵 Cash Payment" },
+                      { value: "loan",    label: "🏦 Bank Loan" },
+                      { value: "paisaloo", label: "📱 Paisaloo NBFC Loan" },
+                    ].map(opt => (
+                      <button key={opt.value} type="button"
+                        onClick={() => setPaymentMode(opt.value)}
+                        className={`px-4 py-2 rounded-lg border-2 text-sm font-semibold transition-all ${
+                          paymentMode === opt.value
+                            ? "border-orange-500 bg-orange-50 text-orange-700"
+                            : "border-gray-200 bg-white text-gray-600 hover:border-orange-300"
+                        }`}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  {paymentMode === "cash" && (
+                    <div className="mt-3 p-4 rounded-xl border-2 border-red-400 bg-red-50">
+                      <p className="text-red-700 font-black text-base tracking-wide uppercase">
+                        ⚠️ NOTE — ADVANCE PAYMENT REQUIRED
+                      </p>
+                      <p className="text-red-800 font-bold text-sm mt-1">
+                        Please make a <span className="text-red-600 text-base underline underline-offset-2">70% advance payment</span> to dispatch the item and the remaining <span className="text-red-600 text-base underline underline-offset-2">30%</span> after the item reaches the execution site.
+                      </p>
+                    </div>
+                  )}
+                  {paymentMode === "loan" && (
+                    <div className="mt-3 p-3 rounded-lg border border-blue-300 bg-blue-50">
+                      <p className="text-blue-800 font-semibold text-sm">🏦 Bank Loan — Payment will be processed through bank financing. Loan sanction letter required before dispatch.</p>
+                    </div>
+                  )}
+                  {paymentMode === "paisaloo" && (
+                    <div className="mt-3 p-3 rounded-lg border border-purple-300 bg-purple-50">
+                      <p className="text-purple-800 font-semibold text-sm">📱 Paisaloo NBFC Loan — Financed through Paisaloo. Loan disbursement confirmation required before dispatch.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Hypothecation */}
+              <div className="p-4 rounded-xl border-2 border-orange-200 bg-orange-50">
+                <Label className="text-sm font-semibold text-orange-800 mb-2 block">🏦 Hypothecation (Financing Institution)</Label>
+                <select
+                  value={hypothecatedTo}
+                  onChange={e => setHypothecatedTo(e.target.value)}
+                  className="w-full border border-orange-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
+                >
+                  <option value="">-- None / Self Financed --</option>
+                  <option value="Paisalo Digital Limited">Paisalo Digital Limited</option>
+                  <option value="Solfin Sustainable Finance Private Limited">Solfin Sustainable Finance Private Limited</option>
+                  <option value="Metafin Cleantech Finance Private Limited">Metafin Cleantech Finance Private Limited</option>
+                  <option value="Ecofy Finance Private Limited">Ecofy Finance Private Limited</option>
+                  <option value="Annapurna Finance Private Limited">Annapurna Finance Private Limited</option>
+                  <option value="State Bank of India">State Bank of India</option>
+                  <option value="Bank of India">Bank of India</option>
+                  <option value="Punjab National Bank">Punjab National Bank</option>
+                  <option value="Canara Bank">Canara Bank</option>
+                  <option value="Union Bank of India">Union Bank of India</option>
+                  <option value="HDFC Bank">HDFC Bank</option>
+                  <option value="ICICI Bank">ICICI Bank</option>
+                  <option value="Axis Bank">Axis Bank</option>
+                  <option value="Other NBFC / Bank">Other NBFC / Bank</option>
+                </select>
+                {hypothecatedTo && (
+                  <p className="mt-2 text-orange-900 font-bold text-sm border border-orange-400 bg-white rounded-lg px-3 py-2">
+                    ⚠️ This asset is hypothecated to: <span className="text-orange-700 uppercase">{hypothecatedTo}</span>
+                  </p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Notes</Label>
+                  <Textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Additional notes..." />
+                </div>
+                <div>
+                  <Label>Terms & Conditions</Label>
+                  <Textarea rows={3} value={terms} onChange={e => setTerms(e.target.value)} />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Post-save Share Card */}
+          {savedInvoiceId && (
+            <Card className="border-green-300 bg-green-50/50">
+              <CardContent className="pt-4">
+                <p className="text-sm font-medium text-green-800 mb-3">
+                  ✅ Invoice {savedInvoiceNo} saved! Send to customer:
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                  <div>
+                    <Label className="text-xs">Customer Email</Label>
+                    <Input value={newCust.email} onChange={e => setNewCust(p => ({...p, email: e.target.value}))} placeholder="customer@email.com" className="h-8 text-sm" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Customer WhatsApp No.</Label>
+                    <Input value={newCust.phone} onChange={e => setNewCust(p => ({...p, phone: e.target.value}))} placeholder="9876543210" className="h-8 text-sm" />
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" onClick={downloadPDF}  className="bg-amber-500 hover:bg-amber-600">
+                    <Download className="w-4 h-4 mr-2" />
+                    Download PDF
+                  </Button>
+                  <Button size="sm" onClick={sendEmail} className="bg-blue-500 hover:bg-blue-600">
+                    <Mail className="w-4 h-4 mr-2" /> Send Email
+                  </Button>
+                  <Button size="sm" onClick={sendWhatsApp} className="bg-green-600 hover:bg-green-700">
+                    <SendIcon className="w-4 h-4 mr-2" /> Send WhatsApp
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Right: Summary */}
+        <div className="space-y-4">
+          <Card className="sticky top-6">
+            <CardHeader><CardTitle className="text-base">Invoice Summary</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Subtotal</span><span>{formatINR(subtotal)}</span>
+              </div>
+              {totalDiscount > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Discount</span><span className="text-red-600">-{formatINR(totalDiscount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Taxable Amount</span><span className="font-medium">{formatINR(taxableAmount)}</span>
+              </div>
+              <div className="border-t pt-2">
+                {isInter ? (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">IGST</span><span>{formatINR(igstTotal)}</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">CGST</span><span>{formatINR(cgstTotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">SGST</span><span>{formatINR(sgstTotal)}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+              {roundOff !== 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Round Off</span><span>{roundOff > 0 ? "+" : ""}{roundOff.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="border-t pt-3 flex justify-between">
+                <span className="text-base font-bold">Grand Total</span>
+                <span className="text-xl font-bold text-emerald-700">{formatINR(grandTotal)}</span>
+              </div>
+              <div className="text-xs text-gray-500 italic border-t pt-2">
+                {amtWords(grandTotal)}
+              </div>
+
+              <div className="pt-4 space-y-2">
+                <Button className="w-full" size="lg" onClick={handleSubmit} disabled={saving || !customerId}>
+                  {saving ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Creating...</> : <><Save className="w-4 h-4 mr-2" />{savedInvoiceId ? "Update Invoice" : "Create Invoice"}</>}
+                </Button>
+                {savedInvoiceId ? (
+                  <p className="text-xs text-center text-green-600 font-medium">✅ {savedInvoiceNo} — scroll down to share</p>
+                ) : (
+                  <p className="text-xs text-center text-gray-400">Invoice number will be auto-generated</p>
+                )}
+                {savedInvoiceId && (
+                  <Button variant="outline" className="w-full" size="sm" onClick={() => navigate(`/admin/billing/invoices/${savedInvoiceId}`)}>
+                    View Invoice Detail →
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* GST Info */}
+          <Card>
+            <CardContent className="pt-4">
+              <div className="text-xs space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Supply Type</span>
+                  <Badge variant="outline" className="text-xs">{isInter ? "Inter-State (IGST)" : "Intra-State (CGST+SGST)"}</Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Seller State</span>
+                  <span>{INDIAN_STATES[sellerState] || sellerState}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Buyer State</span>
+                  <span>{selectedCustomer ? (INDIAN_STATES[buyerState] || buyerState) : "—"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">GST Category</span>
+                  <span>{selectedCustomer?.gstin ? "B2B" : "B2C"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Items</span>
+                  <span>{items.filter(i => i.description).length}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}

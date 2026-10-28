@@ -16,7 +16,7 @@ export default function TermsAndConditionsPage() {
                 <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
                   <Sun className="w-6 h-6 text-primary-foreground" />
                 </div>
-                <span className="font-bold text-xl hidden sm:block">Divyanshi Solar</span>
+                <span className="font-bold text-xl hidden sm:block">Divyanshi Digital Services Pvt Ltd</span>
               </div>
             </WouterLink>
             <ThemeToggle />
@@ -36,17 +36,17 @@ export default function TermsAndConditionsPage() {
           <CardContent className="p-8">
             <h1 className="text-3xl font-bold mb-6">Terms and Conditions</h1>
             <p className="text-muted-foreground mb-1">
-              <strong>Divyanshi Solar (Divyanshi Digital Services Pvt. Ltd.)</strong>
+              <strong>Divyanshi Digital Services Pvt Ltd (Divyanshi Digital Services Pvt. Ltd.)</strong>
             </p>
-            <p className="text-sm text-muted-foreground mb-1">Authorized Marketing Partner of Hewtech System Pvt. Ltd.</p>
-            <p className="text-sm text-muted-foreground mb-4">Registered with - SBPDCL & NBPDCL</p>
+            <p className="text-sm text-muted-foreground mb-1"></p>
+            <p className="text-sm text-muted-foreground mb-4">Registered Vendor with SBPDCL & NBPDCL under PM-Surya Ghar: Muft Bijli Yojana Rooftop Solar Program</p>
             <p className="text-sm text-muted-foreground mb-8">Last Updated: December 2024</p>
 
             <div className="space-y-6 text-muted-foreground">
               <section>
                 <h2 className="text-xl font-semibold text-foreground mb-3">1. Acceptance of Terms</h2>
                 <p>
-                  By accessing or using the services of Divyanshi Solar (a brand of Divyanshi Digital Services Pvt. Ltd.), 
+                  By accessing or using the services of Divyanshi Digital Services Pvt Ltd (a brand of Divyanshi Digital Services Pvt. Ltd.), 
                   you agree to be bound by these Terms and Conditions. If you do not agree to these terms, 
                   please do not use our services.
                 </p>
@@ -55,7 +55,7 @@ export default function TermsAndConditionsPage() {
               <section>
                 <h2 className="text-xl font-semibold text-foreground mb-3">2. Services</h2>
                 <p>
-                  Divyanshi Solar provides rooftop solar installation services under PM Surya Ghar Yojana, 
+                  Divyanshi Digital Services Pvt Ltd provides rooftop solar installation services under PM Surya Ghar Yojana, 
                   including application processing, site surveys, solar panel installation, net metering 
                   coordination, and subsidy claim assistance.
                 </p>
@@ -142,14 +142,14 @@ export default function TermsAndConditionsPage() {
                 <h2 className="text-xl font-semibold text-foreground mb-3">11. Contact Information</h2>
                 <p className="mb-2">For questions about these Terms and Conditions, please contact:</p>
                 <p><strong>Divyanshi Digital Services Pvt. Ltd.</strong></p>
-                <p>Hewtech System Pvt. Ltd. (Registered with - SBPDCL & NBPDCL)</p>
-                <p>Golu Babu Market, Ashiyana Digha Road, Rajiv Nagar, Patna, 800025</p>
+                <p>Divyanshi Digital Services Pvt Ltd (Registered Vendor with SBPDCL & NBPDCL under PM-Surya Ghar: Muft Bijli Yojana Rooftop Solar Program)</p>
+                <p>Registered Office — Jaipur: Plot No. C-3/258, Flat No. G-2, Room-1, Shreyansh Apartment, Chitrakoot Scheme, Vaishali Nagar, Jaipur, Rajasthan 302021 | Branch Office — Bihar: Chandrakant Akela — 9801005212, Bank of India Building, Naubatpur, Mashurhi Road, Vill-Piprawan, Tola-Piprawan, Panchayat Jaitipur, Block-Naubatpur, Patna, Bihar 801109</p>
                 <p className="mt-2"><strong>Chandrakant Akela:</strong> 9801005212, 8709127232</p>
-                <p>Email: chandrakant@divyanshisolar.com</p>
+                <p>Email: chandrakant@divyanshisolar.in</p>
                 <p className="mt-2"><strong>Anil:</strong> 9123141987</p>
-                <p>Email: anil@divyanshisolar.com</p>
+                <p>Email: anil@divyanshisolar.in</p>
                 <p className="mt-2"><strong>Sanjay:</strong> 8777684575</p>
-                <p>Email: sanjay@divyanshisolar.com</p>
+                <p>Email: sanjay@divyanshisolar.in</p>
               </section>
             </div>
           </CardContent>

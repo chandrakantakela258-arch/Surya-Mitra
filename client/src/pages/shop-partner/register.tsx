@@ -1,0 +1,95 @@
+import { useState } from "react";
+import { useLocation } from "wouter";
+
+export default function ShopPartnerRegister() {
+  const [, navigate] = useLocation();
+  const [f, setF] = useState({ name: "", whatsapp: "", password: "", district: "", state: "Bihar", address: "" });
+  const [coords, setCoords] = useState<{ lat: string; lng: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const set = (k: string) => (e: any) => setF({ ...f, [k]: e.target.value });
+
+  const locate = () => {
+    if (!navigator.geolocation) return setErr("This phone cannot share its location.");
+    navigator.geolocation.getCurrentPosition(
+      p => setCoords({ lat: p.coords.latitude.toFixed(6), lng: p.coords.longitude.toFixed(6) }),
+      () => setErr("Location permission was refused. You can still register.")
+    );
+  };
+
+  const submit = async (e: any) => {
+    e.preventDefault();
+    setErr(""); setBusy(true);
+    try {
+      const r = await fetch("/api/shop/dev/register", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...f, latitude: coords?.lat, longitude: coords?.lng }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `Something went wrong (${r.status})`);
+      navigate("/shop-partner");
+    } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+  };
+
+  const L = "block text-sm font-semibold text-slate-700 mb-1";
+  const I = "w-full rounded-lg border border-slate-300 px-3 py-3 text-base outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 bg-white text-slate-900 font-bold placeholder:font-normal placeholder:text-slate-400";
+
+  return (
+    <div className="min-h-screen bg-slate-50 px-4 py-8">
+      <div className="mx-auto w-full max-w-md">
+        <h1 className="text-2xl font-bold text-slate-900">Divyanshi Shop Development Partner</h1>
+        <p className="mt-1 text-sm font-semibold text-orange-700">Partner Registration - NOT for shopkeepers</p>
+        <p className="mt-1 text-sm text-slate-600">
+          दुकान सोलर डेवलपमेंट पार्टनर बनने के लिए रजिस्टर करें। रजिस्टर करने के बाद आप दुकानों को जोड़ सकते हैं।
+        </p>
+
+        <form onSubmit={submit} className="mt-6 space-y-4 rounded-xl bg-white p-5 shadow-sm">
+          <div>
+            <label className={L}>Your name / आपका नाम *</label>
+            <input className={I} value={f.name} onChange={set("name")} required maxLength={150} />
+          </div>
+          <div>
+            <label className={L}>WhatsApp number / व्हाट्सएप नंबर *</label>
+            <input className={I} value={f.whatsapp} onChange={set("whatsapp")} required inputMode="numeric"
+              placeholder="10 digit number" />
+            <p className="mt-1 text-xs text-slate-500">This is also your login ID.</p>
+          </div>
+          <div>
+            <label className={L}>Create password / पासवर्ड बनाएं *</label>
+            <input className={I} type="password" value={f.password} onChange={set("password")} required minLength={6} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={L}>District / जिला</label>
+              <input className={I} value={f.district} onChange={set("district")} maxLength={100} />
+            </div>
+            <div>
+              <label className={L}>State / राज्य</label>
+              <input className={I} value={f.state} onChange={set("state")} maxLength={100} />
+            </div>
+          </div>
+          <div>
+            <label className={L}>Address / पता</label>
+            <input className={I} value={f.address} onChange={set("address")} maxLength={500} />
+          </div>
+
+          <button type="button" onClick={locate}
+            className="w-full rounded-lg border border-slate-300 px-3 py-3 text-sm font-semibold text-slate-700">
+            {coords ? `Location saved (${coords.lat}, ${coords.lng})` : "Share my location / लोकेशन दें"}
+          </button>
+
+          {err && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{err}</div>}
+
+          <button disabled={busy}
+            className="w-full rounded-lg bg-orange-600 px-3 py-3.5 text-base font-bold text-white disabled:opacity-60">
+            {busy ? "Registering..." : "Register / रजिस्टर करें"}
+          </button>
+          <p className="text-center text-xs text-slate-500">
+            Already registered? <a href="/login" className="font-semibold text-orange-600">Log in</a>
+          </p>
+        </form>
+      </div>
+    </div>
+  );
+}

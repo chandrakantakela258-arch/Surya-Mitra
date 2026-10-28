@@ -1,0 +1,774 @@
+import { useState, useEffect } from "react";
+import { useLocation, useParams } from "wouter";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Trash2, Save, ArrowLeft, Loader2, ChevronDown, ChevronRight, Search, ShoppingCart, Download, Mail, Send, Phone } from "lucide-react";
+
+function uid() { return Math.random().toString(36).slice(2, 9); }
+function fmt(n: number) { return "\u20B9" + n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+const STATES = [
+  { code: "01", name: "Jammu & Kashmir" },{ code: "02", name: "Himachal Pradesh" },
+  { code: "03", name: "Punjab" },{ code: "05", name: "Uttarakhand" },
+  { code: "06", name: "Haryana" },{ code: "07", name: "Delhi" },
+  { code: "08", name: "Rajasthan" },{ code: "09", name: "Uttar Pradesh" },
+  { code: "10", name: "Bihar" },{ code: "18", name: "Assam" },
+  { code: "19", name: "West Bengal" },{ code: "20", name: "Jharkhand" },
+  { code: "21", name: "Odisha" },{ code: "23", name: "Madhya Pradesh" },
+  { code: "24", name: "Gujarat" },{ code: "27", name: "Maharashtra" },
+  { code: "29", name: "Karnataka" },{ code: "32", name: "Kerala" },
+  { code: "33", name: "Tamil Nadu" },{ code: "36", name: "Telangana" },
+  { code: "37", name: "Andhra Pradesh" },
+];
+
+interface Item {
+  key: string; pid: number | null; desc: string; hsn: string;
+  qty: number; unit: string; rate: number; disc: number; gst: number;
+}
+
+function blank(): Item {
+  return { key: uid(), pid: null, desc: "", hsn: "", qty: 1, unit: "Nos", rate: 0, disc: 0, gst: 12 };
+}
+
+function total(i: Item) {
+  const g = i.qty * i.rate;
+  const d = g * i.disc / 100;
+  const t = g - d;
+  return { taxable: t, tax: t * i.gst / 100, grand: t + t * i.gst / 100 };
+}
+
+export default function PurchaseOrderForm() {
+  const [location, nav] = useLocation();
+  const params = useParams<{editId?: string}>();
+  const editId = params.editId || null;
+  const isEdit = !!editId;
+  console.log("PO FORM DEBUG - editId:", editId, "params:", params, "location:", location);
+  const [cos, setCos] = useState<any[]>([]);
+  const [segs, setSegs] = useState<Record<string, any[]>>({});
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const [prods, setProds] = useState<any[]>([]);
+  const [poCalcKw, setPoCalcKw] = useState(10);
+  const [poCalcType, setPoCalcType] = useState("ongrid_3ph");
+  const [poCalcPanel, setPoCalcPanel] = useState("LGTPV600WBNTOP");
+  const [poCalcBattery, setPoCalcBattery] = useState("LGMSFI15060TTN");
+  const [poCalcBattQty, setPoCalcBattQty] = useState(4);
+
+  const PO_PANELS: Record<string,{name:string,watt:number,price:number}> = {
+    "LGV24VS550WB":      {name:"550Wp DCR Bifacial",    watt:550, price:8250},
+    "LGTPV560WBNTDCR":   {name:"560Wp TopCon DCR",      watt:560, price:8900},
+    "LGTPV580WBNTOPDCR": {name:"580Wp DCR TopCon",      watt:580, price:9200},
+    "LGTPV590WBNTOP":    {name:"590Wp TopCon G2G",      watt:590, price:9440},
+    "LGTPV600WBNTOP":    {name:"600Wp TopCon G2G (NEW)",watt:600, price:9600},
+  };
+  const PO_GI: Record<string,{name:string,price:number}> = {
+    "LGTFES301POGGI":  {name:"GI 3KW 1Ph",  price:16660},
+    "LGTFES401POGGI":  {name:"GI 4KW 1Ph",  price:25340},
+    "LGTFES501POGGI":  {name:"GI 5KW 1Ph",  price:27850},
+    "LGTFES601POGGI":  {name:"GI 6KW 1Ph",  price:29940},
+    "LGTFES503POGGI":  {name:"GI 5KW 3Ph",  price:47330},
+    "LGTFES803POGGI":  {name:"GI 8KW 3Ph",  price:56250},
+    "LGTFES1003POGGI": {name:"GI 10KW 3Ph", price:58560},
+    "LGTLS315GIG3":    {name:"GI 15KW 3Ph", price:68730},
+    "LGTLS320GIG3":    {name:"GI 20KW 3Ph", price:81990},
+    "LGTLS324GIG3":    {name:"GI 25KW 3Ph", price:90500},
+  };
+  const PO_ELEGORIA: Record<string,{name:string,price:number}> = {
+    "ELEGORIALG3K48M":  {name:"HF 3KW 48V",  price:27000},
+    "ELEGORIALG5K48M":  {name:"HF 5KW 48V",  price:40000},
+    "ELEGORIALG10K48M": {name:"HF 10KW 48V", price:105482},
+  };
+  const PO_BATTERIES: Record<string,{name:string,price:number,v:number,ah:number}> = {
+    "LGMSFI15060TTN":  {name:"150Ah 12V (60mo)",   price:12760, v:12, ah:150},
+    "LGMSFI16560PTT":  {name:"165Ah 12V (36+24mo)",price:11500, v:12, ah:165},
+    "LGMSFI20072PTT":  {name:"200Ah 12V (36+36mo)",price:14530, v:12, ah:200},
+    "LGMSFI20060TTN":  {name:"200Ah 12V (60mo)",   price:16860, v:12, ah:200},
+    "LGMSFI22572PTT":  {name:"225Ah 12V (36+36mo)",price:16250, v:12, ah:225},
+    "LG51V100LiXL5":   {name:"Li 5.12kWh 51.2V",   price:50960, v:51, ah:100},
+    "LG51V150LiXL7.5": {name:"Li 7.6kWh 51.2V",    price:87125, v:51, ah:150},
+    "LG51V300LiXL15":  {name:"Li 14.3kWh 51.2V",   price:117875,v:51, ah:280},
+  };
+
+  function calcPoItems() {
+    const panel = PO_PANELS[poCalcPanel];
+    const panelQty = Math.ceil((poCalcKw * 1000) / panel.watt);
+    const items: Item[] = [];
+    // Panels
+    items.push({key:uid(), pid:null, desc:`${panel.name} Solar Panel (${panelQty} Nos)`,
+      hsn:"85414011", qty:panelQty, unit:"Nos", rate:panel.price, disc:0, gst:5});
+    // Inverter
+    if (poCalcType === "ongrid_1ph" || poCalcType === "ongrid_3ph") {
+      const giMap: Record<number,string> = {3:"LGTFES301POGGI",5:"LGTFES501POGGI",6:"LGTFES601POGGI",
+        8:"LGTFES803POGGI",10:"LGTFES1003POGGI",15:"LGTLS315GIG3",20:"LGTLS320GIG3",25:"LGTLS324GIG3"};
+      const is3ph = poCalcType === "ongrid_3ph";
+      let bestKey = Object.keys(PO_GI).find(k => {
+        const n = parseInt(PO_GI[k].name.match(/\d+/)?.[0]||"0");
+        const ph = PO_GI[k].name.includes("3Ph");
+        return n >= poCalcKw && ph === is3ph;
+      }) || (is3ph ? "LGTLS324GIG3" : "LGTFES601POGGI");
+      const gi = PO_GI[bestKey];
+      items.push({key:uid(), pid:null, desc:`${gi.name} On-Grid Solar Inverter`, hsn:"85044090", qty:1, unit:"Nos", rate:gi.price, disc:0, gst:5});
+    } else if (poCalcType === "offgrid") {
+      let elegKey = poCalcKw <= 3 ? "ELEGORIALG3K48M" : poCalcKw <= 5 ? "ELEGORIALG5K48M" : "ELEGORIALG10K48M";
+      const el = PO_ELEGORIA[elegKey];
+      items.push({key:uid(), pid:null, desc:`${el.name} HF Elegoria Off-Grid Inverter`, hsn:"85044090", qty:1, unit:"Nos", rate:el.price, disc:0, gst:18});
+      // Battery
+      const bat = PO_BATTERIES[poCalcBattery];
+      if (bat) items.push({key:uid(), pid:null, desc:`${bat.name} Solar Battery`, hsn:"85072090", qty:poCalcBattQty, unit:"Nos", rate:bat.price, disc:0, gst:18});
+    }
+    setItems(prev => [...prev, ...items]);
+  }
+  const [saving, setSaving] = useState(false);
+  const [savedId, setSavedId] = useState<number | null>(null);
+  const [savedPoNo, setSavedPoNo] = useState<string>("");
+  // PDF opens in new tab, no loading state needed
+
+  // Vendor search
+  const [vendorSearch, setVendorSearch] = useState("");
+  const [vendorResults, setVendorResults] = useState<any[]>([]);
+  const [showVendorDrop, setShowVendorDrop] = useState(false);
+  const [selectedVendorId, setSelectedVendorId] = useState<number | null>(null);
+
+  // Form
+  const [coId, setCoId] = useState(1);
+  const [poDate, setPoDate] = useState(new Date().toISOString().split("T")[0]);
+  const [delDate, setDelDate] = useState("");
+  const [items, setItems] = useState<Item[]>([blank()]);
+  const [notes, setNotes] = useState("");
+  const [v, setV] = useState({ name: "", phone: "", email: "", gstin: "", addr: "", city: "", state: "Bihar", sc: "10" });
+
+  // ── Load data ──────────────────────────────────────────────
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/billing/companies").then(r => r.json()),
+      fetch("/api/billing/products").then(r => r.json()),
+      fetch("/api/billing/products/segments").then(r => r.json()).catch(() => ({ segments: {} })),
+      editId ? fetch("/api/billing/purchase-orders/" + editId).then(r => r.json()).catch(() => null) : Promise.resolve(null),
+    ]).then(([c, p, s, ep]) => {
+      setCos(c); setProds(p);
+      if (s && s.segments) setSegs(s.segments);
+      if (editId && ep && ep.id) {
+        setCoId(ep.company_id || 1);
+        setV({ name: ep.vendor_name||"", phone: ep.vendor_phone||"", email: ep.vendor_email||"", gstin: ep.vendor_gstin||"", addr: ep.vendor_address||"", city: ep.vendor_city||"", state: ep.vendor_state||"Bihar", sc: ep.vendor_state_code||"10" });
+        setPoDate(ep.po_date ? ep.po_date.split("T")[0] : new Date().toISOString().split("T")[0]);
+        setDelDate(ep.expected_delivery ? ep.expected_delivery.split("T")[0] : "");
+        setNotes(ep.notes || "");
+        setTerms(ep.terms || "");
+        if (ep.items && ep.items.length > 0) {
+          setItems(ep.items.map((it: any) => ({ key: uid(), pid: it.product_id||null, desc: it.description||"", hsn: it.hsn_code||"", qty: Number(it.quantity)||1, unit: it.unit||"Nos", rate: Number(it.rate)||0, disc: Number(it.discount_percent)||0, gst: Number(it.gst_rate)||12 })));
+        }
+      }
+      if (c.length && !editId) setCoId(c[0].id);
+    });
+  }, [editId]);
+
+  // ── Vendor search ──────────────────────────────────────────
+  useEffect(() => {
+    if (vendorSearch.length < 2) { setVendorResults([]); setShowVendorDrop(false); return; }
+    const t = setTimeout(() => {
+      fetch("/api/billing/vendors/search?q=" + encodeURIComponent(vendorSearch))
+        .then(r => r.json())
+        .then(d => { setVendorResults(d.vendors || []); setShowVendorDrop(true); })
+        .catch(() => {});
+    }, 300);
+    return () => clearTimeout(t);
+  }, [vendorSearch]);
+
+  const pickVendor = (vn: any) => {
+    setV({
+      name: vn.name || "", phone: vn.phone || "", email: vn.email || "",
+      gstin: vn.gstin || "", addr: vn.address || "",
+      city: vn.city || "", state: vn.state || "Bihar", sc: vn.state_code || "10",
+    });
+    setSelectedVendorId(vn.id);
+    setVendorSearch(vn.name);
+    setShowVendorDrop(false);
+  };
+
+  // ── Segment toggle ─────────────────────────────────────────
+  const toggle = (s: string) => setOpen(p => { const n = new Set(p); n.has(s) ? n.delete(s) : n.add(s); return n; });
+
+  // ── Add product from catalog ───────────────────────────────
+  const addProd = (cp: any) => {
+    const p = prods.find((x: any) => x.id === cp.id);
+    if (!p) return;
+    setItems(prev => {
+      // If product already in list, increment qty
+      const existingIdx = prev.findIndex(i => i.pid === p.id);
+      if (existingIdx >= 0) {
+        return prev.map((it, idx) => idx === existingIdx ? { ...it, qty: it.qty + 1 } : it);
+      }
+      const ni: Item = {
+        key: uid(), pid: p.id, desc: p.name, hsn: p.hsn_code || "",
+        qty: 1, unit: p.unit || "Nos",
+        rate: parseFloat(p.default_purchase_price || p.default_sale_price || "0"),
+        disc: 0, gst: parseFloat(p.gst_rate || "12"),
+      };
+      const ei = prev.findIndex(i => !i.pid && !i.desc);
+      if (ei >= 0) return prev.map((it, idx) => idx === ei ? ni : it);
+      return [...prev, ni];
+    });
+  };
+
+  const upd = (k: string, f: string, val: any) => setItems(p => p.map(i => i.key === k ? { ...i, [f]: val } : i));
+  const del = (k: string) => setItems(p => { const f = p.filter(i => i.key !== k); return f.length ? f : [blank()]; });
+
+  // ── Totals ─────────────────────────────────────────────────
+  const tots = items.reduce((a, i) => {
+    const t = total(i);
+    return { sub: a.sub + t.taxable, tax: a.tax + t.tax, grand: a.grand + t.grand };
+  }, { sub: 0, tax: 0, grand: 0 });
+
+  // ── Save PO ────────────────────────────────────────────────
+  const savePO = async () => {
+    if (!v.name) { alert("Vendor name is required"); return; }
+    if (items.every(i => !i.desc && !i.pid)) { alert("Add at least one product"); return; }
+
+    setSaving(true);
+    try {
+      const res = await fetch(isEdit ? "/api/billing/purchase-orders/" + editId : "/api/billing/purchase-orders", {
+        headers: {"Content-Type": "application/json"},
+        method: isEdit ? "PATCH" : "POST",
+        body: JSON.stringify({
+          company_id: coId, po_date: poDate, delivery_date: delDate,
+          vendor_id: selectedVendorId,
+          vendor_name: v.name, vendor_phone: v.phone, vendor_email: v.email,
+          vendor_gstin: v.gstin, vendor_address: v.addr, vendor_city: v.city,
+          vendor_state: v.state, vendor_state_code: v.sc,
+          notes,
+          items: items.filter(i => i.desc).map(i => ({
+            product_id: i.pid, description: i.desc, hsn_code: i.hsn,
+            quantity: i.qty, unit: i.unit, rate: i.rate,
+            discount_percent: i.disc, gst_rate: i.gst,
+          })),
+        }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || "Failed to save PO");
+
+      const id = d.purchase_order?.id || d.id;
+      const poNo = d.purchase_order?.po_no || d.po_no || "";
+      setSavedId(id);
+      setSavedPoNo(poNo);
+      // Don't navigate — stay on page to show share options
+    } catch (e: any) {
+      alert("Error: " + e.message);
+    } finally { setSaving(false); }
+  };
+
+  // ── PDF / Email / WhatsApp ─────────────────────────────────
+  function getPdfUrl(): string {
+    return `${window.location.origin}/api/billing/purchase-orders/${savedId}/pdf`;
+  }
+
+  function downloadPDF() {
+    if (!savedId) return;
+    window.open(`/api/billing/purchase-orders/${savedId}/pdf`, "_blank");
+  }
+
+  async function sendEmail() {
+    if (!savedId) { alert("Save the PO first"); return; }
+    if (!v.email) { alert("Enter vendor email first"); return; }
+    try {
+      const res = await fetch(`/api/billing/purchase-orders/${savedId}/send-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: v.email }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("✅ Email sent to " + v.email);
+      } else {
+        alert("Email failed: " + (data.error || "Unknown error"));
+      }
+    } catch (err) { console.error(err); alert("Failed to send email"); }
+  }
+
+  function sendWhatsApp() {
+    if (!savedId) { alert("Save the PO first"); return; }
+    if (!v.phone) { alert("Enter vendor WhatsApp number first"); return; }
+    const clean = v.phone.replace(/[^0-9]/g, "");
+    const wa = clean.startsWith("91") ? clean : "91" + clean;
+    const pdfUrl = getPdfUrl();
+
+    const itemLines = items
+      .filter(i => i.desc)
+      .slice(0, 5)
+      .map((i, idx) => `${idx + 1}. ${i.desc} × ${i.qty} = ${fmt(total(i).grand)}`)
+      .join("\n");
+    const moreCount = items.filter(i => i.desc).length - 5;
+    const moreText = moreCount > 0 ? `\n... and ${moreCount} more items` : "";
+
+    const msg = encodeURIComponent(
+      `*Purchase Order ${savedPoNo} — Divyanshi Solar* ☀️\n\n` +
+      `Dear ${v.name},\n\n` +
+      `${itemLines}${moreText}\n\n` +
+      `*Total: ${fmt(tots.grand)}*\n` +
+      (delDate ? `Delivery by: ${delDate}\n` : "") +
+      `\n📄 PDF: ${pdfUrl}\n\n` +
+      `Thank you!\n_Divyanshi Solar_ | 📞 9801005212`
+    );
+    window.open(`https://wa.me/${wa}?text=${msg}`, "_blank");
+  }
+
+  // ── Segment colors ─────────────────────────────────────────
+  const colors: Record<string, string> = {
+    "Solar Panels": "#f59e0b", "Ongrid Inverter": "#10b981", "Offgrid Inverter": "#06b6d4",
+    "Acid Lead Battery": "#ef4444", "Lithium Battery": "#22c55e", "Grid Interactive Hybrid": "#6366f1",
+    "Small Inverters": "#f97316", "Solar Inverter IPD 21": "#3b82f6",
+    "Solar High Frequency Inverter IP65": "#8b5cf6",
+    "Solar Hybrid Kit": "#f97316", "Solar Lithium Kit": "#22c55e",
+    "Solar Offgrid Kit": "#06b6d4", "Solar Pro Kit": "#10b981",
+    "Solar Pro Plus Kit": "#8b5cf6",
+  };
+
+  // Parse kit description into components
+  function parseKitDesc(name: string): {inv?:string, bat?:string, panel?:string} {
+    // Match inverter: patterns like 1xLGTFES... or 1xELEGORIA...
+    const invM = name.match(/(\d+)[xX]([A-Z][A-Z0-9]{6,}(?:FGIH|ELEGORIA|GIG|POGGI)[A-Z0-9]*)/i);
+    // Match battery: patterns like 8xLGMSFI... or 4x150Ah or 1x51.2V100Ah
+    const batM = name.match(/(\d+)[xX]([A-Z][A-Z0-9]*(?:MSF|TTN|PTT|PSFI|LiXL|NSOL)[A-Z0-9.]*|\d+[xX][0-9.]+(?:V|Ah)[^\s]*)/i);
+    // Match panel: patterns like 6xLGTPV600... or 6x600Wp or 5x550W
+    const panM = name.match(/(\d+)[xX]([A-Z][A-Z0-9]*(?:TPV|PV|WB)[A-Z0-9]*|\d+[xX]\d+Wp|\d+[xX]\d+W(?:\s+DCR|\s+TopCon)?)/i);
+    // Also parse simple format: NxNNNWp or NxNNNW
+    const simplePanel = name.match(/(\d+)x(\d+W[pP]?(?:\s+(?:DCR|TopCon|Bifacial))*)/i);
+    const simpleBat   = name.match(/(\d+)x(\d+Ah[^\s]*)/i);
+    return {
+      inv:   invM   ? invM[1]+"x "+invM[2]  : undefined,
+      bat:   batM   ? batM[1]+"x "+batM[2]  : (simpleBat  ? simpleBat[1]+"x "+simpleBat[2]  : undefined),
+      panel: panM   ? panM[1]+"x "+panM[2]  : (simplePanel? simplePanel[1]+"x "+simplePanel[2]: undefined),
+    };
+  }
+
+  // Segment order - kits first, then components
+  const SEG_ORDER = [
+    "Solar Hybrid Kit","Solar Lithium Kit","Solar Offgrid Kit","Solar Pro Kit","Solar Pro Plus Kit",
+    "Solar Panels","Ongrid Inverter","Offgrid Inverter","Grid Interactive Hybrid",
+    "Acid Lead Battery","Lithium Battery","Solar High Frequency Inverter IP65",
+    "Small Inverters","Solar Inverter IPD 21",
+  ];
+  const sortedSegs = Object.entries(segs).sort(([a],[b]) => {
+    const ai = SEG_ORDER.indexOf(a); const bi = SEG_ORDER.indexOf(b);
+    return (ai===-1?99:ai) - (bi===-1?99:bi);
+  });
+
+  return (
+    <div className="p-4 md:p-6 max-w-[1400px] mx-auto">
+      {/* ── Header ────────────────────────────────────────── */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => nav("/admin/billing")}>
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-purple-700 flex items-center gap-2">
+              {isEdit ? <><ShoppingCart className="w-6 h-6" /> Edit Purchase Order</> : <><ShoppingCart className="w-6 h-6" /> Create Purchase Order</>}
+            </h1>
+            <p className="text-sm text-muted-foreground">Select products, specify vendor, generate PO</p>
+          </div>
+        </div>
+        {savedId && (
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={downloadPDF}  size="sm">
+              <Download className="w-4 h-4 mr-1" /> PDF
+            </Button>
+            <Button variant="outline" onClick={sendEmail} size="sm"
+              className="text-blue-600 border-blue-300 hover:bg-blue-50">
+              <Mail className="w-4 h-4 mr-1" /> Email
+            </Button>
+            <Button variant="outline" onClick={sendWhatsApp} size="sm"
+              className="text-green-600 border-green-300 hover:bg-green-50">
+              <Phone className="w-4 h-4 mr-1" /> WhatsApp
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* ═══ LEFT: Product Catalog ═══ */}
+        <div className="lg:col-span-1 space-y-1 max-h-[85vh] overflow-y-auto pr-2">
+          {/* LG PO Calculator */}
+          <div className="border-2 border-orange-300 rounded-xl bg-orange-50 p-3 mb-3">
+            <h3 className="font-bold text-sm text-orange-800 mb-2">⚡ LG Distributor PO Calculator</h3>
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-xs text-gray-600">Capacity (kW)</Label>
+                  <Input type="number" min={1} max={500} value={poCalcKw}
+                    onChange={e => setPoCalcKw(Number(e.target.value))}
+                    className="h-7 text-xs font-bold border-orange-300 mt-0.5" />
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-600">System Type</Label>
+                  <select value={poCalcType} onChange={e => setPoCalcType(e.target.value)}
+                    className="w-full h-7 text-xs border border-orange-300 rounded px-1 mt-0.5 bg-white">
+                    <option value="ongrid_1ph">On-Grid 1Ph</option>
+                    <option value="ongrid_3ph">On-Grid 3Ph</option>
+                    <option value="offgrid">HF Off-Grid</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs text-gray-600">Solar Panel</Label>
+                <select value={poCalcPanel} onChange={e => setPoCalcPanel(e.target.value)}
+                  className="w-full h-7 text-xs border border-orange-300 rounded px-1 mt-0.5 bg-white">
+                  {Object.entries(PO_PANELS).map(([k,v]) => (
+                    <option key={k} value={k}>{v.name} — ₹{v.price.toLocaleString("en-IN")}/pc</option>
+                  ))}
+                </select>
+              </div>
+              {poCalcType === "offgrid" && (<>
+                <div>
+                  <Label className="text-xs text-gray-600">Battery Model</Label>
+                  <select value={poCalcBattery} onChange={e => setPoCalcBattery(e.target.value)}
+                    className="w-full h-7 text-xs border border-orange-300 rounded px-1 mt-0.5 bg-white">
+                    {Object.entries(PO_BATTERIES).map(([k,v]) => (
+                      <option key={k} value={k}>{v.name} — ₹{v.price.toLocaleString("en-IN")}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-600">Battery Qty</Label>
+                  <Input type="number" min={1} max={100} value={poCalcBattQty}
+                    onChange={e => setPoCalcBattQty(Number(e.target.value))}
+                    className="h-7 text-xs border-orange-300 mt-0.5" />
+                </div>
+              </>)}
+              {/* Preview */}
+              <div className="bg-white rounded border border-orange-200 p-2 text-xs">
+                <div className="text-gray-500 font-semibold mb-1">Preview (at distributor price):</div>
+                {(() => {
+                  const panel = PO_PANELS[poCalcPanel];
+                  const panelQty = Math.ceil((poCalcKw * 1000) / panel.watt);
+                  const panelTotal = panelQty * panel.price;
+                  let invName = "", invPrice = 0;
+                  if (poCalcType !== "offgrid") {
+                    const is3ph = poCalcType === "ongrid_3ph";
+                    const bestKey = Object.keys(PO_GI).find(k => {
+                      const n = parseInt(PO_GI[k].name.match(/\d+/)?.[0]||"0");
+                      return n >= poCalcKw && PO_GI[k].name.includes("3Ph") === is3ph;
+                    }) || (is3ph ? "LGTLS324GIG3" : "LGTFES601POGGI");
+                    invName = PO_GI[bestKey].name; invPrice = PO_GI[bestKey].price;
+                  } else {
+                    const elegKey = poCalcKw <= 3 ? "ELEGORIALG3K48M" : poCalcKw <= 5 ? "ELEGORIALG5K48M" : "ELEGORIALG10K48M";
+                    invName = PO_ELEGORIA[elegKey].name; invPrice = PO_ELEGORIA[elegKey].price;
+                  }
+                  const batTotal = poCalcType === "offgrid" ? (PO_BATTERIES[poCalcBattery]?.price||0) * poCalcBattQty : 0;
+                  const grandTotal = panelTotal + invPrice + batTotal;
+                  return (<>
+                    <div className="flex justify-between"><span>Panels ({panelQty} × ₹{panel.price.toLocaleString("en-IN")})</span><span className="font-bold">₹{panelTotal.toLocaleString("en-IN")}</span></div>
+                    <div className="flex justify-between"><span>Inverter ({invName})</span><span className="font-bold">₹{invPrice.toLocaleString("en-IN")}</span></div>
+                    {poCalcType === "offgrid" && <div className="flex justify-between"><span>Battery (×{poCalcBattQty})</span><span className="font-bold">₹{batTotal.toLocaleString("en-IN")}</span></div>}
+                    <div className="flex justify-between border-t border-orange-200 pt-1 mt-1 font-bold text-orange-800"><span>Total (excl. GST)</span><span>₹{grandTotal.toLocaleString("en-IN")}</span></div>
+                  </>);
+                })()}
+              </div>
+              <Button size="sm" onClick={calcPoItems}
+                className="w-full h-8 text-xs bg-orange-600 hover:bg-orange-700 text-white">
+                ➕ Add to PO Line Items
+              </Button>
+            </div>
+          </div>
+
+          <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider mb-2">
+            Product Catalog (Purchase Price)
+          </h3>
+          {sortedSegs.map(([seg, ps]) => {
+            const isKit = seg.includes("Kit");
+            const color = colors[seg] || "#6b7280";
+            return (
+            <div key={seg} className="border rounded-lg overflow-hidden shadow-sm">
+              <button onClick={() => toggle(seg)}
+                className="w-full flex items-center justify-between p-2 px-3 hover:bg-gray-50 text-sm font-semibold"
+                style={{ borderLeft: "4px solid " + color, background: open.has(seg) ? "#fafafa" : "white" }}>
+                <div className="flex items-center gap-2">
+                  <span style={{color}} className="text-xs font-bold">{isKit?"📦":"🔧"}</span>
+                  <span>{seg}</span>
+                  <span className="text-xs text-gray-400 font-normal">({(ps as any[]).length})</span>
+                </div>
+                {open.has(seg) ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
+              </button>
+              {open.has(seg) && (
+                <div className="border-t divide-y bg-white">
+                  {(ps as any[]).map((p: any) => {
+                    const price = parseFloat(p.default_purchase_price || p.price || "0");
+                    const gst = parseFloat(p.gst_rate || "0");
+                    const gstAmt = price * gst / 100;
+                    const parts = isKit ? parseKitDesc(p.description || p.name || "") : null;
+                    return (
+                    <div key={p.id}
+                      className="p-2 px-3 hover:bg-purple-50 cursor-pointer group transition-colors"
+                      onClick={() => addProd(p)}>
+                      {/* Product name row */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-semibold text-gray-800 leading-tight">{p.name}</div>
+                          {p.model_code && (
+                            <div className="text-xs text-gray-400 font-mono mt-0.5">{p.model_code}</div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Plus className="w-3 h-3 opacity-0 group-hover:opacity-100 text-purple-600 transition-opacity" />
+                        </div>
+                      </div>
+                      {/* Kit components breakdown */}
+                      {isKit && parts && (
+                        <div className="mt-1.5 grid grid-cols-1 gap-0.5">
+                          {parts.inv   && <div className="text-xs text-indigo-700 bg-indigo-50 rounded px-1.5 py-0.5">⚡ Inverter: {parts.inv}</div>}
+                          {parts.bat   && <div className="text-xs text-green-700 bg-green-50 rounded px-1.5 py-0.5">🔋 Battery: {parts.bat}</div>}
+                          {parts.panel && <div className="text-xs text-amber-700 bg-amber-50 rounded px-1.5 py-0.5">☀️ Panel: {parts.panel}</div>}
+                        </div>
+                      )}
+                      {/* Price row */}
+                      <div className="flex items-center justify-between mt-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500">Basic: <span className="font-bold text-purple-700">{fmt(price)}</span></span>
+                          <span className="text-xs text-gray-400">+{gst}% GST</span>
+                          <span className="text-xs text-gray-500">= <span className="font-semibold text-green-700">{fmt(price+gstAmt)}</span></span>
+                        </div>
+                        <span className="text-xs bg-purple-100 text-purple-700 rounded px-1.5 py-0.5 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">+ Add</span>
+                      </div>
+                    </div>
+                  )})}
+                </div>
+              )}
+            </div>
+          )})}
+        </div>
+
+        {/* ═══ RIGHT: PO Form ═══ */}
+        <div className="lg:col-span-2 space-y-4">
+          {/* Company & Vendor */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Company */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Billing Company</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Select value={String(coId)} onValueChange={x => setCoId(Number(x))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{cos.map((c: any) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>
+                </Select>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <div>
+                    <Label className="text-xs">PO Date</Label>
+                    <Input type="date" value={poDate} onChange={e => setPoDate(e.target.value)} className="h-8 text-sm" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Delivery Date</Label>
+                    <Input type="date" value={delDate} onChange={e => setDelDate(e.target.value)} className="h-8 text-sm" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Vendor */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Vendor / Supplier</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="relative mb-2">
+                  <Label className="text-xs">Search Existing Vendor</Label>
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                    <Input value={vendorSearch}
+                      onChange={e => { setVendorSearch(e.target.value); setSelectedVendorId(null); }}
+                      placeholder="Type vendor name, GSTIN, phone..."
+                      className="h-8 text-sm pl-7" />
+                  </div>
+                  {showVendorDrop && vendorResults.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {vendorResults.map((vn: any) => (
+                        <div key={vn.id} className="p-2 px-3 hover:bg-purple-50 cursor-pointer border-b text-sm" onClick={() => pickVendor(vn)}>
+                          <div className="font-medium">{vn.name}</div>
+                          <div className="text-xs text-gray-500">
+                            {vn.phone || ""} {vn.gstin ? "| " + vn.gstin : ""} {vn.state ? "| " + vn.state : ""}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {selectedVendorId && <p className="text-xs text-green-600 mt-1">✅ Auto-filled from saved vendor</p>}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">Name *</Label>
+                    <Input value={v.name} onChange={e => setV(p => ({...p, name: e.target.value}))} className="h-8 text-sm" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">GSTIN</Label>
+                    <Input value={v.gstin} onChange={e => setV(p => ({...p, gstin: e.target.value}))} className="h-8 text-sm" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Phone</Label>
+                    <Input value={v.phone} onChange={e => setV(p => ({...p, phone: e.target.value}))} className="h-8 text-sm" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Email</Label>
+                    <Input value={v.email} onChange={e => setV(p => ({...p, email: e.target.value}))} className="h-8 text-sm" placeholder="vendor@email.com" />
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-xs">Address</Label>
+                    <Input value={v.addr} onChange={e => setV(p => ({...p, addr: e.target.value}))} className="h-8 text-sm" placeholder="Vendor address" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">City</Label>
+                    <Input value={v.city} onChange={e => setV(p => ({...p, city: e.target.value}))} className="h-8 text-sm" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">State</Label>
+                    <Select value={v.sc} onValueChange={x => { const s = STATES.find(st => st.code === x); setV(p => ({...p, state: s?.name||"", sc: x})); }}>
+                      <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>{STATES.map(s => <SelectItem key={s.code} value={s.code}>{s.name}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Line Items */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm">Line Items</CardTitle>
+              <Button variant="outline" size="sm" onClick={() => setItems(p => [...p, blank()])}>
+                <Plus className="w-3 h-3 mr-1" />Add
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-xs text-gray-500">
+                      <th className="text-left pb-2 w-8">#</th>
+                      <th className="text-left pb-2 min-w-[200px]">Product</th>
+                      <th className="pb-2 w-20">HSN</th>
+                      <th className="text-right pb-2 w-14">Qty</th>
+                      <th className="text-right pb-2 w-24">Rate</th>
+                      <th className="text-right pb-2 w-14">Disc%</th>
+                      <th className="text-right pb-2 w-14">GST%</th>
+                      <th className="text-right pb-2 w-24">Total</th>
+                      <th className="w-8"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((item, idx) => {
+                      const t = total(item);
+                      return (
+                        <tr key={item.key} className="border-b">
+                          <td className="py-1 text-gray-400">{idx+1}</td>
+                          <td className="py-1 pr-1">
+                            <Input className="h-7 text-xs" value={item.desc}
+                              onChange={e => upd(item.key, "desc", e.target.value)} placeholder="Product name" />
+                          </td>
+                          <td className="py-1">
+                            <Input className="h-7 text-xs w-20" value={item.hsn}
+                              onChange={e => upd(item.key, "hsn", e.target.value)} />
+                          </td>
+                          <td className="py-1">
+                            <Input type="number" className="h-7 text-xs text-right w-14" value={item.qty}
+                              onChange={e => upd(item.key, "qty", parseFloat(e.target.value)||0)} />
+                          </td>
+                          <td className="py-1">
+                            <Input type="number" className="h-7 text-xs text-right w-24" value={item.rate}
+                              onChange={e => upd(item.key, "rate", parseFloat(e.target.value)||0)} />
+                          </td>
+                          <td className="py-1">
+                            <Input type="number" className="h-7 text-xs text-right w-14" value={item.disc}
+                              onChange={e => upd(item.key, "disc", parseFloat(e.target.value)||0)} />
+                          </td>
+                          <td className="py-1">
+                            <Input type="number" className="h-7 text-xs text-right w-14" value={item.gst}
+                              onChange={e => upd(item.key, "gst", parseFloat(e.target.value)||0)} />
+                          </td>
+                          <td className="py-1 text-right font-medium">{fmt(t.grand)}</td>
+                          <td className="py-1">
+                            <Button variant="ghost" size="sm" onClick={() => del(item.key)}
+                              className="h-6 w-6 p-0 text-red-500">
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Notes + Totals */}
+              <div className="flex justify-between mt-4">
+                <div className="w-64">
+                  <Label className="text-xs">Notes</Label>
+                  <Textarea value={notes} onChange={e => setNotes(e.target.value)}
+                    rows={3} className="text-sm" placeholder="Additional notes..." />
+                </div>
+                <div className="w-60 text-sm space-y-1">
+                  <div className="flex justify-between">
+                    <span>Subtotal</span><span>{fmt(tots.sub)}</span>
+                  </div>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>GST</span><span>{fmt(tots.tax)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-lg text-purple-700 pt-2 border-t-2 border-purple-700">
+                    <span>Grand Total</span><span>{fmt(tots.grand)}</span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => nav("/admin/billing")}>Cancel</Button>
+            <Button onClick={savePO} disabled={saving} className="bg-purple-600 hover:bg-purple-700 min-w-[180px]">
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+              {savedId ? "Update PO" : "Save Purchase Order"}
+            </Button>
+          </div>
+
+          {/* Post-save Share Card — ONLY shown after save */}
+          {savedId && (
+            <Card className="border-purple-300 bg-purple-50/50">
+              <CardContent className="pt-4">
+                <p className="text-sm font-medium text-purple-800 mb-3">
+                  ✅ PO {savedPoNo} saved! Send to vendor:
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                  <div>
+                    <Label className="text-xs">Vendor Email</Label>
+                    <Input value={v.email} onChange={e => setV(p => ({...p, email: e.target.value}))}
+                      placeholder="vendor@email.com" className="h-8 text-sm" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Vendor WhatsApp No.</Label>
+                    <Input value={v.phone} onChange={e => setV(p => ({...p, phone: e.target.value}))}
+                      placeholder="9876543210" className="h-8 text-sm" />
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" onClick={downloadPDF} 
+                    className="bg-amber-500 hover:bg-amber-600">
+                    <Download className="w-4 h-4 mr-2" />
+                    Download PDF
+                  </Button>
+                  <Button size="sm" onClick={sendEmail} className="bg-blue-500 hover:bg-blue-600">
+                    <Mail className="w-4 h-4 mr-2" /> Send Email
+                  </Button>
+                  <Button size="sm" onClick={sendWhatsApp} className="bg-green-600 hover:bg-green-700">
+                    <Send className="w-4 h-4 mr-2" /> Send WhatsApp
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,281 @@
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { FileText, ArrowLeft, Download, Printer } from "lucide-react";
+
+const CO = {
+  name: "Prayga India Private Limited",
+  cin: "U74999RJ2021PTC075073",
+  reg: "Registered National Vendor under PM-Surya Ghar: Muft Bijli Yojana Rooftop Solar Program",
+  tag: '"For us Customers are not clients - They are Family"',
+  ro: "Plot No. C-3/258, Flat No. G-2, Room-1, Shreyansh Apartment, Chitrakoot Scheme, Vaishali Nagar, Jaipur, Rajasthan 302021",
+  bo: "Bank of India Building, Naubatpur, Mashurhi Road, Vill-Piprawan, Tola-Piprawan, Panchayat Jaitipur, Block-Naubatpur, Patna, Bihar 801109",
+};
+const FOOTER_LINE = `${CO.name} | ${CO.reg}`;
+
+const STATES = ["Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Delhi","Goa","Gujarat","Haryana","Himachal Pradesh","Jammu & Kashmir","Jharkhand","Karnataka","Kerala","Ladakh","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland","Odisha","Puducherry","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura","Uttar Pradesh","Uttarakhand","West Bengal"];
+const SUBSIDY = (kw: number) => kw <= 1 ? 30000 : kw <= 2 ? 60000 : 78000;
+const ANNUAL_SAVE: Record<number,number> = {1:15000,2:30000,3:45000,4:48000,5:50400,6:55000,7:60000,8:65000,9:70000,10:75000};
+const INV_OPTS = [{v:"hybrid-3kw",l:"Hybrid Inverter (3kW)"},{v:"hybrid-5kw",l:"Hybrid Inverter (5kW)"},{v:"hybrid-6kw",l:"Hybrid Inverter (6kW)"},{v:"hybrid-8kw",l:"Hybrid Inverter (8kW)"},{v:"hybrid-10kw",l:"Hybrid Inverter (10kW)"},{v:"ongrid-3kw",l:"On-Grid Inverter (3kW)"},{v:"ongrid-5kw",l:"On-Grid Inverter (5kW)"},{v:"ongrid-10kw",l:"On-Grid Inverter (10kW)"}];
+const BAT_OPTS = [{v:"none",l:"No Battery (Not Selected)",p:0},{v:"la100",l:"Lead Acid 100Ah (Livguard/Luminous/Exide)",p:12000},{v:"la150",l:"Lead Acid 150Ah",p:16000},{v:"la200",l:"Lead Acid 200Ah",p:22000},{v:"li3",l:"Lithium-Ion 3kWh",p:45000},{v:"li5",l:"Lithium-Ion 5kWh",p:72000}];
+
+const fmt = (n: number | null | undefined) => {if(n===null||n===undefined)return"N/A";const s=Math.round(n).toString();let r="",c=0;for(let i=s.length-1;i>=0;i--){if(c===3||(c>3&&(c-3)%2===0))r=","+r;r=s[i]+r;c++;}return r;};
+const calcEMI = (p:number,ra:number,m:number) => {const r=ra/12/100;if(r===0)return Math.round(p/m);return Math.round(p*r*Math.pow(1+r,m)/(Math.pow(1+r,m)-1));};
+const dateStr = new Date().toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});
+
+export default function GenerateProposal() {
+  const [view, setView] = useState<"form"|"preview">("form");
+  const [busy, setBusy] = useState(false);
+  const [f, sf] = useState({
+    customerName:"", whatsapp:"", email:"",
+    partnerName:"", partnerPhone:"",
+    installAddress:"", state:"Bihar", district:"", propertyType:"Residential",
+    systemKw:5, inverter:"hybrid-5kw", battery:"none",
+    rPanels:30000, rInverter:16000, rStructure:6000, rWiring:6000, rNetMeter:2000, rTransport:2000,
+    rInstall:3000, rMisc:2500, rService:4000, rContractor:3500,
+    dpPct:15, rate:6, tenure:60,
+  });
+  const u = (k: string, v: any) => sf((p: any) => ({...p,[k]:v}));
+
+  const kw = f.systemKw;
+  const perKw = f.rPanels+f.rInverter+f.rStructure+f.rWiring+f.rNetMeter+f.rTransport+f.rInstall+f.rMisc+f.rService+f.rContractor;
+  const plantCost = kw*perKw;
+  const batP = BAT_OPTS.find(b=>b.v===f.battery)?.p||0;
+  const total = plantCost+batP;
+  const sub = SUBSIDY(kw);
+  const save = ANNUAL_SAVE[kw]||kw*7500;
+  const dp = Math.round(total*f.dpPct/100);
+  const loanA = total-dp;
+  const loanB = Math.max(0,loanA-sub);
+  const invL = INV_OPTS.find(i=>i.v===f.inverter)?.l||"";
+  const batL = BAT_OPTS.find(b=>b.v===f.battery)?.l||"";
+  const payback = ((total-sub)/save).toFixed(1);
+  const tenures = [36,48,60,72,84,96,108,120];
+  const valid = f.customerName && f.installAddress;
+
+  const qItems = [
+    {sno:1,d:"TopCon Bifacial N-Type DCR Solar Panels",a:kw*f.rPanels},
+    {sno:2,d:`UTL/Livguard/Statcon 3-in-1 ${invL}`,a:kw*f.rInverter},
+    {sno:3,d:"Galvanized Iron Mounting Structure (2mm 14 gauge)",a:kw*f.rStructure},
+    {sno:4,d:"AC/DC Wiring, MC4 Connectors, ACDB, DCDB, Earthing Kit",a:kw*f.rWiring},
+    {sno:5,d:`Battery - ${batL}`,a:batP||0},
+    {sno:6,d:"Net Metering & DISCOM Connectivity Charges",a:kw*f.rNetMeter},
+    {sno:7,d:"Transportation & Logistics",a:kw*f.rTransport},
+    {sno:8,d:"Complete Installation & Commissioning",a:kw*f.rInstall},
+    {sno:9,d:"Miscellaneous (Circuit Breakers, Changeover, PVC, SPD)",a:kw*f.rMisc},
+    {sno:10,d:"Service & AMC Package (5 Years Compulsory)",a:kw*f.rService},
+    {sno:11,d:"Contractor Profit & Overheads",a:kw*f.rContractor},
+  ];
+
+  const doGenerate = () => { if(!valid)return; setBusy(true); setTimeout(()=>{setBusy(false);setView("preview");},600); };
+
+  const doPrint = () => {
+    const el = document.getElementById("pdf-pages");
+    if(!el) return;
+    // Use iframe approach - avoids popup blocker
+    const iframe = document.createElement("iframe");
+    iframe.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:210mm;height:297mm;border:none;";
+    document.body.appendChild(iframe);
+    const iDoc = iframe.contentDocument || iframe.contentWindow?.document;
+    if(!iDoc) { document.body.removeChild(iframe); return; }
+    iDoc.open();
+    iDoc.write(`<!DOCTYPE html><html><head><title>Proposal - ${f.customerName}</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Helvetica,Arial,sans-serif;color:#333;-webkit-print-color-adjust:exact;print-color-adjust:exact}table{border-collapse:collapse;width:100%}.pg{page-break-after:always;width:210mm;min-height:296mm;position:relative;background:#fff;overflow:hidden}.pg:last-child{page-break-after:auto}@media print{body{margin:0}.pg{margin:0;box-shadow:none}}</style></head><body>${el.innerHTML}</body></html>`);
+    iDoc.close();
+    setTimeout(() => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+      setTimeout(() => document.body.removeChild(iframe), 1000);
+    }, 600);
+  };
+
+  /* ═══ FORM VIEW ═══ */
+  if(view==="form") return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><FileText className="h-6 w-6 text-orange-500"/>Generate Customer Proposal</h1>
+        <p className="text-muted-foreground mt-1">Create a professional PDF proposal to share with your customer</p>
+      </div>
+
+      <Card>
+        <CardContent className="pt-6 space-y-6">
+          {/* Customer Name */}
+          <div className="space-y-2">
+            <Label>Customer Name</Label>
+            <Input value={f.customerName} onChange={e=>u("customerName",e.target.value)} placeholder="Enter customer full name"/>
+          </div>
+
+          {/* WhatsApp + Email */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2"><Label>Customer WhatsApp Number</Label><Input value={f.whatsapp} onChange={e=>u("whatsapp",e.target.value)} placeholder="e.g. 8235751602"/></div>
+            <div className="space-y-2"><Label>Customer Email (Optional)</Label><Input value={f.email} onChange={e=>u("email",e.target.value)} placeholder="e.g. customer@gmail.com"/></div>
+          </div>
+
+          <Separator/>
+          <p className="text-sm font-medium text-muted-foreground">District Partner Details (for PDF Proposal)</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2"><Label>Partner Name</Label><Input value={f.partnerName} onChange={e=>u("partnerName",e.target.value)} placeholder="e.g. Pramod Kumar"/></div>
+            <div className="space-y-2"><Label>Partner Mobile Number</Label><Input value={f.partnerPhone} onChange={e=>u("partnerPhone",e.target.value)} placeholder="e.g. 9504230101"/></div>
+          </div>
+
+          {/* Installation Address */}
+          <div className="space-y-2">
+            <Label>Proposed Plant Installation Site Address</Label>
+            <Input value={f.installAddress} onChange={e=>u("installAddress",e.target.value)} placeholder="Full site address where panels will be installed"/>
+            <p className="text-xs text-muted-foreground">This address will appear on the proposal PDF</p>
+          </div>
+
+          {/* State, District, Property */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2"><Label>State</Label>
+              <Select value={f.state} onValueChange={v=>u("state",v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{STATES.map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
+            </div>
+            <div className="space-y-2"><Label>District</Label><Input value={f.district} onChange={e=>u("district",e.target.value)} placeholder="e.g. Patna"/></div>
+            <div className="space-y-2"><Label>Property Type</Label>
+              <Select value={f.propertyType} onValueChange={v=>u("propertyType",v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["Residential","Commercial","Industrial","Government"].map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
+            </div>
+          </div>
+
+          <Separator/>
+          <p className="text-sm font-medium text-muted-foreground">System Configuration</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2"><Label>System Capacity (kWp)</Label>
+              <Select value={String(f.systemKw)} onValueChange={v=>u("systemKw",+v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{[1,2,3,4,5,6,7,8,9,10].map(k=><SelectItem key={k} value={String(k)}>{k} kWp</SelectItem>)}</SelectContent></Select>
+            </div>
+            <div className="space-y-2"><Label>Inverter Type</Label>
+              <Select value={f.inverter} onValueChange={v=>u("inverter",v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{INV_OPTS.map(i=><SelectItem key={i.v} value={i.v}>{i.l}</SelectItem>)}</SelectContent></Select>
+            </div>
+            <div className="space-y-2"><Label>Battery Option</Label>
+              <Select value={f.battery} onValueChange={v=>u("battery",v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{BAT_OPTS.map(b=><SelectItem key={b.v} value={b.v}>{b.l}{b.p?` — ₹${fmt(b.p)}`:""}</SelectItem>)}</SelectContent></Select>
+            </div>
+          </div>
+
+          <Separator/>
+          <p className="text-sm font-medium text-muted-foreground">Itemized Per-kW Rates (₹/kW) — affects PDF quotation</p>
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+            {([["Solar Panels","rPanels"],["Inverter","rInverter"],["Structure","rStructure"],["Wiring","rWiring"],["Net Meter","rNetMeter"],["Transport","rTransport"]] as const).map(([l,k])=>(
+              <div key={k} className="space-y-1"><Label className="text-xs">{l}</Label><Input type="number" value={(f as any)[k]} onChange={e=>u(k,+e.target.value)} className="h-9 text-sm"/></div>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {([["Installation","rInstall"],["Misc","rMisc"],["Service 5yr","rService"],["Contractor","rContractor"]] as const).map(([l,k])=>(
+              <div key={k} className="space-y-1"><Label className="text-xs">{l}</Label><Input type="number" value={(f as any)[k]} onChange={e=>u(k,+e.target.value)} className="h-9 text-sm"/></div>
+            ))}
+          </div>
+
+          <Separator/>
+          <p className="text-sm font-medium text-muted-foreground">Financing Options</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2"><Label>Down Payment (%)</Label><Input type="number" value={f.dpPct} min={0} max={100} onChange={e=>u("dpPct",+e.target.value)}/></div>
+            <div className="space-y-2"><Label>Loan Rate (% p.a.)</Label><Input type="number" value={f.rate} min={0} max={20} step={0.5} onChange={e=>u("rate",+e.target.value)}/></div>
+            <div className="space-y-2"><Label>EMI Tenure</Label>
+              <Select value={String(f.tenure)} onValueChange={v=>u("tenure",+v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{tenures.map(t=><SelectItem key={t} value={String(t)}>{t}M ({(t/12).toFixed(1)} yr)</SelectItem>)}</SelectContent></Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Cost Summary */}
+      <Card className="border-orange-200 bg-orange-50/50 dark:bg-orange-950/10">
+        <CardHeader className="pb-3"><CardTitle className="text-base">Cost Summary (Auto-Calculated)</CardTitle></CardHeader>
+        <CardContent>
+          <div className="space-y-2 text-sm">
+            {[
+              ["Per-kW Rate",`₹${fmt(perKw)}/kW`],
+              [`Plant Cost (${kw} kW)`,`₹${fmt(plantCost)}`],
+              ...(batP>0?[["Battery",`₹${fmt(batP)}`]]:[]),
+            ].map(([l,v],i)=>(<div key={i} className="flex justify-between"><span className="text-muted-foreground">{l}</span><span className="font-medium">{v}</span></div>))}
+            <Separator/>
+            <div className="flex justify-between text-base"><span className="font-bold">Total Project Cost</span><span className="font-bold text-orange-600">₹{fmt(total)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Central Subsidy</span><span className="font-bold text-green-600">₹{fmt(sub)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Net Cost After Subsidy</span><span className="font-bold">₹{fmt(total-sub)}</span></div>
+            <Separator/>
+            <div className="flex justify-between"><span className="text-muted-foreground">Annual Savings</span><span className="font-bold text-orange-600">₹{fmt(save)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Payback Period</span><span className="font-bold">{payback} years</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">EMI ({f.tenure}M, {f.rate}%)</span><span className="font-bold">₹{fmt(calcEMI(loanA,f.rate,f.tenure))}/mo</span></div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Buttons */}
+      <div className="flex justify-between">
+        <Button variant="outline" onClick={()=>sf((p: any)=>({...p,customerName:"",whatsapp:"",email:"",installAddress:"",district:""}))}>Reset Form</Button>
+        <Button disabled={!valid} onClick={doGenerate} className="bg-orange-500 hover:bg-orange-600 text-white px-8">
+          {busy?"⏳ Generating...":"📄 Generate Proposal PDF"}
+        </Button>
+      </div>
+    </div>
+  );
+
+  /* ═══ PDF PREVIEW ═══ */
+  const PH = ({label}:{label:string}) => (<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 28px",borderBottom:"2.5px solid #e8761a"}}><span style={{fontSize:10,fontWeight:700,color:"#e8761a",letterSpacing:.5}}>{CO.name.toUpperCase()}</span><span style={{fontSize:10,fontWeight:700,color:"#1a3a5c"}}>{label}</span></div>);
+  const PFt = ({n}:{n:number}) => (<div style={{position:"absolute",bottom:0,left:0,right:0,borderTop:"1px solid #ddd",padding:"6px 28px",display:"flex",justifyContent:"space-between",fontSize:7.5,color:"#999"}}><span>{FOOTER_LINE}</span><span>Page {n} of 12</span></div>);
+  const pg: React.CSSProperties = {width:"210mm",minHeight:"297mm",position:"relative",background:"#fff",overflow:"hidden",pageBreakAfter:"always",fontFamily:"Helvetica,Arial,sans-serif",color:"#333"};
+  const bd: React.CSSProperties = {padding:"16px 28px 50px"};
+  const h2s: React.CSSProperties = {fontSize:17,fontWeight:700,color:"#1a3a5c",margin:"0 0 8px"};
+  const h3s: React.CSSProperties = {fontSize:13,fontWeight:700,color:"#1a3a5c",margin:"12px 0 8px"};
+  const pps: React.CSSProperties = {fontSize:10.5,color:"#666",lineHeight:"1.5",margin:"0 0 8px"};
+
+  return (
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex justify-between items-center sticky top-0 z-20 bg-background p-3 border-b rounded-lg">
+        <Button variant="outline" size="sm" onClick={()=>setView("form")}><ArrowLeft className="h-4 w-4 mr-1"/>Back to Editor</Button>
+        <span className="font-bold text-sm hidden md:block">Proposal Preview — {f.customerName}</span>
+        <Button size="sm" onClick={doPrint} className="bg-green-600 hover:bg-green-700 text-white"><Download className="h-4 w-4 mr-1"/>Download PDF</Button>
+      </div>
+
+      <div id="pdf-pages" style={{maxWidth:"210mm",margin:"0 auto"}}>
+
+        {/* PAGE 1: COVER */}
+        <div className="pg" style={pg}>
+          <div style={{background:"linear-gradient(135deg,#87CEEB,#4682B4)",padding:"20px 0 0",textAlign:"center"}}>
+            <div style={{display:"flex",flexWrap:"wrap",gap:3,justifyContent:"center",padding:"0 40px",opacity:.2,marginBottom:8}}>{Array.from({length:20}).map((_,i)=><div key={i} style={{width:40,height:16,background:"#2E5090",borderRadius:2}}/>)}</div>
+            <div style={{background:"#4CAF50",padding:"10px 28px",margin:"0 28px"}}><div style={{fontSize:16,fontWeight:700,color:"#FFEB3B"}}>PM Surya Ghar Yojana</div><div style={{fontSize:9,color:"#fff"}}>हर घर की छत पर सोलर, हर घर में उजाला</div></div>
+          </div>
+          <div style={{background:"#e8761a",padding:"18px 28px",textAlign:"center"}}><div style={{fontSize:24,fontWeight:700,color:"#fff",letterSpacing:1}}>{CO.name.toUpperCase()}</div><div style={{fontSize:8.5,color:"rgba(255,255,255,.85)",marginTop:4}}>(CIN: {CO.cin} | {CO.reg})</div><div style={{fontSize:8.5,color:"rgba(255,255,255,.7)",fontStyle:"italic",marginTop:4}}>{CO.tag}</div></div>
+          <div style={{padding:"28px 36px 60px",textAlign:"center"}}><h1 style={{fontSize:28,fontWeight:700,color:"#333",margin:"0 0 10px"}}>SOLAR ROOFTOP SYSTEM PROPOSAL</h1><div style={{width:220,height:4,background:"#e8761a",margin:"0 auto 28px"}}/><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,textAlign:"left"}}>{([["PREPARED FOR",f.customerName||"—"],["STATE",f.state],["SYSTEM CAPACITY",`${kw} kWp`],["PROPOSAL DATE",dateStr],["PROPERTY TYPE",f.propertyType],["SYSTEM TYPE",invL]] as const).map(([l,v],i)=>(<div key={i} style={{border:"2px solid #e8761a",borderRadius:8,padding:"12px 16px"}}><div style={{fontSize:8,fontWeight:700,color:"#e8761a",textTransform:"uppercase",letterSpacing:.5}}>{l}</div><div style={{fontSize:15,fontWeight:700,color:"#333",marginTop:6}}>{v}</div></div>))}</div></div>
+          <PFt n={1}/>
+        </div>
+
+        {/* PAGE 2: PROJECT DETAILS */}
+        <div className="pg" style={pg}><PH label="PROJECT DETAILS"/><div style={bd}><h2 style={h2s}>Installation & Partner Details</h2><div style={{background:"#FFF3E0",padding:"10px 14px",borderRadius:6,marginBottom:10}}><div style={{fontSize:8,fontWeight:700,color:"#e8761a",textTransform:"uppercase"}}>PROPOSED PLANT INSTALLATION SITE</div><div style={{fontSize:12,fontWeight:700,marginTop:4}}>{f.installAddress||"—"}</div></div><div style={{background:"#FFF3E0",padding:"10px 14px",borderRadius:6,marginBottom:16}}><div style={{fontSize:8,fontWeight:700,color:"#e8761a",textTransform:"uppercase"}}>YOUR DISTRICT PARTNER</div><div style={{fontSize:12,fontWeight:700,marginTop:4}}>{f.partnerName||"—"} | +91-{f.partnerPhone||"—"}</div></div><h2 style={{...h2s,marginTop:20}}>System Overview</h2><table><tbody>{([["Customer Name",f.customerName],["System Capacity",`${kw} kWp`],["Panel Type","DCR (Subsidy Eligible)"],["Inverter Type",invL.includes("Hybrid")?"Hybrid (Battery Ready)":"On-Grid"],["Battery",batL],["State",f.state]] as const).map(([k,v],i)=>(<tr key={i} style={{background:i%2===0?"#f5f5f5":"#fff"}}><td style={{padding:"8px 14px",fontWeight:700,color:"#1a3a5c",fontSize:11,width:"45%"}}>{k}</td><td style={{padding:"8px 14px",fontSize:11}}>{v}</td></tr>))}</tbody></table></div><PFt n={2}/></div>
+
+        {/* PAGE 3: WHY SOLAR */}
+        <div className="pg" style={pg}><PH label="WHY SOLAR"/><div style={bd}><h2 style={h2s}>Power Your Home with Free Solar Energy</h2><p style={pps}>Join India's largest rooftop solar program. Get up to ₹78,000 subsidy and reduce electricity bills to zero.</p><h3 style={h3s}>Why Every Indian Home Needs Solar</h3><p style={{...pps,marginBottom:16}}>With rising costs and growing energy demands, rooftop solar is essential for energy security and your family's financial future.</p><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>{[{t:"Rising Electricity Costs",d:"Tariffs increased 30-50% in 5 years. Solar locks costs for 25+ years.",c:"#e8761a"},{t:"Growing Energy Demand",d:"With EVs, ACs, smart appliances, consumption doubles every decade.",c:"#1a3a5c"},{t:"Limited Time Subsidy",d:"PM Surya Ghar Yojana offers up to ₹78,000 subsidy only until 2027.",c:"#2e7d32"},{t:"Earn From Surplus",d:"Net metering lets you sell excess electricity back to the grid.",c:"#1565C0"}].map((r,i)=>(<div key={i} style={{background:"#f8f8f8",padding:12,borderRadius:6,borderTop:`4px solid ${r.c}`}}><div style={{fontSize:11,fontWeight:700,color:r.c,marginBottom:4}}>{r.t}</div><div style={{fontSize:9,color:"#555",lineHeight:"1.5"}}>{r.d}</div></div>))}</div><h3 style={h3s}>National Impact</h3><div style={{display:"flex",gap:12}}><div style={{flex:1,background:"#E8F5E9",padding:"12px 16px",borderRadius:6}}><div style={{fontSize:18,fontWeight:700,color:"#2e7d32"}}>720M Tonnes</div><div style={{fontSize:10,color:"#555"}}>CO₂ Saved over 25 years</div></div><div style={{flex:1,background:"#E3F2FD",padding:"12px 16px",borderRadius:6}}><div style={{fontSize:18,fontWeight:700,color:"#1565C0"}}>17 Lakh Jobs</div><div style={{fontSize:10,color:"#555"}}>Created in solar sector</div></div></div></div><PFt n={3}/></div>
+
+        {/* PAGE 4: ABOUT US */}
+        <div className="pg" style={pg}><PH label="ABOUT US"/><div style={bd}><h2 style={h2s}>About {CO.name}</h2><p style={pps}>{CO.name} delivers premium renewable energy solutions focused on long-term value, substantial savings, and lifetime customer support.</p><p style={pps}>For the last 8 years, closely associated with Hitachi Payment Services Pvt. Ltd., delivering mission-critical financial infrastructure nationwide.</p><div style={{display:"flex",gap:10,margin:"16px 0"}}>{[["300+","White Label ATMs"],["500+","ATMs Sourced"],["5,000+","Partners Onboarded"]].map(([n,l],i)=>(<div key={i} style={{flex:1,background:"#FFF3E0",padding:12,borderRadius:8,textAlign:"center"}}><div style={{fontSize:22,fontWeight:700,color:"#e8761a"}}>{n}</div><div style={{fontSize:9,color:"#555"}}>{l}</div></div>))}</div><h3 style={h3s}>Our Values</h3><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>{[["Trust & Transparency","Complete honesty in pricing"],["Execution Excellence","Timely installation & compliance"],["Sustainability First","Every install protects environment"],["Partner Empowerment","Enabling local partners to grow"],["Nation Building","Aligned with India's self-reliance"],["Customer-Centric","Simple processes & long-term support"]].map(([t,d],i)=>(<div key={i} style={{background:"#f5f5f5",padding:"8px 12px",borderRadius:6}}><div style={{fontSize:11,fontWeight:700,color:"#1a3a5c"}}>{t}</div><div style={{fontSize:9,color:"#888"}}>{d}</div></div>))}</div></div><PFt n={4}/></div>
+
+        {/* PAGE 5: BENEFITS */}
+        <div className="pg" style={pg}><PH label="BENEFITS"/><div style={bd}><h2 style={h2s}>Why Choose {CO.name}</h2><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20}}>{[{t:"Financial Savings",d:"Reduce monthly electricity bills and build lifetime savings.",c:"#e8761a",ic:"₹"},{t:"Government Support",d:"PM Surya Ghar subsidy up to ₹78,000 credited to your account.",c:"#2e7d32",ic:"🏛"},{t:"Sustainability",d:"Zero emission clean energy for future generations.",c:"#00897B",ic:"🌿"},{t:"Property Value",d:"Solar significantly increases property market value.",c:"#1565C0",ic:"📈"}].map((b,i)=>(<div key={i} style={{border:"1px solid #eee",borderLeft:`5px solid ${b.c}`,padding:14,borderRadius:6}}><div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}><span style={{fontSize:18}}>{b.ic}</span><span style={{fontSize:13,fontWeight:700,color:"#1a3a5c"}}>{b.t}</span></div><div style={{fontSize:10,color:"#666",lineHeight:"1.5"}}>{b.d}</div></div>))}</div><div style={{background:"#1a3a5c",padding:"18px 24px",borderRadius:8,textAlign:"center",color:"#fff"}}><div style={{fontSize:18,fontWeight:700}}>25-Year Performance Warranty</div><div style={{fontSize:10,color:"#B0BEC5",marginTop:4}}>Complete peace of mind with industry-leading warranty.</div></div></div><PFt n={5}/></div>
+
+        {/* PAGE 6: INVERTER */}
+        <div className="pg" style={pg}><PH label="INVERTER TECHNOLOGY"/><div style={bd}><h2 style={h2s}>Sunpunch Inverter</h2><p style={pps}>Premium Quality Inverter for Your Solar System</p><div style={{background:"#1a3a5c",padding:"14px 20px",borderRadius:8,textAlign:"center",marginBottom:16}}><div style={{fontSize:20,fontWeight:700,color:"#FFD54F"}}>SUNPUNCH</div><div style={{fontSize:12,color:"#fff",fontWeight:600}}>3-in-1 Hybrid Inverter</div><div style={{fontSize:8,color:"#B0BEC5"}}>Made in India | BIS Certified | MNRE Approved</div></div><h3 style={h3s}>Key Features</h3><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>{[["High Efficiency","Up to 98.6% conversion efficiency"],["Smart MPPT","Advanced Maximum Power Point Tracking"],["WiFi Monitoring","Real-time monitoring via mobile app"],["Wide Voltage Range","Works in low voltage conditions"],["5 Year Warranty","Comprehensive manufacturer warranty"],["IP65 Protection","Dust and water resistant"]].map(([t,d],i)=>(<div key={i} style={{background:"#f8f8f8",padding:"10px 12px",borderRadius:6}}><div style={{fontSize:10,fontWeight:700,color:"#e8761a",marginBottom:3}}>{t}</div><div style={{fontSize:9,color:"#555"}}>{d}</div></div>))}</div><div style={{background:"#e8761a",padding:"14px 20px",borderRadius:8,textAlign:"center",color:"#fff"}}><div style={{fontSize:14,fontWeight:700}}>3-in-1 HYBRID ADVANTAGE</div><div style={{fontSize:9}}>Solar Inverter + Battery Charger + UPS in One Unit | Battery Backup Ready</div></div></div><PFt n={6}/></div>
+
+        {/* PAGE 7: INVESTMENT */}
+        <div className="pg" style={pg}><PH label="INVESTMENT"/><div style={bd}><h2 style={h2s}>Investment Summary</h2><p style={pps}>{kw} kWp {invL.includes("Hybrid")?"Hybrid":"On-Grid"} Solar Rooftop System</p><div style={{background:"#f5f5f5",padding:"14px 18px",borderRadius:8,marginBottom:20}}><div style={{display:"flex",justifyContent:"space-between",padding:"6px 0",fontSize:12}}><span>Project Cost</span><span style={{color:"#e8761a",fontSize:16,fontWeight:700}}>₹{fmt(plantCost)}</span></div>{batP>0&&<div style={{display:"flex",justifyContent:"space-between",padding:"6px 0",fontSize:12}}><span>Battery</span><span style={{color:"#e8761a",fontWeight:600}}>₹{fmt(batP)}</span></div>}<div style={{display:"flex",justifyContent:"space-between",padding:"8px 0 6px",borderTop:"1px solid #ddd"}}><span style={{fontWeight:700,color:"#1a3a5c",fontSize:12}}>Total Project Cost</span><span style={{color:"#1a3a5c",fontSize:18,fontWeight:700}}>₹{fmt(total)}</span></div></div><h3 style={{...h3s,marginTop:16}}>Payment Structure</h3><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:6}}><span>Down Payment ({f.dpPct}%):</span><span style={{fontWeight:700}}>₹{fmt(dp)}</span></div><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:16}}><span>Loan Amount (Before Subsidy):</span><span style={{fontWeight:700}}>₹{fmt(loanA)}</span></div><h3 style={h3s}>Applicable Subsidies</h3><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:6}}><span>Central Govt Subsidy (PM Surya Ghar):</span><span style={{fontWeight:700,color:"#2e7d32"}}>₹{fmt(sub)}</span></div><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:24}}><span>State Government Subsidy:</span><span style={{fontWeight:700}}>₹0</span></div><div style={{display:"flex",gap:10}}>{([["ANNUAL SAVINGS",`₹${fmt(save)}`,"#e8761a"],["25-YEAR SAVINGS",`₹${fmt(save*25)}`,"#2e7d32"],["PAYBACK PERIOD",`${payback} Years`,"#1565C0"]] as const).map(([l,v,c],i)=>(<div key={i} style={{flex:1,background:c,padding:"12px 10px",borderRadius:8,textAlign:"center",color:"#fff"}}><div style={{fontSize:8,fontWeight:700,marginBottom:4}}>{l}</div><div style={{fontSize:17,fontWeight:700}}>{v}</div></div>))}</div></div><PFt n={7}/></div>
+
+        {/* PAGE 8: QUOTATION */}
+        <div className="pg" style={pg}><PH label="ITEMIZED QUOTATION"/><div style={bd}><h2 style={h2s}>Itemized Cost Quotation</h2><p style={pps}>{kw} kWp DCR Solar System | {invL}</p><table><thead><tr style={{background:"#1a3a5c",color:"#fff"}}><th style={{padding:"7px 10px",fontSize:9,textAlign:"center",width:40}}>S.No</th><th style={{padding:"7px 10px",fontSize:9,textAlign:"left"}}>ITEM DESCRIPTION</th><th style={{padding:"7px 10px",fontSize:9,textAlign:"right",width:100}}>AMOUNT (₹)</th></tr></thead><tbody>{qItems.map((item,i)=>(<tr key={i} style={{background:i%2===0?"#f8f8f8":"#fff"}}><td style={{padding:"6px 10px",fontSize:10,textAlign:"center"}}>{item.sno}</td><td style={{padding:"6px 10px",fontSize:10}}>{item.d}</td><td style={{padding:"6px 10px",fontSize:10,textAlign:"right",fontWeight:600}}>{item.a?`₹${fmt(item.a)}`:"N/A"}</td></tr>))}<tr style={{background:"#e8761a",color:"#fff"}}><td style={{padding:"8px 10px"}}></td><td style={{padding:"8px 10px",fontWeight:700,fontSize:12}}>TOTAL PROJECT COST</td><td style={{padding:"8px 10px",fontWeight:700,fontSize:14,textAlign:"right"}}>₹{fmt(total)}</td></tr></tbody></table><p style={{fontSize:8,color:"#999",marginTop:8,fontStyle:"italic"}}>* Prices indicative, may vary by site. GST included.</p></div><PFt n={8}/></div>
+
+        {/* PAGE 9: EMI */}
+        <div className="pg" style={pg}><PH label="LOAN EMI SCHEDULE"/><div style={bd}><h2 style={h2s}>Loan EMI Options</h2><p style={pps}>Compare EMI with and without subsidy deduction:</p><div style={{display:"flex",gap:12,marginBottom:16}}><div style={{flex:1,background:"#f5f5f5",padding:"10px 14px",borderRadius:8}}><div style={{fontWeight:700,fontSize:11,color:"#1a3a5c",marginBottom:4}}>OPTION A - Without Subsidy</div><div style={{fontSize:9.5}}>Plant Cost: ₹{fmt(total)}<br/>Down Payment ({f.dpPct}%): -₹{fmt(dp)}</div><div style={{fontWeight:700,color:"#e8761a",fontSize:11,marginTop:4}}>Net Loan (A): ₹{fmt(loanA)}</div></div><div style={{flex:1,background:"#E8F5E9",padding:"10px 14px",borderRadius:8}}><div style={{fontWeight:700,fontSize:11,color:"#1a3a5c",marginBottom:4}}>OPTION B - After Subsidy</div><div style={{fontSize:9.5}}>Plant Cost: ₹{fmt(total)}<br/>DP: -₹{fmt(dp)} | Subsidy: -₹{fmt(sub)}</div><div style={{fontWeight:700,color:"#2e7d32",fontSize:11,marginTop:4}}>Net Loan (B): ₹{fmt(loanB)}</div></div></div><table><thead><tr style={{background:"#1a3a5c",color:"#fff"}}><th style={{padding:"6px 8px",fontSize:9}}>TENURE</th><th style={{padding:"6px 8px",fontSize:9}}>EMI (A)</th><th style={{padding:"6px 8px",fontSize:9}}>EMI (B)</th><th style={{padding:"6px 8px",fontSize:9}}>YOU SAVE</th></tr></thead><tbody>{tenures.map((t,i)=>{const a=calcEMI(loanA,f.rate,t),b=calcEMI(loanB,f.rate,t);return(<tr key={t} style={{background:t===f.tenure?"#FFF3E0":(i%2===0?"#f8f8f8":"#fff")}}><td style={{padding:"5px 8px",fontSize:10,textAlign:"center"}}>{t}M ({(t/12).toFixed(1)}yr)</td><td style={{padding:"5px 8px",fontSize:10,textAlign:"center"}}>₹{fmt(a)}</td><td style={{padding:"5px 8px",fontSize:10,textAlign:"center",color:"#2e7d32",fontWeight:600}}>₹{fmt(b)}</td><td style={{padding:"5px 8px",fontSize:10,textAlign:"center",color:"#e8761a",fontWeight:700}}>₹{fmt(a-b)}</td></tr>);})}</tbody></table><div style={{background:"#E3F2FD",padding:"8px 14px",borderRadius:6,marginTop:10}}><div style={{fontWeight:700,fontSize:10,color:"#1a3a5c"}}>YOUR SELECTED PLAN (OPTION A)</div><div style={{fontWeight:700,fontSize:12,color:"#1565C0"}}>{f.tenure} Months | EMI: ₹{fmt(calcEMI(loanA,f.rate,f.tenure))}/month | Rate: {f.rate}% p.a.</div></div></div><PFt n={9}/></div>
+
+        {/* PAGE 10: SUSTAINABILITY */}
+        <div className="pg" style={pg}><PH label="SUSTAINABILITY"/><div style={bd}><h2 style={{...h2s,textAlign:"center",marginTop:40}}>Environmental Impact</h2><div style={{display:"flex",gap:14,justifyContent:"center",marginTop:40}}>{[{l:"CO₂ Mitigated (Annual)",v:`${fmt(Math.round(kw*1197.2))} Kg`,c:"#2e7d32"},{l:"Trees Planted Equivalent",v:`${Math.round(kw*57)} Trees`,c:"#1B5E20"},{l:"Distance Equivalent",v:`${fmt(Math.round(kw*4788.8))} Kms`,c:"#1565C0"}].map((e,i)=>(<div key={i} style={{flex:1,border:"1px solid #eee",borderRadius:8,padding:"24px 16px",textAlign:"center"}}><div style={{borderTop:`5px solid ${e.c}`,width:"100%",marginBottom:20}}/><div style={{fontSize:10,color:"#888",marginBottom:10}}>{e.l}</div><div style={{fontSize:24,fontWeight:700,color:e.c}}>{e.v}</div></div>))}</div></div><PFt n={10}/></div>
+
+        {/* PAGE 11: SUBSIDY CALCULATOR */}
+        <div className="pg" style={pg}><PH label="SUBSIDY CALCULATOR"/><div style={bd}><h2 style={h2s}>Check Your Subsidy - Calculator</h2><p style={pps}>Under PM Surya Ghar Muft Bijli Yojana, the Government of India provides direct subsidies to residential customers.</p><table><thead><tr style={{background:"#1a3a5c",color:"#fff"}}><th style={{padding:"6px 8px",fontSize:9}}>Capacity</th><th style={{padding:"6px 8px",fontSize:9}}>Plant Cost</th><th style={{padding:"6px 8px",fontSize:9}}>Subsidy</th><th style={{padding:"6px 8px",fontSize:9}}>Net Cost</th><th style={{padding:"6px 8px",fontSize:9}}>Annual Savings</th></tr></thead><tbody>{[1,2,3,4,5,6,7,8,9,10].map((k,i)=>{const cost=k*perKw,sb=SUBSIDY(k),sv=ANNUAL_SAVE[k];return(<tr key={k} style={{background:k===kw?"#FFF3E0":(i%2===0?"#f8f8f8":"#fff"),fontWeight:k===kw?700:400}}><td style={{padding:"5px 8px",fontSize:10,textAlign:"center",fontWeight:700,color:"#1a3a5c"}}>{k} kW</td><td style={{padding:"5px 8px",fontSize:10,textAlign:"center"}}>₹{fmt(cost)}</td><td style={{padding:"5px 8px",fontSize:10,textAlign:"center",color:"#2e7d32",fontWeight:700}}>₹{fmt(sb)}</td><td style={{padding:"5px 8px",fontSize:10,textAlign:"center",fontWeight:700}}>₹{fmt(cost-sb)}</td><td style={{padding:"5px 8px",fontSize:10,textAlign:"center",color:"#e8761a"}}>₹{fmt(sv)}/yr</td></tr>);})}</tbody></table><p style={{fontSize:8,color:"#999",marginTop:10,fontStyle:"italic",lineHeight:"1.7"}}>* Highlighted row = selected {kw} kW system. Subsidy capped at ₹78,000 for 3kW+.</p></div><PFt n={11}/></div>
+
+        {/* PAGE 12: TERMS */}
+        <div className="pg" style={{...pg,pageBreakAfter:"auto"}}><PH label="TERMS"/><div style={bd}><h2 style={h2s}>Terms & Conditions</h2>{["This proposal is valid for 7 business days from the date of issuance.","Net-metering and subsidy approvals are subject to DISCOM and MNRE feasibility.","Final project cost may vary based on site-specific structural requirements.","System includes a comprehensive 5-year maintenance package.","All electrical work follows national safety standards.","Subsidy will be credited directly to customer bank account as per MNRE norms."].map((t,i)=>(<div key={i} style={{display:"flex",gap:8,marginBottom:10,alignItems:"flex-start"}}><div style={{width:6,height:6,borderRadius:1,background:"#e8761a",marginTop:5,flexShrink:0}}/><span style={{fontSize:11,color:"#333",lineHeight:"1.6"}}>{t}</span></div>))}<div style={{textAlign:"center",margin:"32px 0 24px",fontStyle:"italic",fontSize:14,fontWeight:700,color:"#1a3a5c"}}>{CO.tag}</div><div style={{background:"#1a3a5c",padding:"20px 24px",borderRadius:8,textAlign:"center"}}><div style={{fontSize:17,fontWeight:700,color:"#fff"}}>{CO.name}</div><div style={{fontSize:9,color:"#B0BEC5",marginTop:4}}>CIN: {CO.cin}</div><div style={{fontSize:9,color:"#B0BEC5"}}>{CO.reg}</div><div style={{fontSize:8,color:"#90A4AE",marginTop:10}}>Registered Office: {CO.ro}</div><div style={{fontSize:8,color:"#90A4AE",marginTop:3}}>Branch Office (Bihar): {CO.bo}</div></div></div><PFt n={12}/></div>
+
+      </div>
+    </div>
+  );
+}

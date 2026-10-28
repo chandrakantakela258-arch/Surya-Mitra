@@ -17,7 +17,7 @@ import { Share2, MessageCircle, Check, Copy } from "lucide-react";
 import { SiFacebook, SiX, SiWhatsapp } from "react-icons/si";
 import { useToast } from "@/hooks/use-toast";
 
-const WEBSITE_URL = "https://divyanshisolar.com/";
+const WEBSITE_URL = "https://divyanshisolar.in/";
 const HASHTAGS = "#DivyanshiSolar #PMSuryaGhar #SolarEnergy #RooftopSolar #GreenEnergy #MakeInIndia #SolarPower #CleanEnergy";
 
 interface SocialShareProps {
@@ -57,7 +57,7 @@ export function SocialShare({
     if (district && state) text += `\nLocation: ${district}, ${state}`;
     if (panelType) text += `\nPanel Type: ${panelType === "dcr" ? "DCR (Made in India)" : "Non-DCR"}`;
     
-    text += `\n\nPowered by Divyanshi Solar - PM Surya Ghar Yojana Partner`;
+    text += `\n\nPowered by Divyanshi Digital Services Pvt Ltd - PM Surya Ghar Yojana Partner`;
     text += `\nVisit: ${WEBSITE_URL}`;
     text += `\n\n${HASHTAGS}`;
     
@@ -288,8 +288,8 @@ export function InstallationShareCard({
     <SocialShare
       title={isCompleted ? "Solar Installation Completed!" : "Solar Installation in Progress"}
       description={isCompleted 
-        ? "Another successful solar installation under PM Surya Ghar Muft Bijli Yojana! Helping families save on electricity and go green."
-        : "Solar installation is in progress under PM Surya Ghar Muft Bijli Yojana. More clean energy for India!"
+        ? "Another successful solar installation under PM Surya Ghar Yojana! Helping families save on electricity and go green."
+        : "Solar installation is in progress under PM Surya Ghar Yojana. More clean energy for India!"
       }
       customerName={customer.name}
       capacity={customer.proposedCapacity || undefined}

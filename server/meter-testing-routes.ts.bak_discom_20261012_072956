@@ -1,0 +1,254 @@
+import type { Express, Request, Response } from "express";
+import { pool } from "./db";
+import { sendEmail } from "./gmail";
+import PDFDocument from "pdfkit";
+import { buildAnnexure1 } from "./annexure1-util";
+import { prevCertFor, annexure2Buffer, mergePdfs } from "./prev-cert-util";
+import fs from "fs";
+
+export const DISCOM_INFO: Record<string, { email: string; toLines: string[] }> = {
+  SBPDCL: {
+    email: "sbpdcl.pmsuryaghar@gmail.com",
+    toLines: [
+      "The Chief Engineer (Project-I)",
+      "Urban SBPDCL",
+      "MRT Office – EEE/MRT, PESU (West Circle)",
+      "SBPDCL",
+    ],
+  },
+  NBPDCL: {
+    email: "gcrt.nb@gmail.com",
+    toLines: [
+      "The Chief Engineer (Project-I)",
+      "Urban NBPDCL",
+      "NBPDCL",
+    ],
+  },
+};
+
+const LETTERHEAD = "/root/surya-mitra-host/uploads/pdf-inserts/divyanshi_letterhead.jpg";
+const PAGE_H = 842; // A4 height in pts
+const BOTTOM_LIMIT = PAGE_H - 90;
+
+function drawLetterhead(doc: any) {
+  try {
+    if (fs.existsSync(LETTERHEAD)) {
+      doc.image(LETTERHEAD, 0, 0, { width: doc.page.width, height: doc.page.height });
+    }
+  } catch (e) {}
+}
+
+function buildLetterPdf(data: any): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: "A4", margins: { top: 0, bottom: 0, left: 0, right: 0 } });
+    const chunks: Buffer[] = [];
+    doc.on("data", (c: Buffer) => chunks.push(c));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+    buildAnnexure1(doc, data);
+    doc.end();
+  });
+}
+
+
+// Builds the request letter and, when that DISCOM has already been issued a
+// utilization certificate, appends the newest one (Annexure-II) after it so the
+// covering letter's "attached herewith" line is always true. Matched per DISCOM:
+// an NBPDCL request never carries an SBPDCL certificate.
+async function letterWithCert(data: any, discom: any) {
+  const cert = await prevCertFor(String(discom || "SBPDCL"));
+  let certBuf: Buffer | null = null;
+  if (cert) {
+    try { certBuf = await annexure2Buffer(cert.data); }
+    catch (e: any) { console.error("[prev cert render failed]", e.message); }
+  }
+  const ref = certBuf ? { letter_no: cert.letter_no, date_str: cert.date_str } : null;
+  const base = await buildLetterPdf({ ...data, prev_cert: ref });
+  if (!certBuf) return { buf: base, cert: null };
+  try {
+    const merged = await mergePdfs(base, certBuf);
+    console.info("[prev cert attached]", cert.letter_no, "->", data.letter_no);
+    return { buf: merged, cert };
+  } catch (e: any) {
+    console.error("[prev cert merge failed]", e.message);
+    return { buf: await buildLetterPdf({ ...data, prev_cert: null }), cert: null };
+  }
+}
+
+export function registerMeterTestingRoutes(app: Express) {
+  app.get("/api/meter-testing/list", async (_req: Request, res: Response) => {
+    try {
+      const { rows } = await pool.query("SELECT * FROM meter_testing_letters ORDER BY created_at DESC LIMIT 200");
+      res.json(rows);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.get("/api/meter-testing/:id", async (req: Request, res: Response) => {
+    try {
+      const { rows } = await pool.query("SELECT * FROM meter_testing_letters WHERE id = $1", [req.params.id]);
+      if (!rows.length) return res.status(404).json({ error: "Letter not found" });
+      res.json(rows[0]);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.put("/api/meter-testing/:id", async (req: Request, res: Response) => {
+    try {
+      const b = req.body || {};
+      const items = Array.isArray(b.items) ? b.items : [];
+      if (!items.length) throw new Error("At least one meter row is required");
+      const { rows } = await pool.query(
+        `UPDATE meter_testing_letters
+            SET discom = COALESCE($1, discom), items = $2,
+                meter_serial_no = $3, meter_make = $4,
+                customer_id = $5, customer_name = $6, consumer_number = $7,
+                location = $8, plant_capacity = $9
+          WHERE id = $10 RETURNING *`,
+        [b.discom ? String(b.discom).toUpperCase() : null, JSON.stringify(items),
+         items[0].meter_serial_no || null, items[0].meter_make || null,
+         items[0].customer_id || null, items[0].customer_name || null,
+         items[0].consumer_number || null, items[0].location || null,
+         items[0].plant_capacity || null, req.params.id]);
+      if (!rows.length) return res.status(404).json({ error: "Letter not found" });
+      res.json({ ok: true, letter: rows[0] });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.get("/api/meter-testing/:id/pdf", async (req: Request, res: Response) => {
+    try {
+      const { rows } = await pool.query("SELECT * FROM meter_testing_letters WHERE id = $1", [req.params.id]);
+      if (!rows.length) return res.status(404).json({ error: "Letter not found" });
+      const letter = rows[0];
+      const items = Array.isArray(letter.items) && letter.items.length ? letter.items : [{
+        customer_name: letter.customer_name, consumer_number: letter.consumer_number,
+        location: letter.location, plant_capacity: letter.plant_capacity, phase: "Single Phase",
+        meter_serial_no: letter.meter_serial_no, meter_make: letter.meter_make }];
+      const info = DISCOM_INFO[(letter.discom || "SBPDCL").toUpperCase()] || DISCOM_INFO.SBPDCL;
+      const dateStr = new Date(letter.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" });
+      const { buf: pdf, cert: _prevCert } = await letterWithCert({ letter_no: letter.letter_no, date_str: dateStr, to_lines: info.toLines, items }, letter.discom);
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="${letter.letter_no.replace(/\//g, "_")}.pdf"`);
+      res.end(pdf);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.post("/api/meter-testing/generate", async (req: Request, res: Response) => {
+    const client = await pool.connect();
+    try {
+      const b = req.body;
+      const discom = (b.discom || "SBPDCL").toUpperCase();
+      const info = DISCOM_INFO[discom] || DISCOM_INFO.SBPDCL;
+      const year = new Date().getFullYear();
+      const items = Array.isArray(b.items) ? b.items : [];
+      if (items.length === 0) throw new Error("At least one customer/meter row is required");
+
+      await client.query("BEGIN");
+      const { rows: cntRows } = await client.query(
+        "SELECT COUNT(*)::int AS cnt FROM meter_testing_letters WHERE discom = $1 AND EXTRACT(YEAR FROM created_at) = $2",
+        [discom, year]
+      );
+      const seq = (cntRows[0]?.cnt || 0) + 1;
+      const letterNo = `DDSPL/MRT/${discom}/${String(seq).padStart(3, "0")}/${year}`;
+      const dateStr = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" });
+
+      await client.query(
+        `INSERT INTO meter_testing_letters
+         (letter_no, discom, recipient_email, customer_id, customer_name, consumer_number, location, plant_capacity, meter_serial_no, meter_make, items, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+        [letterNo, discom, info.email, items[0].customer_id || null, items[0].customer_name,
+         items[0].consumer_number, items[0].location, items[0].plant_capacity,
+         items[0].meter_serial_no, items[0].meter_make, JSON.stringify(items), b.created_by || null]
+      );
+      await client.query("COMMIT");
+
+      const { buf: pdfBuffer, cert: _prevCert } = await letterWithCert({ letter_no: letterNo, date_str: dateStr, to_lines: info.toLines, items }, discom);
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${letterNo.replace(/\//g, "_")}.pdf"`);
+      res.send(pdfBuffer);
+    } catch (e: any) {
+      await client.query("ROLLBACK");
+      res.status(500).json({ error: e.message });
+    } finally {
+      client.release();
+    }
+  });
+
+  app.post("/api/meter-testing/:id/send-email", async (req: Request, res: Response) => {
+    try {
+      const { rows } = await pool.query("SELECT * FROM meter_testing_letters WHERE id = $1", [req.params.id]);
+      if (!rows.length) return res.status(404).json({ error: "Not found" });
+      const letter = rows[0];
+      const info = DISCOM_INFO[letter.discom] || DISCOM_INFO.SBPDCL;
+      const dateStr = new Date(letter.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" });
+      const items = Array.isArray(letter.items) ? letter.items : [{
+        customer_name: letter.customer_name, consumer_number: letter.consumer_number,
+        location: letter.location, plant_capacity: letter.plant_capacity,
+        meter_serial_no: letter.meter_serial_no, meter_make: letter.meter_make,
+      }];
+
+      const { buf: pdfBuffer, cert: _prevCert } = await letterWithCert({ letter_no: letter.letter_no, date_str: dateStr, to_lines: info.toLines, items }, letter.discom);
+
+      const itemRowsHtml = items.map((it: any, i: number) => `
+        <tr>
+          <td style="padding:8px;border:1px solid #e5c9a8;font-size:12px">${i + 1}</td>
+          <td style="padding:8px;border:1px solid #e5c9a8;font-size:12px">${it.plant_capacity || ""}</td>
+          <td style="padding:8px;border:1px solid #e5c9a8;font-size:12px">${it.phase || ""}</td>
+          <td style="padding:8px;border:1px solid #e5c9a8;font-size:12px">${it.meter_serial_no || ""}</td>
+          <td style="padding:8px;border:1px solid #e5c9a8;font-size:12px">${it.meter_make || ""}</td>
+        </tr>`).join("");
+
+      const meterWord = items.length > 1 ? "meters" : "meter";
+      const htmlBody = `
+        <div style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto">
+          <div style="background:#000;padding:20px 30px">
+            <h1 style="color:#fff;margin:0;font-size:22px">DIVYANSHI DIGITAL SERVICES PVT. LTD.</h1>
+            <p style="color:#f5820d;margin:4px 0 0;font-size:13px;font-weight:bold">Changing The Lives In Rural India</p>
+          </div>
+          <div style="border-left:4px solid #e8650a;padding:20px 26px;background:#fff">
+            <p style="font-size:13px;color:#333"><b>Letter No.:</b> ${letter.letter_no} &nbsp;&nbsp; <b>Date:</b> ${dateStr}</p>
+            <p style="font-size:13px;color:#333">To,<br/>${info.toLines.join("<br/>")}</p>
+            <p style="font-size:13px;color:#333"><b>Subject:</b> Request for Testing of Solar Net Meter under PM Surya Ghar: Muft Bijli Yojana</p>
+            <p style="font-size:13px;color:#333"><b>Reference:</b> Letter No. 149 dated 22/05/2025 regarding testing of solar meters under PM Surya Ghar Yojana.</p>
+              ${_prevCert ? `<p style="font-size:13px;color:#333"><b>Enclosure:</b> Meter Utilization Certificate (Annexure-II) <b>${_prevCert.letter_no}</b> dated ${_prevCert.date_str}, showing 80% or more utilization of the solar meters issued earlier, is attached herewith along with this request.</p>` : ""}
+            <p style="font-size:13px;color:#333">Sir,<br/>With reference to the subject cited above, we are submitting the following solar net ${meterWord} for testing. Kindly arrange testing at the earliest and grant your approval so that further installation and commissioning process may be completed.</p>
+            <table style="border-collapse:collapse;width:100%;margin:16px 0">
+              <thead>
+                <tr style="background:#fef0e6">
+                  <th style="padding:8px;border:1px solid #e5c9a8;font-size:12px;text-align:left">Sl.</th>
+                     <th style="padding:8px;border:1px solid #e5c9a8;font-size:12px;text-align:left">Capacity</th>
+                  <th style="padding:8px;border:1px solid #e5c9a8;font-size:12px;text-align:left">Phase</th>
+                  <th style="padding:8px;border:1px solid #e5c9a8;font-size:12px;text-align:left">Meter Sr. No.</th>
+                  <th style="padding:8px;border:1px solid #e5c9a8;font-size:12px;text-align:left">Make</th>
+                </tr>
+              </thead>
+              <tbody>${itemRowsHtml}</tbody>
+            </table>
+            <p style="font-size:13px;color:#333">Therefore, we kindly request you to <b>test the above-mentioned ${meterWord} at the earliest and grant your approval</b> so that the project may proceed further. The complete signed letter is attached as PDF for your records.</p>
+            <p style="font-size:13px;color:#333">Thanking You.<br/>Yours Faithfully,<br/><b>For Divyanshi Digital Services Pvt. Ltd.</b><br/>(Authorized Signatory)</p>
+          </div>
+          <div style="background:#e8650a;padding:12px 26px;text-align:center">
+            <p style="color:#fff;margin:0;font-size:11px">Divyanshi Digital Services Pvt. Ltd. | 9801005212, 8709127232 | chandrakant@divyanshisolar.in | www.divyanshisolar.in</p>
+          </div>
+        </div>`;
+
+      const custList = items.map((it: any) => `${it.customer_name} (CN: ${it.consumer_number})`).join(", ");
+      const result = await sendEmail({
+        to: letter.recipient_email,
+        subject: `Request for Testing & Approval of Solar Net Meter - ${letter.letter_no}`,
+        htmlContent: htmlBody,
+        replyTo: "chandrakant@divyanshisolar.in",
+        pdfAttachment: {
+          filename: `${letter.letter_no.replace(/\//g, "_")}.pdf`,
+          data: pdfBuffer.toString("base64"),
+        },
+      });
+
+      if (!result.success) throw new Error(result.error || "Failed to send email");
+
+      await pool.query("UPDATE meter_testing_letters SET sent_at = NOW() WHERE id = $1", [req.params.id]);
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+}

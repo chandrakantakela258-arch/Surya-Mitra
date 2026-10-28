@@ -1,0 +1,21 @@
+<Route path="/admin/whatsapp-dashboard">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminWhatsAppDashboard />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/whatsapp-settings">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminWhatsAppSettings />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/whatsapp-contacts">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <DashboardLayout>
+            <AdminWhatsAppContacts />
+          </DashboardLayout>
+        </ProtectedRoute>
+      </Route>

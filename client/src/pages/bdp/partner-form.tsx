@@ -15,7 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const partnerFormSchema = registerUserSchema.extend({
-  role: registerUserSchema.shape.role.default("ddp"),
+  role: registerUserSchema.shape.role.default("ddp"), // DDP only
 });
 
 type PartnerFormValues = z.infer<typeof partnerFormSchema>;
@@ -91,7 +91,7 @@ export default function PartnerForm() {
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <div>
-          <h1 className="text-3xl font-semibold" data-testid="text-page-title">Add District Partner</h1>
+          <h1 className="text-3xl font-semibold" data-testid="text-page-title">Add Partner</h1>
           <p className="text-muted-foreground">Register a new District Development Partner</p>
         </div>
       </div>
@@ -100,7 +100,7 @@ export default function PartnerForm() {
         <CardHeader>
           <CardTitle>Partner Information</CardTitle>
           <CardDescription>
-            Fill in the details to onboard a new DDP to your network
+            Fill in the details to onboard a new partner to your network
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -108,6 +108,29 @@ export default function PartnerForm() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               {/* Personal Information */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Partner Role */}
+              <div className="mb-4">
+                <FormField
+                  control={form.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Partner Role *</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select role" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="ddp">DDP (District Development Partner)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
                 <FormField
                   control={form.control}
                   name="name"

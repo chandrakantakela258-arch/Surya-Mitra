@@ -1,0 +1,192 @@
+import { useState, useEffect } from "react";
+import { useParams, useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { CheckCircle, Users, Loader2, MapPin, Phone, User, Lock, Mail, Building2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { indianStatesData, getDistrictsForState } from "@shared/india-data";
+import logoImage from "@assets/88720521_logo_1766219255006.png";
+
+export default function JoinPartner() {
+  const params = useParams<{ code: string }>();
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [bdpInfo, setBdpInfo] = useState<any>(null);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState<any>(null);
+
+  // Read role from URL ?role=ddp or ?role=sdp
+  const urlParams = new URLSearchParams(window.location.search);
+  const presetRole = urlParams.get("role") === "sdp" ? "sdp" : "ddp";
+
+  const [form, setForm] = useState({
+    name: "", phone: "", email: "", state: "", district: "", address: "", password: "", confirmPassword: "", role: presetRole
+  });
+
+  const districts = form.state ? getDistrictsForState(form.state) : [];
+
+  useEffect(() => {
+    fetch(`/api/public/validate-referral/${params.code}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.valid) setBdpInfo(data);
+        else setError("Invalid or expired referral link");
+      })
+      .catch(() => setError("Could not validate referral link"))
+      .finally(() => setLoading(false));
+  }, [params.code]);
+
+  const handleSubmit = async () => {
+    if (!form.name || !form.phone || !form.password) {
+      toast({ title: "Please fill all required fields", variant: "destructive" }); return;
+    }
+    if (form.password !== form.confirmPassword) {
+      toast({ title: "Passwords don't match", variant: "destructive" }); return;
+    }
+    if (form.password.length < 6) {
+      toast({ title: "Password must be at least 6 characters", variant: "destructive" }); return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/public/join-partner", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, referralCode: params.code })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      setSuccess(data.partner);
+    } catch (e: any) {
+      toast({ title: "Registration failed", description: e.message, variant: "destructive" });
+    } finally { setSubmitting(false); }
+  };
+
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-yellow-50 dark:from-gray-900 dark:to-gray-800">
+      <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+    </div>
+  );
+
+  if (error) return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-yellow-50 dark:from-gray-900 dark:to-gray-800 p-4">
+      <Card className="max-w-md w-full text-center">
+        <CardContent className="pt-8 pb-8">
+          <div className="text-6xl mb-4">❌</div>
+          <h2 className="text-xl font-bold mb-2">Invalid Link</h2>
+          <p className="text-muted-foreground">{error}</p>
+          <Button className="mt-4" onClick={() => setLocation("/")}>Go to Home</Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  if (success) return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50 dark:from-gray-900 dark:to-gray-800 p-4">
+      <Card className="max-w-md w-full text-center">
+        <CardContent className="pt-8 pb-8">
+          <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold mb-2">Registration Successful! 🎉</h2>
+          <div className="space-y-3 mt-4 text-left bg-muted/50 p-4 rounded-lg">
+            <div><span className="text-sm text-muted-foreground">Name:</span> <strong>{success.name}</strong></div>
+            <div><span className="text-sm text-muted-foreground">Role:</span> <Badge>{success.role === 'sdp' ? 'State Development Partner' : 'District Development Partner'}</Badge></div>
+            <div><span className="text-sm text-muted-foreground">Partner Code:</span> <Badge variant="outline" className="font-mono">{success.partnerCode}</Badge></div>
+            <div><span className="text-sm text-muted-foreground">Under BDP:</span> <strong>{success.bdpName}</strong> ({success.bdpCode})</div>
+          </div>
+          <p className="text-sm text-muted-foreground mt-4">You can now login with your phone number and password.</p>
+          <Button className="mt-4 w-full" onClick={() => setLocation("/login")}>Login Now</Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-yellow-50 dark:from-gray-900 dark:to-gray-800 p-4">
+      <div className="max-w-lg mx-auto">
+        <div className="text-center mb-6">
+          <img src={logoImage} alt="Divyanshi Digital Services Pvt Ltd" className="h-14 mx-auto mb-3" />
+          <h1 className="text-2xl font-bold">Join as Partner</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Invited by <strong>{bdpInfo.bdpName}</strong> ({bdpInfo.bdpCode})
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5 text-orange-500" />Partner Registration</CardTitle>
+            <CardDescription>Fill in your details to join as a partner under {bdpInfo.bdpName}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Role Display */}
+            <div className="space-y-2">
+              <Label>Partner Type</Label>
+              <div className="p-3 rounded-lg border bg-muted/50 font-medium">
+                {form.role === "sdp" ? "🏛️ State Development Partner (SDP)" : "📍 District Development Partner (DDP)"}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1"><User className="h-3.5 w-3.5" />Full Name *</Label>
+              <Input placeholder="Your full name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1"><Phone className="h-3.5 w-3.5" />Phone Number *</Label>
+              <Input placeholder="10-digit phone number" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1"><Mail className="h-3.5 w-3.5" />Email</Label>
+              <Input placeholder="your@email.com (optional)" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />State *</Label>
+              <Select value={form.state} onValueChange={v => setForm(f => ({ ...f, state: v, district: "" }))}>
+                <SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger>
+                <SelectContent>
+                  {indianStatesData.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1"><Building2 className="h-3.5 w-3.5" />District *</Label>
+              {districts.length > 0 ? (
+                <Select value={form.district} onValueChange={v => setForm(f => ({ ...f, district: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select district" /></SelectTrigger>
+                  <SelectContent>{districts.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                </Select>
+              ) : (
+                <Input placeholder="Enter district" value={form.district} onChange={e => setForm(f => ({ ...f, district: e.target.value }))} />
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Address</Label>
+              <Input placeholder="Your address (optional)" value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1"><Lock className="h-3.5 w-3.5" />Password *</Label>
+              <Input type="password" placeholder="Minimum 6 characters" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1"><Lock className="h-3.5 w-3.5" />Confirm Password *</Label>
+              <Input type="password" placeholder="Re-enter password" value={form.confirmPassword} onChange={e => setForm(f => ({ ...f, confirmPassword: e.target.value }))} />
+            </div>
+
+            <Button onClick={handleSubmit} disabled={submitting} className="w-full mt-2 bg-orange-500 hover:bg-orange-600">
+              {submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Registering...</> : <><Users className="mr-2 h-4 w-4" />Register as Partner</>}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

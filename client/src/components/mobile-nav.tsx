@@ -34,7 +34,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 
-const WEBSITE_URL = "https://divyanshisolar.com/";
+const WEBSITE_URL = "https://divyanshisolar.in/";
 const HASHTAGS = "#DivyanshiSolar #PMSuryaGhar #SolarEnergy #RooftopSolar #GreenEnergy #MakeInIndia";
 
 interface NavItem {
@@ -44,14 +44,14 @@ interface NavItem {
 }
 
 const ddpNavItems: NavItem[] = [
-  { icon: LayoutDashboard, label: "Home", href: "/ddp/dashboard" },
+  { icon: LayoutDashboard, label: "Home", href: "/ddp/bot-leads" },
   { icon: Users, label: "Customers", href: "/ddp/customers" },
   { icon: Calculator, label: "Calculator", href: "/calculator" },
   { icon: Wallet, label: "Earnings", href: "/ddp/earnings" },
 ];
 
 const ddpMenuItems: NavItem[] = [
-  { icon: LayoutDashboard, label: "Home", href: "/ddp/dashboard" },
+  { icon: LayoutDashboard, label: "Home", href: "/ddp/bot-leads" },
   { icon: MessageSquare, label: "Chat Bot Leads", href: "/ddp/bot-leads" },
   { icon: Users, label: "Customers", href: "/ddp/customers" },
   { icon: UserPlus, label: "Add Customer", href: "/ddp/customers/new" },
@@ -59,14 +59,36 @@ const ddpMenuItems: NavItem[] = [
   { icon: ShoppingCart, label: "Store", href: "/ddp/store" },
   { icon: Wallet, label: "Earnings", href: "/ddp/earnings" },
   { icon: Wrench, label: "Service Requests", href: "/ddp/service-requests" },
+  { icon: Users, label: "WhatsApp Contacts", href: "/ddp/whatsapp-contacts" },
   { icon: Trophy, label: "Leaderboard", href: "/leaderboard" },
   { icon: User, label: "My Profile", href: "/profile" },
   { icon: Calculator, label: "Calculator", href: "/calculator" },
+  { icon: Share2, label: "Share Customer Link", href: "/ddp/share-customer" },
 ];
 
+const sdpNavItems: NavItem[] = [
+  { icon: LayoutDashboard, label: "Home", href: "/sdp/dashboard" },
+  { icon: Users, label: "Customers", href: "/sdp/customers" },
+  { icon: Calculator, label: "Calculator", href: "/calculator" },
+  { icon: Wallet, label: "Earnings", href: "/sdp/earnings" },
+];
+const sdpMenuItems: NavItem[] = [
+  { icon: LayoutDashboard, label: "Home", href: "/sdp/dashboard" },
+  { icon: MessageSquare, label: "Chat Bot Leads", href: "/sdp/bot-leads" },
+  { icon: Users, label: "District Partners", href: "/sdp/partners" },
+  { icon: UserPlus, label: "Add District Partner", href: "/sdp/partners/new" },
+  { icon: Share2, label: "Share Partner Link", href: "/sdp/share-link" },
+  { icon: Users, label: "Customers", href: "/sdp/customers" },
+  { icon: UserPlus, label: "Add Customer", href: "/sdp/customers/new" },
+  { icon: Wallet, label: "Earnings", href: "/sdp/earnings" },
+  { icon: Share2, label: "Share Customer Link", href: "/sdp/share-customer" },
+  { icon: User, label: "My Profile", href: "/profile" },
+  { icon: Calculator, label: "Calculator", href: "/calculator" },
+  { icon: GitBranch, label: "Partner Hierarchy", href: "/sdp/partner-hierarchy" },
+];
 // Bottom bar items for BDP (first 4 shown in bottom nav)
 const bdpBottomNavItems: NavItem[] = [
-  { icon: LayoutDashboard, label: "Home", href: "/bdp/dashboard" },
+  { icon: LayoutDashboard, label: "Home", href: "/bdp/bot-leads" },
   { icon: Users, label: "All Customers", href: "/bdp/customers" },
   { icon: Wallet, label: "Wallet", href: "/bdp/wallet" },
   { icon: ShoppingCart, label: "Store", href: "/bdp/store" },
@@ -74,7 +96,7 @@ const bdpBottomNavItems: NavItem[] = [
 
 // Additional menu items for BDP (shown in More menu)
 const bdpMenuItems: NavItem[] = [
-  { icon: LayoutDashboard, label: "Home", href: "/bdp/dashboard" },
+  { icon: LayoutDashboard, label: "Home", href: "/bdp/bot-leads" },
   { icon: Users, label: "Customers", href: "/bdp/customers" },
   { icon: Wallet, label: "Wallet", href: "/bdp/wallet" },
   { icon: ShoppingCart, label: "Store", href: "/bdp/store" },
@@ -82,6 +104,10 @@ const bdpMenuItems: NavItem[] = [
   { icon: User, label: "Profile", href: "/profile" },
   { icon: Users, label: "District Partners", href: "/bdp/partners" },
   { icon: MessageSquare, label: "Chat Bot Leads", href: "/bdp/bot-leads" },
+  { icon: Users, label: "WhatsApp Contacts", href: "/bdp/whatsapp-contacts" },
+  { icon: Users, label: "Add State Partner", href: "/bdp/add-sdp" },
+  { icon: Users, label: "Share Partner Link", href: "/bdp/share-link" },
+  { icon: GitBranch, label: "Partner Hierarchy", href: "/bdp/partner-hierarchy" },
 ];
 
 // Bottom bar items for admin (first 4 shown in bottom nav)
@@ -99,8 +125,12 @@ const adminMenuItems: NavItem[] = [
   { icon: Users, label: "All Customers", href: "/admin/customers" },
   { icon: User, label: "Independent Customers", href: "/admin/independent-customers" },
   { icon: FileText, label: "Customer Leads", href: "/admin/customer-journey" },
+  { icon: UserPlus, label: "New Customer Leads", href: "/admin/customer-leads" },
   { icon: MessageSquare, label: "SOLAR BOT LEAD", href: "/admin/solar-bot-leads" },
   { icon: MessageSquare, label: "Partner Chat Bot Leads", href: "/admin/partner-bot-leads" },
+  { icon: MessageSquare, label: "WhatsApp Dashboard", href: "/admin/whatsapp-dashboard" },
+  { icon: Users, label: "WhatsApp Contacts", href: "/admin/whatsapp-contacts" },
+  { icon: MessageSquare, label: "WhatsApp Settings", href: "/admin/whatsapp-settings" },
   { icon: MessagesSquare, label: "Chatbot Settings", href: "/admin/chatbot-settings" },
   { icon: ShoppingCart, label: "Products", href: "/admin/products" },
   { icon: Receipt, label: "Orders", href: "/admin/orders" },
@@ -117,6 +147,17 @@ const adminMenuItems: NavItem[] = [
   { icon: Calculator, label: "Subsidy Calculator", href: "/admin/subsidy-calculator" },
   { icon: Share2, label: "Notifications", href: "/admin/push-notifications" },
   { icon: MessagesSquare, label: "Help Assistant", href: "/admin/help" },
+  { icon: Receipt, label: "Billing Dashboard", href: "/admin/billing" },
+  { icon: FileText, label: "Raise Invoice", href: "/admin/billing/invoices/new" },
+  { icon: FileText, label: "Raise Quotation", href: "/admin/billing/quotations/new" },
+  { icon: Receipt, label: "All Invoices", href: "/admin/billing/invoices" },
+  { icon: Receipt, label: "GST Invoice", href: "/admin/billing/approved-bills" },
+  { icon: Receipt, label: "Payment Receipts", href: "/admin/billing/receipts" },
+  { icon: ShoppingCart, label: "Products & Stock", href: "/admin/billing/stock" },
+  { icon: FileText, label: "All Quotations", href: "/admin/billing/quotations" },
+  { icon: Truck, label: "Vendors/Suppliers", href: "/admin/billing/vendors" },
+  { icon: Users, label: "Billing Customers", href: "/admin/billing/customers-billing" },
+  { icon: Truck, label: "All Purchase Orders", href: "/admin/billing/purchase-orders" },
 ];
 
 const customerPartnerNavItems: NavItem[] = [
@@ -135,7 +176,7 @@ export function MobileNav() {
 
   if (!user) return null;
 
-  const shareText = `Join Divyanshi Solar - India's trusted partner for PM Surya Ghar Muft Bijli Yojana! Get FREE rooftop solar installation with government subsidy.\n\nVisit: ${WEBSITE_URL}\n\n${HASHTAGS}`;
+  const shareText = `Join Divyanshi Digital Services Pvt Ltd - India's trusted partner for PM Surya Ghar Yojana! Get FREE rooftop solar installation with government subsidy.\n\nVisit: ${WEBSITE_URL}\n\n${HASHTAGS}`;
   const encodedText = encodeURIComponent(shareText);
 
   const shareToFacebook = () => {
@@ -159,7 +200,9 @@ export function MobileNav() {
     ? adminBottomNavItems 
     : user.role === "bdp" 
       ? bdpBottomNavItems 
-      : user.role === "customer_partner"
+      : user.role === "sdp"
+        ? sdpNavItems
+        : user.role === "customer_partner"
         ? customerPartnerNavItems
         : ddpMenuItems;
 
@@ -168,7 +211,9 @@ export function MobileNav() {
     ? adminMenuItems 
     : user.role === "bdp" 
       ? bdpMenuItems 
-      : user.role === "customer_partner"
+      : user.role === "sdp"
+        ? sdpMenuItems
+        : user.role === "customer_partner"
         ? customerPartnerNavItems
         : ddpMenuItems;
 

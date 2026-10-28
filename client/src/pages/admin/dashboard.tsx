@@ -2,10 +2,100 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Users, Building2, FileText, IndianRupee, CheckCircle, Clock, Sun, RefreshCw, Settings } from "lucide-react";
+import { Users, Building2, FileText, IndianRupee, CheckCircle, Clock, Sun, RefreshCw, Settings, Copy, CheckCircle2, Link2 } from "lucide-react";
+import { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { User, Customer } from "@shared/schema";
+
+function BDPLinkGenerator() {
+  const { toast } = useToast();
+  const [selectedBdp, setSelectedBdp] = useState<string>("");
+  const [copied, setCopied] = useState(false);
+
+  const { data: bdps } = useQuery<User[]>({
+    queryKey: ["/api/admin/partners"],
+    select: (data) => data?.filter(p => p.role === "bdp" && p.status === "approved" && p.partnerCode),
+  });
+
+  const selectedBdpData = bdps?.find(b => b.id.toString() === selectedBdp);
+  const baseUrl = window.location.origin;
+  const ddpLink = selectedBdpData ? `${baseUrl}/join/${selectedBdpData.partnerCode}?role=ddp` : "";
+
+  const copyLink = () => {
+    if (!ddpLink) return;
+    navigator.clipboard.writeText(ddpLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 3000);
+    toast({ title: "BDP Link Copied!", description: ddpLink });
+  };
+
+  const shareWhatsApp = () => {
+    if (!ddpLink) return;
+    const text = encodeURIComponent(
+      `🤝 Join Divyanshi Digital Services Pvt Ltd as a District Development Partner!
+
+Register using this link:
+${ddpLink}
+
+✅ Earn commissions on every solar installation
+✅ Get your own Solar Bot for lead generation
+✅ Access to exclusive products & training
+
+— Divyanshi Digital Services Pvt Ltd Partner Network`
+    );
+    window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
+  };
+
+  return (
+    <Card className="border-orange-200 dark:border-orange-800">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Link2 className="w-5 h-5 text-orange-500" />
+          Generate BDP Partner Link
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Select onValueChange={setSelectedBdp} value={selectedBdp}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select a BDP to generate link" />
+          </SelectTrigger>
+          <SelectContent>
+            {bdps?.map(bdp => (
+              <SelectItem key={bdp.id} value={bdp.id.toString()}>
+                {bdp.name} — {bdp.partnerCode} ({bdp.district || bdp.state || "N/A"})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {ddpLink && (
+          <>
+            <div className="flex gap-2">
+              <Input value={ddpLink} readOnly className="font-mono text-xs" />
+              <Button onClick={copyLink} variant={copied ? "default" : "outline"} className="shrink-0">
+                {copied ? <><CheckCircle2 className="h-4 w-4 mr-1" />Copied</> : <><Copy className="h-4 w-4 mr-1" />Copy</>}
+              </Button>
+            </div>
+            <Button onClick={shareWhatsApp} className="w-full bg-green-600 hover:bg-green-700">
+              Share on WhatsApp
+            </Button>
+            <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+              <strong>BDP:</strong> {selectedBdpData?.name} &nbsp;|&nbsp;
+              <strong>Code:</strong> {selectedBdpData?.partnerCode} &nbsp;|&nbsp;
+              <strong>Role:</strong> DDP Registration Link
+            </div>
+          </>
+        )}
+        {!bdps?.length && (
+          <p className="text-sm text-muted-foreground">No approved BDPs with partner codes found.</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 function formatINR(amount: number): string {
   return new Intl.NumberFormat("en-IN", {
@@ -13,6 +103,59 @@ function formatINR(amount: number): string {
     currency: "INR",
     maximumFractionDigits: 0,
   }).format(amount);
+}
+
+function BDPShareCard() {
+  const { toast } = useToast();
+  const [bdpCopied, setBdpCopied] = useState(false);
+  const bdpLink = window.location.origin + "/join-bdp";
+
+  const copyBdpLink = () => {
+    navigator.clipboard.writeText(bdpLink);
+    setBdpCopied(true);
+    setTimeout(() => setBdpCopied(false), 3000);
+    toast({ title: "BDP Registration Link Copied!" });
+  };
+
+  const shareWhatsApp = () => {
+    const text = encodeURIComponent(
+      `🌟 Join Divyanshi Digital Services Pvt Ltd as a Business Development Partner (BDP)!
+
+📋 Register here:
+${bdpLink}
+
+✅ Build your own partner network
+✅ Earn commissions on team installations
+✅ Access business analytics dashboard
+✅ Get your own Solar Bot for lead generation
+
+— Divyanshi Digital Services Pvt Ltd`
+    );
+    window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
+  };
+
+  return (
+    <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Link2 className="w-5 h-5 text-blue-600" />
+          Share BDP Registration Link
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex gap-2">
+          <Input value={bdpLink} readOnly className="font-mono text-xs bg-white dark:bg-gray-900" />
+          <Button onClick={copyBdpLink} variant={bdpCopied ? "default" : "outline"} className="shrink-0">
+            {bdpCopied ? <><CheckCircle2 className="h-4 w-4 mr-1" />Copied</> : <><Copy className="h-4 w-4 mr-1" />Copy</>}
+          </Button>
+        </div>
+        <Button onClick={shareWhatsApp} className="w-full bg-green-600 hover:bg-green-700 text-white">
+          📲 Share BDP Link on WhatsApp
+        </Button>
+        <p className="text-xs text-muted-foreground">Anyone with this link can register as a Business Development Partner</p>
+      </CardContent>
+    </Card>
+  );
 }
 
 export default function AdminDashboard() {
@@ -81,6 +224,9 @@ export default function AdminDashboard() {
           <p className="text-muted-foreground">DivyanshiSolar Platform Overview</p>
         </div>
       </div>
+
+      {/* BDP Registration Link Share */}
+      <BDPShareCard />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
@@ -209,6 +355,8 @@ export default function AdminDashboard() {
             )}
           </CardContent>
         </Card>
+
+        <BDPLinkGenerator />
 
         <Card>
           <CardHeader>

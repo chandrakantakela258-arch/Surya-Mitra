@@ -27,8 +27,8 @@ const slides = [
   },
   {
     image: indianBungalow,
-    title: "Up to Rs 78,000 Subsidy",
-    subtitle: "Government subsidy on DCR solar panels for your home"
+    title: "Up to Rs 98,000 Subsidy in Bihar",
+    subtitle: "Rs 78,000 central + Rs 20,000 Bihar state subsidy on DCR panels"
   },
   {
     image: indianColony,

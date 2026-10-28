@@ -276,7 +276,7 @@ export default function SolarBotPage() {
             <span className="font-bold text-green-700 text-sm">PM Surya Ghar Solar Bot</span>
             <Sparkles size={14} className="text-yellow-400" />
           </div>
-          <p className="text-xs text-green-600">Powered by Divyanshi Solar</p>
+          <p className="text-xs text-green-600">Powered by Divyanshi Digital Services Pvt Ltd</p>
         </div>
 
         <div className="bg-[#e5ddd5] rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
@@ -348,7 +348,7 @@ export default function SolarBotPage() {
         </div>
 
         <div className="text-center mt-4">
-          <a href="/" className="text-xs text-green-600 hover:underline" data-testid="link-home">Visit DivyanshiSolar.com</a>
+          <a href="/" className="text-xs text-green-600 hover:underline" data-testid="link-home">Visit DivyanshiSolar.in</a>
         </div>
       </div>
     </div>

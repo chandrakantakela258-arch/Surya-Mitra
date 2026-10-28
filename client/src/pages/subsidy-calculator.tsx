@@ -21,7 +21,7 @@ export default function SubsidyCalculatorPage() {
             <WouterLink href="/">
               <img 
                 src={logoImage} 
-                alt="Divyanshi Solar" 
+                alt="Divyanshi Digital Services Pvt Ltd" 
                 className="h-8 w-auto object-contain"
               />
             </WouterLink>

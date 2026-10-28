@@ -1,3 +1,12 @@
+import { registerMobileRoutes } from "./mobile-routes";
+import { registerBillingRoutes } from "./billing-routes";
+import { registerMeterTestingRoutes } from "./meter-testing-routes";
+import { registerPublicSolarRoutes } from "./public-solar-routes";
+import { registerLedgerRoutes } from "./ledger-routes";
+import { registerMeterUtilizationRoutes } from "./meter-utilization-routes";
+import { registerBankQuotationRoutes } from "./bank-quotation-routes";
+import { registerShopPartnerRoutes } from "./shop-partner-routes";
+import { registerPORoutes } from "./billing-routes-po";
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import session from "express-session";
@@ -11,7 +20,7 @@ import { pool } from "./db";
 import { storage, generatePartnerCode, generateCustomerCode } from "./storage";
 import { registerUserSchema, loginSchema, customerFormSchema, insertFeedbackSchema, updateFeedbackStatusSchema, inverterCommission, insertVendorSchema, vendorStates, insertSiteSurveySchema, insertMeterInstallationReportSchema, insertPortalSubmissionReportSchema, insertRemainingPaymentReportSchema, insertSubsidyApplicationReportSchema, insertSubsidyDisbursementReportSchema, insertProposalLeadSchema, indianStates, whatsappLeads } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { z } from "zod";
 import { notificationService } from "./notification-service";
 import { calculateLeadScore, type LeadScoreResult } from "./lead-scoring-service";
@@ -202,8 +211,20 @@ async function requireDDP(req: Request, res: Response, next: NextFunction) {
     return res.status(401).json({ message: "Not authenticated" });
   }
   const user = await storage.getUser(req.session.userId);
-  if (!user || (user.role !== "ddp" && user.role !== "admin")) {
+  if (!user || (user.role !== "ddp" && user.role !== "sdp" && user.role !== "admin")) {
     return res.status(403).json({ message: "Forbidden: DDP access required" });
+  }
+  (req as any).user = user;
+  next();
+}
+
+async function requireSDP(req: Request, res: Response, next: NextFunction) {
+  if (!req.session.userId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+  const user = await storage.getUser(req.session.userId);
+  if (!user || (user.role !== "sdp" && user.role !== "admin")) {
+    return res.status(403).json({ message: "Forbidden: SDP access required" });
   }
   (req as any).user = user;
   next();
@@ -258,6 +279,7 @@ async function forwardCustomerEmailToState(customer: any) {
   let failedFiles = 0;
 
   const tryAttach = async (url: string, filename: string) => {
+    if (url.startsWith("blob:")) { console.log("Skipping blob URL:", url); return; }
     if (totalSize >= MAX_TOTAL_SIZE) { skippedFiles++; return; }
     console.log(`Downloading attachment: ${filename} from ${url.substring(0, 80)}...`);
     const file = await downloadFileAsBase64(url);
@@ -331,20 +353,47 @@ async function forwardCustomerEmailToState(customer: any) {
     attachmentCount: actualAttachmentCount,
   });
 
-  await sendGmailEmail({
-    to: forwardEmail,
-    subject: `New Verified Customer: ${customer.name} - ${customer.state} (${customer.proposedCapacity || '-'} kW)`,
-    htmlContent: emailHtml,
-    attachments: emailAttachments.length > 0 ? emailAttachments : undefined,
-  });
+  // Support multiple comma-separated emails
+  const emailList = forwardEmail.replace(/;/g, ',').split(',').map((e: string) => e.trim()).filter((e: string) => e.includes('@'));
+  console.log(`Forwarding to ${emailList.length} email(s):`, emailList);
+  for (const toEmail of emailList) {
+    try {
+      await sendGmailEmail({
+        to: toEmail,
+        subject: `New Verified Customer: ${customer.name} - ${customer.state} (${customer.proposedCapacity || '-'} kW)`,
+        htmlContent: emailHtml,
+        attachments: emailAttachments.length > 0 ? emailAttachments : undefined,
+      });
+      console.log(`Email sent to ${toEmail} for state ${normalizedState}`);
+    } catch (emailErr: any) {
+      console.error(`Failed to send email to ${toEmail}:`, emailErr.message);
+    }
+  }
   await storage.updateCustomer(customer.id, {
     stateEmailSentAt: new Date(),
-    stateEmailSentTo: forwardEmail,
+    stateEmailSentTo: emailList.join(', '),
   } as any);
-  console.log(`Customer details forwarded to ${forwardEmail} for state ${normalizedState}`);
+  console.log(`Customer details forwarded to ${emailList.join(', ')} for state ${normalizedState}`);
 }
 
 export function registerRoutes(httpServer: Server, app: Express) {
+
+
+  // Register billing system routes
+  registerBillingRoutes(app);
+  registerMeterTestingRoutes(app);
+  registerMobileRoutes(app);
+  registerPublicSolarRoutes(app);
+  registerLedgerRoutes(app);
+  registerMeterUtilizationRoutes(app);
+  registerPORoutes(app);
+  // Serve Livguard PDF inserts (explicit route bypasses static middleware)
+  app.get("/uploads/pdf-inserts/:filename", (req, res) => {
+    const filePath = path.resolve(process.cwd(), "uploads", "pdf-inserts", req.params.filename);
+    res.sendFile(filePath, (err: any) => {
+      if (err) res.status(404).json({ error: "PDF not found" });
+    });
+  });
   // Emergency Unprotected DB Sync Route (creates tables if missing in production)
   // Moved to the very top to bypass ALL middleware and authentication
   app.get('/api/public/force-sync-database', async (req, res) => {
@@ -416,6 +465,10 @@ export function registerRoutes(httpServer: Server, app: Express) {
       },
     })
   );
+
+  // after session middleware so req.session.userId is available
+  registerBankQuotationRoutes(app);
+  registerShopPartnerRoutes(app);
 
   // ==================== AUTH ROUTES ====================
 
@@ -525,6 +578,10 @@ export function registerRoutes(httpServer: Server, app: Express) {
         return res.status(401).json({ message: "Invalid User ID or password" });
       }
 
+      // Check if account is suspended (any role)
+      if (user.status === "suspended") {
+        return res.status(403).json({ message: "Your account has been temporarily suspended. Please contact admin.", code: "ACCOUNT_SUSPENDED" });
+      }
       // Check if BDP account is approved before allowing login
       if (user.role === "bdp" && user.status !== "approved") {
         console.log("Login failed - BDP account not approved, status:", user.status);
@@ -1460,8 +1517,19 @@ export function registerRoutes(httpServer: Server, app: Express) {
   app.get("/api/bdp/partners", requireBDP, async (req, res) => {
     try {
       const user = (req as any).user;
-      const partners = await storage.getPartnersByParentId(user.id);
-      res.json(partners.map((p) => ({ ...p, password: undefined })));
+      // Get direct partners (SDPs and DDPs directly under BDP)
+      const directPartners = await storage.getPartnersByParentId(user.id);
+      // Get DDPs under SDPs (indirect DDPs)
+      const sdps = directPartners.filter((p: any) => p.role === "sdp");
+      const indirectDDPs: any[] = [];
+      for (const sdp of sdps) {
+        const sdpDDPs = await storage.getPartnersByParentId(sdp.id);
+        indirectDDPs.push(...sdpDDPs);
+      }
+      const allPartners = [...directPartners, ...indirectDDPs];
+      // Remove duplicates
+      const unique = allPartners.filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i);
+      res.json(unique.map((p: any) => ({ ...p, password: undefined })));
     } catch (error) {
       console.error("Get partners error:", error);
       res.status(500).json({ message: "Failed to get partners" });
@@ -1557,6 +1625,20 @@ export function registerRoutes(httpServer: Server, app: Express) {
         status: "approved", // Auto-approve partners added by BDP
         partnerCode,
       });
+      // If adding SDP, permanently switch BDP to marketing_team structure
+      if ((data.role || 'ddp') === 'sdp') {
+        await db.execute(
+          sql`UPDATE users SET team_structure = 'marketing_team' WHERE id = ${user.id}`
+        );
+        // Also set SDP's team_structure
+        await db.execute(
+          sql`UPDATE users SET team_structure = 'marketing_team' WHERE id = ${partner.id}`
+        );
+        // Update all existing DDPs under this BDP to marketing_team
+        await db.execute(
+          sql`UPDATE users SET team_structure = 'marketing_team' WHERE parent_id = ${user.id} AND role = 'ddp'`
+        );
+      }
 
       res.json({ ...partner, password: undefined });
     } catch (error) {
@@ -1583,6 +1665,124 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // ==================== DDP ROUTES ====================
 
   // Get DDP's parent BDP information
+  // === SDP (State Partner) Routes ===
+  app.get("/api/sdp/stats", requireSDP, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const ddps = await storage.getPartnersByParentId(user.id);
+      const ddpIds = ddps.map((d: any) => d.id);
+      let allCustomers: any[] = [];
+      for (const ddpId of ddpIds) {
+        const c = await storage.getCustomersByDdpId(ddpId);
+        allCustomers = allCustomers.concat(c);
+      }
+      const direct = await storage.getCustomersByDdpId(user.id);
+      allCustomers = allCustomers.concat(direct);
+      res.json({
+        totalDDPs: ddps.length,
+        totalCustomers: allCustomers.length,
+        pendingApplications: allCustomers.filter((c: any) => c.status === "pending" || c.status === "document_collection").length,
+        approvedApplications: allCustomers.filter((c: any) => c.status === "approved" || c.status === "subsidy_approved").length,
+        completedInstallations: allCustomers.filter((c: any) => c.status === "completed" || c.status === "installation_complete").length,
+      });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.get("/api/sdp/customers", requireSDP, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const ddps = await storage.getPartnersByParentId(user.id);
+      let all: any[] = [];
+      for (const d of ddps) {
+        const c = await storage.getCustomersByDdpId(d.id);
+        all = all.concat(c);
+      }
+      const direct = await storage.getCustomersByDdpId(user.id);
+      all = all.concat(direct);
+      all.sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      res.json(all);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/sdp/customers", requireSDP, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const customer = await storage.createCustomer({ ...req.body, partnerId: user.id, ddpId: user.id });
+      res.status(201).json(customer);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.get("/api/sdp/customers/:id", requireSDP, async (req, res) => {
+    try {
+      const c = await storage.getCustomer(req.params.id);
+      if (!c) return res.status(404).json({ message: "Not found" });
+      res.json(c);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.patch("/api/sdp/customers/:id", requireSDP, async (req, res) => {
+    try {
+      const c = await storage.updateCustomer(req.params.id, req.body);
+      res.json(c);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.get("/api/sdp/earnings/stats", requireSDP, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const comms = await storage.getCommissionsByPartnerId(user.id);
+      const direct = await storage.getCustomersByDdpId(user.id);
+      res.json({
+        totalEarned: comms.reduce((s: number, c: any) => s + (c.commissionAmount || 0), 0),
+        pendingAmount: comms.filter((c: any) => c.status === "pending").reduce((s: number, c: any) => s + (c.commissionAmount || 0), 0),
+        paidAmount: comms.filter((c: any) => c.status === "paid").reduce((s: number, c: any) => s + (c.commissionAmount || 0), 0),
+        totalCustomers: comms.length,
+        directCustomers: direct.length,
+      });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.get("/api/sdp/commissions", requireSDP, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      res.json(await storage.getCommissionsByPartnerId(user.id));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.get("/api/sdp/ddps", requireSDP, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const partners = await storage.getPartnersByParentId(user.id);
+      res.json(partners);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+  app.post("/api/sdp/partners", requireSDP, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const data = req.body;
+      const existing = await storage.getUserByUsername(data.username);
+      if (existing) return res.status(400).json({ message: "Username already exists" });
+      if (data.phone) {
+        const ep = await storage.getUserByPhone(data.phone);
+        if (ep) return res.status(400).json({ message: "Phone already registered" });
+      }
+      const partnerCode = await generatePartnerCode(data.role || "ddp", user.partnerCode);
+      const hashedPassword = await bcrypt.hash(data.password, 10);
+      const partner = await storage.createUser({
+        ...data,
+        password: hashedPassword,
+        role: data.role || "ddp",
+        parentId: user.id,
+        status: "approved",
+        partnerCode,
+        teamStructure: "marketing_team",
+      });
+      res.status(201).json(partner);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   app.get("/api/ddp/bdp-info", requireDDP, async (req, res) => {
     try {
       const user = (req as any).user;
@@ -1985,7 +2185,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       const { id } = req.params;
       const { status } = req.body;
 
-      if (!["pending", "approved", "rejected"].includes(status)) {
+      if (!["pending", "approved", "rejected", "suspended"].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
       }
 
@@ -2487,6 +2687,30 @@ export function registerRoutes(httpServer: Server, app: Express) {
     }
   });
 
+
+  // N8N Internal API - Get partner phone numbers for WhatsApp broadcast
+  app.get("/api/internal/partners-for-broadcast", async (req, res) => {
+    try {
+      const apiKey = req.headers["x-internal-api-key"];
+      if (apiKey !== "surya-mitra-n8n-2026") {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const result = await pool.query(`
+        SELECT id, name, phone, email, role, partner_code as "partnerCode", username
+        FROM users 
+        WHERE role IN ('ddp', 'bdp') 
+        AND status = 'approved' 
+        AND phone IS NOT NULL 
+        AND phone != ''
+        ORDER BY name ASC
+      `);
+      res.json(result.rows);
+    } catch (error: any) {
+      console.error("Internal broadcast API error:", error);
+      res.status(500).json({ message: "Failed to get partners" });
+    }
+  });
+
   // Debug: Check all users in database (public for debugging)
   app.get("/api/debug/users-count", async (req, res) => {
     try {
@@ -2541,7 +2765,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
         FROM users u
         LEFT JOIN partner_chatbot_config pcc ON pcc.partner_id = u.id
         LEFT JOIN solar_bot_leads sbl ON sbl.referred_by_partner_id = u.id
-        WHERE u.role IN ('ddp', 'bdp') AND u.status = 'approved'
+        WHERE u.role IN ('ddp', 'bdp', 'sdp') AND u.status = 'approved'
         GROUP BY u.id, u.name, u.username, u.role, u.state, u.district, u.phone,
           u.partner_code, pcc.is_active, pcc.bot_link, pcc.activated_at
         ORDER BY u.name ASC
@@ -2609,14 +2833,41 @@ export function registerRoutes(httpServer: Server, app: Express) {
   app.get("/api/partner/bot-leads", async (req, res) => {
     try {
       if (!req.session?.userId) return res.status(401).json({ message: "Unauthorized" });
+      const user = await storage.getUser(req.session.userId);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+
+      let partnerIds: string[] = [req.session.userId];
+
+      if (user.role === "bdp") {
+        const directPartners = await storage.getPartnersByParentId(user.id);
+        const sdps = directPartners.filter((p: any) => p.role === "sdp");
+        const directDDPs = directPartners.filter((p: any) => p.role === "ddp");
+        partnerIds.push(...directDDPs.map((p: any) => p.id));
+        for (const sdp of sdps) {
+          partnerIds.push(sdp.id);
+          const sdpDDPs = await storage.getPartnersByParentId(sdp.id);
+          partnerIds.push(...sdpDDPs.map((p: any) => p.id));
+        }
+      }
+
+      if (user.role === "sdp") {
+        const sdpDDPs = await storage.getPartnersByParentId(user.id);
+        partnerIds.push(...sdpDDPs.map((p: any) => p.id));
+      }
+
+      const placeholders = partnerIds.map((_: any, i: number) => `$${i + 1}`).join(", ");
       const result = await pool.query(`
-        SELECT id, phone, mobile_number as "mobileNumber", name, email, state, district, city,
-          pincode, electricity_board as "electricityBoard", consumer_number as "consumerNumber",
-          monthly_billing as "monthlyBilling", connection_type as "connectionType",
-          plant_capacity as "plantCapacity", proposal_status as "proposalStatus",
-          status, action_taken as "actionTaken", created_at as "createdAt"
-        FROM solar_bot_leads WHERE referred_by_partner_id = $1 ORDER BY created_at DESC
-      `, [req.session.userId]);
+        SELECT sbl.id, sbl.phone, sbl.mobile_number as "mobileNumber", sbl.name, sbl.email,
+          sbl.state, sbl.district, sbl.city,
+          sbl.monthly_billing as "monthlyBilling",
+          sbl.plant_capacity as "plantCapacity", sbl.proposal_status as "proposalStatus",
+          sbl.status, sbl.action_taken as "actionTaken", sbl.created_at as "createdAt",
+          u.name as "partnerName", u.partner_code as "partnerCode"
+        FROM solar_bot_leads sbl
+        LEFT JOIN users u ON sbl.referred_by_partner_id = u.id
+        WHERE sbl.referred_by_partner_id IN (${placeholders})
+        ORDER BY sbl.created_at DESC
+      `, partnerIds);
       res.json(result.rows);
     } catch (error: any) {
       res.status(500).json({ message: "Failed to get bot leads" });
@@ -2640,12 +2891,38 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
 
   // Update partner status
+  // Change BDP team structure (direct <-> marketing_team)
+
+  // Change BDP team structure (direct <-> marketing_team)
+  app.patch("/api/admin/partners/:id/team-structure", requireAdmin, async (req, res) => {
+    try {
+      const { teamStructure } = req.body;
+      if (!teamStructure || !["direct", "marketing_team"].includes(teamStructure)) {
+        return res.status(400).json({ message: "Invalid team structure" });
+      }
+      await db.execute(sql`UPDATE users SET team_structure = ${teamStructure} WHERE id = ${req.params.id}`);
+      await db.execute(sql`UPDATE users SET team_structure = ${teamStructure} WHERE parent_id = ${req.params.id}`);
+      await db.execute(sql`UPDATE users SET team_structure = ${teamStructure} WHERE parent_id IN (SELECT id FROM users WHERE parent_id = ${req.params.id} AND role = 'sdp')`);
+      // Send notification to BDP
+      const partner = await storage.getUser(req.params.id);
+      if (partner) {
+        const structureName = teamStructure === "marketing_team" ? "BDP → SDP → DDP → Customer" : "BDP → DDP → Customer";
+        await storage.createNotification({
+          userId: partner.id,
+          title: "Team Structure Updated",
+          message: `Your commission structure has been changed to ${structureName}. Please log out and log back in to see updated commission rates.`,
+          type: "general",
+        });
+      }
+      res.json({ success: true, teamStructure });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
   app.patch("/api/admin/partners/:id/status", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
       const { status } = req.body;
 
-      if (!["pending", "approved", "rejected"].includes(status)) {
+      if (!["pending", "approved", "rejected", "suspended"].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
       }
 
@@ -3182,7 +3459,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
         "unitType", "commercialUnitDescription", "industrialUnitDescription",
         "aadharNumber", "panNumber",
         "accountHolderName", "accountNumber", "ifscCode", "bankName", "upiId",
-        "latitude", "longitude",
+        "latitude", "longitude", "equipmentDetails",
       ];
       for (const field of textFields) {
         if (body[field] !== undefined) updateData[field] = body[field] || null;
@@ -3198,6 +3475,200 @@ export function registerRoutes(httpServer: Server, app: Express) {
     } catch (error) {
       console.error("Admin update customer details error:", error);
       res.status(500).json({ message: "Failed to update customer details" });
+    }
+  });
+
+
+  // Send Installation Certificate via email
+  app.post("/api/admin/customers/:id/send-install-cert", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { emails } = req.body as { emails: string[] };
+      const customer = await storage.getCustomer(id);
+      if (!customer) return res.status(404).json({ message: "Customer not found" });
+      let eq: any = {};
+      try { eq = JSON.parse((customer as any).equipmentDetails || "{}"); } catch {}
+      const batteries = eq.batteries?.length ? eq.batteries : (eq.battery ? [eq.battery] : []);
+      const panels = eq.panels || [];
+      const validEmails = (emails || []).filter((e: string) => e && e.includes("@"));
+      if (!validEmails.length) return res.status(400).json({ message: "No valid email addresses provided" });
+
+      const panelRows = panels.map((p: any, i: number) =>
+        `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">${i+1}</td><td style="padding:4px 8px;border-bottom:1px solid #eee">${p.make||"—"}</td><td style="padding:4px 8px;border-bottom:1px solid #eee">${p.model||"—"}</td><td style="padding:4px 8px;border-bottom:1px solid #eee">${p.warranty||"—"}</td><td style="padding:4px 8px;border-bottom:1px solid #eee;font-family:monospace;font-weight:700">${p.serial||"—"}</td></tr>`
+      ).join("");
+      const batRowsHtml = batteries.map((b: any, i: number) =>
+        `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">${batteries.length>1?i+1:""}</td><td style="padding:4px 8px;border-bottom:1px solid #eee">${b.make||"—"}</td><td style="padding:4px 8px;border-bottom:1px solid #eee">${b.model||"—"}</td><td style="padding:4px 8px;border-bottom:1px solid #eee">${b.warranty||"—"}</td><td style="padding:4px 8px;border-bottom:1px solid #eee;font-family:monospace;font-weight:700">${b.serial||"—"}</td></tr>`
+      ).join("");
+
+      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/></head><body style="font-family:Arial,sans-serif;font-size:13px;color:#222;max-width:700px;margin:0 auto">
+<div style="background:#1a3a5c;color:#fff;padding:16px 24px;border-radius:8px 8px 0 0">
+  <h2 style="margin:0;font-size:20px">☀️ Solar System Installation Report</h2>
+  <p style="margin:4px 0 0;font-size:12px;opacity:.85">Divyanshi Solar / Solarixa Power</p>
+</div>
+<div style="border:1px solid #ddd;border-top:none;padding:20px;border-radius:0 0 8px 8px">
+  <h3 style="color:#e8761a;margin-top:0">📋 ${(customer as any).proposedCapacity||""} kW ${(customer as any).customerType||"Residential"} Solar Power Plant</h3>
+  <p><strong>Customer:</strong> ${(customer as any).name} | <strong>Phone:</strong> ${(customer as any).phone}</p>
+  <p><strong>Address:</strong> ${[(customer as any).address,(customer as any).district,(customer as any).state].filter(Boolean).join(", ")}</p>
+  <p><strong>Install Date:</strong> ${eq.installDate||"—"} | <strong>Panel Type:</strong> ${(customer as any).panelType==="non_dcr"?"Non-DCR":"DCR"}</p>
+  <hr style="border:none;border-top:1px solid #eee;margin:12px 0"/>
+  <h4 style="color:#1a3a5c">👷 Technician & Vendor</h4>
+  <table style="width:100%;border-collapse:collapse">
+    <tr><td style="padding:3px 8px;color:#666;width:160px">Technician:</td><td style="padding:3px 8px;font-weight:600">${eq.installer?.name||"—"}</td><td style="padding:3px 8px;color:#666;width:160px">Mobile:</td><td style="padding:3px 8px;font-weight:600">${eq.installer?.mobile||"—"}</td></tr>
+    ${eq.installer?.jeName?`<tr><td style="padding:3px 8px;color:#666">JE Name:</td><td style="padding:3px 8px;font-weight:600">${eq.installer.jeName}</td><td style="padding:3px 8px;color:#666">JE Mobile:</td><td style="padding:3px 8px;font-weight:600">${eq.installer.jeMobile||"—"}</td></tr>`:""}
+    <tr><td style="padding:3px 8px;color:#666">Vendor:</td><td style="padding:3px 8px;font-weight:600">${eq.vendor?.name||"—"}</td><td style="padding:3px 8px;color:#666">Vendor Mobile:</td><td style="padding:3px 8px;font-weight:600">${eq.vendor?.mobile||"—"}</td></tr>
+  </table>
+  <h4 style="color:#1a3a5c">☀️ Solar Panels</h4>
+  <table style="width:100%;border-collapse:collapse;font-size:12px">
+    <tr style="background:#1a3a5c;color:#fff"><th style="padding:5px 8px;text-align:left">#</th><th style="padding:5px 8px;text-align:left">Make</th><th style="padding:5px 8px;text-align:left">Model</th><th style="padding:5px 8px;text-align:left">Warranty</th><th style="padding:5px 8px;text-align:left">Serial No.</th></tr>
+    ${panelRows||"<tr><td colspan='5' style='padding:8px;text-align:center;color:#aaa'>No panel data</td></tr>"}
+  </table>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+    <div><h4 style="color:#1a3a5c;margin:0 0 6px">⚡ Inverter</h4>
+      <p style="margin:2px 0"><strong>Make:</strong> ${eq.inverter?.make||"—"}</p>
+      <p style="margin:2px 0"><strong>Model:</strong> ${eq.inverter?.model||"—"}</p>
+      <p style="margin:2px 0"><strong>Warranty:</strong> ${eq.inverter?.warranty||"—"}</p>
+      <p style="margin:2px 0"><strong>Serial:</strong> <span style="font-family:monospace;font-weight:700">${eq.inverter?.serial||"—"}</span></p>
+    </div>
+    <div><h4 style="color:#1a3a5c;margin:0 0 6px">🔋 ${batteries.length>1?"Batteries":"Battery"}</h4>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        ${batteries.length>1?`<tr style="background:#f5f5f5"><th style="padding:4px 6px;text-align:left">#</th><th style="padding:4px 6px;text-align:left">Make</th><th style="padding:4px 6px;text-align:left">Model</th><th style="padding:4px 6px;text-align:left">Warranty</th><th style="padding:4px 6px;text-align:left">Serial</th></tr>`:""} 
+        ${batRowsHtml||"<tr><td colspan='5' style='padding:6px;color:#aaa'>No battery data</td></tr>"}
+      </table>
+    </div>
+  </div>
+  ${eq.funding?.institution?`<h4 style="color:#1a3a5c">🏦 Loan / Financing</h4>
+  <p><strong>Institution:</strong> ${eq.funding.institution} | <strong>Manager:</strong> ${eq.funding.managerName||"—"} | <strong>Mobile:</strong> ${eq.funding.managerMobile||"—"}</p>
+  <p><strong>Down Payment:</strong> ₹${Number(eq.payment?.downPayment||0).toLocaleString("en-IN")} | <strong>Loan Amount:</strong> ₹${Number(eq.payment?.loanAmount||0).toLocaleString("en-IN")} | <strong>EMI:</strong> ₹${Number(eq.payment?.emiPerMonth||0).toLocaleString("en-IN")}/month</p>`:""}
+  <hr style="border:none;border-top:1px solid #eee;margin:16px 0"/>
+  <p style="color:#888;font-size:11px;text-align:center">Generated by Divyanshi Solar Platform | ${new Date().toLocaleDateString("en-IN")}</p>
+</div></body></html>`;
+
+      // Use existing email utility if available, otherwise log
+      const nodemailer = await import("nodemailer").catch(()=>null);
+      let sent = 0;
+      if (nodemailer) {
+        const transporter = nodemailer.createTransport({
+          host: process.env.SMTP_HOST || "smtp.gmail.com",
+          port: Number(process.env.SMTP_PORT || 587),
+          secure: false,
+          auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+        });
+        for (const email of validEmails) {
+          try {
+            await transporter.sendMail({
+              from: `"Divyanshi Solar" <${process.env.SMTP_USER}>`,
+              to: email,
+              subject: `Solar Installation Report — ${(customer as any).name} (${(customer as any).proposedCapacity||""} kW)`,
+              html,
+            });
+            sent++;
+          } catch(e) { console.error("Email send error:", e); }
+        }
+      } else {
+        console.log("Email (no SMTP configured):", validEmails);
+        sent = validEmails.length;
+      }
+      res.json({ message: `Report sent to ${sent} of ${validEmails.length} recipient(s)`, sent, total: validEmails.length });
+    } catch (error) {
+      console.error("Send install cert error:", error);
+      res.status(500).json({ message: "Failed to send report" });
+    }
+  });
+
+
+  // Send Installation Certificate via email
+  app.post("/api/admin/customers/:id/send-install-cert", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { emails } = req.body as { emails: string[] };
+      const customer = await storage.getCustomer(id);
+      if (!customer) return res.status(404).json({ message: "Customer not found" });
+      let eq: any = {};
+      try { eq = JSON.parse((customer as any).equipmentDetails || "{}"); } catch {}
+      const batteries = eq.batteries?.length ? eq.batteries : (eq.battery ? [eq.battery] : []);
+      const panels = eq.panels || [];
+      const validEmails = (emails || []).filter((e: string) => e && e.includes("@"));
+      if (!validEmails.length) return res.status(400).json({ message: "No valid email addresses provided" });
+
+      const panelRows = panels.map((p: any, i: number) =>
+        `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">${i+1}</td><td style="padding:4px 8px;border-bottom:1px solid #eee">${p.make||"—"}</td><td style="padding:4px 8px;border-bottom:1px solid #eee">${p.model||"—"}</td><td style="padding:4px 8px;border-bottom:1px solid #eee">${p.warranty||"—"}</td><td style="padding:4px 8px;border-bottom:1px solid #eee;font-family:monospace;font-weight:700">${p.serial||"—"}</td></tr>`
+      ).join("");
+      const batRowsHtml = batteries.map((b: any, i: number) =>
+        `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">${batteries.length>1?i+1:""}</td><td style="padding:4px 8px;border-bottom:1px solid #eee">${b.make||"—"}</td><td style="padding:4px 8px;border-bottom:1px solid #eee">${b.model||"—"}</td><td style="padding:4px 8px;border-bottom:1px solid #eee">${b.warranty||"—"}</td><td style="padding:4px 8px;border-bottom:1px solid #eee;font-family:monospace;font-weight:700">${b.serial||"—"}</td></tr>`
+      ).join("");
+
+      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/></head><body style="font-family:Arial,sans-serif;font-size:13px;color:#222;max-width:700px;margin:0 auto">
+<div style="background:#1a3a5c;color:#fff;padding:16px 24px;border-radius:8px 8px 0 0">
+  <h2 style="margin:0;font-size:20px">☀️ Solar System Installation Report</h2>
+  <p style="margin:4px 0 0;font-size:12px;opacity:.85">Divyanshi Solar / Solarixa Power</p>
+</div>
+<div style="border:1px solid #ddd;border-top:none;padding:20px;border-radius:0 0 8px 8px">
+  <h3 style="color:#e8761a;margin-top:0">📋 ${(customer as any).proposedCapacity||""} kW ${(customer as any).customerType||"Residential"} Solar Power Plant</h3>
+  <p><strong>Customer:</strong> ${(customer as any).name} | <strong>Phone:</strong> ${(customer as any).phone}</p>
+  <p><strong>Address:</strong> ${[(customer as any).address,(customer as any).district,(customer as any).state].filter(Boolean).join(", ")}</p>
+  <p><strong>Install Date:</strong> ${eq.installDate||"—"} | <strong>Panel Type:</strong> ${(customer as any).panelType==="non_dcr"?"Non-DCR":"DCR"}</p>
+  <hr style="border:none;border-top:1px solid #eee;margin:12px 0"/>
+  <h4 style="color:#1a3a5c">👷 Technician & Vendor</h4>
+  <table style="width:100%;border-collapse:collapse">
+    <tr><td style="padding:3px 8px;color:#666;width:160px">Technician:</td><td style="padding:3px 8px;font-weight:600">${eq.installer?.name||"—"}</td><td style="padding:3px 8px;color:#666;width:160px">Mobile:</td><td style="padding:3px 8px;font-weight:600">${eq.installer?.mobile||"—"}</td></tr>
+    ${eq.installer?.jeName?`<tr><td style="padding:3px 8px;color:#666">JE Name:</td><td style="padding:3px 8px;font-weight:600">${eq.installer.jeName}</td><td style="padding:3px 8px;color:#666">JE Mobile:</td><td style="padding:3px 8px;font-weight:600">${eq.installer.jeMobile||"—"}</td></tr>`:""}
+    <tr><td style="padding:3px 8px;color:#666">Vendor:</td><td style="padding:3px 8px;font-weight:600">${eq.vendor?.name||"—"}</td><td style="padding:3px 8px;color:#666">Vendor Mobile:</td><td style="padding:3px 8px;font-weight:600">${eq.vendor?.mobile||"—"}</td></tr>
+  </table>
+  <h4 style="color:#1a3a5c">☀️ Solar Panels</h4>
+  <table style="width:100%;border-collapse:collapse;font-size:12px">
+    <tr style="background:#1a3a5c;color:#fff"><th style="padding:5px 8px;text-align:left">#</th><th style="padding:5px 8px;text-align:left">Make</th><th style="padding:5px 8px;text-align:left">Model</th><th style="padding:5px 8px;text-align:left">Warranty</th><th style="padding:5px 8px;text-align:left">Serial No.</th></tr>
+    ${panelRows||"<tr><td colspan='5' style='padding:8px;text-align:center;color:#aaa'>No panel data</td></tr>"}
+  </table>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+    <div><h4 style="color:#1a3a5c;margin:0 0 6px">⚡ Inverter</h4>
+      <p style="margin:2px 0"><strong>Make:</strong> ${eq.inverter?.make||"—"}</p>
+      <p style="margin:2px 0"><strong>Model:</strong> ${eq.inverter?.model||"—"}</p>
+      <p style="margin:2px 0"><strong>Warranty:</strong> ${eq.inverter?.warranty||"—"}</p>
+      <p style="margin:2px 0"><strong>Serial:</strong> <span style="font-family:monospace;font-weight:700">${eq.inverter?.serial||"—"}</span></p>
+    </div>
+    <div><h4 style="color:#1a3a5c;margin:0 0 6px">🔋 ${batteries.length>1?"Batteries":"Battery"}</h4>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        ${batteries.length>1?`<tr style="background:#f5f5f5"><th style="padding:4px 6px;text-align:left">#</th><th style="padding:4px 6px;text-align:left">Make</th><th style="padding:4px 6px;text-align:left">Model</th><th style="padding:4px 6px;text-align:left">Warranty</th><th style="padding:4px 6px;text-align:left">Serial</th></tr>`:""} 
+        ${batRowsHtml||"<tr><td colspan='5' style='padding:6px;color:#aaa'>No battery data</td></tr>"}
+      </table>
+    </div>
+  </div>
+  ${eq.funding?.institution?`<h4 style="color:#1a3a5c">🏦 Loan / Financing</h4>
+  <p><strong>Institution:</strong> ${eq.funding.institution} | <strong>Manager:</strong> ${eq.funding.managerName||"—"} | <strong>Mobile:</strong> ${eq.funding.managerMobile||"—"}</p>
+  <p><strong>Down Payment:</strong> ₹${Number(eq.payment?.downPayment||0).toLocaleString("en-IN")} | <strong>Loan Amount:</strong> ₹${Number(eq.payment?.loanAmount||0).toLocaleString("en-IN")} | <strong>EMI:</strong> ₹${Number(eq.payment?.emiPerMonth||0).toLocaleString("en-IN")}/month</p>`:""}
+  <hr style="border:none;border-top:1px solid #eee;margin:16px 0"/>
+  <p style="color:#888;font-size:11px;text-align:center">Generated by Divyanshi Solar Platform | ${new Date().toLocaleDateString("en-IN")}</p>
+</div></body></html>`;
+
+      // Use existing email utility if available, otherwise log
+      const nodemailer = await import("nodemailer").catch(()=>null);
+      let sent = 0;
+      if (nodemailer) {
+        const transporter = nodemailer.createTransport({
+          host: process.env.SMTP_HOST || "smtp.gmail.com",
+          port: Number(process.env.SMTP_PORT || 587),
+          secure: false,
+          auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+        });
+        for (const email of validEmails) {
+          try {
+            await transporter.sendMail({
+              from: `"Divyanshi Solar" <${process.env.SMTP_USER}>`,
+              to: email,
+              subject: `Solar Installation Report — ${(customer as any).name} (${(customer as any).proposedCapacity||""} kW)`,
+              html,
+            });
+            sent++;
+          } catch(e) { console.error("Email send error:", e); }
+        }
+      } else {
+        console.log("Email (no SMTP configured):", validEmails);
+        sent = validEmails.length;
+      }
+      res.json({ message: `Report sent to ${sent} of ${validEmails.length} recipient(s)`, sent, total: validEmails.length });
+    } catch (error) {
+      console.error("Send install cert error:", error);
+      res.status(500).json({ message: "Failed to send report" });
     }
   });
 
@@ -3583,17 +4054,17 @@ export function registerRoutes(httpServer: Server, app: Express) {
   app.post("/api/admin/products/seed", requireAdmin, async (req, res) => {
     try {
       const defaultProducts = [
-        { name: "3 kW DCR Solar Package (Hybrid Inverter)", description: "Complete 3 kW DCR solar panel system with 3-in-1 hybrid inverter. Eligible for government subsidy. Installation included.", category: "solar_package", price: 225000 },
-        { name: "5 kW DCR Solar Package (Hybrid Inverter)", description: "Complete 5 kW DCR solar panel system with 3-in-1 hybrid inverter. Subsidy eligible up to 3 kW. Installation included.", category: "solar_package", price: 375000 },
-        { name: "10 kW DCR Solar Package (Hybrid Inverter)", description: "Complete 10 kW DCR solar panel system with 3-in-1 hybrid inverter. Ideal for larger homes. Installation included.", category: "solar_package", price: 750000 },
+        { name: "3 kW DCR Solar Package (Hybrid Inverter)", description: "Complete 3 kW DCR solar panel system with Livguard hybrid inverter. Eligible for government subsidy. Installation included.", category: "solar_package", price: 225000 },
+        { name: "5 kW DCR Solar Package (Hybrid Inverter)", description: "Complete 5 kW DCR solar panel system with Livguard hybrid inverter. Subsidy eligible up to 3 kW. Installation included.", category: "solar_package", price: 375000 },
+        { name: "10 kW DCR Solar Package (Hybrid Inverter)", description: "Complete 10 kW DCR solar panel system with Livguard hybrid inverter. Ideal for larger homes. Installation included.", category: "solar_package", price: 750000 },
         { name: "3 kW DCR Solar Package (Ongrid Inverter)", description: "Complete 3 kW DCR solar panel system with ongrid inverter. Eligible for government subsidy. Installation included.", category: "solar_package", price: 198000 },
         { name: "5 kW DCR Solar Package (Ongrid Inverter)", description: "Complete 5 kW DCR solar panel system with ongrid inverter. Subsidy eligible up to 3 kW. Installation included.", category: "solar_package", price: 330000 },
         { name: "3 kW Non-DCR Solar Package", description: "Complete 3 kW non-DCR solar panel system. Budget-friendly option without subsidy. Installation included.", category: "solar_package", price: 165000 },
         { name: "5 kW Non-DCR Solar Package", description: "Complete 5 kW non-DCR solar panel system. Budget-friendly option without subsidy. Installation included.", category: "solar_package", price: 275000 },
         { name: "10 kW Non-DCR Solar Package", description: "Complete 10 kW non-DCR solar panel system. Budget-friendly option for larger installations without subsidy.", category: "solar_package", price: 550000 },
-        { name: "SunPunch Trimax 3.5 kW Inverter", description: "On-Grid + Off-Grid + Hybrid Inverter. Supports grid-tie, off-grid, and backup modes.", category: "accessory", price: 42000 },
-        { name: "SunPunch Trimax 5.5 kW Inverter", description: "On-Grid + Off-Grid + Hybrid Inverter. Supports grid-tie, off-grid, and backup modes.", category: "accessory", price: 55000 },
-        { name: "SunPunch Trimax 6.2 kW Inverter", description: "On-Grid + Off-Grid + Hybrid Inverter. Supports grid-tie, off-grid, and backup modes.", category: "accessory", price: 65000 },
+        { name: "Livguard Trimax 3.5 kW Inverter", description: "On-Grid + Off-Grid + Hybrid Inverter. Supports grid-tie, off-grid, and backup modes.", category: "accessory", price: 42000 },
+        { name: "Livguard Trimax 5.5 kW Inverter", description: "On-Grid + Off-Grid + Hybrid Inverter. Supports grid-tie, off-grid, and backup modes.", category: "accessory", price: 55000 },
+        { name: "Livguard Trimax 6.2 kW Inverter", description: "On-Grid + Off-Grid + Hybrid Inverter. Supports grid-tie, off-grid, and backup modes.", category: "accessory", price: 65000 },
         { name: "Solar Panel Brochure Pack (50 pcs)", description: "High-quality printed brochures explaining PM Surya Ghar Yojana benefits.", category: "marketing_material", price: 500 },
         { name: "Brochures Tri-Fold (100 pcs)", description: "Tri-fold brochures explaining PM Surya Ghar Yojana benefits.", category: "marketing_material", price: 1300 },
         { name: "Solar Subsidy Pamphlet (100 pcs)", description: "Pamphlets detailing central and state subsidies for rooftop solar.", category: "marketing_material", price: 350 },
@@ -3869,12 +4340,12 @@ export function registerRoutes(httpServer: Server, app: Express) {
       // Fetch updated order
       const updatedOrder = await storage.getOrder(order.id);
 
-      // Create commissions for SunPunch inverter sales
+      // Create commissions for Livguard inverter sales
       const orderItems = await storage.getOrderItems(order.id);
       const ddp = await storage.getUser(order.ddpId);
 
       for (const item of orderItems) {
-        // Check if this is a SunPunch inverter product
+        // Check if this is a Livguard inverter product
         if (item.productName && item.productName.toLowerCase().includes("sunpunch")) {
           const quantity = item.quantity || 1;
           const ddpCommissionAmount = inverterCommission.ddp * quantity;
@@ -3889,7 +4360,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
             commissionAmount: ddpCommissionAmount,
             status: "pending",
             paidAt: null,
-            notes: `SunPunch Inverter sale: ${item.productName} x${quantity} (Order #${order.id.slice(-6)})`,
+            notes: `Livguard Inverter sale: ${item.productName} x${quantity} (Order #${order.id.slice(-6)})`,
           });
 
           // Create BDP commission if DDP has a parent
@@ -3902,7 +4373,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
               commissionAmount: bdpCommissionAmount,
               status: "pending",
               paidAt: null,
-              notes: `SunPunch Inverter sale: ${item.productName} x${quantity} (Order #${order.id.slice(-6)})`,
+              notes: `Livguard Inverter sale: ${item.productName} x${quantity} (Order #${order.id.slice(-6)})`,
             });
           }
         }
@@ -4547,7 +5018,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     try {
       const config = notificationService.isConfigured();
       const gmailActive = true;
-      const whatsappActive = config.cunnekt || config.aisensy || config.twilio;
+      const whatsappActive = config.meta || config.cunnekt || config.aisensy || config.twilio;
       res.json({
         whatsapp: whatsappActive,
         sms: config.fast2sms,
@@ -4932,20 +5403,6 @@ export function registerRoutes(httpServer: Server, app: Express) {
     }
   });
 
-  // Public: Validate referral code
-  app.get("/api/public/validate-referral/:code", async (req, res) => {
-    try {
-      const user = await storage.getUserByReferralCode(req.params.code);
-      if (!user) {
-        return res.status(404).json({ valid: false, message: "Invalid referral code" });
-      }
-      res.json({ valid: true, referrerName: user.name, referrerId: user.id });
-    } catch (error) {
-      console.error("Validate referral error:", error);
-      res.status(500).json({ message: "Failed to validate referral code" });
-    }
-  });
-
   // Partner: Create referral tracking
   app.post("/api/referrals", requireAuth, async (req, res) => {
     try {
@@ -5136,7 +5593,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
       if (phone) {
         try {
-          const smsSuccess = await notificationService.sendSMS(phone, message || "Test from Divyanshi Solar");
+          const smsSuccess = await notificationService.sendSMS(phone, message || "Test from Prayga India Private Limited");
           results.sms = smsSuccess ? "sent" : "failed";
           if (!smsSuccess) {
             console.error("Test SMS failed - check Fast2SMS configuration");
@@ -5152,7 +5609,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
             message || "",
             templateId || undefined,
             templateParams || [],
-            "Divyanshi digital service pvt ltd",
+            "Divyanshi Digital Services Pvt Ltd",
             imageUrl || undefined
           );
           results.whatsapp = whatsappSuccess ? "sent" : "failed";
@@ -5170,12 +5627,12 @@ export function registerRoutes(httpServer: Server, app: Express) {
           // Use Gmail API for email
           const emailResult = await sendGmailEmail({
             to: email,
-            subject: "Test Notification - Divyanshi Solar",
+            subject: "Test Notification - Prayga India Private Limited",
             htmlContent: `<div style="font-family: Arial, sans-serif; padding: 20px;">
               <h2>Test Notification</h2>
               <p>${message}</p>
               <hr />
-              <p style="color: #666; font-size: 12px;">This is a test notification from Divyanshi Solar.</p>
+              <p style="color: #666; font-size: 12px;">This is a test notification from Prayga India Private Limited.</p>
             </div>`
           });
           results.email = emailResult.success ? "sent" : "failed";
@@ -5209,113 +5666,620 @@ export function registerRoutes(httpServer: Server, app: Express) {
         return res.status(400).json({ message: "Select at least one channel (WhatsApp or Email)" });
       }
 
-      // Get all partners (BDPs and DDPs)
       const allPartners = await storage.getAllPartners();
-
-      // Filter by partner type if specified
       let partners = allPartners;
       if (partnerType && partnerType !== "all") {
         partners = allPartners.filter(p => p.role === partnerType);
       }
-
-      // Filter only active/approved partners with valid contact info
       const approvedPartners = partners.filter(p => p.status === "approved" || p.status === "active");
 
-      const results = {
-        totalPartners: approvedPartners.length,
-        whatsapp: { sent: 0, failed: 0 } as { sent: number; failed: number },
-        email: { sent: 0, failed: 0 } as { sent: number; failed: number },
-      };
+      const whatsAppCount = approvedPartners.filter(p => p.phone).length;
+      const emailCount = sendEmail ? approvedPartners.filter(p => p.email).length : 0;
 
-      // Send WhatsApp messages
-      if (sendWhatsApp) {
-        console.log("[Broadcast] All partners count:", allPartners.length);
-        console.log("[Broadcast] Approved partners count:", approvedPartners.length);
-
-        const whatsAppRecipients = approvedPartners
-          .filter(p => p.phone)
-          .map(p => ({ phone: p.phone, name: p.name }));
-
-        console.log("[Broadcast] WhatsApp recipients:", whatsAppRecipients.length, JSON.stringify(whatsAppRecipients));
-
-        if (whatsAppRecipients.length > 0) {
-          const whatsAppResult = await notificationService.sendBulkWhatsApp(
-            whatsAppRecipients,
-            message || "",
-            templateId || undefined,
-            templateParams || undefined,
-            imageUrl || undefined
-          );
-          console.log("[Broadcast] WhatsApp result:", JSON.stringify(whatsAppResult));
-          results.whatsapp = { sent: whatsAppResult.sent, failed: whatsAppResult.failed };
-        } else {
-          console.log("[Broadcast] No WhatsApp recipients found with phone numbers");
-        }
-      }
-
-      // Send Email messages using Gmail API
-      if (sendEmail) {
-        const emailRecipients = approvedPartners
-          .filter(p => p.email)
-          .map(p => ({ email: p.email!, name: p.name }));
-
-        if (emailRecipients.length > 0) {
-          let emailSent = 0;
-          let emailFailed = 0;
-
-          for (const recipient of emailRecipients) {
-            try {
-              // Personalize the message
-              const personalizedMessage = message.replace(/\{\{name\}\}/g, recipient.name);
-
-              const emailResult = await sendGmailEmail({
-                to: recipient.email,
-                subject: subject || "Important Update from Divyanshi Solar",
-                htmlContent: `<div style="font-family: Arial, sans-serif; padding: 20px;">
-                  <h2 style="color: #f97316;">Divyanshi Solar</h2>
-                  ${subject ? `<h3>${subject}</h3>` : ''}
-                  <p>Dear ${recipient.name},</p>
-                  <p>${personalizedMessage.replace(/\n/g, '<br>')}</p>
-                  <hr style="border-color: #eee;" />
-                  <p style="color: #666;">Best regards,<br>Divyanshi Solar Admin Team</p>
-                </div>`
-              });
-
-              if (emailResult.success) {
-                emailSent++;
-              } else {
-                emailFailed++;
-                console.error(`Gmail broadcast failed for ${recipient.email}:`, emailResult.error);
-              }
-
-              // Rate limiting: 300ms between emails
-              await new Promise(resolve => setTimeout(resolve, 300));
-            } catch (error) {
-              emailFailed++;
-              console.error(`Gmail broadcast error for ${recipient.email}:`, error);
-            }
-          }
-
-          results.email = { sent: emailSent, failed: emailFailed };
-        }
-      }
-
-      // Log the broadcast
-      console.log(`[Admin Broadcast] Sent to ${results.totalPartners} partners:`, {
-        whatsapp: results.whatsapp,
-        email: results.email,
-        by: req.session.userId
-      });
-
+      // RESPOND IMMEDIATELY
       res.json({
         success: true,
-        message: `Broadcast sent to ${results.totalPartners} partners`,
-        results
+        message: `Broadcasting to ${approvedPartners.length} partners in background. Check dashboard for delivery status.`,
+        results: {
+          totalPartners: approvedPartners.length,
+          whatsapp: { sent: 0, failed: 0, queued: whatsAppCount },
+          email: { sent: 0, failed: 0, queued: emailCount },
+        },
       });
+
+      // SEND IN BACKGROUND after response
+      (async () => {
+        try {
+          if (sendWhatsApp) {
+            const whatsAppRecipients = approvedPartners
+              .filter(p => p.phone)
+              .map(p => ({ phone: p.phone, name: p.name }));
+            console.log("[Broadcast BG] Sending WhatsApp to", whatsAppRecipients.length, "recipients");
+            if (whatsAppRecipients.length > 0) {
+              const whatsAppResult = await notificationService.sendBulkWhatsApp(
+                whatsAppRecipients, message || "", templateId || undefined,
+                templateParams || undefined, imageUrl || undefined
+              );
+              console.log("[Broadcast BG] WhatsApp done:", JSON.stringify(whatsAppResult));
+            }
+          }
+          if (sendEmail) {
+            const emailRecipients = approvedPartners
+              .filter(p => p.email)
+              .map(p => ({ email: p.email!, name: p.name }));
+            console.log("[Broadcast BG] Sending emails to", emailRecipients.length, "recipients");
+            for (const recipient of emailRecipients) {
+              try {
+                const personalizedMessage = message.replace(/\{\{name\}\}/g, recipient.name);
+                const emailResult = await sendGmailEmail({
+                  to: recipient.email,
+                  subject: subject || "Important Update from Prayga India Private Limited",
+                  htmlContent: `<div style="font-family: Arial, sans-serif; padding: 20px;">
+                    <h2 style="color: #f97316;">Prayga India Private Limited</h2>
+                    ${subject ? `<h3>${subject}</h3>` : ''}
+                    <p>Dear ${recipient.name},</p>
+                    <p>${personalizedMessage.replace(/\n/g, '<br>')}</p>
+                    <hr style="border-color: #eee;" />
+                    <p style="color: #666;">Best regards,<br>Prayga India Private Limited Admin Team</p>
+                  </div>`
+                });
+                if (!emailResult.success) {
+                  console.error(`[Broadcast BG] Email failed for ${recipient.email}:`, emailResult.error);
+                }
+                await new Promise(resolve => setTimeout(resolve, 300));
+              } catch (error) {
+                console.error(`[Broadcast BG] Email error for ${recipient.email}:`, error);
+              }
+            }
+          }
+          console.log("[Broadcast BG] All sending complete");
+        } catch (bgErr) {
+          console.error("[Broadcast BG] Background error:", bgErr);
+        }
+      })();
+
     } catch (error) {
       console.error("Broadcast error:", error);
-      res.status(500).json({ message: "Failed to send broadcast" });
+      if (!res.headersSent) {
+        res.status(500).json({ message: "Failed to send broadcast" });
+      }
     }
+  });
+  app.get("/api/admin/whatsapp-broadcasts", requireAdmin, async (req, res) => {
+    try {
+      const { rows } = await pool.query(`
+        SELECT * FROM whatsapp_broadcasts ORDER BY sent_at DESC LIMIT 500
+      `);
+      res.json(rows);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get('/api/admin/whatsapp-broadcasts/stats', requireAdmin, async (req, res) => {
+    try {
+      const { rows } = await pool.query(`
+        SELECT
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE status = 'sent') as sent,
+          COUNT(*) FILTER (WHERE status = 'delivered') as delivered,
+          COUNT(*) FILTER (WHERE status = 'read') as read,
+          COUNT(*) FILTER (WHERE status = 'failed') as failed,
+          COUNT(*) FILTER (WHERE reply_text IS NOT NULL) as replied,
+          COUNT(DISTINCT broadcast_id) as campaigns,
+          COUNT(DISTINCT template_name) as templates
+        FROM whatsapp_broadcasts
+      `);
+      res.json(rows[0]);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get('/api/admin/whatsapp-broadcasts/replies', requireAdmin, async (req, res) => {
+    try {
+      const { rows } = await pool.query(`
+        SELECT * FROM whatsapp_broadcasts WHERE reply_text IS NOT NULL ORDER BY replied_at DESC
+      `);
+      res.json(rows);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post('/api/admin/whatsapp-send-single', requireAdmin, async (req, res) => {
+    try {
+      const { phone, name, templateId, campaignName } = req.body;
+      const token = process.env.META_WHATSAPP_TOKEN || process.env.META_ACCESS_TOKEN;
+      const phoneNumberId = process.env.META_PHONE_NUMBER_ID || '800257033151495';
+      const rawPhone = (phone || '').replace(/\D/g, '');
+      const formattedPhone = rawPhone.startsWith('91') ? rawPhone : '91' + rawPhone.slice(-10);
+      const response = await fetch(`https://graph.facebook.com/v18.0/${phoneNumberId}/messages`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: formattedPhone,
+          type: 'template',
+          template: { name: templateId, language: { code: 'hi' } }
+        })
+      });
+      const result = await response.json() as any;
+      const success = response.ok && result.messages?.[0]?.id;
+      const msgId = result.messages?.[0]?.id || ('admin_' + Date.now() + '_' + Math.random().toString(36).slice(2));
+      await pool.query('INSERT INTO whatsapp_broadcasts (message_id, recipient_phone, recipient_name, template_name, broadcast_id, provider, status, sent_at) VALUES ($1,$2,$3,$4,$5,$6,$7,NOW()) ON CONFLICT (message_id) DO NOTHING',
+        [msgId, formattedPhone, name||formattedPhone, templateId, campaignName||'admin_send', 'meta', success?'sent':'failed']);
+      if (!success) console.error('[WA Single Send Failed]', result);
+      res.json({ success: !!success, messageId: msgId, result });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  // Save WhatsApp broadcast (called from n8n after sending)
+  app.post('/api/admin/whatsapp-save-broadcast', async (req, res) => {
+    try {
+      const { phone, name, templateId, messageId, campaignName, source } = req.body;
+      const msgId = messageId || (source||'n8n') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+      const safePhone = phone || 'unknown_' + Date.now();
+      const safeName = name || safePhone;
+      await pool.query(`
+        INSERT INTO whatsapp_broadcasts (message_id, recipient_phone, recipient_name, template_name, broadcast_id, provider, status, sent_at)
+        VALUES ($1,$2,$3,$4,$5,'meta','sent',NOW())
+        ON CONFLICT (message_id) DO NOTHING
+      `, [msgId, safePhone, safeName, templateId||'unknown', campaignName||source||'solar_bot']);
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Sync WhatsApp message status from Meta API
+  app.post('/api/admin/whatsapp-sync-meta', requireAdmin, async (req, res) => {
+    try {
+      const token = process.env.META_WHATSAPP_TOKEN;
+      const phoneId = process.env.META_PHONE_NUMBER_ID || '800257033151495';
+      const response = await fetch(
+        `https://graph.facebook.com/v18.0/${phoneId}/messages?fields=id,status,timestamp&limit=100`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      const data = await response.json() as any;
+      if (data.error) return res.status(400).json({ message: data.error.message });
+      let updated = 0;
+      for (const msg of data.data || []) {
+        const status = msg.status;
+        const msgId = msg.id;
+        if (status && msgId) {
+          const col = status === 'delivered' ? ', delivered_at = NOW()' : status === 'read' ? ', read_at = NOW()' : '';
+          await pool.query(
+            `UPDATE whatsapp_broadcasts SET status = $1${col} WHERE message_id = $2`,
+            [status, msgId]
+          );
+          updated++;
+        }
+      }
+      res.json({ success: true, synced: data.data?.length || 0, updated });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Track WhatsApp link clicks
+  app.get('/track/:partnerCode', async (req, res) => {
+    try {
+      const { partnerCode } = req.params;
+      await pool.query(`
+        UPDATE whatsapp_broadcasts 
+        SET reply_text = '[LINK_CLICKED]', status = 'clicked'
+        WHERE broadcast_id LIKE $1 
+        AND sent_at > NOW() - INTERVAL '7 days'
+        LIMIT 1
+      `, ['%' + partnerCode + '%']);
+      console.log('[Link Click Tracked]', partnerCode);
+    } catch(e) {}
+    res.redirect('https://divyanshisolar.in/solar-bot?ref=' + partnerCode);
+  });
+
+  // Fetch template insights from Meta API
+  app.get('/api/admin/whatsapp-template-insights', requireAdmin, async (req, res) => {
+    try {
+      const token = process.env.META_WHATSAPP_TOKEN;
+      const wabaId = process.env.META_WABA_ID || '390339840832152';
+      const response = await fetch(
+        `https://graph.facebook.com/v18.0/${wabaId}/message_templates?fields=name,status,components,quality_score&limit=20`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      const data = await response.json() as any;
+      res.json(data);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Fetch analytics for a specific template
+  app.get('/api/admin/whatsapp-template-analytics', requireAdmin, async (req, res) => {
+    try {
+      const token = process.env.META_WHATSAPP_TOKEN;
+      const wabaId = process.env.META_WABA_ID || '390339840832152';
+      const { templateName, start, end } = req.query;
+      const startTs = start || Math.floor((Date.now() - 7*24*60*60*1000)/1000);
+      const endTs = end || Math.floor(Date.now()/1000);
+      const response = await fetch(
+        `https://graph.facebook.com/v18.0/${wabaId}?fields=analytics.since(${startTs}).until(${endTs}){sent,delivered,read,responded}&granularity=DAY`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      const data = await response.json() as any;
+      res.json(data);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Delete WhatsApp broadcast records
+  app.delete('/api/admin/whatsapp-broadcasts/:id', requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await pool.query('DELETE FROM whatsapp_broadcasts WHERE id = $1', [id]);
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Bulk delete failed messages
+  app.delete('/api/admin/whatsapp-broadcasts-failed', requireAdmin, async (req, res) => {
+    try {
+      const result = await pool.query("DELETE FROM whatsapp_broadcasts WHERE status = 'failed' RETURNING id");
+      res.json({ success: true, deleted: result.rowCount });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Delete WhatsApp broadcast records
+  app.delete('/api/admin/whatsapp-broadcasts/:id', requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await pool.query('DELETE FROM whatsapp_broadcasts WHERE id = $1', [id]);
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Bulk delete failed messages
+  app.delete('/api/admin/whatsapp-broadcasts-failed', requireAdmin, async (req, res) => {
+    try {
+      const result = await pool.query("DELETE FROM whatsapp_broadcasts WHERE status = 'failed' RETURNING id");
+      res.json({ success: true, deleted: result.rowCount });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Delete WhatsApp broadcast records
+  app.delete('/api/admin/whatsapp-broadcasts/:id', requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await pool.query('DELETE FROM whatsapp_broadcasts WHERE id = $1', [id]);
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Bulk delete failed messages
+  app.delete('/api/admin/whatsapp-broadcasts-failed', requireAdmin, async (req, res) => {
+    try {
+      const result = await pool.query("DELETE FROM whatsapp_broadcasts WHERE status = 'failed' RETURNING id");
+      res.json({ success: true, deleted: result.rowCount });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Delete WhatsApp broadcast records
+  app.delete('/api/admin/whatsapp-broadcasts/:id', requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await pool.query('DELETE FROM whatsapp_broadcasts WHERE id = $1', [id]);
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Bulk delete failed messages
+  app.delete('/api/admin/whatsapp-broadcasts-failed', requireAdmin, async (req, res) => {
+    try {
+      const result = await pool.query("DELETE FROM whatsapp_broadcasts WHERE status = 'failed' RETURNING id");
+      res.json({ success: true, deleted: result.rowCount });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // WhatsApp Contacts CRUD
+  app.get('/api/admin/whatsapp-contacts', requireAdmin, async (req, res) => {
+    try {
+      const result = await pool.query('SELECT * FROM whatsapp_contacts ORDER BY "group", name');
+      res.json(result.rows);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.post('/api/admin/whatsapp-contacts', requireAdmin, async (req, res) => {
+    try {
+      const { name, phone, group, notes } = req.body;
+      const clean = phone.replace(/\D/g,'');
+      const fmt = clean.startsWith('91') ? clean : '91' + clean.slice(-10);
+      const result = await pool.query('INSERT INTO whatsapp_contacts (name, phone, "group", notes) VALUES ($1,$2,$3,$4) RETURNING *',
+        [name, fmt, group||'', notes||'']);
+      res.json(result.rows[0]);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.delete('/api/admin/whatsapp-contacts/:id', requireAdmin, async (req, res) => {
+    try {
+      await pool.query('DELETE FROM whatsapp_contacts WHERE id = $1', [req.params.id]);
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // WhatsApp Contacts CRUD
+  app.get('/api/admin/whatsapp-contacts', requireAdmin, async (req, res) => {
+    try {
+      const result = await pool.query('SELECT * FROM whatsapp_contacts ORDER BY "group", name');
+      res.json(result.rows);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.post('/api/admin/whatsapp-contacts', requireAdmin, async (req, res) => {
+    try {
+      const { name, phone, group, notes } = req.body;
+      const clean = phone.replace(/\D/g,'');
+      const fmt = clean.startsWith('91') ? clean : '91' + clean.slice(-10);
+      const result = await pool.query('INSERT INTO whatsapp_contacts (name, phone, "group", notes) VALUES ($1,$2,$3,$4) RETURNING *',
+        [name, fmt, group||'', notes||'']);
+      res.json(result.rows[0]);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.delete('/api/admin/whatsapp-contacts/:id', requireAdmin, async (req, res) => {
+    try {
+      await pool.query('DELETE FROM whatsapp_contacts WHERE id = $1', [req.params.id]);
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  
+  // ===== PARTNER WHATSAPP CONTACTS (per-partner isolation) =====
+  app.get('/api/partner/whatsapp-contacts', requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      const user = await storage.getUser(userId);
+      const userState = user?.state || '';
+      const userDistrict = user?.district || '';
+      const result = await pool.query(
+        `SELECT wc.*, 'own' as source FROM whatsapp_contacts wc WHERE wc.partner_id = $1
+         UNION ALL
+         SELECT wc.*, 'shared' as source FROM whatsapp_contacts wc
+         INNER JOIN whatsapp_shared_groups sg ON wc."group" = sg.group_name
+         WHERE wc.partner_id IS NULL
+         AND (sg.shared_with_state = '' OR sg.shared_with_state = 'all' OR sg.shared_with_state = $2)
+         AND (sg.shared_with_district = '' OR sg.shared_with_district = 'all' OR sg.shared_with_district = $3)
+         ORDER BY "group", name`,
+        [userId, userState, userDistrict]
+      );
+      res.json(result.rows);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post('/api/partner/whatsapp-contacts', requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      const { name, phone, group, notes } = req.body;
+      const clean = phone.replace(/\D/g, '');
+      const fmt = clean.startsWith('91') ? clean : '91' + clean.slice(-10);
+      const result = await pool.query(
+        'INSERT INTO whatsapp_contacts (name, phone, "group", notes, partner_id) VALUES ($1,$2,$3,$4,$5) RETURNING *',
+        [name, fmt, group || '', notes || '', userId]
+      );
+      res.json(result.rows[0]);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.delete('/api/partner/whatsapp-contacts/:id', requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      await pool.query('DELETE FROM whatsapp_contacts WHERE id = $1 AND partner_id = $2', [req.params.id, userId]);
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Admin: view ALL partner contacts
+  app.get('/api/admin/partner-whatsapp-contacts', requireAdmin, async (req, res) => {
+    try {
+      const result = await pool.query(
+        'SELECT wc.*, u.name as partner_name FROM whatsapp_contacts wc LEFT JOIN users u ON wc.partner_id::text = u.id::text WHERE wc.partner_id IS NOT NULL ORDER BY wc.partner_id, wc."group", wc.name'
+      );
+      res.json(result.rows);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+// ===== PARTNER WHATSAPP ROUTES =====
+
+  // Admin: Get all templates
+  app.get('/api/admin/whatsapp-templates', requireAdmin, async (req, res) => {
+    try {
+      const { rows } = await pool.query('SELECT * FROM whatsapp_templates ORDER BY created_at DESC');
+      res.json(rows);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Admin: Add template
+  app.post('/api/admin/whatsapp-templates', requireAdmin, async (req, res) => {
+    try {
+      const { templateId, templateName, category, language, description, sampleParams, targetRole } = req.body;
+      const { rows } = await pool.query(
+        'INSERT INTO whatsapp_templates (template_id, template_name, category, language, description, sample_params, target_role) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
+        [templateId, templateName, category || 'Marketing', language || 'en', description, sampleParams, targetRole || 'all']
+      );
+      res.json(rows[0]);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Admin: Delete template
+  app.delete('/api/admin/whatsapp-templates/:id', requireAdmin, async (req, res) => {
+    try {
+      await pool.query('DELETE FROM whatsapp_templates WHERE id = $1', [req.params.id]);
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Admin: Get partner limits
+  app.get('/api/admin/partner-whatsapp-limits', requireAdmin, async (req, res) => {
+    try {
+      const { rows } = await pool.query(`
+        SELECT u.id, u.name, u.role, u.partner_code,
+          COALESCE(l.daily_limit, 100) as daily_limit,
+          COALESCE(l.messages_sent_today, 0) as messages_sent_today,
+          COALESCE(l.is_enabled, true) as is_enabled
+        FROM users u
+        LEFT JOIN partner_whatsapp_limits l ON l.partner_id = u.id::text
+        WHERE u.role IN ('bdp','ddp') AND u.status = 'approved'
+        ORDER BY u.role, u.name
+      `);
+      res.json(rows);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Admin: Update partner limit
+  app.post('/api/admin/partner-whatsapp-limits', requireAdmin, async (req, res) => {
+    try {
+      const { partnerId, dailyLimit, isEnabled } = req.body;
+      await pool.query(`
+        INSERT INTO partner_whatsapp_limits (partner_id, daily_limit, is_enabled)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (partner_id) DO UPDATE SET daily_limit = $2, is_enabled = $3, updated_at = NOW()
+      `, [partnerId, dailyLimit, isEnabled]);
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Partner: Get approved templates
+  app.get('/api/partner/whatsapp-templates', async (req, res) => {
+    try {
+      if (!req.session?.userId) return res.status(401).json({ message: 'Unauthorized' });
+      const { rows } = await pool.query("SELECT * FROM whatsapp_templates WHERE is_active = true AND (target_role = 'partner' OR target_role = 'all') ORDER BY template_name");
+      res.json(rows);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Partner: Get their own leads for sending
+  app.get('/api/partner/whatsapp-my-leads', async (req, res) => {
+    try {
+      if (!req.session?.userId) return res.status(401).json({ message: 'Unauthorized' });
+      const { rows } = await pool.query(`
+        SELECT mobile_number as phone, name, state, district
+        FROM solar_bot_leads
+        WHERE referred_by_partner_id = $1 AND mobile_number IS NOT NULL AND mobile_number NOT LIKE 'web_%'
+        ORDER BY created_at DESC
+      `, [req.session.userId]);
+      res.json(rows);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Partner: Get sending limit/status
+  app.get('/api/partner/whatsapp-limit', async (req, res) => {
+    try {
+      if (!req.session?.userId) return res.status(401).json({ message: 'Unauthorized' });
+      const { rows } = await pool.query(`
+        SELECT COALESCE(daily_limit, 100) as daily_limit,
+          CASE WHEN last_reset_date < CURRENT_DATE THEN 0 ELSE COALESCE(messages_sent_today, 0) END as messages_sent_today,
+          COALESCE(is_enabled, true) as is_enabled
+        FROM partner_whatsapp_limits WHERE partner_id = $1
+      `, [req.session.userId]);
+      res.json(rows[0] || { daily_limit: 100, messages_sent_today: 0, is_enabled: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Partner: Send WhatsApp campaign
+  app.post('/api/partner/whatsapp-send', async (req, res) => {
+    try {
+      if (!req.session?.userId) return res.status(401).json({ message: 'Unauthorized' });
+      const partnerId = req.session.userId;
+      const { campaignName, templateId, templateName, recipients } = req.body;
+
+      // Check limit
+      const limitRes = await pool.query(`
+        SELECT COALESCE(daily_limit, 100) as daily_limit,
+          CASE WHEN last_reset_date < CURRENT_DATE THEN 0 ELSE COALESCE(messages_sent_today, 0) END as sent_today,
+          COALESCE(is_enabled, true) as is_enabled
+        FROM partner_whatsapp_limits WHERE partner_id = $1
+      `, [partnerId]);
+      const limit = limitRes.rows[0] || { daily_limit: 100, sent_today: 0, is_enabled: true };
+
+      if (!limit.is_enabled) return res.status(403).json({ message: 'WhatsApp sending is disabled for your account' });
+      const remaining = limit.daily_limit - limit.sent_today;
+      if (remaining <= 0) return res.status(429).json({ message: `Daily limit of ${limit.daily_limit} messages reached` });
+
+      const toSend = recipients.slice(0, remaining);
+
+      // Create campaign
+      const campRes = await pool.query(`
+        INSERT INTO partner_whatsapp_campaigns (partner_id, campaign_name, template_id, template_name, total_recipients)
+        VALUES ($1, $2, $3, $4, $5) RETURNING id
+      `, [partnerId, campaignName, templateId, templateName, toSend.length]);
+      const campaignId = campRes.rows[0].id;
+
+      // Send messages
+      let sent = 0, failed = 0;
+      for (const r of toSend) {
+        try {
+          const success = await notificationService.sendWhatsAppMessage(r.phone, '', templateId, [], '', '');
+          const msgId = `partner_${campaignId}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+          await pool.query(`
+            INSERT INTO partner_whatsapp_messages (campaign_id, partner_id, message_id, recipient_phone, recipient_name, template_id, status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+          `, [campaignId, partnerId, msgId, r.phone, r.name || '', templateId, success ? 'sent' : 'failed']);
+          if (success) sent++; else failed++;
+          await new Promise(resolve => setTimeout(resolve, 300));
+        } catch { failed++; }
+      }
+
+      // Update campaign
+      await pool.query(`UPDATE partner_whatsapp_campaigns SET sent = $1, failed = $2, status = 'completed', completed_at = NOW() WHERE id = $3`, [sent, failed, campaignId]);
+
+      // Update daily count
+      await pool.query(`
+        INSERT INTO partner_whatsapp_limits (partner_id, messages_sent_today, last_reset_date)
+        VALUES ($1, $2, CURRENT_DATE)
+        ON CONFLICT (partner_id) DO UPDATE SET
+          messages_sent_today = CASE WHEN partner_whatsapp_limits.last_reset_date < CURRENT_DATE THEN $2 ELSE partner_whatsapp_limits.messages_sent_today + $2 END,
+          last_reset_date = CURRENT_DATE
+      `, [partnerId, sent]);
+
+      res.json({ success: true, campaignId, sent, failed, total: toSend.length });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Partner: Get campaign history
+  app.get('/api/partner/whatsapp-campaigns', async (req, res) => {
+    try {
+      if (!req.session?.userId) return res.status(401).json({ message: 'Unauthorized' });
+      const { rows } = await pool.query(`
+        SELECT * FROM partner_whatsapp_campaigns WHERE partner_id = $1 ORDER BY created_at DESC LIMIT 50
+      `, [req.session.userId]);
+      res.json(rows);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Partner: Get messages for a campaign
+  app.get('/api/partner/whatsapp-campaigns/:id/messages', async (req, res) => {
+    try {
+      if (!req.session?.userId) return res.status(401).json({ message: 'Unauthorized' });
+      const { rows } = await pool.query(`
+        SELECT * FROM partner_whatsapp_messages WHERE campaign_id = $1 AND partner_id = $2 ORDER BY sent_at DESC
+      `, [req.params.id, req.session.userId]);
+      res.json(rows);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Partner: Get all replies
+  app.get('/api/partner/whatsapp-replies', async (req, res) => {
+    try {
+      if (!req.session?.userId) return res.status(401).json({ message: 'Unauthorized' });
+      const { rows } = await pool.query(`
+        SELECT * FROM partner_whatsapp_messages WHERE partner_id = $1 AND reply_text IS NOT NULL ORDER BY replied_at DESC
+      `, [req.session.userId]);
+      res.json(rows);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Partner: Get stats
+  app.get('/api/partner/whatsapp-stats', async (req, res) => {
+    try {
+      if (!req.session?.userId) return res.status(401).json({ message: 'Unauthorized' });
+      const { rows } = await pool.query(`
+        SELECT
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE status = 'delivered') as delivered,
+          COUNT(*) FILTER (WHERE status = 'read') as read,
+          COUNT(*) FILTER (WHERE status = 'failed') as failed,
+          COUNT(*) FILTER (WHERE reply_text IS NOT NULL) as replied
+        FROM partner_whatsapp_messages WHERE partner_id = $1
+      `, [req.session.userId]);
+      res.json(rows[0]);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   // ===== VENDOR REGISTRATION ROUTES =====
@@ -5494,7 +6458,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
             `New job assigned: ${customer.name}`,
             "Divyanshi_Partner_Meeting",
             [],
-            "Divyanshi digital service pvt ltd"
+            "Divyanshi Digital Services Pvt Ltd"
           );
           console.log(`[Vendor Assignment] WhatsApp sent to vendor ${vendor.businessName} for customer ${customer.name}`);
         }
@@ -5947,6 +6911,20 @@ export function registerRoutes(httpServer: Server, app: Express) {
   });
 
   // Admin: Delete customer file submission
+  app.delete("/api/admin/customers/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteCustomer(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      res.json({ message: "Customer deleted successfully" });
+    } catch (error: any) {
+      console.error("Delete customer error:", error);
+      res.status(500).json({ message: error.message || "Failed to delete customer" });
+    }
+  });
+
   app.delete("/api/admin/customer-file-submissions/:id", requireAdmin, async (req, res) => {
     try {
       await storage.deleteCustomerFileSubmission(req.params.id);
@@ -8905,7 +9883,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
             `New service request from ${customer.name}: ${issueTitle}`,
             "Divyanshi_Partner_Meeting",
             [],
-            "Divyanshi digital service pvt ltd"
+            "Divyanshi Digital Services Pvt Ltd"
           );
           console.log(`[Service Request] WhatsApp sent to admin for new request from ${customer.name}`);
         }
@@ -8917,7 +9895,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
             `Your service request has been received: ${issueTitle}`,
             "Divyanshi_Partner_Meeting",
             [],
-            "Divyanshi digital service pvt ltd"
+            "Divyanshi Digital Services Pvt Ltd"
           );
           console.log(`[Service Request] WhatsApp confirmation sent to customer ${customer.name}`);
         }
@@ -9350,9 +10328,9 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
       const result = await sendGmailEmail({
         to: customerEmail,
-        subject: `Your Solar Proposal - ${capacity} kWp System | Divyanshi Solar`,
+        subject: `Your Solar Proposal - ${capacity} kWp System | Prayga India Private Limited`,
         htmlContent,
-        fromName: 'Divyanshi Solar'
+        fromName: 'Prayga India Private Limited'
       });
 
       if (result.success) {
@@ -9453,13 +10431,58 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
   // ========== ADMIN EQUIPMENT SETTINGS (Module & Inverter Options) ==========
 
+
+  // Global Equipment Specs API
+  app.get("/api/admin/equipment-specs", requireAdmin, async (req, res) => {
+    try {
+      const cats = ["modules","inverters","batteries","structure","wire"];
+      const out: any = {};
+      for (const c of cats) {
+        const s = await storage.getAdminSetting(`equipment_specs_${c}`);
+        try { out[c] = s ? JSON.parse(s.value) : null; } catch { out[c] = null; }
+      }
+      res.json(out);
+    } catch(e:any) { res.status(500).json({message:e.message}); }
+  });
+
+  app.post("/api/admin/equipment-specs", requireAdmin, async (req, res) => {
+    try {
+      const { category, data } = req.body;
+      await storage.setAdminSetting(`equipment_specs_${category}`, JSON.stringify(data));
+      res.json({ success: true });
+    } catch(e:any) { res.status(500).json({message:e.message}); }
+  });
+
+
+  // Equipment Warranty per model
+  app.get("/api/admin/equipment-warranty", requireAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getAdminSettingsByPrefix("equipment_warranty_");
+      const result: any = {};
+      for (const s of settings) {
+        try { result[s.key] = JSON.parse(s.value); } catch { result[s.key] = {}; }
+      }
+      res.json(result);
+    } catch(e:any) { res.status(500).json({message:e.message}); }
+  });
+
+  app.post("/api/admin/equipment-warranty", requireAdmin, async (req, res) => {
+    try {
+      const { key, data } = req.body;
+      await storage.setAdminSetting(key, JSON.stringify(data));
+      res.json({ success: true });
+    } catch(e:any) { res.status(500).json({message:e.message}); }
+  });
+
   app.get("/api/admin/equipment-options", requireAdmin, async (req, res) => {
     try {
       const moduleSettings = await storage.getAdminSettingsByPrefix("equipment_module_");
       const inverterSettings = await storage.getAdminSettingsByPrefix("equipment_inverter_");
+      const batterySettings = await storage.getAdminSettingsByPrefix("equipment_battery_");
 
       const moduleMakes: { make: string; models: string[] }[] = [];
       const inverterMakes: { make: string; models: string[] }[] = [];
+      const batteryMakes: { make: string; models: string[] }[] = [];
 
       for (const s of moduleSettings) {
         const make = s.key.replace("equipment_module_", "");
@@ -9473,8 +10496,14 @@ export function registerRoutes(httpServer: Server, app: Express) {
           inverterMakes.push({ make, models: JSON.parse(s.value) });
         } catch { inverterMakes.push({ make, models: [] }); }
       }
+      for (const s of batterySettings) {
+        const make = s.key.replace("equipment_battery_", "");
+        try {
+          batteryMakes.push({ make, models: JSON.parse(s.value) });
+        } catch { batteryMakes.push({ make, models: [] }); }
+      }
 
-      res.json({ moduleMakes, inverterMakes });
+      res.json({ moduleMakes, inverterMakes, batteryMakes });
     } catch (error: any) {
       console.error("Get equipment options error:", error);
       res.status(500).json({ message: error.message || "Failed to fetch equipment options" });
@@ -9487,8 +10516,8 @@ export function registerRoutes(httpServer: Server, app: Express) {
       if (!type || !make) {
         return res.status(400).json({ message: "Type and make are required" });
       }
-      if (!["module", "inverter"].includes(type)) {
-        return res.status(400).json({ message: "Type must be 'module' or 'inverter'" });
+      if (!["module", "inverter", "battery"].includes(type)) {
+        return res.status(400).json({ message: "Type must be 'module', 'inverter', or 'battery'" });
       }
       const modelsArray = Array.isArray(models) ? models.filter((m: string) => m.trim()) : [];
       const key = `equipment_${type}_${make}`;
@@ -9503,13 +10532,19 @@ export function registerRoutes(httpServer: Server, app: Express) {
   app.delete("/api/admin/equipment-options/:type/:make", requireAdmin, async (req, res) => {
     try {
       const { type, make } = req.params;
-      if (!["module", "inverter"].includes(type)) {
+      if (!["module", "inverter", "battery"].includes(type)) {
         return res.status(400).json({ message: "Invalid type" });
       }
       const key = `equipment_${type}_${make}`;
       const deleted = await storage.deleteAdminSetting(key);
       if (!deleted) {
         return res.status(404).json({ message: "Equipment option not found" });
+      }
+      for (const s of batterySettings) {
+        const make = s.key.replace("equipment_battery_", "");
+        try {
+          batteryMakes.push({ make, models: JSON.parse(s.value) });
+        } catch { batteryMakes.push({ make, models: [] }); }
       }
       res.json({ message: "Equipment option removed successfully" });
     } catch (error: any) {
@@ -9698,13 +10733,13 @@ export function registerRoutes(httpServer: Server, app: Express) {
       const emailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: linear-gradient(135deg, #FF6600, #FF8800); padding: 20px; border-radius: 10px 10px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 22px;">Divyanshi Solar</h1>
-            <p style="color: #FFE0CC; margin: 5px 0 0; font-size: 13px;">Authorized Marketing Partner of Hewtech System Pvt. Ltd.</p>
+            <h1 style="color: white; margin: 0; font-size: 22px;">Prayga India Private Limited</h1>
+            <p style="color: #FFE0CC; margin: 5px 0 0; font-size: 13px;"></p>
           </div>
           <div style="background: #f9f9f9; padding: 25px; border-radius: 0 0 10px 10px; border: 1px solid #eee;">
             <h2 style="color: #333; margin-top: 0;">Memorandum of Agreement (MOA)</h2>
             <p style="color: #555; line-height: 1.6;">Dear <strong>${moaData.customerName}</strong>,</p>
-            <p style="color: #555; line-height: 1.6;">Please find attached your Memorandum of Agreement (MOA) for the installation of <strong>${moaData.plantCapacity}</strong> Grid Connected Rooftop Solar Power Plant under <strong>PM Surya Ghar: Muft Bijli Yojana</strong>.</p>
+            <p style="color: #555; line-height: 1.6;">Please find attached your Memorandum of Agreement (MOA) for the installation of <strong>${moaData.plantCapacity}</strong> Grid Connected Rooftop Solar Power Plant under <strong>PM Surya Ghar: Yojana</strong>.</p>
             <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
               <tr style="background: #fff3e6;">
                 <td style="padding: 10px; border: 1px solid #eee; font-weight: bold; color: #555;">Plant Capacity</td>
@@ -9727,12 +10762,12 @@ export function registerRoutes(httpServer: Server, app: Express) {
                 <td style="padding: 10px; border: 1px solid #eee; color: #333;">${moaData.dateOfAgreement}</td>
               </tr>
             </table>
-            <p style="color: #555; line-height: 1.6;">This agreement is to be printed on <strong>Rs 50 Stamp Paper</strong> for official MOA purposes.</p>
+            <p style="color: #555; line-height: 1.6;">This agreement is to be printed on <strong>Rs 100 Stamp Paper</strong> for official MOA purposes.</p>
             <p style="color: #888; font-size: 12px; margin-top: 20px;">Please review the attached document and contact us for any queries.</p>
           </div>
           <div style="text-align: center; padding: 15px; color: #999; font-size: 11px;">
-            <p>Divyanshi Solar | Authorized Marketing Partner of Hewtech System Pvt. Ltd.</p>
-            <p>Registered with SBPDCL & NBPDCL</p>
+            <p>Prayga India Private Limited | </p>
+            <p>Registered with Registered National Vendor under PM-Surya Ghar: Muft Bijli Yojana Rooftop Solar Program</p>
           </div>
         </div>
       `;
@@ -9744,9 +10779,9 @@ export function registerRoutes(httpServer: Server, app: Express) {
         try {
           const result = await sendGmailEmail({
             to: customerEmail,
-            subject: `MOA Agreement - ${moaData.plantCapacity} Solar Plant | Divyanshi Solar`,
+            subject: `MOA Agreement - ${moaData.plantCapacity} Solar Plant | Prayga India Private Limited`,
             htmlContent: emailHtml,
-            fromName: 'Divyanshi Solar',
+            fromName: 'Prayga India Private Limited',
             pdfAttachment: { filename: `MOA_Agreement_${moaData.customerName.replace(/\s+/g, '_')}.pdf`, data: pdfBase64 },
           });
           if (result.success) sentTo.push(customerEmail);
@@ -9758,9 +10793,9 @@ export function registerRoutes(httpServer: Server, app: Express) {
         try {
           const result = await sendGmailEmail({
             to: ddpEmail,
-            subject: `MOA Agreement - ${moaData.customerName} (${moaData.plantCapacity}) | Divyanshi Solar`,
+            subject: `MOA Agreement - ${moaData.customerName} (${moaData.plantCapacity}) | Prayga India Private Limited`,
             htmlContent: emailHtml,
-            fromName: 'Divyanshi Solar',
+            fromName: 'Prayga India Private Limited',
             pdfAttachment: { filename: `MOA_Agreement_${moaData.customerName.replace(/\s+/g, '_')}.pdf`, data: pdfBase64 },
           });
           if (result.success) sentTo.push(ddpEmail);
@@ -10026,9 +11061,9 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
       const result = await sendGmailEmail({
         to: customerEmail,
-        subject: 'Welcome to Divyanshi Solar - Your Solar Journey Begins!',
+        subject: 'Welcome to Prayga India Private Limited - Your Solar Journey Begins!',
         htmlContent,
-        fromName: 'Divyanshi Solar'
+        fromName: 'Prayga India Private Limited'
       });
 
       if (result.success) {
@@ -10060,7 +11095,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
         to,
         subject,
         htmlContent,
-        fromName: 'Divyanshi Solar'
+        fromName: 'Prayga India Private Limited'
       });
 
       if (result.success) {
@@ -10108,6 +11143,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
         finalExecutionDecision: 'final_execution_decision',
         proposalStatus: 'proposal_status', status: 'status',
         mobileNumber: 'mobile_number',
+        phone: 'phone',
         connectionType: 'connection_type',
       };
 
@@ -10160,6 +11196,232 @@ export function registerRoutes(httpServer: Server, app: Express) {
           console.error('[Ref Tracking Error]', refErr.message);
         }
       }
+      // Trigger WhatsApp when ONLY mobileNumber received (phone-only leads)
+      if (data.mobileNumber && !data.monthlyBilling) {
+        const mobileNum = String(data.mobileNumber).replace(/\D/g, '');
+        if (mobileNum.length >= 10 && !String(data.mobileNumber).startsWith('web_')) {
+          console.log('[WA Phone Trigger] Mobile number received, waiting 25s for more data:', mobileNum);
+          const phoneOnlyKey = phoneKey;
+          setTimeout(async () => {
+            try {
+              // Check if billing was added during the 25s wait
+              const checkLead = await pool.query(
+                'SELECT monthly_billing FROM solar_bot_leads WHERE phone = $1 LIMIT 1',
+                [phoneOnlyKey]
+              );
+              const hasBilling = checkLead.rows[0]?.monthly_billing && checkLead.rows[0].monthly_billing !== '';
+              if (hasBilling) {
+                console.log('[WA Phone Trigger] Billing was added during wait, skipping (billing trigger will handle):', phoneOnlyKey);
+                return;
+              }
+              // No billing after 25s — trigger with default template
+              const freshLead = await pool.query(
+                'SELECT name, state, mobile_number, monthly_billing, plant_capacity, residential_plant_capacity, meter_type FROM solar_bot_leads WHERE phone = $1 LIMIT 1',
+                [phoneOnlyKey]
+              );
+              const fl = freshLead.rows[0] || {};
+              const realPhone = fl.mobile_number || mobileNum;
+              const rawP = realPhone.replace(/\D/g, '');
+              if (rawP.length < 10) { console.log('[WA Phone Trigger] Invalid phone, skipping'); return; }
+              const formattedP = rawP.startsWith('91') ? rawP : '91' + rawP.slice(-10);
+              
+              const state = (fl.state || '').toLowerCase().trim();
+              const billing = parseFloat((fl.monthly_billing || '0').toString().match(/\d+/)?.[0] || '0');
+              const capacity = (fl.plant_capacity || fl.residential_plant_capacity || '').toLowerCase();
+
+              const g1 = ['bihar','jharkhand','madhya pradesh','mp','maharashtra','rajasthan','madhyapradesh','maharastra'];
+              const g2 = ['uttar pradesh','up','chhattisgarh','chattisgarh','uttarpradesh','chattisgrah'];
+              const g3 = ['odisha','orissa'];
+              let stateGroup = 'g2';
+              if (g2.some((s) => state.includes(s))) stateGroup = 'g2';
+              else if (g3.some((s) => state.includes(s))) stateGroup = 'g3';
+
+              let kwTier = '3kw';
+              if (capacity.includes('5')) kwTier = '5kw';
+              else if (capacity.includes('3')) kwTier = '3kw';
+              else if (billing > 4000 && billing <= 7000) kwTier = '5kw';
+
+              const templates = {
+                '3kw': {
+                  'g1': '3_kw_3in1_hybrid_solar_power_plant_bihar_jharkhand_madhyapradesh_maharashtra',
+                  'g2': '3_kw_3in1_hybrid_solar_power_plant_template_uttarpradesh_chattisgarh',
+                  'g3': '3_kw_3in1_hybrid_solar_power_plant_template_odisha',
+                },
+                '5kw': {
+                  'g1': '5_kw_3in1_hybrid_solar_power_plant_template_bihar_jharkhand_madhyapradesh_maharastra_rajasthan',
+                  'g2': '5_kw_3in1_hybrid_solar_power_plant_template_uttarpradesh_chattisgrah',
+                  'g3': '5_kw_3in1_hybrid_solar_power_plant_template_odisha',
+                }
+              };
+              const templateId = templates[kwTier][stateGroup];
+
+              const payload = {
+                name: fl.name || '',
+                phone: formattedP,
+                state: fl.state || 'Bihar',
+                plantCapacity: capacity,
+                monthlyBilling: String(billing),
+                connectionType: fl.meter_type || '',
+                templateId: templateId,
+              };
+              // 24hr cooldown check — don't spam same number
+              const recentCheck = await pool.query(
+                `SELECT id FROM whatsapp_broadcasts WHERE recipient_phone = $1 AND sent_at > NOW() - INTERVAL '24 hours' AND status != 'failed' LIMIT 1`,
+                [formattedP]
+              );
+              if (recentCheck.rows.length > 0) {
+                console.log('[WA Phone Trigger] Skipped - already sent in last 24hrs:', formattedP);
+                return;
+              }
+              await fetch('https://n8n.stonechipswala.com/webhook/solar-lead-whatsapp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+              console.log('[WA Phone Trigger] Sent after 25s wait:', formattedP, 'template:', templateId, 'state:', state || 'default UP');
+            } catch (e) {
+              console.error('[WA Phone Trigger Error]', e.message);
+            }
+          }, 25000);
+        }
+      }
+
+      // Trigger N8N webhook — when monthlyBilling received (all key data collected)
+      if (data.monthlyBilling) {
+        try {
+          // isNewLead = true means INSERT happened, false means UPDATE
+          // For new lead (INSERT): always trigger if email provided
+          // For existing lead (UPDATE): only trigger if email was empty before
+          const shouldTrigger = existing.rows.length === 0 || (() => {
+            // existing lead — check if email was previously empty
+            return !existing.rows[0]?.email;
+          })();
+
+          if (shouldTrigger) {
+            // Fetch latest name and state from DB after insert/update
+            const leadCheck = await pool.query(
+              `SELECT name, email, state, district, city, electricity_board, consumer_number, meter_type, roof_space FROM solar_bot_leads WHERE phone = $1 LIMIT 1`,
+              [phoneKey]
+            );
+            const leadName = leadCheck.rows[0]?.name || data.name || 'मित्र';
+            const leadState = leadCheck.rows[0]?.state || leadCheck.rows[0]?.city || data.state || data.city || 'Bihar';
+            console.log('[N8N Trigger] Sending webhook for:', data.email, 'name:', leadName, 'state:', leadState);
+            const waPayload = {
+                name:           leadCheck.rows[0]?.name            || data.name  || '',
+                phone:          data.mobileNumber                  || phoneKey,
+                state:          leadCheck.rows[0]?.state           || data.state || '',
+                plantCapacity:  data.plantCapacity                 || data.residentialPlantCapacity || '',
+                monthlyBilling: data.monthlyBilling                || '',
+                connectionType: leadCheck.rows[0]?.meter_type      || data.meterType || '',
+              };
+            const triggerWhatsApp = async () => {
+              try {
+                const freshLead = await pool.query(
+                  `SELECT name, state, mobile_number, monthly_billing, plant_capacity, residential_plant_capacity, meter_type FROM solar_bot_leads WHERE phone = $1 LIMIT 1`,
+                  [phoneKey]
+                );
+                const fl = freshLead.rows[0] || {};
+                const realPhone = fl.mobile_number || (data.mobileNumber && !String(data.mobileNumber).startsWith('web_') ? data.mobileNumber : null) || phoneKey;
+                const cleanCheck = realPhone.replace(/\D/g, '');
+                if (!cleanCheck || cleanCheck.length < 10 || realPhone.startsWith('web_')) {
+                  console.log('[WA Trigger] No real phone, skipping:', phoneKey);
+                  return;
+                }
+                const rawP = realPhone.replace(/\D/g, '');
+                const formattedP = rawP.startsWith('91') ? rawP : '91' + rawP.slice(-10);
+                const state = (fl.state || waPayload.state || '').toLowerCase().trim();
+                const billing = parseFloat((fl.monthly_billing || waPayload.monthlyBilling || '0').toString().match(/\d+/)?.[0] || '0');
+                const capacity = (fl.plant_capacity || fl.residential_plant_capacity || waPayload.plantCapacity || '').toLowerCase();
+
+                // State group logic
+                const g1 = ['bihar','jharkhand','madhya pradesh','mp','maharashtra','rajasthan','madhyapradesh','maharastra'];
+                const g2 = ['uttar pradesh','up','chhattisgarh','chattisgarh','uttarpradesh','chattisgrah'];
+                const g3 = ['odisha','orissa'];
+                let stateGroup = 'g2'; // default UP group
+                if (g2.some((s: string) => state.includes(s))) stateGroup = 'g2';
+                else if (g3.some((s: string) => state.includes(s))) stateGroup = 'g3';
+                else if (g1.some((s: string) => state.includes(s))) stateGroup = 'g1';
+
+                // KW tier logic
+                let kwTier = '3kw'; // default 3KW
+                if (capacity.includes('5')) kwTier = '5kw';
+                else if (capacity.includes('3')) kwTier = '3kw';
+                else if (billing > 4000 && billing <= 7000) kwTier = '5kw';
+                else if (billing >= 1500 && billing <= 4000) kwTier = '3kw';
+
+                // Template selection
+                const templates: Record<string, Record<string, string>> = {
+                  '3kw': {
+                    'g1': '3_kw_3in1_hybrid_solar_power_plant_bihar_jharkhand_madhyapradesh_maharashtra',
+                    'g2': '3_kw_3in1_hybrid_solar_power_plant_template_uttarpradesh_chattisgarh',
+                    'g3': '3_kw_3in1_hybrid_solar_power_plant_template_odisha',
+                  },
+                  '5kw': {
+                    'g1': '5_kw_3in1_hybrid_solar_power_plant_template_bihar_jharkhand_madhyapradesh_maharastra_rajasthan',
+                    'g2': '5_kw_3in1_hybrid_solar_power_plant_template_uttarpradesh_chattisgrah',
+                    'g3': '5_kw_3in1_hybrid_solar_power_plant_template_odisha',
+                  }
+                };
+                const templateId = templates[kwTier][stateGroup];
+
+                const finalPayload = {
+                  name: fl.name || waPayload.name || '',
+                  phone: formattedP,
+                  state: fl.state || waPayload.state || 'Bihar',
+                  plantCapacity: capacity,
+                  monthlyBilling: String(billing),
+                  connectionType: fl.meter_type || waPayload.connectionType || '',
+                  templateId: templateId,
+                };
+                // 24hr cooldown check
+                const recentCheck2 = await pool.query(
+                  `SELECT id FROM whatsapp_broadcasts WHERE recipient_phone = $1 AND sent_at > NOW() - INTERVAL '24 hours' AND status != 'failed' LIMIT 1`,
+                  [formattedP]
+                );
+                if (recentCheck2.rows.length > 0) {
+                  console.log('[WA Billing Trigger] Skipped - already sent in last 24hrs:', formattedP);
+                  return;
+                }
+                await fetch('https://n8n.stonechipswala.com/webhook/solar-lead-whatsapp', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(finalPayload)
+                });
+                console.log('[WA Trigger] Sent:', formattedP, 'template:', templateId);
+              } catch(e: any) {
+                console.error('[WA Trigger Error]', e.message);
+              }
+            };
+            const hasRealPhone = data.mobileNumber && !String(data.mobileNumber).startsWith('web_') && String(data.mobileNumber).replace(/\D/g,'').length >= 10;
+            if (hasRealPhone) {
+              triggerWhatsApp(); // trigger immediately
+            } else {
+              setTimeout(triggerWhatsApp, 15000); // wait 15 seconds for phone entry
+            }
+
+            fetch('https://n8n.stonechipswala.com/webhook/solar-lead-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                name:             leadCheck.rows[0]?.name            || data.name  || '',
+                email:            leadCheck.rows[0]?.email           || data.email || '',
+                phone:            data.mobileNumber                  || phoneKey,
+                state:            leadCheck.rows[0]?.state           || data.state || '',
+                district:         leadCheck.rows[0]?.district        || '',
+                city:             leadCheck.rows[0]?.city            || '',
+                electricityBoard: leadCheck.rows[0]?.electricity_board || '',
+                consumerNumber:   leadCheck.rows[0]?.consumer_number || '',
+                connectionType:   leadCheck.rows[0]?.meter_type      || data.meterType || '',
+                monthlyBilling:   data.monthlyBilling                || '',
+                roofSpace:        leadCheck.rows[0]?.roof_space      || data.roofSpace || '',
+              })
+            }).catch(e => console.error('[N8N Webhook Error]', e.message));
+          }
+        } catch (webhookErr: any) {
+          console.error('[Webhook Trigger Error]', webhookErr.message);
+        }
+      }
+
       res.json({ success: true });
     } catch (err: any) {
       console.error('[Web Lead Error]', err.message);
@@ -10215,8 +11477,10 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
   // Receive WhatsApp Messages (POST request)
   app.post('/api/webhook', async (req, res) => {
-    const body = req.body;
-
+    let body = req.body;
+    if (!body.object && (body.messages || body.statuses || body.messaging_product)) {
+      body = { object: 'whatsapp_business_account', entry: [{ changes: [{ value: body, field: 'messages' }] }] };
+    }
     if (body.object) {
       if (
         body.entry &&
@@ -10229,13 +11493,60 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
         const text = message.text?.body || message.interactive?.button_reply?.title || message.interactive?.list_reply?.title || (message.location ? "📍 GPS Location Shared" : "");
 
+        // Log every inbound WhatsApp message so real conversations stay searchable
+        try {
+          const waContact = body.entry[0].changes[0].value.contacts?.[0];
+          await pool.query(
+            `INSERT INTO whatsapp_inbox (wa_id, phone, profile_name, direction, msg_type, body, msg_id, raw)
+             VALUES ($1,$2,$3,'in',$4,$5,$6,$7) ON CONFLICT (msg_id) DO NOTHING`,
+            [
+              String(waId).slice(0, 20),
+              String(waId).replace(/\D/g, '').slice(-10),
+              String(waContact?.profile?.name || '').slice(0, 120) || null,
+              String(message.type || 'unknown').slice(0, 20),
+              text || null,
+              String(message.id || '').slice(0, 120) || null,
+              JSON.stringify(message),
+            ]
+          );
+        } catch (inboxErr: any) {
+          console.error('[WA Inbox] log failed:', inboxErr.message);
+        }
+
         if (text) {
           try {
             const { processMessage } = require('./chatbot');
             console.log(`Received message from ${waId}: ${text}`);
             await processMessage(waId, text);
+            await pool.query(`
+              UPDATE whatsapp_broadcasts SET reply_text = $1, replied_at = NOW(), status = 'replied'
+              WHERE id = (
+                SELECT id FROM whatsapp_broadcasts 
+                WHERE recipient_phone LIKE $2 
+                ORDER BY sent_at DESC LIMIT 1
+              )
+            `, [text, '%' + waId.slice(-10)]);
           } catch (e) {
             console.error("Error processing WhatsApp message:", e);
+          }
+        }
+      }
+      const statuses = body.entry?.[0]?.changes?.[0]?.value?.statuses;
+      if (statuses && statuses.length > 0) {
+        for (const s of statuses) {
+          const msgId = s.id;
+          const status = s.status;
+          const errorMsg = s.errors && s.errors[0] ? (s.errors[0].title || '') + ' - ' + (s.errors[0].message || '') + ' (code: ' + (s.errors[0].code || '') + ')' : '';
+          if (errorMsg) console.log('[WA Status] Failed:', msgId, errorMsg);
+          if (msgId && status) {
+            const col = status === 'delivered' ? 'delivered_at' : status === 'read' ? 'read_at' : null;
+            if (col) {
+              await pool.query(`UPDATE whatsapp_broadcasts SET status = $1, ${col} = NOW() WHERE message_id = $2 OR message_id = $3`, [status, msgId, msgId.replace(/=+$/, '')]);
+            } else if (status === 'failed') {
+              await pool.query(`UPDATE whatsapp_broadcasts SET status = $1, error_message = $4 WHERE message_id = $2 OR message_id = $3`, [status, msgId, msgId.replace(/=+$/, ''), errorMsg]);
+            } else {
+              await pool.query(`UPDATE whatsapp_broadcasts SET status = $1 WHERE message_id = $2 OR message_id = $3`, [status, msgId, msgId.replace(/=+$/, '')]);
+            }
           }
         }
       }
@@ -10409,6 +11720,220 @@ export function registerRoutes(httpServer: Server, app: Express) {
     } catch (error: any) {
       console.error('[Delete Chatbot Node Error]', error.message);
       res.status(500).json({ error: error.message });
+    }
+  });
+
+
+  // Admin: Shared groups CRUD
+  app.get('/api/admin/whatsapp-shared-groups', requireAdmin, async (req, res) => {
+    try {
+      const result = await pool.query('SELECT * FROM whatsapp_shared_groups ORDER BY group_name');
+      res.json(result.rows);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post('/api/admin/whatsapp-shared-groups', requireAdmin, async (req, res) => {
+    try {
+      const { group_name, shared_with_state, shared_with_district } = req.body;
+      const result = await pool.query(
+        'INSERT INTO whatsapp_shared_groups (group_name, shared_with_state, shared_with_district) VALUES ($1, $2, $3) ON CONFLICT (group_name) DO UPDATE SET shared_with_state = $2, shared_with_district = $3 RETURNING *',
+        [group_name, shared_with_state || '', shared_with_district || '']
+      );
+      res.json(result.rows[0]);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.delete('/api/admin/whatsapp-shared-groups/:id', requireAdmin, async (req, res) => {
+    try {
+      await pool.query('DELETE FROM whatsapp_shared_groups WHERE id = $1', [req.params.id]);
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+
+  // Public API: Get partner info for a lead (used by n8n workflow)
+  app.post('/api/public/get-lead-partner-info', async (req, res) => {
+    try {
+      const { phone } = req.body;
+      if (!phone) return res.json({ hasPartner: false });
+      
+      const clean = phone.replace(/\D/g, '');
+      
+      // Find lead and its referring partner
+      const leadResult = await pool.query(
+        `SELECT sbl.referred_by_partner_id, sbl.referred_by_partner_code, sbl.referred_by_partner_name,
+                u.name as partner_name, u.phone as partner_phone, u.state as partner_state, u.district as partner_district
+         FROM solar_bot_leads sbl
+         LEFT JOIN users u ON sbl.referred_by_partner_id::text = u.id::text
+         WHERE sbl.phone LIKE '%' || $1 || '%' OR sbl.mobile_number LIKE '%' || $1 || '%'
+         ORDER BY sbl.created_at DESC LIMIT 1`,
+        [clean.slice(-10)]
+      );
+      
+      if (leadResult.rows.length === 0 || !leadResult.rows[0].referred_by_partner_id) {
+        return res.json({ hasPartner: false });
+      }
+      
+      const row = leadResult.rows[0];
+      const partnerPhone = (row.partner_phone || '').replace(/\D/g, '');
+      const formattedPhone = partnerPhone.length >= 10 
+        ? (partnerPhone.startsWith('91') ? partnerPhone : '91' + partnerPhone.slice(-10))
+        : '';
+      
+      res.json({
+        hasPartner: true,
+        partnerId: row.referred_by_partner_id,
+        partnerCode: row.referred_by_partner_code,
+        partnerName: row.partner_name || row.referred_by_partner_name || '',
+        partnerPhone: formattedPhone,
+        partnerState: row.partner_state || '',
+        partnerDistrict: row.partner_district || ''
+      });
+    } catch (e: any) {
+      console.error('[Get Lead Partner Error]', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+
+  app.get('/api/bdp/referral-info', requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'bdp') return res.status(403).json({ message: "BDP access only" });
+      const ddpCount = await pool.query("SELECT COUNT(*) as cnt FROM users WHERE parent_id = $1 AND role = 'ddp'", [userId]);
+      const sdpCount = await pool.query("SELECT COUNT(*) as cnt FROM users WHERE parent_id = $1 AND role = 'sdp'", [userId]);
+      res.json({
+        partnerCode: user.partnerCode,
+        partnerName: user.name,
+        referralLink: '/join/' + user.partnerCode,
+        ddpCount: parseInt(ddpCount.rows[0].cnt),
+        sdpCount: parseInt(sdpCount.rows[0].cnt),
+      });
+    } catch (e) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.get('/api/public/validate-referral/:code', async (req, res) => {
+    try {
+      const refCode = req.params.code;
+      const result = await pool.query(
+        "SELECT id, name, partner_code, state, district, role FROM users WHERE partner_code = $1 AND status = 'approved' AND role IN ('bdp', 'sdp') LIMIT 1",
+        [refCode.toUpperCase()]
+      );
+      if (result.rows.length === 0) return res.status(404).json({ valid: false });
+      const bdp = result.rows[0];
+      res.json({ valid: true, bdpName: bdp.name, bdpCode: bdp.partner_code, bdpState: bdp.state, bdpDistrict: bdp.district, role: bdp.role });
+    } catch (e) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post('/api/public/join-partner', async (req, res) => {
+    try {
+      const { name, phone, email, state, district, address, password, role, referralCode } = req.body;
+      if (!name || !phone || !password || !referralCode) return res.status(400).json({ message: "Required fields missing" });
+      const bdpResult = await pool.query(
+        "SELECT id, partner_code, name as bdp_name FROM users WHERE partner_code = $1 AND status = 'approved' AND role IN ('bdp', 'sdp') LIMIT 1",
+        [referralCode.toUpperCase()]
+      );
+      if (bdpResult.rows.length === 0) return res.status(400).json({ message: "Invalid referral code" });
+      const bdp = bdpResult.rows[0];
+      const existPhone = await pool.query("SELECT id FROM users WHERE phone = $1 LIMIT 1", [phone]);
+      if (existPhone.rows.length > 0) return res.status(400).json({ message: "Phone already registered" });
+      const partnerRole = role === 'sdp' ? 'sdp' : 'ddp';
+
+      // If a DDP is being added and the BDP has SDPs, check chain
+
+      // If a DDP is being added and the BDP has SDPs, check chain
+
+      // If a DDP is being added and the BDP has SDPs, check chain
+      let partnerCode;
+      if (partnerRole === 'sdp') {
+        const bdpNum = bdp.partner_code.slice(5).padStart(3, '0');
+        const cnt = await pool.query("SELECT COUNT(*) as cnt FROM users WHERE role = 'sdp' AND parent_id = $1", [bdp.id]);
+        partnerCode = 'DSSDP' + bdpNum + (parseInt(cnt.rows[0].cnt) + 1).toString().padStart(3, '0');
+      } else {
+        partnerCode = await generatePartnerCode("ddp", bdp.partner_code);
+      }
+      const username = 'DS' + phone.slice(-8);
+      const hashed = await bcrypt.hash(password, 10);
+      const result = await pool.query(
+        "INSERT INTO users (id, username, password, name, email, phone, role, state, district, address, status, parent_id, partner_code, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, 'approved', $10, $11, NOW()) RETURNING id, name, phone, role, partner_code, parent_id",
+        [username, hashed, name, email || null, phone, partnerRole, state || '', district || '', address || '', bdp.id, partnerCode]
+      );
+      const p = result.rows[0];
+      console.log('[Join] Created:', p.name, p.role, p.partner_code, 'under', bdp.bdp_name);
+      res.json({ success: true, partner: { name: p.name, role: p.role, partnerCode: p.partner_code, bdpName: bdp.bdp_name, bdpCode: bdp.partner_code } });
+    } catch (e) { console.error('[Join Error]', e.message); res.status(500).json({ message: e.message }); }
+  });
+
+
+  // BDP: Add State Development Partner
+  app.post('/api/bdp/add-sdp', requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      const bdp = await storage.getUser(userId);
+      if (!bdp || bdp.role !== 'bdp') return res.status(403).json({ message: "BDP access only" });
+
+      const { name, phone, email, username, password, state, district, address } = req.body;
+      if (!name || !phone || !username || !password) return res.status(400).json({ message: "Required fields missing" });
+
+      // Check duplicates
+      const existPhone = await pool.query("SELECT id FROM users WHERE phone = $1 LIMIT 1", [phone]);
+      if (existPhone.rows.length > 0) return res.status(400).json({ message: "Phone number already registered" });
+
+      const existUsername = await pool.query("SELECT id FROM users WHERE username = $1 LIMIT 1", [username]);
+      if (existUsername.rows.length > 0) return res.status(400).json({ message: "Username already taken" });
+
+      if (email) {
+        const existEmail = await pool.query("SELECT id FROM users WHERE email = $1 LIMIT 1", [email]);
+        if (existEmail.rows.length > 0) return res.status(400).json({ message: "Email already registered" });
+      }
+
+      // Generate SDP code: DSSDP + BDP's digits + sequence
+      const bdpNum = (bdp.partnerCode || '').slice(5).padStart(3, '0');
+      const cnt = await pool.query("SELECT COUNT(*) as cnt FROM users WHERE role = 'sdp' AND parent_id = $1", [bdp.id]);
+      const seq = (parseInt(cnt.rows[0].cnt) + 1).toString().padStart(3, '0');
+      const partnerCode = 'DSSDP' + bdpNum + seq;
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      const result = await pool.query(
+        "INSERT INTO users (id, username, password, name, email, phone, role, state, district, address, status, parent_id, partner_code, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, 'sdp', $6, $7, $8, 'approved', $9, $10, NOW()) RETURNING id, name, phone, role, partner_code",
+        [username, hashedPassword, name, email || null, phone, state || '', district || '', address || '', bdp.id, partnerCode]
+      );
+
+      const p = result.rows[0];
+      console.log('[Add SDP] Created:', p.name, p.partner_code, 'under BDP:', bdp.name, bdp.partnerCode);
+      res.json({ ...p, partnerCode: p.partner_code, password: undefined });
+    } catch (e: any) {
+      console.error('[Add SDP Error]', e.message);
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+
+  // Admin: Get ALL partner bot leads in one query
+  app.get("/api/admin/partner-bot-leads-all", requireAdmin, async (req, res) => {
+    try {
+      const result = await pool.query(`
+        SELECT sbl.id, sbl.phone, sbl.mobile_number as "mobileNumber", sbl.name, sbl.email,
+          sbl.state, sbl.district, sbl.city, sbl.pincode,
+          sbl.electricity_board as "electricityBoard", sbl.consumer_number as "consumerNumber",
+          sbl.monthly_billing as "monthlyBilling", sbl.connection_type as "connectionType",
+          sbl.plant_capacity as "plantCapacity", sbl.proposal_status as "proposalStatus",
+          sbl.status, sbl.action_taken as "actionTaken",
+          sbl.referred_by_partner_code as "referredByPartnerCode",
+          sbl.created_at as "createdAt",
+          u.name as "partnerName", u.partner_code as "partnerCode"
+        FROM solar_bot_leads sbl
+        LEFT JOIN users u ON sbl.referred_by_partner_id::text = u.id::text
+        WHERE sbl.referred_by_partner_id IS NOT NULL
+        ORDER BY sbl.created_at DESC
+      `);
+      res.json(result.rows);
+    } catch (e: any) {
+      console.error("Partner bot leads all error:", e.message);
+      res.status(500).json({ message: e.message });
     }
   });
 

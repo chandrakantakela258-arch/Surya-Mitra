@@ -16,7 +16,7 @@ export default function DisclaimerPage() {
                 <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
                   <Sun className="w-6 h-6 text-primary-foreground" />
                 </div>
-                <span className="font-bold text-xl hidden sm:block">Divyanshi Solar</span>
+                <span className="font-bold text-xl hidden sm:block">Divyanshi Digital Services Pvt Ltd</span>
               </div>
             </WouterLink>
             <ThemeToggle />
@@ -36,10 +36,10 @@ export default function DisclaimerPage() {
           <CardContent className="p-8">
             <h1 className="text-3xl font-bold mb-6">Disclaimer</h1>
             <p className="text-muted-foreground mb-1">
-              <strong>Divyanshi Solar (Divyanshi Digital Services Pvt. Ltd.)</strong>
+              <strong>Divyanshi Digital Services Pvt Ltd (Divyanshi Digital Services Pvt. Ltd.)</strong>
             </p>
-            <p className="text-sm text-muted-foreground mb-1">Authorized Marketing Partner of Hewtech System Pvt. Ltd.</p>
-            <p className="text-sm text-muted-foreground mb-4">Registered with - SBPDCL & NBPDCL</p>
+            <p className="text-sm text-muted-foreground mb-1"></p>
+            <p className="text-sm text-muted-foreground mb-4">Registered Vendor with SBPDCL & NBPDCL under PM-Surya Ghar: Muft Bijli Yojana Rooftop Solar Program</p>
             <p className="text-sm text-muted-foreground mb-8">Last Updated: December 2024</p>
 
             <div className="space-y-6 text-muted-foreground">
@@ -104,9 +104,9 @@ export default function DisclaimerPage() {
                 <h2 className="text-xl font-semibold text-foreground mb-3">7. Contact</h2>
                 <p className="mb-2">For any questions regarding this disclaimer, please contact:</p>
                 <p><strong>Divyanshi Digital Services Pvt. Ltd.</strong></p>
-                <p>Hewtech System Pvt. Ltd. (Registered with - SBPDCL & NBPDCL)</p>
-                <p>Golu Babu Market, Ashiyana Digha Road, Rajiv Nagar, Patna, 800025</p>
-                <p>Email: chandrakant@divyanshisolar.com</p>
+                <p>Divyanshi Digital Services Pvt Ltd (Registered Vendor with SBPDCL & NBPDCL under PM-Surya Ghar: Muft Bijli Yojana Rooftop Solar Program)</p>
+                <p>Registered Office — Jaipur: Plot No. C-3/258, Flat No. G-2, Room-1, Shreyansh Apartment, Chitrakoot Scheme, Vaishali Nagar, Jaipur, Rajasthan 302021 | Branch Office — Bihar: Chandrakant Akela — 9801005212, Bank of India Building, Naubatpur, Mashurhi Road, Vill-Piprawan, Tola-Piprawan, Panchayat Jaitipur, Block-Naubatpur, Patna, Bihar 801109</p>
+                <p>Email: chandrakant@divyanshisolar.in</p>
                 <p>Phone: 9801005212, 8709127232</p>
               </section>
             </div>

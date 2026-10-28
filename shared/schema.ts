@@ -22,7 +22,7 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   email: text("email").notNull(),
   phone: text("phone").notNull(),
-  role: text("role").notNull().default("ddp"), // admin, bdp, ddp, customer_partner
+  role: text("role").notNull().default("ddp"), // admin, bdp, sdp, ddp, customer_partner
   district: text("district"),
   state: text("state"),
   address: text("address"),
@@ -36,6 +36,7 @@ export const users = pgTable("users", {
   locationUpdatedAt: timestamp("location_updated_at"),
   // Unique Partner ID (BDP: DS001, DDP: DSA001 where A is first letter of BDP name)
   partnerCode: text("partner_code").unique(),
+  teamStructure: text("team_structure").default("direct"), // direct or marketing_team
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -65,6 +66,10 @@ export const customers = pgTable("customers", {
   // Electricity details
   electricityBoard: text("electricity_board"),
   consumerNumber: text("consumer_number"),
+  division: text("division"), // DISCOM division
+  subDivision: text("sub_division"), // DISCOM sub-division
+  smartMeter: text("smart_meter"),
+  equipmentDetails: text("equipment_details"),
   sanctionedLoad: text("sanctioned_load"), // in kW
   avgMonthlyBill: integer("avg_monthly_bill"), // in INR
 
@@ -104,6 +109,11 @@ export const customers = pgTable("customers", {
   ifscCode: text("ifsc_code"),
   bankName: text("bank_name"),
   upiId: text("upi_id"),
+  // Co-Applicant Details
+  coApplicantName: text("co_applicant_name"),
+  coApplicantPhone: text("co_applicant_phone"),
+  coApplicantDob: text("co_applicant_dob"),
+  coApplicantRelation: text("co_applicant_relation"),
 
   // Location for map view
   latitude: text("latitude"),
@@ -937,6 +947,7 @@ export const customerFormSchema = insertCustomerSchema
     // Electricity Details - Required
     electricityBoard: z.string().min(2, "Electricity board is required"),
     consumerNumber: z.string().min(3, "Consumer number is required"),
+    smartMeter: z.string().optional().or(z.literal("")),
     sanctionedLoad: z.string().min(1, "Sanctioned load is required"),
     avgMonthlyBill: z.preprocess(
       (val) =>
@@ -948,8 +959,8 @@ export const customerFormSchema = insertCustomerSchema
         .min(1, "Monthly bill must be greater than 0"),
     ),
     // Location - Required
-    latitude: z.string().min(1, "Latitude is required"),
-    longitude: z.string().min(1, "Longitude is required"),
+    latitude: z.string().optional(),
+    longitude: z.string().optional(),
     // Roof Details - Required
     roofType: z.string().min(1, "Roof type is required"),
     roofArea: z.preprocess(
@@ -986,6 +997,18 @@ export const customerFormSchema = insertCustomerSchema
       }),
     bankName: z.string().optional().or(z.literal("")),
     upiId: z.string().optional().nullable(),
+    // Co-Applicant
+    coApplicantName: z.string().optional().or(z.literal("")),
+    coApplicantPhone: z.string().optional().or(z.literal("")).refine(val => !val || val.length >= 10, { message: "Phone must be 10 digits" }),
+    coApplicantDob: z.string().optional().or(z.literal("")),
+    coApplicantRelation: z.string().optional().or(z.literal("")),
+    // Extended Address
+    landmark: z.string().optional().or(z.literal("")),
+    subDistrict: z.string().optional().or(z.literal("")),
+    villagePanchayat: z.string().optional().or(z.literal("")),
+    block: z.string().optional().or(z.literal("")),
+    // Financial
+    annualIncome: z.string().optional().or(z.literal("")),
     // Documents - Optional (can be uploaded later)
     documents: z.array(z.string()).optional().default([]),
   })
@@ -1302,15 +1325,15 @@ export const panelTypes = [
 // Fixed commission amounts for DCR panels 3kW and 5kW (in INR)
 export const dcrFixedCommission: Record<number, { ddp: number; bdp: number }> =
   {
-    3: { ddp: 20000, bdp: 10000 },
-    5: { ddp: 35000, bdp: 15000 },
+    3: { ddp: 4500, bdp: 1500 },
+    5: { ddp: 7500, bdp: 2500 },
   };
 
 // Per-kW commission rates for DCR panels above 5kW (up to 10kW)
-export const dcrPerKwRates = { ddp: 6000, bdp: 3000 };
+export const dcrPerKwRates = { ddp: 1500, bdp: 500 };
 
 // Per-kW commission rates for Non-DCR panels (residential)
-export const nonDcrPerKwRates = { ddp: 2000, bdp: 1000 };
+export const nonDcrPerKwRates = { ddp: 1000, bdp: 300 };
 
 // Per-kW commission rates for Non-DCR commercial panels (5KW-1000KW)
 export const nonDcrCommercialPerKwRates = { ddp: 2000, bdp: 1000 };
@@ -1324,57 +1347,43 @@ export const NON_DCR_COMMERCIAL_RATE_PER_WATT = 45;
 // SunPunch 3-in-1 Inverter commission rates (per unit sold)
 export const inverterCommission = { ddp: 4000, bdp: 1000 };
 
-// Calculate DDP commission based on capacity, panel type, and customer type
+// === PARALLEL MARKETING TEAM COMMISSION STRUCTURE ===
+// DCR Panel (With Subsidy): BDP=1500/kW, SDP=2000/kW, DDP=4000/kW
+// Non-DCR Panel (Without Subsidy): BDP=500/kW, SDP=1000/kW, DDP=1500/kW
+export const marketingTeamDcrRates = { bdp: 500, sdp: 700, ddp: 1500 };
+export const marketingTeamNonDcrRates = { bdp: 300, sdp: 500, ddp: 1000 };
+
+// Flat per-kW commission slabs, by panel type (all installation sizes)
+export const dcrFlatCommissionRates = { bdp: 500, sdp: 700, ddp: 1500 };
+export const nonDcrFlatCommissionRates = { bdp: 300, sdp: 500, ddp: 1000 };
+
+// Calculate DDP commission - flat per kW, rate depends on panel type
 export function calculateCommission(
   capacityKw: number,
   panelType: string = "dcr",
   customerType: string = "residential",
 ): number {
-  if (panelType === "non_dcr") {
-    // All Non-DCR: Rs 2,000 per kW (DDP)
-    return capacityKw * nonDcrPerKwRates.ddp;
-  }
-
-  // DCR Panel logic
-  const fixedSchedule = dcrFixedCommission[capacityKw];
-  if (fixedSchedule) {
-    return fixedSchedule.ddp;
-  }
-
-  // DCR above 5kW: Rs 6,000 per kW
-  if (capacityKw > 5 && capacityKw <= 10) {
-    return capacityKw * dcrPerKwRates.ddp;
-  }
-
-  return 0;
+  const rates = panelType === "non_dcr" ? nonDcrFlatCommissionRates : dcrFlatCommissionRates;
+  return capacityKw * rates.ddp;
 }
-
-// Calculate BDP commission based on capacity, panel type, and customer type
+// Calculate BDP commission - flat per kW, rate depends on panel type
 export function calculateBdpCommission(
   capacityKw: number,
   panelType: string = "dcr",
   customerType: string = "residential",
 ): number {
-  if (panelType === "non_dcr") {
-    // All Non-DCR: Rs 1,000 per kW (BDP)
-    return capacityKw * nonDcrPerKwRates.bdp;
-  }
-
-  // DCR Panel logic
-  const fixedSchedule = dcrFixedCommission[capacityKw];
-  if (fixedSchedule) {
-    return fixedSchedule.bdp;
-  }
-
-  // DCR above 5kW: Rs 3,000 per kW
-  if (capacityKw > 5 && capacityKw <= 10) {
-    return capacityKw * dcrPerKwRates.bdp;
-  }
-
-  return 0;
+  const rates = panelType === "non_dcr" ? nonDcrFlatCommissionRates : dcrFlatCommissionRates;
+  return capacityKw * rates.bdp;
 }
-
-// Export commission schedule for UI display (backwards compatibility)
+// Calculate SDP commission - flat per kW, rate depends on panel type
+export function calculateSdpCommission(
+  capacityKw: number,
+  panelType: string = "dcr",
+  customerType: string = "residential",
+): number {
+  const rates = panelType === "non_dcr" ? nonDcrFlatCommissionRates : dcrFlatCommissionRates;
+  return capacityKw * rates.sdp;
+}
 export const commissionSchedule = dcrFixedCommission;
 
 // Site Installation Vendors - Register for solar installation work
@@ -2417,6 +2426,8 @@ export const meterInstallationReports = pgTable("meter_installation_reports", {
   discomName: text("discom_name"),
   discomDivision: text("discom_division"),
   consumerNumber: text("consumer_number"),
+  smartMeter: text("smart_meter"),
+  equipmentDetails: text("equipment_details"),
   sanctionedLoad: text("sanctioned_load"), // kW
   connectionType: text("connection_type"), // Single phase, Three phase
   supplyVoltage: text("supply_voltage"), // 230V, 415V
@@ -2526,6 +2537,8 @@ export const portalSubmissionReports = pgTable("portal_submission_reports", {
   portalApplicationNumber: text("portal_application_number"),
   discomName: text("discom_name"),
   consumerNumber: text("consumer_number"),
+  smartMeter: text("smart_meter"),
+  equipmentDetails: text("equipment_details"),
 
   // System Details (from installation)
   installedCapacity: text("installed_capacity"), // in kW
@@ -2661,6 +2674,8 @@ export const remainingPaymentReports = pgTable("remaining_payment_reports", {
   installedCapacity: text("installed_capacity"),
   panelType: text("panel_type"),
   consumerNumber: text("consumer_number"),
+  smartMeter: text("smart_meter"),
+  equipmentDetails: text("equipment_details"),
   discomName: text("discom_name"),
 
   // Portal Reference
@@ -2772,6 +2787,8 @@ export const subsidyApplicationReports = pgTable(
     installedCapacity: text("installed_capacity"),
     panelType: text("panel_type"),
     consumerNumber: text("consumer_number"),
+  smartMeter: text("smart_meter"),
+  equipmentDetails: text("equipment_details"),
     discomName: text("discom_name"),
 
     // Portal Details
@@ -2875,6 +2892,8 @@ export const subsidyDisbursementReports = pgTable(
     installedCapacity: text("installed_capacity"),
     panelType: text("panel_type"),
     consumerNumber: text("consumer_number"),
+  smartMeter: text("smart_meter"),
+  equipmentDetails: text("equipment_details"),
 
     // Reference to Subsidy Application
     subsidyApplicationReportId: varchar(
@@ -3896,6 +3915,8 @@ export const SolarBotLeads = pgTable("solar_bot_leads", {
   gpsLocation: text("gps_location"),
   electricityBoard: text("electricity_board"),
   consumerNumber: text("consumer_number"),
+  smartMeter: text("smart_meter"),
+  equipmentDetails: text("equipment_details"),
   meterType: text("meter_type"),
   roofSpace: text("roof_space"),
   businessType: text("business_type"),

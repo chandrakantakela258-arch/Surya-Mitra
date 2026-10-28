@@ -234,7 +234,7 @@ export default function AdminCustomerLeads() {
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Sun className="w-3.5 h-3.5" />
                         <span data-testid={`text-lead-capacity-${lead.id}`}>
-                          {lead.plantCapacity} kW | {lead.plantType === "dcr" ? "DCR" : "Non-DCR"} | {lead.inverterType === "hybrid" ? "3-in-1 Hybrid" : "Ongrid"}
+                          {lead.plantCapacity} kW | {lead.plantType === "dcr" ? "DCR" : "Non-DCR"} | {lead.inverterType === "hybrid" ? "Livguard Hybrid" : "Ongrid"}
                         </span>
                       </div>
                       {lead.address && (

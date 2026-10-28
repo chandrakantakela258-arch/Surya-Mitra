@@ -1,0 +1,169 @@
+import { useEffect, useState } from "react";
+import { Store, Link2, Copy, Loader2, Plus } from "lucide-react";
+
+type Dev = { id: string; name: string; phone: string; partner_code: string; district: string | null; state: string | null; shop_count: string; created_at: string };
+type Shop = { id: number; shop_code: string; shop_name: string; owner_name: string; owner_whatsapp: string; district: string | null; state: string | null; board_photo: string; counter_photo: string; dashboard_token: string; customer_count: string; dev_partner_name: string | null; created_at: string };
+
+const origin = () => (typeof window === "undefined" ? "" : window.location.origin);
+const copy = (t: string) => navigator.clipboard?.writeText(t);
+const wa = (t: string) => `https://wa.me/?text=${encodeURIComponent(t)}`;
+
+export default function AdminShopPartners() {
+  const [tab, setTab] = useState<"dev" | "shops">("dev");
+  const [devs, setDevs] = useState<Dev[]>([]);
+  const [shops, setShops] = useState<Shop[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+  const [addDev, setAddDev] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
+  const [nf, setNf] = useState({ name: "", whatsapp: "", password: "", district: "", state: "Bihar" });
+
+  const load = async () => {
+    setLoading(true); setErr("");
+    try {
+      const [a, b] = await Promise.all([
+        fetch("/api/admin/shop-dev-partners", { credentials: "include" }),
+        fetch("/api/shop/dev/partners?all=1", { credentials: "include" }),
+      ]);
+      if (!a.ok) throw new Error((await a.json().catch(() => ({}))).error || `HTTP ${a.status}`);
+      setDevs(await a.json());
+      setShops(b.ok ? await b.json() : []);
+    } catch (e: any) { setErr(e.message); } finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, []);
+
+  const createDev = async (e: any) => {
+    e.preventDefault(); setErr(""); setNote(""); setBusy(true);
+    try {
+      const r = await fetch("/api/shop/dev/register", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" }, body: JSON.stringify(nf),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setNote(`${nf.name} added. They log in with ${nf.whatsapp} and the password you set.`);
+      setNf({ name: "", whatsapp: "", password: "", district: "", state: "Bihar" });
+      setAddDev(false); load();
+    } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+  };
+
+  const devLink = `${origin()}/shop-partner/register`;
+  const L = "block text-xs font-semibold text-slate-700 mb-1";
+  const I = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-500";
+
+  return (
+    <div className="space-y-5 p-4 md:p-6">
+      <div>
+        <h1 className="flex items-center gap-2 text-2xl font-bold">
+          <Store className="h-6 w-6 text-orange-600" /> Shop Solar Partner Network
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Development partners place standees in shops and register them. Each shop gets its own dashboard and customer link.
+        </p>
+      </div>
+
+      <div className="rounded-xl border bg-blue-50/50 p-4">
+        <p className="flex items-center gap-2 font-semibold"><Link2 className="h-4 w-4" /> Share Shop Development Partner Link</p>
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+          <input readOnly value={devLink} className="flex-1 rounded-lg border bg-white px-3 py-2 font-mono text-sm" />
+          <button onClick={() => { copy(devLink); setNote("Link copied"); }}
+            className="flex items-center justify-center gap-1 rounded-lg border bg-white px-4 py-2 text-sm font-semibold">
+            <Copy className="h-4 w-4" /> Copy
+          </button>
+        </div>
+        <a href={wa(`Divyanshi Shop Solar Development Partner banne ke liye yahan register karein:\n${devLink}`)}
+          target="_blank" rel="noreferrer"
+          className="mt-2 block rounded-lg bg-green-600 px-4 py-2.5 text-center text-sm font-bold text-white">
+          Share on WhatsApp
+        </a>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Anyone with this link becomes an active Shop Development Partner straight away.
+        </p>
+      </div>
+
+      {note && <div className="rounded-lg bg-green-50 p-3 text-sm text-green-800">{note}</div>}
+      {err && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{err}</div>}
+
+      <div className="flex gap-2 border-b">
+        {([["dev", `Development Partners (${devs.length})`], ["shops", `Shops (${shops.length})`]] as const).map(([k, label]) => (
+          <button key={k} onClick={() => setTab(k as any)}
+            className={`-mb-px border-b-2 px-4 py-2 text-sm font-semibold ${tab === k ? "border-orange-600 text-orange-600" : "border-transparent text-slate-500"}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {loading && <p className="text-sm text-muted-foreground"><Loader2 className="mr-2 inline h-4 w-4 animate-spin" />Loading</p>}
+
+      {tab === "dev" && !loading && (
+        <div className="space-y-3">
+          <button onClick={() => setAddDev(!addDev)}
+            className="flex items-center gap-1 rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white">
+            <Plus className="h-4 w-4" /> Add Shop Development Partner
+          </button>
+
+          {addDev && (
+            <form onSubmit={createDev} className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2">
+              <div><label className={L}>Name *</label><input className={I} value={nf.name} onChange={e => setNf({ ...nf, name: e.target.value })} required /></div>
+              <div><label className={L}>WhatsApp number *</label><input className={I} value={nf.whatsapp} onChange={e => setNf({ ...nf, whatsapp: e.target.value })} required inputMode="numeric" /></div>
+              <div><label className={L}>Password *</label><input className={I} type="text" value={nf.password} onChange={e => setNf({ ...nf, password: e.target.value })} required minLength={6} placeholder="min 6 characters" /></div>
+              <div className="grid grid-cols-2 gap-2">
+                <div><label className={L}>District</label><input className={I} value={nf.district} onChange={e => setNf({ ...nf, district: e.target.value })} /></div>
+                <div><label className={L}>State</label><input className={I} value={nf.state} onChange={e => setNf({ ...nf, state: e.target.value })} /></div>
+              </div>
+              <button disabled={busy} className="rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60 sm:col-span-2">
+                {busy ? "Saving..." : "Create Partner"}
+              </button>
+            </form>
+          )}
+
+          {devs.length === 0 && <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">No development partners yet. Share the link above or add one.</div>}
+          {devs.map(d => (
+            <div key={d.id} className="flex items-center justify-between gap-3 rounded-xl border bg-card p-4">
+              <div>
+                <p className="font-semibold">{d.name}</p>
+                <p className="text-sm text-muted-foreground">{d.phone} · {d.partner_code}</p>
+                <p className="text-xs text-muted-foreground">{[d.district, d.state].filter(Boolean).join(", ")}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-lg font-bold text-orange-600">{d.shop_count}</p>
+                <p className="text-xs text-muted-foreground">shops</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === "shops" && !loading && (
+        <div className="space-y-3">
+          {shops.length === 0 && <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">No shops registered yet.</div>}
+          {shops.map(s => (
+            <div key={s.id} className="rounded-xl border bg-card p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-semibold">{s.shop_name}</p>
+                  <p className="text-sm text-muted-foreground">{s.owner_name} · {s.owner_whatsapp}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {[s.district, s.state].filter(Boolean).join(", ")} · {s.shop_code}
+                    {s.dev_partner_name ? ` · added by ${s.dev_partner_name}` : ""}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-orange-600">{s.customer_count}</p>
+                  <p className="text-xs text-muted-foreground">customers</p>
+                </div>
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <img src={s.board_photo} alt="Shop board" className="h-14 w-14 rounded object-cover" />
+                <img src={s.counter_photo} alt="Counter with standee" className="h-14 w-14 rounded object-cover" />
+                <button onClick={() => { copy(`${origin()}/shop/${s.dashboard_token}`); setNote(`Dashboard link copied for ${s.shop_name}`); }}
+                  className="ml-auto rounded-lg border px-3 py-2 text-xs font-semibold">Copy dashboard link</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

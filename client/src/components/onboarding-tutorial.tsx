@@ -41,7 +41,7 @@ const tutorialSteps: TutorialStep[] = [
   },
   {
     title: "Earn Commissions",
-    description: "Earn commissions when installations are completed. DCR panels: Rs 20,000 (3kW), Rs 35,000 (5kW), Rs 6,000/kW (6+ kW). Non-DCR: DDP Rs 2,000/kW, BDP Rs 1,000/kW.",
+    description: "Earn commissions when installations are completed. DCR panels: DDP Rs 5,000/kW, BDP Rs 2,500/kW. Non-DCR: DDP Rs 2,000/kW, BDP Rs 1,000/kW.",
     icon: TrendingUp,
     forRoles: ["bdp", "ddp"],
   },

@@ -133,7 +133,7 @@ export default function ForgotPasswordPage() {
         <Link href="/">
           <img 
             src={logoImage} 
-            alt="Divyanshi Solar" 
+            alt="Divyanshi Digital Services Pvt Ltd" 
             className="h-10 w-auto object-contain"
           />
         </Link>

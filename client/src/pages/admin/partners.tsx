@@ -55,6 +55,18 @@ export default function AdminPartners() {
   });
 
 
+  const updateTeamStructureMutation = useMutation({
+    mutationFn: async ({ id, teamStructure }: { id: string; teamStructure: string }) => {
+      return apiRequest("PATCH", `/api/admin/partners/${id}/team-structure`, { teamStructure });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/partners"] });
+      toast({ title: "Team structure updated successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+    },
+  });
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       return apiRequest("PATCH", `/api/admin/partners/${id}/status`, { status });
@@ -133,13 +145,14 @@ export default function AdminPartners() {
   const pendingCount = partners?.filter(p => p.status === "pending").length || 0;
   const bdpCount = partners?.filter(p => p.role === "bdp").length || 0;
   const ddpCount = partners?.filter(p => p.role === "ddp").length || 0;
+  const sdpCount = partners?.filter(p => p.role === "sdp").length || 0;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold" data-testid="text-page-title">Partner Management</h1>
-          <p className="text-muted-foreground">Manage BDPs and DDPs</p>
+          <p className="text-muted-foreground">Manage BDPs, SDPs, and DDPs</p>
         </div>
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogTrigger asChild>
@@ -150,7 +163,7 @@ export default function AdminPartners() {
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>Add New Partner</DialogTitle>
-              <DialogDescription>Create a new BDP or DDP partner account.</DialogDescription>
+              <DialogDescription>Create a new BDP, SDP, or DDP partner account.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
@@ -162,6 +175,7 @@ export default function AdminPartners() {
                   <SelectContent>
                     <SelectItem value="bdp">BDP (Business Development Partner)</SelectItem>
                     <SelectItem value="ddp">DDP (District Development Partner)</SelectItem>
+                    <SelectItem value="sdp">SDP (State Partner)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -305,6 +319,7 @@ export default function AdminPartners() {
                 <SelectItem value="all">All Roles</SelectItem>
                 <SelectItem value="bdp">BDP</SelectItem>
                 <SelectItem value="ddp">DDP</SelectItem>
+                <SelectItem value="sdp">SDP</SelectItem>
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -316,6 +331,7 @@ export default function AdminPartners() {
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
                 <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="suspended">Suspended</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -341,6 +357,8 @@ export default function AdminPartners() {
                             partner.status === "approved"
                               ? "border-green-500 text-green-600"
                               : partner.status === "rejected"
+                              ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300"
+                              : partner.status === "suspended"
                               ? "border-red-500 text-red-600"
                               : "border-yellow-500 text-yellow-600"
                           }
@@ -372,6 +390,18 @@ export default function AdminPartners() {
                           <button onClick={() => { navigator.clipboard.writeText(chatbotMap[partner.id].botLink); toast({ title: "Bot link copied!" }); }} className="text-xs text-blue-500 underline ml-1">Copy Link</button>
                         )}
                       </div>
+                      {partner.role === "bdp" && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <Switch
+                            checked={(partner as any).teamStructure === "marketing_team"}
+                            onCheckedChange={(checked) => updateTeamStructureMutation.mutate({ id: partner.id, teamStructure: checked ? "marketing_team" : "direct" })}
+                            disabled={updateTeamStructureMutation.isPending}
+                          />
+                          <span className={`text-xs font-medium ${(partner as any).teamStructure === "marketing_team" ? "text-blue-600" : "text-muted-foreground"}`}>
+                            {(partner as any).teamStructure === "marketing_team" ? "SDP+DDP Structure" : "DDP Only Structure"}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     
                     <div className="flex gap-2">
@@ -396,6 +426,24 @@ export default function AdminPartners() {
                           </Button>
                         </>
                       )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-yellow-500 text-yellow-600 hover:bg-yellow-50"
+                        onClick={() => updateStatusMutation.mutate({ id: partner.id, status: "suspended" })}
+                        disabled={updateStatusMutation.isPending || partner.status === "suspended"}
+                      >
+                        Suspend
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-green-500 text-green-600 hover:bg-green-50"
+                        onClick={() => updateStatusMutation.mutate({ id: partner.id, status: "approved" })}
+                        disabled={updateStatusMutation.isPending || partner.status === "approved"}
+                      >
+                        Reactivate
+                      </Button>
                       <Button
                         size="sm"
                         variant="destructive"

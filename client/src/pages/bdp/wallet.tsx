@@ -260,7 +260,7 @@ export default function BDPWallet() {
                   </Badge>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">DCR Ongrid: Rs 66/W | DCR 3-in-1 Hybrid: Rs 75/W</p>
+              <p className="text-xs text-muted-foreground mt-1">DCR Ongrid: Rs 66/W | DCR Livguard Hybrid: Rs 75/W</p>
             </div>
             
             <div className="space-y-2">
@@ -271,11 +271,11 @@ export default function BDPWallet() {
                   {formatINR(nonDcrPerKwRates.bdp)}/kW
                 </Badge>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">Non-DCR Ongrid: Rs 45/W | Non-DCR 3-in-1 Hybrid: Rs 55/W (3-6 KW only)</p>
+              <p className="text-xs text-muted-foreground mt-1">Non-DCR Ongrid: Rs 45/W | Non-DCR Livguard Hybrid: Rs 55/W (3-6 KW only)</p>
             </div>
 
             <div className="space-y-2">
-              <p className="text-sm font-medium text-muted-foreground">SunPunch 3-in-1 Inverter</p>
+              <p className="text-sm font-medium text-muted-foreground">Livguard Hybrid Inverter</p>
               <div className="p-3 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-between gap-4 flex-wrap">
                 <span className="text-sm">Per Unit Sold</span>
                 <Badge variant="outline" className="font-mono">

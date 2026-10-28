@@ -1,6 +1,7 @@
 import { PDFDocument, rgb, StandardFonts, PDFPage, PDFFont, RGB } from 'pdf-lib';
 import fs from 'fs';
 import path from 'path';
+import { pool } from './db';
 
 export interface ProposalPDFData {
   customerName: string;
@@ -91,19 +92,19 @@ export async function generateProposalPDF(data: ProposalPDFData): Promise<string
     x: 0, y: pageHeight - 120, width: pageWidth, height: 120, color: orange,
   });
   
-  page1.drawText('Divyanshi Solar', {
+  page1.drawText('Prayga India Private Limited', {
     x: margin, y: pageHeight - 45, size: 32, font: fontBold, color: white,
   });
   
-  page1.drawText('Authorized Marketing Partner of Hewtech System Pvt. Ltd.', {
+  page1.drawText('', {
     x: margin, y: pageHeight - 70, size: 12, font: font, color: white,
   });
   
-  page1.drawText('Registered with - SBPDCL & NBPDCL', {
+  page1.drawText('Registered National Vendor under PM-Surya Ghar: Muft Bijli Yojana Rooftop Solar Program', {
     x: margin, y: pageHeight - 85, size: 11, font: font, color: rgb(1, 0.9, 0.8),
   });
   
-  page1.drawText('www.divyanshisolar.com', {
+  page1.drawText('https://divyanshisolar.in', {
     x: margin, y: pageHeight - 100, size: 11, font: font, color: rgb(1, 0.9, 0.8),
   });
   
@@ -143,7 +144,7 @@ export async function generateProposalPDF(data: ProposalPDFData): Promise<string
   
   const highlights = [
     [`System Capacity:`, `${data.capacity} kWp ${data.panelType === 'dcr' ? 'DCR' : 'Non-DCR'} Solar Plant`],
-    [`Inverter Type:`, data.inverterType === 'hybrid' ? '3-in-1 Hybrid Inverter' : 'Ongrid Inverter'],
+    [`Inverter Type:`, data.inverterType === 'hybrid' ? 'Livguard Hybrid Inverter' : 'Ongrid Inverter'],
     [`Total Investment:`, formatINR(data.totalCost)],
     [`Government Subsidy:`, formatINR(data.totalSubsidy)],
     [`Your Net Cost:`, formatINR(data.netCost)],
@@ -218,7 +219,7 @@ export async function generateProposalPDF(data: ProposalPDFData): Promise<string
   });
   
   const panelLabel = data.panelType === 'dcr' ? 'DCR (Domestic Content Requirement)' : 'Non-DCR (Imported)';
-  const inverterLabel = data.inverterType === 'hybrid' ? '3-in-1 Hybrid Inverter (with Battery Support)' : 'Ongrid Inverter';
+  const inverterLabel = data.inverterType === 'hybrid' ? 'Livguard Hybrid Inverter (with Battery Support)' : 'Ongrid Inverter';
   const ratePerWatt = data.ratePerWatt || (data.panelType === 'dcr' ? (data.inverterType === 'hybrid' ? 52 : 45) : 40);
   
   const specs = [
@@ -304,7 +305,7 @@ export async function generateProposalPDF(data: ProposalPDFData): Promise<string
         font: isIndented ? font : fontBold, 
         color: isIndented ? gray : black 
       });
-      sy -= 16;
+      sy -= 11;
     });
   }
   
@@ -318,7 +319,7 @@ export async function generateProposalPDF(data: ProposalPDFData): Promise<string
   
   // Payment Structure
   page3.drawRectangle({
-    x: margin, y: y - 100, width: contentWidth, height: 110,
+    x: margin, y: y - 170, width: contentWidth, height: 180,
     color: rgb(0.95, 0.93, 0.98), borderColor: purple, borderWidth: 1,
   });
   
@@ -573,7 +574,7 @@ export async function generateProposalPDF(data: ProposalPDFData): Promise<string
   const productSpecs = [
     ['Solar Panels:', `${data.capacity} kWp ${data.panelType === 'dcr' ? 'Made in India (DCR)' : 'Imported'} Panels`],
     ['Panel Efficiency:', 'High-efficiency Monocrystalline (21%+)'],
-    ['Inverter:', data.inverterType === 'hybrid' ? '3-in-1 Hybrid with Battery Support' : 'Grid-tied Ongrid Inverter'],
+    ['Inverter:', data.inverterType === 'hybrid' ? 'Livguard IP65 Hybrid with Battery Support' : 'Grid-tied Ongrid Inverter'],
     ['Mounting Structure:', 'Galvanized Iron / Aluminum Rails'],
     ['Wiring:', 'DC Solar Cables with MC4 Connectors'],
     ['Protection:', 'ACDB/DCDB with Surge Protection'],
@@ -584,7 +585,7 @@ export async function generateProposalPDF(data: ProposalPDFData): Promise<string
   productSpecs.forEach(([label, value]) => {
     page5.drawText(label, { x: margin + 15, y: sy, size: 10, font: font, color: gray });
     page5.drawText(value, { x: margin + 150, y: sy, size: 10, font: fontBold, color: black });
-    sy -= 16;
+    sy -= 11;
   });
   
   y -= 190;
@@ -684,12 +685,12 @@ export async function generateProposalPDF(data: ProposalPDFData): Promise<string
     color: rgb(1, 0.97, 0.93), borderColor: orange, borderWidth: 1,
   });
   
-  page6.drawText('Why Choose Divyanshi Solar (Hewtech System Pvt. Ltd.)?', {
+  page6.drawText('Why Choose Prayga India Private Limited (Prayga India Private Limited)?', {
     x: margin + 15, y: y - 25, size: 14, font: fontBold, color: orange,
   });
   
   const whyUs = [
-    'Authorized Marketing Partner of Hewtech System Pvt. Ltd.',
+    '',
     'End-to-end installation with subsidy processing',
     'Experienced team with 1000+ installations',
     'Premium quality components with full warranty',
@@ -707,7 +708,7 @@ export async function generateProposalPDF(data: ProposalPDFData): Promise<string
   
   // Contact Information
   page6.drawRectangle({
-    x: margin, y: y - 100, width: contentWidth, height: 110,
+    x: margin, y: y - 170, width: contentWidth, height: 180,
     color: rgb(0.2, 0.2, 0.2),
   });
   
@@ -716,15 +717,23 @@ export async function generateProposalPDF(data: ProposalPDFData): Promise<string
   });
   
   const contactInfo = [
-    'Hewtech System Pvt. Ltd. (Registered with - SBPDCL & NBPDCL)',
-    'Golu Babu Market, Ashiyana Digha Road, Rajiv Nagar, Patna, 800025',
-    'Website: www.divyanshisolar.com',
+    'Prayga India Private Limited',
+    '(Registered National Vendor under PM-Surya Ghar: Muft Bijli Yojana Rooftop Solar Program)',
+    '',
+    'Registered Office — Jaipur:',
+    'Plot No. C-3/258, Flat No. G-2, Room-1, Shreyansh Apartment,',
+    'Chitrakoot Scheme, Vaishali Nagar, Jaipur, Rajasthan 302021',
+    '',
+    'Branch Office — Bihar: Chandrakant Akela — 9801005212',
+    'Bank of India Building, Naubatpur, Mashurhi Road, Vill-Piprawan,',
+    'Panchayat Jaitipur, Block-Naubatpur, Patna, Bihar 801109',
+    '',
+    'Website: https://divyanshisolar.in',
   ];
-  
   sy = y - 50;
   contactInfo.forEach(info => {
-    page6.drawText(info, { x: margin + 15, y: sy, size: 11, font: font, color: rgb(0.8, 0.8, 0.8) });
-    sy -= 16;
+    page6.drawText(info, { x: margin + 15, y: sy, size: 7.5, font: font, color: rgb(0.8, 0.8, 0.8) });
+    sy -= 11;
   });
   
   // Partner contact at bottom
@@ -780,32 +789,27 @@ function drawHeader(page: PDFPage, fontBold: PDFFont, font: PDFFont, title: stri
   const pageWidth = 595;
   const pageHeight = 842;
   const margin = 50;
-  
+
   page.drawRectangle({
-    x: 0, y: pageHeight - 80, width: pageWidth, height: 80, color: orange,
+    x: 0, y: pageHeight - 60, width: pageWidth, height: 60, color: orange,
   });
-  
-  page.drawText('Divyanshi Solar (Hewtech System Pvt. Ltd.)', {
-    x: margin, y: pageHeight - 35, size: 18, font: fontBold, color: white,
+
+  page.drawText('PRAYGA INDIA PRIVATE LIMITED', {
+    x: margin, y: pageHeight - 30, size: 16, font: fontBold, color: white,
   });
-  
-  page.drawText('Registered with - SBPDCL & NBPDCL', {
-    x: margin, y: pageHeight - 52, size: 9, font: font, color: rgb(1, 0.9, 0.8),
-  });
-  
-  page.drawText(title, {
-    x: margin, y: pageHeight - 70, size: 14, font: font, color: white,
+
+  page.drawText('Registered National Vendor under PM-Surya Ghar: Muft Bijli Yojana Rooftop Solar Program', {
+    x: margin, y: pageHeight - 48, size: 8, font: font, color: rgb(1, 0.9, 0.8),
   });
 }
 
 function drawFooter(page: PDFPage, font: PDFFont, pageNum: number) {
-  const pageWidth = 595;
   const gray = rgb(0.5, 0.5, 0.5);
   
-  page.drawText(`Page ${pageNum} | Divyanshi Solar - Authorized Marketing Partner of Hewtech System Pvt. Ltd.`, {
+  page.drawText(`Page ${pageNum} | Prayga India Private Limited - `, {
     x: 50, y: 33, size: 8, font, color: gray,
   });
-  page.drawText('Registered with - SBPDCL & NBPDCL | www.divyanshisolar.com', {
+  page.drawText('Registered National Vendor under PM-Surya Ghar: Muft Bijli Yojana Rooftop Solar Program | https://divyanshisolar.in', {
     x: 50, y: 22, size: 8, font, color: gray,
   });
 }
@@ -843,7 +847,24 @@ function drawMOAPageNumber(page: PDFPage, font: PDFFont, pageNum: number) {
   });
 }
 
+function sanitizeWinAnsi(input: any): string {
+  if (input === null || input === undefined) return '';
+  let s = String(input);
+  s = s.replace(/\r\n|\r|\n|\t|\v|\f/g, ' ');
+  s = s.replace(/[\u2018\u2019\u201A\u201B]/g, "'");
+  s = s.replace(/[\u201C\u201D\u201E\u201F]/g, '"');
+  s = s.replace(/[\u2010-\u2015\u2212]/g, '-');
+  s = s.replace(/\u2026/g, '...');
+  s = s.replace(/[\u20B9\uFFE5]/g, 'Rs.');
+  s = s.replace(/\u00A0/g, ' ');
+  s = s.replace(/\u00AD/g, '');
+  s = s.replace(/[^\x20-\x7E\u00A1-\u00FF]/g, '');
+  s = s.replace(/ {2,}/g, ' ');
+  return s;
+}
+
 function wrapText(text: string, font: PDFFont, fontSize: number, maxWidth: number): string[] {
+  text = sanitizeWinAnsi(text);
   const words = text.split(' ');
   const lines: string[] = [];
   let currentLine = '';
@@ -870,6 +891,29 @@ function drawWrappedText(page: PDFPage, text: string, x: number, y: number, font
     currentY -= lineHeight;
   }
   return currentY;
+}
+
+// One e-stamp per agreement. Reuses the stamp already issued to the same consumer
+// number (a reprint is the same document); otherwise takes the next unused one.
+// FOR UPDATE SKIP LOCKED means two simultaneous generations cannot get the same stamp.
+async function allocateStamp(consumerNo: string, fileName: string) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const prev = await client.query(
+      "SELECT * FROM agreement_stamps WHERE customer_id = $1 AND used_at IS NOT NULL ORDER BY id LIMIT 1", [consumerNo]);
+    if (prev.rows.length) { await client.query('COMMIT'); return prev.rows[0]; }
+    const pick = await client.query(
+      "SELECT * FROM agreement_stamps WHERE used_at IS NULL ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 1");
+    if (!pick.rows.length) { await client.query('ROLLBACK'); throw new Error('No e-stamp papers left in stock. Upload more before generating agreements.'); }
+    const st = pick.rows[0];
+    await client.query("UPDATE agreement_stamps SET used_at = NOW(), customer_id = $1, agreement_ref = $2 WHERE id = $3",
+      [consumerNo, fileName, st.id]);
+    await client.query('COMMIT');
+    console.info('[MOA] e-stamp', st.serial_no, 'issued to consumer', consumerNo);
+    return st;
+  } catch (e) { try { await client.query('ROLLBACK'); } catch {} throw e; }
+  finally { client.release(); }
 }
 
 export async function generateMOAPDF(data: MOAData): Promise<string> {
@@ -912,7 +956,7 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   let y = pageHeight / 2;
   
   // Bold centered title matching the reference format
-  const titleText = 'Memorandum of Agreement (MOA) between Consumer & Vendor for installation of grid connected rooftop solar (RTS) project under PM Surya Ghar: Muft Bijli Yojana';
+  const titleText = 'Memorandum of Agreement (MOA) between Consumer & Vendor for installation of grid connected rooftop solar (RTS) project under PM Surya Ghar: Yojana';
   const titleLines = wrapText(titleText, fontBold, 12, contentWidth);
   for (const line of titleLines) {
     const lineWidth = fontBold.widthOfTextAtSize(line, 12);
@@ -922,7 +966,7 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   y -= sectionGap;
   
   // Agreement introduction
-  y = drawWrappedText(page, `This agreement is executed on ${data.dateOfAgreement} for design, supply, installation, commissioning and 5-year comprehensive maintenance of RTS project/system along with warranty under "PM Surya Ghar: Muft Bijli Yojana" scheme.`, margin, y, font, fontSize, contentWidth, black, lineHeight);
+  y = drawWrappedText(page, `This agreement is executed on ${data.dateOfAgreement} for design, supply, installation, commissioning and 5-year comprehensive maintenance of RTS project/system along with warranty under "PM Surya Ghar: Yojana" scheme.`, margin, y, font, fontSize, contentWidth, black, lineHeight);
   y -= sectionGap;
   
   // Between
@@ -946,7 +990,7 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   page.drawText('Whereas', { x: margin, y, size: 11, font: fontBold, color: black });
   y -= lineHeight + 2;
   
-  y = drawWrappedText(page, `First Party wishes to install ${data.plantCapacity} Grid Connected Roof Top Solar PV Power Plant on the Roof top of the residential building of the Consumer under PM Surya Ghar: Muft Bijli Yojana.`, margin, y, font, fontSize, contentWidth, black, lineHeight);
+  y = drawWrappedText(page, `First Party wishes to install ${data.plantCapacity} Grid Connected Roof Top Solar PV Power Plant on the Roof top of the residential building of the Consumer under PM Surya Ghar: Yojana.`, margin, y, font, fontSize, contentWidth, black, lineHeight);
   y -= sectionGap;
   
   // And whereas
@@ -1154,34 +1198,40 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   y = drawWrappedText(page, 'IN WITNESS WHEREOF, the parties through their duly authorized representatives have executed these presents (execution whereof has been approved by the competent authorities of both the parties) on the day, month and year first above mentioned.', margin, y, font, fontSize, contentWidth, black, lineHeight);
   y -= 30;
   
-  // Signature blocks - side by side
-  const sigColWidth = contentWidth / 2 - 10;
-  const rightCol = margin + sigColWidth + 20;
-
+  // Signature blocks - 3-column layout with wide gap to prevent overlap
+  const sigGap = 80;
+  const sigColWidth = (contentWidth - sigGap) / 2;
+  const rightCol = margin + sigColWidth + sigGap;
   // 1st Party / 2nd Party headers
   page.drawText('1st Party', { x: margin, y, size: 11, font: fontBold, color: black });
   page.drawText('2nd Party', { x: rightCol, y, size: 11, font: fontBold, color: black });
   y -= lineHeight + 6;
-
-  // Name of Consumer / Vendor
-  page.drawText('Name of Consumer: ', { x: margin, y, size: 9, font, color: black });
-  const consLabelW = font.widthOfTextAtSize('Name of Consumer: ', 9);
-  page.drawText(data.customerName, { x: margin + consLabelW, y, size: 10, font: fontBold, color: black });
-
-  page.drawText('Name of Vendor: ', { x: rightCol, y, size: 9, font, color: black });
-  const vendLabelW = font.widthOfTextAtSize('Name of Vendor: ', 9);
-  page.drawText(data.vendorName, { x: rightCol + vendLabelW, y, size: 10, font: fontBold, color: black });
-  y -= lineHeight + 2;
-
-  // Address lines
-  const leftAddrLines = wrapText(`Address: ${data.customerAddress}`, font, 8.5, sigColWidth - 5);
-  const rightAddrLines = wrapText(`Address: ${data.vendorAddress}`, font, 8.5, sigColWidth - 5);
-  const maxLines = Math.max(leftAddrLines.length, rightAddrLines.length);
-
-  for (let i = 0; i < maxLines; i++) {
-    if (leftAddrLines[i]) page.drawText(leftAddrLines[i], { x: margin, y, size: 8.5, font, color: black });
-    if (rightAddrLines[i]) page.drawText(rightAddrLines[i], { x: rightCol, y, size: 8.5, font, color: black });
+  // Name of Consumer / Vendor labels
+  page.drawText('Name of Consumer:', { x: margin, y, size: 7.5, font, color: black });
+  page.drawText('Name of Vendor:', { x: rightCol, y, size: 7.5, font, color: black });
+  y -= 12;
+  const consNameLines = wrapText(data.customerName, fontBold, 9, sigColWidth - 10);
+  const vendNameLines = wrapText(data.vendorName, fontBold, 9, sigColWidth - 10);
+  const nameMaxLines = Math.max(consNameLines.length, vendNameLines.length);
+  for (let i = 0; i < nameMaxLines; i++) {
+    if (consNameLines[i]) page.drawText(consNameLines[i], { x: margin, y, size: 9, font: fontBold, color: black });
+    if (vendNameLines[i]) page.drawText(vendNameLines[i], { x: rightCol, y, size: 9, font: fontBold, color: black });
     y -= 12;
+  }
+  y -= 4;
+  // Address labels
+  page.drawText('Address:', { x: margin, y, size: 7.5, font, color: black });
+  page.drawText('Address:', { x: rightCol, y, size: 7.5, font, color: black });
+  y -= 11;
+  // Add spaces after commas so wrapText can break long addresses
+  const fixAddr = (addr: string) => addr.replace(/,(?!\s)/g, ', ');
+  const leftAddrLines = wrapText(fixAddr(data.customerAddress), font, 6.5, sigColWidth - 20);
+  const rightAddrLines = wrapText(fixAddr(data.vendorAddress), font, 6.5, sigColWidth - 20);
+  const maxLines = Math.max(leftAddrLines.length, rightAddrLines.length);
+  for (let i = 0; i < maxLines; i++) {
+    if (leftAddrLines[i]) page.drawText(leftAddrLines[i], { x: margin, y, size: 6.5, font, color: black });
+    if (rightAddrLines[i]) page.drawText(rightAddrLines[i], { x: rightCol, y, size: 6.5, font, color: black });
+    y -= 9;
   }
 
   // Gap before WITNESS
@@ -1200,11 +1250,18 @@ export async function generateMOAPDF(data: MOAData): Promise<string> {
   const pdfBytes = await pdfDoc.save();
   const fileName = `moa_agreement_${Date.now()}_${Math.random().toString(36).substring(7)}.pdf`;
   const filePath = path.join(pdfDir, fileName);
-  fs.writeFileSync(filePath, pdfBytes);
-  
-  setTimeout(() => {
-    try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (e) {}
-  }, 24 * 60 * 60 * 1000);
+  // Prepend the allocated e-stamp paper as page 1
+  const _stamp = await allocateStamp(data.consumerNumber, fileName);
+  if (!_stamp || !fs.existsSync(_stamp.file_path)) {
+    throw new Error('E-stamp file missing on server: ' + (_stamp ? _stamp.file_path : 'none allocated'));
+  }
+  const _merged = await PDFDocument.create();
+  const _stampDoc = await PDFDocument.load(fs.readFileSync(_stamp.file_path));
+  (await _merged.copyPages(_stampDoc, _stampDoc.getPageIndices())).forEach(p => _merged.addPage(p));
+  (await _merged.copyPages(pdfDoc, pdfDoc.getPageIndices())).forEach(p => _merged.addPage(p));
+  const _stamped = await _merged.save();
+  fs.writeFileSync(filePath, _stamped);
+  // stamped agreements are kept: the e-stamp is consumed against this file
   
   return fileName;
 }

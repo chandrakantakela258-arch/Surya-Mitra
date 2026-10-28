@@ -8,8 +8,29 @@ import { eq } from 'drizzle-orm';
 const t = (lang: string, en: string, hi: string) => lang === 'hi' ? hi : en;
 
 // Capacity options by type
-const RESIDENTIAL_PLANTS = ["3kW On-Grid", "3kW 3-in-1 Hybrid", "5kW 3-in-1 Hybrid", "6kW On-Grid", "6kW 3-in-1 Hybrid", "6.5kW On-Grid"];
-const BIKE_SHOWROOM_PLANTS = ["3kW On-Grid", "3kW 3-in-1 Hybrid"];
+const RESIDENTIAL_PLANTS = ["3kW On-Grid", "3kW Livguard Hybrid", "5kW Livguard Hybrid", "6kW On-Grid", "6kW Livguard Hybrid", "6.5kW On-Grid"];
+const BIKE_SHOWROOM_PLANTS = ["3kW On-Grid", "3kW Livguard Hybrid"];
+
+const sendToN8NWebhook = async (lead: any) => {
+  try {
+    const webhookUrl = process.env.N8N_WEBHOOK_URL;
+    await axios.post(webhookUrl, {
+      name: lead.name || '',
+      email: lead.email || '',
+      phone: lead.mobileNumber || lead.phone || '',
+      state: lead.state || '',
+      district: lead.district || '',
+      city: lead.city || '',
+      monthlyBilling: lead.monthlyBilling || '',
+      connectionType: lead.meterType || '',
+      electricityBoard: lead.electricityBoard || '',
+      roofSpace: lead.roofSpace || '',
+    }, { headers: { 'Content-Type': 'application/json' }, timeout: 8000 });
+    console.log('N8N webhook sent: ' + lead.phone + ' | ' + lead.state + ' | ' + lead.monthlyBilling);
+  } catch (err) {
+    console.error('N8N Webhook Error:', err.message);
+  }
+};
 const GENERAL_CAPACITIES = ["2 kW", "3 kW", "6 kW", "15 kW", "25 kW", "50 kW", "100 kW", "500 kW", "1000 kW"];
 
 // Send WhatsApp text or interactive message
@@ -40,7 +61,7 @@ const sendWhatsAppMessage = async (to: string, text: string, buttons: string[] |
       type: "list",
       header: { type: "text", text: "Please Select" },
       body: { text: text },
-      footer: { text: "Divyanshi Solar" },
+      footer: { text: "Prayga India Private Limited" },
       action: {
         button: "Options",
         sections: [
@@ -123,8 +144,24 @@ export const processMessage = async (phone: string, text: string) => {
       break;
 
     case 3:
-      await createOrUpdateLead(phone, { currentStep: "3" });
+      // Save mobile number entered by user
+      const mobileRaw = text.replace(/\D/g, '');
+      const validMobile = mobileRaw.length >= 10 ? mobileRaw.slice(-10) : null;
+      await createOrUpdateLead(phone, { mobileNumber: validMobile ? '91' + validMobile : text, currentStep: "3" });
       await sendWhatsAppMessage(phone, t(lang, 'What is your Email ID?', 'आपकी ईमेल आईडी क्या है?'));
+      // Trigger webhook after 25s if billing not yet received
+      if (validMobile) {
+        const capturedPhone = phone;
+        setTimeout(async () => {
+          try {
+            const checkLead = await getLead(capturedPhone);
+            if (checkLead && !checkLead.monthlyBilling) {
+              console.log('[WA Phone Trigger] No billing after 25s, sending default template:', validMobile);
+              await sendToN8NWebhook({ ...checkLead, mobileNumber: '91' + validMobile, phone: '91' + validMobile });
+            }
+          } catch(e: any) { console.error('[WA Phone Trigger Error]', e.message); }
+        }, 25000);
+      }
       break;
 
     case 4:
@@ -164,6 +201,7 @@ export const processMessage = async (phone: string, text: string) => {
 
     case 11:
       await createOrUpdateLead(phone, { consumerNumber: text, currentStep: "11" });
+
       await sendWhatsAppMessage(phone, t(lang, 'What is your Connection Type?', 'आपका कनेक्शन प्रकार क्या है?'), null, ["Residential", "Commercial", "Industrial"]);
       break;
 
@@ -179,9 +217,11 @@ export const processMessage = async (phone: string, text: string) => {
       }
       break;
 
-    case 11.1: // Residential plant chosen → go to proposal
+    case 11.1: // Residential plant chosen
+      const doneLead = await getLead(phone);
+      if (doneLead && doneLead.email) await sendToN8NWebhook(doneLead); // go to proposal
       await createOrUpdateLead(phone, { plantCapacity: text, currentStep: "8" });
-      await sendWhatsAppMessage(phone, t(lang, '📄 Here is your Solar Proposal: https://divyanshisolar.com/solar-proposal.pdf\n\nOur team will prepare a detailed customized proposal for you shortly.', '📄 यहाँ आपका सोलर प्रस्ताव है: https://divyanshisolar.com/solar-proposal.pdf'));
+      await sendWhatsAppMessage(phone, t(lang, '📄 Here is your Solar Proposal: https://divyanshisolar.in/solar-proposal.pdf\n\nOur team will prepare a detailed customized proposal for you shortly.', '📄 यहाँ आपका सोलर प्रस्ताव है: https://divyanshisolar.in/solar-proposal.pdf'));
       setTimeout(async () => {
         await sendWhatsAppMessage(phone, t(lang, 'Are you interested in proceeding?', 'क्या आप आगे बढ़ने में रुचि रखते हैं?'), [t(lang, 'Interested', 'रुचि है'), t(lang, 'Not Interested', 'रुचि नहीं है'), t(lang, 'Call Later', 'बाद में कॉल करेंगे')]);
       }, 1000);
@@ -212,7 +252,7 @@ export const processMessage = async (phone: string, text: string) => {
 
     case 7.5: // Bike Showroom plant → proposal
       await createOrUpdateLead(phone, { plantCapacity: text, currentStep: "8" });
-      await sendWhatsAppMessage(phone, t(lang, '📄 Here is your Solar Proposal: https://divyanshisolar.com/solar-proposal.pdf', '📄 यहाँ आपका सोलर प्रस्ताव: https://divyanshisolar.com/solar-proposal.pdf'));
+      await sendWhatsAppMessage(phone, t(lang, '📄 Here is your Solar Proposal: https://divyanshisolar.in/solar-proposal.pdf', '📄 यहाँ आपका सोलर प्रस्ताव: https://divyanshisolar.in/solar-proposal.pdf'));
       setTimeout(async () => {
         await sendWhatsAppMessage(phone, t(lang, 'Are you interested in proceeding?', 'क्या आप आगे बढ़ने में रुचि रखते हैं?'), [t(lang, 'Interested', 'रुचि है'), t(lang, 'Not Interested', 'रुचि नहीं है'), t(lang, 'Call Later', 'बाद में')]);
       }, 1000);
@@ -225,7 +265,7 @@ export const processMessage = async (phone: string, text: string) => {
 
     case 7.2:
       await createOrUpdateLead(phone, { plantCapacity: text, currentStep: "8" });
-      await sendWhatsAppMessage(phone, t(lang, '📄 Solar Proposal: https://divyanshisolar.com/solar-proposal.pdf', '📄 सोलर प्रस्ताव: https://divyanshisolar.com/solar-proposal.pdf'));
+      await sendWhatsAppMessage(phone, t(lang, '📄 Solar Proposal: https://divyanshisolar.in/solar-proposal.pdf', '📄 सोलर प्रस्ताव: https://divyanshisolar.in/solar-proposal.pdf'));
       setTimeout(async () => {
         await sendWhatsAppMessage(phone, t(lang, 'Are you interested in proceeding?', 'क्या आप आगे बढ़ने में रुचि रखते हैं?'), [t(lang, 'Interested', 'रुचि है'), t(lang, 'Not Interested', 'रुचि नहीं है'), t(lang, 'Call Later', 'बाद में')]);
       }, 1000);
@@ -243,7 +283,7 @@ export const processMessage = async (phone: string, text: string) => {
 
     case 9:
       await createOrUpdateLead(phone, { status: text, currentStep: "10" });
-      await sendWhatsAppMessage(phone, t(lang, 'Thank you for choosing Divyanshi Solar! Our team will reach out to you shortly. ☀️', 'दिव्यांशी सोलर को चुनने के लिए धन्यवाद! हमारी टीम जल्द ही संपर्क करेगी। ☀️'));
+      await sendWhatsAppMessage(phone, t(lang, 'Thank you for choosing Prayga India Private Limited! Our team will reach out to you shortly. ☀️', 'दिव्यांशी सोलर को चुनने के लिए धन्यवाद! हमारी टीम जल्द ही संपर्क करेगी। ☀️'));
       break;
 
     default:

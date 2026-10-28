@@ -71,11 +71,11 @@ export default function CustomerPartnerDashboard() {
 
   const shareReferralLink = () => {
     const referralLink = `${window.location.origin}/customer-registration?ref=${stats?.referralCode}`;
-    const websiteUrl = "https://divyanshisolar.com/";
+    const websiteUrl = "https://divyanshisolar.in/";
     const hashtags = "#DivyanshiSolar #PMSuryaGhar #SolarEnergy #RooftopSolar #GreenEnergy #MakeInIndia";
     if (navigator.share) {
       navigator.share({
-        title: "Join Divyanshi Solar",
+        title: "Join Divyanshi Digital Services Pvt Ltd",
         text: `Use my referral code ${stats?.referralCode} to get solar installation benefits!\n\nRegister: ${referralLink}\nWebsite: ${websiteUrl}\n\n${hashtags}`,
         url: referralLink,
       });

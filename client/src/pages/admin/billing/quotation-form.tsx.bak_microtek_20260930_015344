@@ -1,0 +1,2291 @@
+import { useState, useEffect, useCallback, useRef } from "react";
+import { PLANT_TYPES } from "@/lib/plantTypes";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import {
+  FileText, Download, Mail, Send, Search, Plus, Trash2, ArrowLeft,
+  Package, ChevronDown, ChevronRight, Phone, User, Building2, Loader2,
+  ArrowUp, ArrowDown
+} from "lucide-react";
+
+// ── Segment icons & colors ───────────────────────────────────
+const SEGMENT_META: Record<string, { icon: string; color: string }> = {
+  "Solar Panels":                         { icon: "☀️", color: "#f59e0b" },
+  "Solar Inverter IPD 21":                { icon: "⚡", color: "#3b82f6" },
+  "Solar High Frequency Inverter IP65":   { icon: "🔌", color: "#8b5cf6" },
+  "Ongrid Inverter":                      { icon: "🔗", color: "#10b981" },
+  "Offgrid Inverter":                     { icon: "🔋", color: "#06b6d4" },
+  "Acid Lead Battery":                    { icon: "🪫", color: "#ef4444" },
+  "Lithium Battery":                      { icon: "🔋", color: "#22c55e" },
+  "Solar EPC Power Project":              { icon: "🏗️", color: "#1e3a5f" },
+  "VFD Offgrid Inverter":                  { icon: "⚙️", color: "#0891b2" },
+  "VFD Auto-Grid Inverter":                { icon: "🔆", color: "#7c3aed" },
+};
+
+const SEGMENT_ORDER = [
+  "Solar Panels", "Solar Inverter IPD 21", "Solar High Frequency Inverter IP65",
+  "Ongrid Inverter", "Offgrid Inverter", "Acid Lead Battery",
+  "Lithium Battery", "Solar EPC Power Project",
+  "VFD Offgrid Inverter", "VFD Auto-Grid Inverter",
+];
+
+// ── Solar Quotation Constants ─────────────────────────────────────────────
+const SOLAR_PANEL_OPTIONS = [
+  { model: "LGV24VS550WB",      label: "550Wp DCR Bifacial Mono PERC Half Cut", wattage: 550, panelType: "DCR Bifacial Mono PERC", isDCR: true, brand: "Livguard Solar" },
+  { model: "LGTPV560WBNTDCR",   label: "560Wp TopCon DCR Panel",                wattage: 560, panelType: "TopCon DCR",             isDCR: true, brand: "Livguard Solar" },
+  { model: "LGTPV580WBNTOPDCR", label: "580Wp DCR TopCon Bifacial",             wattage: 580, panelType: "DCR TopCon Bifacial",    isDCR: true, brand: "Livguard Solar" },
+  { model: "LGTPV590WBNTOP",    label: "590Wp TopCon G2G Bifacial (Non-DCR)",   wattage: 590, panelType: "TopCon G2G Bifacial",   isDCR: false, brand: "Livguard Solar" },
+  { model: "LGTPV600WBNTOP",    label: "600Wp TopCon G2G Bifacial (Non-DCR)",   wattage: 600, panelType: "TopCon G2G Bifacial",   isDCR: false, brand: "Livguard Solar" },
+  { model: "LGTPV600WBNTDCR",   label: "600Wp TopCon Bifacial DCR",             wattage: 600, panelType: "TopCon Bifacial DCR",    isDCR: true, brand: "Livguard Solar" },
+  { model: "LOOM-SHARK-730-HJT", label: "730Wp SHARK HJT Dual-Glass (Non-DCR)",  wattage: 730, panelType: "HJT Dual-Glass",         isDCR: false, brand: "Loom Solar" },
+  { model: "LOOM-SHARK-600-TC",  label: "600Wp SHARK N-Type TOPCon 16BB (Non-DCR)", wattage: 600, panelType: "N-Type TOPCon Bifacial 16BB", isDCR: false, brand: "Loom Solar" },
+  { model: "ADANI-620-TC",       label: "620Wp TopCon Bifacial",                 wattage: 620, panelType: "TopCon Bifacial",        isDCR: true,  brand: "Adani Solar" },
+  { model: "ADANI-625-MP",       label: "625Wp Mono PERC Bifacial",              wattage: 625, panelType: "Mono PERC Bifacial",     isDCR: true,  brand: "Adani Solar" },
+  { model: "ADANI-630-TC",       label: "630Wp TopCon Bifacial",                 wattage: 630, panelType: "TopCon Bifacial",        isDCR: true,  brand: "Adani Solar" },
+  { model: "IBSOLAR-590-NDCR",   label: "590Wp TopCon Bifacial (Non-DCR)",       wattage: 590, panelType: "TopCon Bifacial",        isDCR: false, brand: "IB Solar" },
+  { model: "IBSOLAR-600-NDCR",   label: "600Wp TopCon Bifacial (Non-DCR)",       wattage: 600, panelType: "TopCon Bifacial",        isDCR: false, brand: "IB Solar" },
+  { model: "IBSOLAR-640-NDCR",   label: "640Wp TopCon Bifacial (Non-DCR)",       wattage: 640, panelType: "TopCon Bifacial",        isDCR: false, brand: "IB Solar" },
+];
+const PANEL_MAKES = ["Livguard Solar","Loom Solar","Adani Solar","IB Solar"];
+const panelBrandOf = (m: string) => SOLAR_PANEL_OPTIONS.find(p => p.model === m)?.brand || "Livguard Solar";
+// Panel rate per kW based on DCR type
+const PANEL_RATE_PER_KW = { dcr: 30000, nondcr: 19000 };
+const PANEL_RATE_PER_WATT = { dcr: 30, nondcr: 19 };
+
+// Inverter specs with fixed prices (inclusive of GST)
+const INVERTER_SPECS = [
+  // Off-Grid HF Inverters (DB Basic Price + 10% markup)
+  { model: "ELEGORIALG3K48M",  label: "3KW 48V 1Ph HF Off-Grid (3yr) — ₹29,700",  price: 29700,  kw: 3,  phase: "1ph", ip: "HF", spec: "3KW 48V 1Ph Off-Grid" },
+  { model: "ELEGORIALG5K48M",  label: "5KW 48V 1Ph HF Off-Grid (3yr) — ₹44,000",  price: 44000,  kw: 5,  phase: "1ph", ip: "HF", spec: "5KW 48V 1Ph Off-Grid" },
+  { model: "ELEGORIALG10K48M", label: "10KW 48V 1Ph HF Off-Grid (3yr) — ₹1,16,030",price: 116030, kw: 10, phase: "1ph", ip: "HF", spec: "10KW 48V 1Ph Off-Grid" },
+  { model: "INV-3K-IP21-1PH",  label: "3 KW IP21 Single Phase — ₹50,000",      price: 50000,  kw: 3,   phase: "1ph", ip: "IP21", spec: "3KW IP21 1Ph" },
+  { model: "INV-3K-IP65-1PH",  label: "3 KW IP65 Single Phase — ₹84,000",      price: 84000,  kw: 3,   phase: "1ph", ip: "IP65", spec: "3KW IP65 1Ph" },
+  { model: "INV-5K-IP21-1PH",  label: "5 KW IP21 48V Single Phase — ₹69,000",  price: 69000,  kw: 5,   phase: "1ph", ip: "IP21", spec: "5KW IP21 1Ph" },
+  { model: "INV-5K-IP65-1PH",  label: "5 KW IP65 48V Single Phase — ₹97,000",  price: 97000,  kw: 5,   phase: "1ph", ip: "IP65", spec: "5KW IP65 1Ph" },
+  { model: "INV-62K-IP65-1PH", label: "6.2 KW IP65 48V Single Phase — ₹72,000",price: 72000,  kw: 6.2, phase: "1ph", ip: "IP65", spec: "6.2KW IP65 1Ph" },
+  { model: "INV-5K-IP65-3PH",  label: "5 KW IP65 48V Three Phase — ₹1,83,000", price: 183000, kw: 5,   phase: "3ph", ip: "IP65", spec: "5KW IP65 3Ph" },
+  { model: "INV-10K-IP65-3PH", label: "10 KW IP65 48V Three Phase — ₹2,05,000",price: 205000, kw: 10,  phase: "3ph", ip: "IP65", spec: "10KW IP65 3Ph" },
+  { model: "INV-20K-IP65-3PH", label: "20 KW IP65 48V Three Phase — ₹3,45,000",price: 345000, kw: 20,  phase: "3ph", ip: "IP65", spec: "20KW IP65 3Ph" },
+  { model: "INV-CUSTOM",       label: "Custom / Other — Enter Price Manually",   price: 0,      kw: 0,   phase: "any", ip: "",     spec: "Custom" },
+];
+
+// Battery specs with fixed prices (DB Basic Price + 15% markup)
+const BATTERY_SPECS = [
+  // Lead Acid
+  { model: "BAT-LA-150AH",           label: "Lead Acid 150Ah — ₹17,000/unit (60M warranty)",          price: 17000,   type: "lead_acid", ah: 150,  volt: 12,  spec: "150Ah/12V Lead Acid",    divisor: 1300,  sap: "" },
+  { model: "BAT-LA-200AH",           label: "Lead Acid 200Ah — ₹21,000/unit (60M warranty)",          price: 21000,   type: "lead_acid", ah: 200,  volt: 12,  spec: "200Ah/12V Lead Acid",    divisor: 1600,  sap: "" },
+  // Lithium — Table Top 12.8V
+  { model: "LGXTLi12150NSOL",        label: "Lithium 12.8V/100Ah Table Top — ₹16,100/unit",           price: 16100,   type: "lithium",   ah: 100,  volt: 12.8,spec: "12.8V/100Ah Lithium TT", divisor: 1200,  sap: "LGXTLi12150NSOL" },
+  { model: "LGXTLi12250NSOL",        label: "Lithium 12.8V/150Ah Table Top — ₹27,600/unit",           price: 27600,   type: "lithium",   ah: 150,  volt: 12.8,spec: "12.8V/150Ah Lithium TT", divisor: 1800,  sap: "LGXTLi12250NSOL" },
+  // Lithium — Table Top 25.6V
+  { model: "LGXTLi25150NSOL",        label: "Lithium 25.6V/100Ah Table Top — ₹33,350/unit",           price: 33350,   type: "lithium",   ah: 100,  volt: 25.6,spec: "25.6V/100Ah Lithium TT", divisor: 2400,  sap: "LGXTLi25150NSOL" },
+  { model: "LGXTLi25250NSOL",        label: "Lithium 25.6V/150Ah Table Top — ₹49,450/unit",           price: 49450,   type: "lithium",   ah: 150,  volt: 25.6,spec: "25.6V/150Ah Lithium TT", divisor: 3600,  sap: "LGXTLi25250NSOL" },
+  { model: "LGXTLi25400NSOL",        label: "Lithium 25.6V/280Ah Wall Mount — ₹60,950/unit",          price: 60950,   type: "lithium",   ah: 280,  volt: 25.6,spec: "25.6V/280Ah Lithium WM", divisor: 6700,  sap: "LGXTLi25400NSOL" },
+  // Lithium — 51.2V Wall/Floor Mounted
+  { model: "LG51V100LiXL5",          label: "Lithium 51.2V/100Ah Wall (5.12kWh) — ₹58,604/unit",      price: 58604,   type: "lithium",   ah: 100,  volt: 51.2,spec: "51.2V/100Ah Lithium WM",  divisor: 4500,  sap: "LG51V100LiXL5" },
+  { model: "LG51V100LiXL5.1",        label: "Lithium 51.2V/100Ah Wall v2 (5.12kWh) — ₹58,604/unit",   price: 58604,   type: "lithium",   ah: 100,  volt: 51.2,spec: "51.2V/100Ah Lithium WM v2",divisor: 4500,  sap: "LG51V100LiXL5.1" },
+  { model: "LG51V150LiXL7.5",        label: "Lithium 51.2V/150Ah Floor (7.6kWh) — ₹1,00,194/unit",    price: 100194,  type: "lithium",   ah: 150,  volt: 51.2,spec: "51.2V/150Ah Lithium FM",  divisor: 6800,  sap: "LG51V150LiXL7.5" },
+  { model: "LG51V300LiXL15",         label: "Lithium 51.2V/280Ah Floor (14.3kWh) — ₹1,35,556/unit",   price: 135556,  type: "lithium",   ah: 280,  volt: 51.2,spec: "51.2V/280Ah Lithium FM",  divisor: 13000, sap: "LG51V300LiXL15" },
+  // Lithium — 256V Floor Mounted
+  { model: "LG256V100LiXXL25",       label: "Lithium 256V/100Ah Floor (25.6kWh) — ₹5,46,250/unit",    price: 546250,  type: "lithium",   ah: 100,  volt: 256, spec: "256V/100Ah Lithium FM",   divisor: 23000, sap: "LG256V100LiXXL25" },
+  { model: "LG256V280LiXXL75",       label: "Lithium 256V/280Ah Floor (71.6kWh) — ₹8,62,500/unit",    price: 862500,  type: "lithium",   ah: 280,  volt: 256, spec: "256V/280Ah Lithium FM",   divisor: 65000, sap: "LG256V280LiXXL75" },
+  // Legacy
+  { model: "BAT-LI-100AH",           label: "Lithium 100Ah 51V — ₹58,604/unit",                       price: 58604,   type: "lithium",   ah: 100,  volt: 51,  spec: "100Ah/51V Lithium",       divisor: 4500,  sap: "" },
+  { model: "BAT-LI-150AH",           label: "Lithium 150Ah 51V — ₹1,00,194/unit",                     price: 100194,  type: "lithium",   ah: 150,  volt: 51,  spec: "150Ah/51V Lithium",       divisor: 6800,  sap: "" },
+];
+const SOLAR_INVERTER_OPTIONS: Record<string, Array<{ model: string; label: string; capacity: string }>> = {
+  hybrid:      [
+    { model: "NOVARALG3648GIH",     label: "Livguard 3.6KW Hybrid SP (1Ph)",    capacity: "3.6 KW Hybrid" },
+    { model: "NOVARALG5648GIH",     label: "Livguard 5.6KW Hybrid SP (1Ph)",    capacity: "5.6 KW Hybrid" },
+    { model: "LGTFES3K48V01PHFGIH", label: "Livguard 3KW Hybrid IP65 (1Ph)",    capacity: "3 KW Hybrid IP65" },
+    { model: "LGTFES5K48V01PHFGIH", label: "Livguard 5KW Hybrid (1Ph)",         capacity: "5 KW Hybrid" },
+    { model: "LGTFES5K48V03PHFGIH", label: "Livguard 5KW Hybrid (3Ph)",         capacity: "5 KW 3-Phase Hybrid" },
+    { model: "LGTFES10K48V03PHFGI", label: "Livguard 10KW Hybrid (3Ph)",        capacity: "10 KW 3-Phase Hybrid" },
+    { model: "LGTFES20K48V03PHFGI", label: "Livguard 20KW Hybrid (3Ph)",        capacity: "20 KW 3-Phase Hybrid" },
+    { model: "HYBRID-3PH-50K",      label: "50KW 3-Phase Hybrid Inverter",      capacity: "50 KW 3-Phase Hybrid" },
+    { model: "HYBRID-3PH-100K",     label: "100KW 3-Phase Hybrid Inverter",     capacity: "100 KW 3-Phase Hybrid" },
+  ],
+  offgrid:     [
+    { model: "ELEGORIALG3K48M",     label: "Livguard 3KW/48V Off-Grid (1Ph)",   capacity: "3KW/48V Off-Grid" },
+    { model: "ELEGORIALG5K48M",     label: "Livguard 5KW/48V Off-Grid (1Ph)",   capacity: "5KW/48V Off-Grid" },
+    { model: "ELEGORIALG10K48M",    label: "Livguard 10KW/48V Off-Grid (3Ph)",  capacity: "10KW/48V Off-Grid" },
+    { model: "OFFGRID-3PH-20K",     label: "20KW 3-Phase Off-Grid Inverter",    capacity: "20KW/3Ph Off-Grid" },
+    { model: "OFFGRID-3PH-50K",     label: "50KW 3-Phase Off-Grid Inverter",    capacity: "50KW/3Ph Off-Grid" },
+  ],
+  ongrid:      [
+    { model: "LG-ONGRID-3K-SP",    label: "Solar GI Inverter 3KW (1Ph)",       capacity: "3 KW On-Grid" },
+    { model: "LG-ONGRID-5K-SP",    label: "Solar GI Inverter 5KW (1Ph)",       capacity: "5 KW On-Grid" },
+    { model: "LG-ONGRID-10K-3P",   label: "Solar GI Inverter 10KW (3Ph)",      capacity: "10 KW On-Grid" },
+    { model: "LG-ONGRID-20K-3P",   label: "Solar GI Inverter 20KW (3Ph)",      capacity: "20 KW On-Grid" },
+    { model: "LG-ONGRID-50K-3P",   label: "Solar GI Inverter 50KW (3Ph)",      capacity: "50 KW On-Grid" },
+    { model: "LG-ONGRID-100K-3P",  label: "Solar GI Inverter 100KW (3Ph)",     capacity: "100 KW On-Grid" },
+  ],
+  vfd_offgrid: [
+    { model: "VFD-OFFGRID-5K",     label: "VFD Off-Grid 5KW",                  capacity: "5 KW VFD Off-Grid" },
+    { model: "VFD-OFFGRID-10K",    label: "VFD Off-Grid 10KW",                 capacity: "10 KW VFD Off-Grid" },
+    { model: "VFD-OFFGRID-20K",    label: "VFD Off-Grid 20KW",                 capacity: "20 KW VFD Off-Grid" },
+    { model: "VFD-OFFGRID-50K",    label: "VFD Off-Grid 50KW",                 capacity: "50 KW VFD Off-Grid" },
+    { model: "VFD-OFFGRID-100K",   label: "VFD Off-Grid 100KW",                capacity: "100 KW VFD Off-Grid" },
+  ],
+  vfd_autogrid:[
+    { model: "VFD-AGRID-5K",       label: "VFD Auto-Grid 5KW",                 capacity: "5 KW VFD Auto-Grid" },
+    { model: "VFD-AGRID-10K",      label: "VFD Auto-Grid 10KW",                capacity: "10 KW VFD Auto-Grid" },
+    { model: "VFD-AGRID-20K",      label: "VFD Auto-Grid 20KW",                capacity: "20 KW VFD Auto-Grid" },
+    { model: "VFD-AGRID-50K",      label: "VFD Auto-Grid 50KW",                capacity: "50 KW VFD Auto-Grid" },
+    { model: "VFD-AGRID-100K",     label: "VFD Auto-Grid 100KW",               capacity: "100 KW VFD Auto-Grid" },
+  ],
+};
+
+// On-Grid GI Inverter specs (Distributor price + 10% markup, incl GST)
+const ONGRID_INVERTER_SPECS = [
+  { model: "LGTFES301POGGI",  label: "GI 3KW 1Ph (10yr) — ₹19,242",    price: 19242,  kw: 3,   phase: "1ph", spec: "3KW 1Ph GI" },
+  { model: "LGTFES401POGGI",  label: "GI 4KW 1Ph (10yr) — ₹29,268",    price: 29268,  kw: 4,   phase: "1ph", spec: "4KW 1Ph GI" },
+  { model: "LGTFES501POGGI",  label: "GI 5KW 1Ph (10yr) — ₹32,167",    price: 32167,  kw: 5,   phase: "1ph", spec: "5KW 1Ph GI" },
+  { model: "LGTFES601POGGI",  label: "GI 6KW 1Ph (10yr) — ₹34,581",    price: 34581,  kw: 6,   phase: "1ph", spec: "6KW 1Ph GI" },
+  { model: "LGTFES503POGGI",  label: "GI 5KW 3Ph (10yr) — ₹54,667",    price: 54667,  kw: 5,   phase: "3ph", spec: "5KW 3Ph GI" },
+  { model: "LGTFES803POGGI",  label: "GI 8KW 3Ph (10yr) — ₹64,969",    price: 64969,  kw: 8,   phase: "3ph", spec: "8KW 3Ph GI" },
+  { model: "LGTFES1003POGGI", label: "GI 10KW 3Ph (10yr) — ₹67,637",   price: 67637,  kw: 10,  phase: "3ph", spec: "10KW 3Ph GI" },
+  { model: "LGTLS315GIG3",    label: "GI 15KW 3Ph (10yr) — ₹79,384",   price: 79384,  kw: 15,  phase: "3ph", spec: "15KW 3Ph GI" },
+  { model: "LGTLS320GIG3",    label: "GI 20KW 3Ph (10yr) — ₹94,699",   price: 94699,  kw: 20,  phase: "3ph", spec: "20KW 3Ph GI" },
+  { model: "LGTLS324GIG3",    label: "GI 25KW 3Ph (10yr) — ₹1,04,528", price: 104528, kw: 25,  phase: "3ph", spec: "25KW 3Ph GI" },
+  { model: "SFTLS330GIG3",    label: "GI 30KW 3Ph (10yr) — ₹1,22,257", price: 122257, kw: 30,  phase: "3ph", spec: "30KW 3Ph GI" },
+  { model: "SFTLS350GIG3",    label: "GI 50KW 3Ph (10yr) — ₹1,67,128", price: 167128, kw: 50,  phase: "3ph", spec: "50KW 3Ph GI" },
+  { model: "SFTLS360GIG3",    label: "GI 60KW 3Ph (10yr) — ₹1,99,700", price: 199700, kw: 60,  phase: "3ph", spec: "60KW 3Ph GI" },
+  { model: "LGTLS380GI",      label: "GI 80KW 3Ph (10yr) — ₹2,72,962", price: 272962, kw: 80,  phase: "3ph", spec: "80KW 3Ph GI" },
+  { model: "SFTLS3100GIG4",   label: "GI 100KW 3Ph (10yr) — ₹2,88,519",price: 288519, kw: 100, phase: "3ph", spec: "100KW 3Ph GI" },
+  // ── Loom Solar Fusion on-grid (appended: existing units keep auto-select priority) ──
+  { model: "LOOM-FUSION-3K-1PH", label: "Loom Fusion 3KW 1Ph On-Grid — ₹20,000", price: 20000, kw: 3, phase: "1ph", spec: "3KW 1Ph Loom Fusion GTI" },
+  { model: "LOOM-FUSION-4K-1PH", label: "Loom Fusion 4KW 1Ph On-Grid — ₹28,000", price: 28000, kw: 4, phase: "1ph", spec: "4KW 1Ph Loom Fusion GTI" },
+  { model: "LOOM-FUSION-5K-1PH", label: "Loom Fusion 5KW 1Ph On-Grid — ₹33,500", price: 33500, kw: 5, phase: "1ph", spec: "5KW 1Ph Loom Fusion GTI" },
+  { model: "LOOM-FUSION-6K-3PH", label: "Loom Fusion 6KW 3Ph On-Grid — ₹52,500", price: 52500, kw: 6, phase: "3ph", spec: "6KW 3Ph Loom Fusion GTI" },
+  { model: "LOOM-FUSION-8K-3PH", label: "Loom Fusion 8KW 3Ph On-Grid — ₹57,000", price: 57000, kw: 8, phase: "3ph", spec: "8KW 3Ph Loom Fusion GTI" },
+  { model: "LOOM-FUSION-10K-3PH", label: "Loom Fusion 10KW 3Ph On-Grid — ₹60,000", price: 60000, kw: 10, phase: "3ph", spec: "10KW 3Ph Loom Fusion GTI" },
+  { model: "LOOM-FUSION-15K-3PH", label: "Loom Fusion 15KW 3Ph On-Grid — ₹76,000", price: 76000, kw: 15, phase: "3ph", spec: "15KW 3Ph Loom Fusion GTI" },
+  { model: "LOOM-FUSION-20K-3PH", label: "Loom Fusion 20KW 3Ph On-Grid — ₹1,01,650", price: 101650, kw: 20, phase: "3ph", spec: "20KW 3Ph Loom Fusion GTI" },
+  { model: "LOOM-FUSION-25K-3PH", label: "Loom Fusion 25KW 3Ph On-Grid — ₹96,500", price: 96500, kw: 25, phase: "3ph", spec: "25KW 3Ph Loom Fusion GTI" },
+  { model: "LOOM-FUSION-30K-3PH", label: "Loom Fusion 30KW 3Ph On-Grid — ₹1,35,125", price: 135125, kw: 30, phase: "3ph", spec: "30KW 3Ph Loom Fusion GTI" },
+  { model: "LOOM-FUSION-50K-3PH", label: "Loom Fusion 50KW 3Ph On-Grid — ₹2,00,000", price: 200000, kw: 50, phase: "3ph", spec: "50KW 3Ph Loom Fusion GTI" },
+  { model: "LOOM-FUSION-80K-3PH", label: "Loom Fusion 80KW 3Ph On-Grid — ₹2,75,000", price: 275000, kw: 80, phase: "3ph", spec: "80KW 3Ph Loom Fusion GTI" },
+  { model: "LOOM-FUSION-100K-3PH", label: "Loom Fusion 100KW 3Ph On-Grid — ₹3,00,000", price: 300000, kw: 100, phase: "3ph", spec: "100KW 3Ph Loom Fusion GTI" },
+];
+const VFD_OFFGRID_OPTIONS = [10,15,20,25,30,40,50,60,75,100,125,150,200].map(hp => ({
+  model: `VFD-OG-${hp}HP`, label: `VFD Off-Grid ${hp} HP — ₹${(hp*2500).toLocaleString("en-IN")}`, price: hp*2500, hp,
+}));
+const VFD_AUTOGRID_OPTIONS = [10,15,20,25,30,40,50,60,75,100,125,150,200].map(hp => ({
+  model: `VFD-AG-${hp}HP`, label: `VFD Auto-Grid ${hp} HP — ₹${(hp*3000).toLocaleString("en-IN")}`, price: hp*3000, hp,
+}));
+
+// Capacity options (1 to 500 KW)
+const CAPACITY_OPTIONS = [
+  1,2,3,4,5,6,7,8,9,10,12,15,18,20,25,30,35,40,50,60,75,80,100,125,150,200,250,300,400,500
+];
+const SOLAR_BATTERY_OPTIONS = [
+  { model: "LGMSFI22572PTT", label: "LGMSFI22572PTT — 225Ah/72V Lead Acid", spec: "225Ah/72V" },
+  { model: "LGMSFI15060PTT", label: "LGMSFI15060PTT — 150Ah/60V Lead Acid", spec: "150Ah/60V" },
+  { model: "LGMSFI15060TTN", label: "LGMSFI15060TTN — 150Ah/60V TTN",       spec: "150Ah/60V TTN" },
+  { model: "LGMSFI20072PTT", label: "LGMSFI20072PTT — 200Ah/72V Lead Acid", spec: "200Ah/72V" },
+  { model: "LGMSFI20060TTN", label: "LGMSFI20060TTN — 200Ah/60V TTN",       spec: "200Ah/60V" },
+];
+const SOLAR_DEFAULT_PANEL_QTY: Record<number, Record<number, number>> = {
+  550: { 1:2, 2:4, 3:6, 5:9, 7:13, 10:18, 15:28, 20:36 },
+  560: { 1:2, 2:4, 3:6, 5:9, 7:13, 10:18, 15:28, 20:36 },
+  580: { 1:2, 2:4, 3:6, 5:9, 7:13, 10:18, 15:28, 20:36 },
+  590: { 1:2, 2:4, 3:6, 5:9, 7:13, 10:18, 15:28, 20:36 },
+  600: { 1:2, 2:4, 3:5, 5:9, 7:12, 10:18, 15:25, 20:30 },
+};
+interface SolarCosts {
+  solarPanels: number; inverter: number; battery: number;
+  structure: number; cablesWiring: number; netMeter: number;
+  transport: number; installation: number; miscAccessories: number;
+  serviceCharge5yr: number; contractorProfit: number;
+}
+function solarDefaultCosts(plantType: string, kw: number, phase: string = "1ph", panelQty: number = 0, wattage: number = 580): SolarCosts {
+  // Panel cost = qty × wattage × ₹32/watt (inclusive of GST)
+  const panelCost = panelQty > 0 ? panelQty * wattage * (PANEL_RATE_PER_KW.dcr / 600) : kw * PANEL_RATE_PER_KW.dcr;
+  const structure        = kw * 6000;
+  // BOS (Balance of System) — Cables & Wiring rate varies by plant type
+  const bosRatePerKw = plantType === "hybrid" ? 10000 : plantType === "ongrid" ? 8000 : plantType === "offgrid" ? 6000 : 6000;
+  const cablesWiring     = kw * bosRatePerKw;
+  const transport        = kw * 2000;
+  const installation     = kw * 3000;
+  const miscAccessories  = kw * 3500;
+  const serviceCharge5yr = kw * 4000;
+  const contractorProfit = kw * 3500;
+
+  if (plantType === "hybrid") {
+    const invRate = phase === "3ph" ? (kw <= 20 ? 27000 : 18000) : (kw <= 6 ? 16000 : kw <= 20 ? 27000 : 18000);
+    return { solarPanels: panelCost, inverter: kw*invRate, battery: kw*13000,
+      structure, cablesWiring, netMeter: kw*1000, transport, installation,
+      miscAccessories, serviceCharge5yr, contractorProfit };
+  }
+  if (plantType === "offgrid") {
+    const invRate = phase === "3ph" ? (kw <= 20 ? 27000 : 18000) : (kw <= 5 ? 12000 : kw <= 20 ? 27000 : 18000);
+    return { solarPanels: panelCost, inverter: kw*invRate, battery: kw*13000,
+      structure, cablesWiring, netMeter: 0, transport, installation,
+      miscAccessories, serviceCharge5yr, contractorProfit };
+  }
+  if (plantType === "ongrid") {
+    const invRate = phase === "3ph" ? 8000 : 6000;
+    return { solarPanels: panelCost, inverter: kw*invRate, battery: 0,
+      structure, cablesWiring, netMeter: kw*1000, transport, installation,
+      miscAccessories, serviceCharge5yr, contractorProfit };
+  }
+  if (plantType === "vfd_offgrid") {
+    return { solarPanels: panelCost, inverter: kw*2500, battery: 0,
+      structure, cablesWiring, netMeter: 0, transport, installation,
+      miscAccessories, serviceCharge5yr, contractorProfit };
+  }
+  if (plantType === "vfd_autogrid") {
+    return { solarPanels: panelCost, inverter: kw*3000, battery: 0,
+      structure, cablesWiring, netMeter: kw*1000, transport, installation,
+      miscAccessories, serviceCharge5yr, contractorProfit };
+  }
+  return { solarPanels: panelCost, inverter: kw*16000, battery: kw*13000,
+    structure, cablesWiring, netMeter: kw*1000, transport, installation,
+    miscAccessories, serviceCharge5yr, contractorProfit };
+}
+
+
+const INDIAN_STATES = [
+  { code: "01", name: "Jammu & Kashmir" }, { code: "02", name: "Himachal Pradesh" },
+  { code: "03", name: "Punjab" }, { code: "04", name: "Chandigarh" },
+  { code: "05", name: "Uttarakhand" }, { code: "06", name: "Haryana" },
+  { code: "07", name: "Delhi" }, { code: "08", name: "Rajasthan" },
+  { code: "09", name: "Uttar Pradesh" }, { code: "10", name: "Bihar" },
+  { code: "11", name: "Sikkim" }, { code: "12", name: "Arunachal Pradesh" },
+  { code: "13", name: "Nagaland" }, { code: "14", name: "Manipur" },
+  { code: "15", name: "Mizoram" }, { code: "16", name: "Tripura" },
+  { code: "17", name: "Meghalaya" }, { code: "18", name: "Assam" },
+  { code: "19", name: "West Bengal" }, { code: "20", name: "Jharkhand" },
+  { code: "21", name: "Odisha" }, { code: "22", name: "Chhattisgarh" },
+  { code: "23", name: "Madhya Pradesh" }, { code: "24", name: "Gujarat" },
+  { code: "27", name: "Maharashtra" }, { code: "29", name: "Karnataka" },
+  { code: "32", name: "Kerala" }, { code: "33", name: "Tamil Nadu" },
+  { code: "36", name: "Telangana" }, { code: "37", name: "Andhra Pradesh" },
+];
+
+const GST_RATES = ["0", "5", "12", "18", "28"];
+
+interface Product {
+  id: number; name: string; price: number; hsn_code: string;
+  gst_rate: number; unit: string; segment: string;
+  sub_segment?: string; is_combo: boolean; specifications?: any;
+  description?: string; model_code?: string; warranty?: string; mrp?: number; subcategory?: string;
+}
+
+interface LineItem {
+  key: string; product_id: number | null; product_name: string;
+  hsn_code: string; quantity: number; unit: string; unit_price: number;
+  markup_percent: number; discount_percent: number; gst_rate: number; segment?: string;
+  km?: number;
+}
+
+interface Customer {
+  id: number; name: string; phone: string; email: string;
+  gstin: string; address: string; city: string; state: string;
+  state_code: string; pin: string; district?: string;
+}
+
+
+// ── Solar Quotation Section Component ────────────────────────────────────────
+function SolarQuotationSection(p: any) {
+  const { solarEnabled, setSolarEnabled, solarPlantType, setSolarPlantType,
+    solarCapacityKw, setSolarCapacityKw, solarPanelModel, setSolarPanelModel,
+    solarPanelQty, setSolarPanelQty, solarInverterModel, setSolarInverterModel,
+    solarBatteryModel, setSolarBatteryModel, solarBatteryQty, setSolarBatteryQty,
+    solarPowerLoad, setSolarPowerLoad, solarBackupHours, setSolarBackupHours,
+    solarNetMeterOn, setSolarNetMeterOn, solarCosts, setSolarCosts,
+    solarRatesEdited, setSolarRatesEdited, solarShowBom, setSolarShowBom,
+    solarConsumerNo, setSolarConsumerNo, solarSiteAddress, setSolarSiteAddress,
+    solarQuotationDate, setSolarQuotationDate,
+    solarPartnerName, setSolarPartnerName, solarPartnerMobile, setSolarPartnerMobile,
+    solarLocalName, setSolarLocalName, solarLocalMobile, setSolarLocalMobile,
+    solarDownPct, setSolarDownPct,
+    solarHiddenRows, setSolarHiddenRows,
+    solarHideDownPayment, setSolarHideDownPayment,
+    solarPhase, setSolarPhase,
+    solarInstallType, setSolarInstallType,
+    solarUnitName, setSolarUnitName,
+    solarInverterSpec, setSolarInverterSpec, perWattRate, setPerWattRate, panelDcr, setPanelDcr,
+    solarVfdHp, setSolarVfdHp,
+    solarBatterySpec, setSolarBatterySpec,
+    solarBatteryType, setSolarBatteryType,
+    solarPanelMake, setSolarPanelMake,
+    solarStructType, setSolarStructType,
+    solarCableMake, setSolarCableMake, solarDcSize, setSolarDcSize, solarAcSize, setSolarAcSize,
+    companies, companyId, setCompanyId,
+  } = p;
+
+  const panel   = SOLAR_PANEL_OPTIONS.find(pp => pp.model === solarPanelModel);
+  const invList = SOLAR_INVERTER_OPTIONS[solarPlantType] ?? SOLAR_INVERTER_OPTIONS["hybrid"];
+  const inv     = invList.find((i: any) => i.model === solarInverterModel);
+  const bat     = SOLAR_BATTERY_OPTIONS.find(b => b.model === solarBatteryModel);
+
+  const activeCosts = { ...solarCosts,
+    netMeter: solarNetMeterOn && solarPlantType !== "offgrid" ? solarCosts.netMeter : 0,
+    battery:  solarPlantType === "ongrid" ? 0 : solarCosts.battery };
+
+  type SCKey = keyof SolarCosts;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const COST_ROWS: Array<{ key: SCKey; label: string; gst: 5|18 }> = [
+    { key:"solarPanels",      label:"Solar Panels",              gst:5  },
+    { key:"inverter",         label:"Inverter",                  gst:5  },
+    ...(solarPlantType!=="ongrid" && solarPlantType!=="vfd_offgrid" && solarPlantType!=="vfd_autogrid" ? [{ key:"battery" as SCKey, label:"Battery", gst:5 as 5|18 }] : []),
+    { key:"structure",        label:"Module Mounting Structure",  gst:18 },
+    { key:"cablesWiring",     label:"Cables & Wiring",           gst:18 },
+    ...(solarNetMeterOn && solarPlantType!=="offgrid" ? [{ key:"netMeter" as SCKey, label:"Net Meter", gst:18 as 5|18 }] : []),
+    { key:"transport",        label:"Transport",                 gst:18 },
+    { key:"installation",     label:"Installation",              gst:18 },
+    { key:"miscAccessories",  label:"Misc & Accessories",        gst:18 },
+    { key:"serviceCharge5yr", label:"Service Charge (5yr)",      gst:18 },
+    { key:"contractorProfit", label:"Contractor Profit",         gst:18 },
+  ];
+  const visibleRows = COST_ROWS.filter(r => !solarHiddenRows.has(r.key));
+  const total   = visibleRows.reduce((s,r) => s + ((activeCosts[r.key] as number)||0), 0);
+  const downPmt = Math.round(total * solarDownPct / 100);
+  const loan    = total - downPmt;
+  const gstSplit = (incl: number, pct: number) => {
+    const base = Math.round(incl/(1+pct/100)); return { base, gst: incl-base };
+  };
+  const bomRows = [
+    { model:solarPanelModel,    spec:`${panelBrandOf(solarPanelModel)} ${panel?.wattage??""  }Wp ${panel?.panelType??""} Panel — 12yr Mfg, 30yr Perf`, cat:"Module",      qty:`${solarPanelQty} Nos`,   brand:panelBrandOf(solarPanelModel) },
+    { model:solarInverterModel, spec:`${inv?.capacity??solarInverterModel} — 8yr Warranty`,                           cat:"Inverter",    qty:"1 Nos",                  brand:"Livguard" },
+    ...(solarPlantType!=="ongrid"&&!String(solarPlantType).startsWith("vfd")?[{model:solarBatteryModel,spec:`${bat?.spec??""} Lead Acid Battery`,cat:"Battery",qty:`${solarBatteryQty} Nos`,brand:"Livguard"}]:[]),
+    { model:"GI-MMS-60402",    spec:(solarStructType==="apollo"?"Galvanized Iron (GI) Structure":solarStructType==="zam"?"ZAM (Zinc-Aluminium-Magnesium) Coated Steel Structure":"Premium Magnelis Steel & Aluminium T6-6063 Module Mounting Structure 7308 (Set) 2P×3"), cat:"Structure", qty:"1 Set", brand:(solarStructType==="apollo"?"Apollo":solarStructType==="zam"?"Structure Wala":"SUNRACK") },
+    { model:"ACDB-DCDB-SPD",   spec:"DCDB 1IN1OUT IP65 SPD TypeII | ACDB IP65 MCB 32A 2P SPD TypeII+I",              cat:"Jn. Box",     qty:"1 Set",                  brand:"L&T / HAVELLS" },
+    { model:"EARTH-LA-KIT",    spec:"Earth Rod 1m + Chamber Box + Chemical 15kg + LA Conv. 1m + Cable 10sqmm 50m",   cat:"Earthing",    qty:"1 Kit",                  brand:"COPPER / REPUTED" },
+    { model:`${solarCableMake.toUpperCase()}-CABLES`, spec:`DC: 1Cx${solarDcSize}sqmm FR XLPO Solar | AC: 2Cx${solarAcSize}sqmm FR Cu XLPE | LT: 2Cx10sqmm AL-CCA`, cat:"Cables", qty:"As req.", brand:solarCableMake.toUpperCase() },
+    { model:"ACC-SOLAR-STD",   spec:"HDPE Conduit, Bends, Lugs, MC4 Connectors, Cable Ties, Saddles",                cat:"Accessories", qty:"1 Set",                  brand:"REPUTED" },
+    ...(solarPlantType!=="offgrid"?[{model:"NETMETER-SECURE",spec:"Net Energy Meter (Solar) — DISCOM Approved",cat:"Net Meter",qty:"1 Nos",brand:"SECURE"}]:[]),
+  ];
+
+  if (!solarEnabled) return (
+    <Card className="border-2 border-dashed border-blue-200 bg-blue-50/30">
+      <CardContent className="pt-5 pb-5 flex items-center justify-between">
+        <div>
+          <p className="font-semibold text-blue-800 text-sm">Solar Plant Quotation</p>
+          <p className="text-xs text-blue-500 mt-0.5">Enable for plant type, BOM, itemized GST & detailed 3-page PDF</p>
+        </div>
+        <Button size="sm" onClick={() => setSolarEnabled(true)} className="bg-blue-700 hover:bg-blue-800 text-white">
+          + Enable Solar Quotation
+        </Button>
+      </CardContent>
+    </Card>
+  );
+
+  return (
+    <div className="space-y-4">
+      {/* Company Selector */}
+      <div className="flex items-center gap-3 bg-white border-2 border-orange-300 rounded-lg px-4 py-2.5 shadow-sm">
+        <span className="text-sm font-bold text-gray-700 shrink-0">Select Company:</span>
+        <div className="flex gap-2 flex-1">
+          {companies.filter((c:any)=>c).map((c:any)=>(<button key={c.id} type="button"
+            onClick={()=>setCompanyId(String(c.id))}
+            className={"px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-all "+(String(companyId)===String(c.id)?"bg-orange-600 border-orange-600 text-white":"border-gray-300 text-gray-600 hover:border-orange-400")}>
+            {c.name}
+          </button>))}
+        </div>
+        {companies.find((c:any)=>String(c.id)===String(companyId)) && (
+          <span className="text-xs text-gray-500 shrink-0">
+            {companies.find((c:any)=>String(c.id)===String(companyId))?.bank_name?.split(",")[0]}
+          </span>
+        )}
+      </div>
+
+      <Card className="border-blue-300 bg-gradient-to-r from-blue-900 to-blue-700">
+        <CardContent className="pt-4 pb-4 flex items-center justify-between">
+          <div>
+            <p className="text-white font-bold text-base">☀️ Solar Plant Quotation</p>
+            <p className="text-blue-200 text-xs mt-0.5">
+              {solarCapacityKw}KW {solarPlantType==="offgrid"?"Off-Grid":solarPlantType==="ongrid"?"On-Grid":solarPlantType==="vfd_offgrid"?"VFD Off-Grid":solarPlantType==="vfd_autogrid"?"VFD Auto-Grid":"Hybrid"} · {solarInstallType.charAt(0).toUpperCase()+solarInstallType.slice(1)}{solarUnitName?" — "+solarUnitName:""} — {solarPanelQty}×{panel?.wattage}Wp
+            </p>
+          </div>
+          <Button size="sm" variant="outline" className="border-white/30 text-white hover:bg-white/10 text-xs" onClick={() => setSolarEnabled(false)}>Disable</Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3 pt-4"><CardTitle className="text-sm font-bold text-gray-700 uppercase tracking-wide">Plant Configuration</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">Plant Type</Label>
+              <div className="flex sm:flex-col gap-1.5 overflow-x-auto pb-1 sm:overflow-visible">
+                {([
+                  {v:"hybrid_lithium",  label:"🔋 Hybrid + Lithium",    bat:"lithium"},
+                  {v:"hybrid",          label:"🔋 Hybrid + Lead Acid",   bat:"lead_acid"},
+                  {v:"offgrid_lithium", label:"🌿 Off-Grid + Lithium",   bat:"lithium"},
+                  {v:"offgrid",         label:"🌿 Off-Grid + Lead Acid", bat:"lead_acid"},
+                  {v:"ongrid",          label:"⚡ On-Grid",              bat:"none"},
+                  {v:"vfd_offgrid",     label:"⚙️ VFD Off-Grid",        bat:"none"},
+                  {v:"vfd_autogrid",    label:"🔄 VFD Auto-Grid",        bat:"none"},
+                ] as const).map(t => (
+                  <button key={t.v} type="button" onClick={() => {
+                    setSolarPlantType(t.v as any);
+                    setSolarRatesEdited(false);
+                    setSolarCosts(prev => ({...solarDefaultCosts(t.v, solarCapacityKw, solarPhase, solarPanelQty, SOLAR_PANEL_OPTIONS.find(pp=>pp.model===solarPanelModel)?.wattage||580), inverter: prev.inverter, battery: prev.battery}));
+                    if(t.bat==="lithium") { setSolarBatteryType("lithium"); setSolarBatterySpec("BAT-LI-100AH"); }
+                    else if(t.bat==="lead_acid") { setSolarBatteryType("lead_acid"); setSolarBatterySpec("BAT-LA-200AH"); }
+                  }}
+                    className={`w-full py-2 px-3 text-xs font-semibold rounded-lg border-2 text-left transition-all ${solarPlantType===t.v?"border-blue-600 bg-blue-600 text-white":"border-gray-200 bg-white text-gray-600 hover:border-blue-400"}`}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">Installation Type</Label>
+              <div className="space-y-1.5">
+                {([
+                  { v: "residential",  label: "🏠 Residential",  hint: "Home / Society" },
+                  { v: "commercial",   label: "🏢 Commercial",   hint: "Shop / Office / Agency" },
+                  { v: "industrial",   label: "🏭 Industrial",   hint: "Factory / Mill / Unit" },
+                ] as const).map(t => (
+                  <button key={t.v} type="button"
+                    onClick={() => { setSolarInstallType(t.v); if(t.v==="residential") setSolarUnitName(""); }}
+                    className={`w-full py-2 px-3 rounded-lg border-2 text-left transition-all ${solarInstallType===t.v?"border-orange-500 bg-orange-500 text-white":"border-gray-200 bg-white text-gray-600 hover:border-orange-400"}`}>
+                    <div className="text-xs font-bold">{t.label}</div>
+                    <div className={`text-[10px] ${solarInstallType===t.v?"text-orange-100":"text-gray-400"}`}>{t.hint}</div>
+                  </button>
+                ))}
+              </div>
+              {(solarInstallType==="commercial"||solarInstallType==="industrial") && (
+                <div className="mt-2">
+                  <Label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1 block">
+                    {solarInstallType==="commercial"?"Business / Unit Name":"Industry / Factory Name"}
+                  </Label>
+                  <input
+                    type="text"
+                    value={solarUnitName}
+                    onChange={e => setSolarUnitName(e.target.value)}
+                    placeholder={solarInstallType==="commercial"?"e.g. Aarav Bikes Agency, Rice Mill":"e.g. Shree Steel Industries"}
+                    className="w-full h-9 text-sm border-2 border-orange-300 rounded-lg px-3 bg-orange-50 focus:border-orange-500 outline-none text-orange-900 font-medium"
+                  />
+                  {solarUnitName && (
+                    <div className="mt-1 flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded px-2 py-1">
+                      <span className="text-blue-500 text-xs">📋</span>
+                      <span className="text-xs font-semibold text-blue-700">{solarUnitName}</span>
+                      <span className={`ml-auto text-[10px] px-1.5 py-0.5 rounded-full font-bold ${solarInstallType==="commercial"?"bg-green-100 text-green-700":"bg-purple-100 text-purple-700"}`}>
+                        {solarInstallType==="commercial"?"Commercial":"Industrial"}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">Capacity</Label>
+              <div className="space-y-2">
+                <Select value={String(solarCapacityKw)} onValueChange={v => { setSolarCapacityKw(Number(v)); setSolarRatesEdited(false); setSolarCosts(prev => ({...solarDefaultCosts(solarPlantType, Number(v), solarPhase, solarPanelQty, SOLAR_PANEL_OPTIONS.find(pp=>pp.model===solarPanelModel)?.wattage||580), inverter: prev.inverter, battery: prev.battery})); }}>
+                  <SelectTrigger className="h-9 text-sm font-bold"><SelectValue /></SelectTrigger>
+                  <SelectContent className="max-h-64 overflow-y-auto">
+                    {CAPACITY_OPTIONS.map(kw => (
+                      <SelectItem key={kw} value={String(kw)}>{kw} KW</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">1 KW to 500 KW available</p>
+              </div>
+              {/* Phase Selector */}
+              <div>
+                <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">Phase</Label>
+                <div className="flex gap-2">
+                  {([
+                    { v: "1ph", label: "⚡ Single Phase", hint: "Residential / Small" },
+                    { v: "3ph", label: "⚡⚡ Three Phase", hint: "Commercial / Industrial" },
+                  ] as const).map(p => (
+                    <button key={p.v} type="button"
+                      onClick={() => {
+                        setSolarPhase(p.v);
+                        if (!solarRatesEdited) setSolarCosts(prev => ({...solarDefaultCosts(solarPlantType, solarCapacityKw, p.v, solarPanelQty, SOLAR_PANEL_OPTIONS.find(pp=>pp.model===solarPanelModel)?.wattage||580), inverter: prev.inverter, battery: prev.battery}));
+                      }}
+                      className={`flex-1 py-2 px-3 rounded-lg border-2 text-xs font-bold transition-all text-left ${
+                        solarPhase === p.v
+                          ? "border-indigo-600 bg-indigo-600 text-white"
+                          : "border-gray-200 text-gray-600 hover:border-indigo-400 bg-white"
+                      }`}>
+                      <div>{p.label}</div>
+                      <div className={`text-[10px] font-normal mt-0.5 ${solarPhase===p.v?"text-indigo-200":"text-gray-400"}`}>{p.hint}</div>
+                    </button>
+                  ))}
+                </div>
+                {solarPhase === "3ph" && (
+                  <p className="text-[11px] text-indigo-600 font-semibold mt-1.5 bg-indigo-50 px-2 py-1 rounded">
+                    ⚡ 3-Phase: Inverter rate set to ₹{solarCapacityKw<=20?"27,000":"18,000"}/KW
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div>
+                {/* DCR / Non-DCR Toggle */}
+                <div className="flex gap-2 mb-2">
+                  {([{v:"dcr",label:"✅ DCR Panel",hint:"₹30,000/kW",color:"blue"},{v:"nondcr",label:"☀️ Non-DCR Panel",hint:"₹18,000/kW",color:"green"}] as const).map(opt => (
+                    <button key={opt.v} type="button"
+                      onClick={() => {
+                        setPanelDcr(opt.v);
+                        const ratePerWatt = opt.v === "dcr" ? PANEL_RATE_PER_WATT.dcr : PANEL_RATE_PER_WATT.nondcr;
+                        setPerWattRate(Math.round(ratePerWatt * 100) / 100);
+                        const panelCost = solarPanelQty * watt * ratePerWatt;
+                        setSolarCosts((prev: any) => ({...prev, solarPanels: panelCost}));
+                        setSolarRatesEdited(true);
+                        // Switch panel model to match DCR preference
+                        const matching = SOLAR_PANEL_OPTIONS.filter(p => p.isDCR === (opt.v === "dcr"));
+                        if (matching.length && !matching.find(p => p.model === solarPanelModel)) {
+                          setSolarPanelModel(matching[0].model);
+                        }
+                      }}
+                      className={"flex-1 py-1.5 px-2 rounded-lg border-2 text-xs font-semibold transition-all " + (panelDcr===opt.v?(opt.v==="dcr"?"border-blue-500 bg-blue-50 text-blue-700":"border-green-500 bg-green-50 text-green-700"):"border-gray-200 bg-white text-gray-500 hover:border-gray-300")}>
+                      <div>{opt.label}</div>
+                      <div className="text-xs font-normal opacity-75">{opt.hint}</div>
+                    </button>
+                  ))}
+                </div>
+                <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Panel Make</Label>
+                <Select value={solarPanelMake} onValueChange={v => {
+                  setSolarPanelMake(v);
+                  const first = SOLAR_PANEL_OPTIONS.find(pp => pp.brand === v && pp.isDCR === (panelDcr === "dcr"))
+                             || SOLAR_PANEL_OPTIONS.find(pp => pp.brand === v);
+                  if (first) {
+                    setSolarPanelModel(first.model);
+                    setSolarCosts((prev: any) => ({...prev, solarPanels: solarPanelQty * first.wattage * perWattRate}));
+                  }
+                }}>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>{PANEL_MAKES.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+                </Select>
+                <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block mt-1.5">Solar Panel</Label>
+                <Select value={solarPanelModel} onValueChange={v => {
+                  setSolarPanelModel(v);
+                  const newPanelOpt = SOLAR_PANEL_OPTIONS.find(pp => pp.model === v);
+                  if(newPanelOpt) {
+                    const panelCost = solarPanelQty * newPanelOpt.wattage * perWattRate;
+                    setSolarCosts(prev => ({...prev, solarPanels: panelCost}));
+                  }
+                }}>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>{SOLAR_PANEL_OPTIONS.filter(pp => pp.isDCR === (panelDcr === "dcr") && pp.brand === solarPanelMake).map(pp => <SelectItem key={pp.model} value={pp.model}>{pp.brand} {pp.label} — {pp.wattage}Wp</SelectItem>)}</SelectContent>
+                </Select>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <Label className="text-xs text-muted-foreground whitespace-nowrap">Panels:</Label>
+                  <Input type="number" min={1} max={500} value={solarPanelQty}
+                    onChange={e => {
+                      const qty = Number(e.target.value);
+                      setSolarPanelQty(qty);
+                      const watt = SOLAR_PANEL_OPTIONS.find(pp=>pp.model===solarPanelModel)?.wattage || 580;
+                      const panelCost = qty * watt * perWattRate;
+                      setSolarCosts(prev => ({...prev, solarPanels: panelCost}));
+                    }}
+                    className="w-16 h-7 text-xs text-center font-bold border-2 border-orange-300" />
+                  <span className="text-xs text-muted-foreground">× {panel?.wattage}Wp</span>
+                </div>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <Label className="text-xs text-muted-foreground whitespace-nowrap">Rate (₹/Wp):</Label>
+                  <Input type="number" min={20} max={60} step={0.5} value={perWattRate}
+                    onChange={e => {
+                      const rate = Number(e.target.value);
+                      setPerWattRate(rate);
+                      const watt = SOLAR_PANEL_OPTIONS.find(pp=>pp.model===solarPanelModel)?.wattage || 580;
+                      const panelCost = solarPanelQty * watt * rate;
+                      setSolarCosts(prev => ({...prev, solarPanels: panelCost}));
+                      setSolarRatesEdited(true);
+                    }}
+                    className="w-16 h-7 text-xs text-center font-bold border-2 border-blue-300" />
+                  <span className="text-xs text-blue-600 font-semibold">₹/Watt</span>
+                  <span className="text-xs text-gray-400">Total: ₹{(solarPanelQty * (SOLAR_PANEL_OPTIONS.find(pp=>pp.model===solarPanelModel)?.wattage||580) * perWattRate).toLocaleString("en-IN")}</span>
+                </div>
+                <div className="flex items-center justify-between bg-orange-50 border border-orange-200 rounded px-2 py-1 mt-1">
+                  <span className="text-xs text-orange-700">{solarPanelQty} × {panel?.wattage}Wp × ₹32/W</span>
+                  <span className="text-xs font-bold text-green-700">= ₹{(solarPanelQty*(panel?.wattage||580)*32).toLocaleString("en-IN")}</span>
+                </div>
+              </div>
+              {solarPlantType!=="ongrid"&&!solarPlantType.startsWith("vfd") && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">Battery Specification</Label>
+                  <Select value={solarBatterySpec} onValueChange={v => {
+                    setSolarBatterySpec(v);
+                    const sp = BATTERY_SPECS.find(b=>b.model===v);
+                    if(sp){ setSolarBatteryType(sp.type as any); setSolarCosts(prev=>({...prev,battery:sp.price*solarBatteryQty})); }
+                  }}>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select battery..." /></SelectTrigger>
+                    <SelectContent>{BATTERY_SPECS.map(b=><SelectItem key={b.model} value={b.model}>{b.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                  {BATTERY_SPECS.find(b=>b.model===solarBatterySpec) && (
+                    <div className={`rounded px-2 py-1 text-xs flex justify-between items-center ${solarBatteryType==="lithium"?"bg-purple-50 border border-purple-200":"bg-blue-50 border border-blue-200"}`}>
+                      <span className={`font-bold ${solarBatteryType==="lithium"?"text-purple-700":"text-blue-700"}`}>
+                        {solarBatteryType==="lithium"?"⚡ Lithium":"🔋 Lead Acid"} — {BATTERY_SPECS.find(b=>b.model===solarBatterySpec)?.ah}Ah {BATTERY_SPECS.find(b=>b.model===solarBatterySpec)?.volt}V
+                      </span>
+                      <span className="font-bold text-green-700">₹{(BATTERY_SPECS.find(b=>b.model===solarBatterySpec)?.price||0).toLocaleString("en-IN")}/unit</span>
+                    </div>
+                  )}
+                  {/* Power Load Calculator */}
+                  <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-2 space-y-2">
+                    <div className="text-xs font-bold text-yellow-800 uppercase tracking-wide">⚡ Battery Calculator</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-[10px] text-gray-500">Power Load (Watts)</Label>
+                        <Input type="number" min={0} value={solarPowerLoad||""} placeholder="e.g. 2000"
+                          onChange={e => {
+                            const load = Number(e.target.value); setSolarPowerLoad(load);
+                            if(load>0 && solarBackupHours>0 && solarBatterySpec) {
+                              const bs = BATTERY_SPECS.find(b=>b.model===solarBatterySpec);
+                              if(bs) {
+                                const divisor = (bs as any).divisor || (bs.type==="lithium" ? 4500 : 1600);
+                                const qty = Math.ceil((load * solarBackupHours) / divisor);
+                                setSolarBatteryQty(qty);
+                                setSolarCosts(prev=>({...prev, battery: bs.price * qty}));
+                              }
+                            }
+                          }}
+                          className="h-7 text-xs border-yellow-300" />
+                      </div>
+                      <div>
+                        <Label className="text-[10px] text-gray-500">Backup Hours</Label>
+                        <Input type="number" min={0} value={solarBackupHours||""} placeholder="e.g. 8"
+                          onChange={e => {
+                            const hrs = Number(e.target.value); setSolarBackupHours(hrs);
+                            if(solarPowerLoad>0 && hrs>0 && solarBatterySpec) {
+                              const bs = BATTERY_SPECS.find(b=>b.model===solarBatterySpec);
+                              if(bs) {
+                                const divisor = (bs as any).divisor || (bs.type==="lithium" ? 4500 : 1600);
+                                const qty = Math.ceil((solarPowerLoad * hrs) / divisor);
+                                setSolarBatteryQty(qty);
+                                setSolarCosts(prev=>({...prev, battery: bs.price * qty}));
+                              }
+                            }
+                          }}
+                          className="h-7 text-xs border-yellow-300" />
+                      </div>
+                    </div>
+                    {solarPowerLoad>0 && solarBackupHours>0 && solarBatterySpec && (() => {
+                      const bs = BATTERY_SPECS.find(b=>b.model===solarBatterySpec);
+                      if(!bs) return null;
+                      const divisor = (bs as any).divisor || (bs.type==="lithium" ? 4500 : 1600);
+                      const qty = Math.ceil((solarPowerLoad * solarBackupHours) / divisor);
+                      return (
+                        <div className="text-[11px] bg-yellow-100 rounded px-2 py-1 text-yellow-900 font-semibold">
+                          ({solarPowerLoad}W × {solarBackupHours}h) ÷ {divisor} = <span className="text-green-700 text-sm font-black">{qty} batteries</span> recommended
+                        </div>
+                      );
+                    })()}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs whitespace-nowrap">No. of Batteries:</Label>
+                    <Input type="number" min={1} max={32} value={solarBatteryQty} onChange={e => {
+                      const q=Number(e.target.value); setSolarBatteryQty(q);
+                      const sp=BATTERY_SPECS.find(b=>b.model===solarBatterySpec);
+                      if(sp) setSolarCosts(prev=>({...prev,battery:sp.price*q}));
+                    }} className="w-16 h-7 text-xs text-center font-bold border-2 border-blue-300" />
+                  </div>
+                  {BATTERY_SPECS.find(b=>b.model===solarBatterySpec) && (
+                    <div className="text-xs font-bold text-green-700 bg-green-50 px-2 py-1 rounded">
+                      Total Battery: ₹{((BATTERY_SPECS.find(b=>b.model===solarBatterySpec)?.price||0)*solarBatteryQty).toLocaleString("en-IN")}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">Inverter Specification</Label>
+                {solarPlantType==="ongrid" ? (<>
+                  <Select value={solarInverterSpec} onValueChange={v => {
+                    setSolarInverterSpec(v); setSolarInverterModel(v);
+                    const sp=ONGRID_INVERTER_SPECS.find(i=>i.model===v);
+                    if(sp){ setSolarCosts(prev=>({...prev,inverter:sp.price})); setSolarRatesEdited(true); }
+                  }}>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select GI inverter..." /></SelectTrigger>
+                    <SelectContent className="max-h-72 overflow-y-auto">
+                      {ONGRID_INVERTER_SPECS.map(i=><SelectItem key={i.model} value={i.model}>{i.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  {(()=>{const sp=ONGRID_INVERTER_SPECS.find(i=>i.model===solarInverterSpec);return sp?(<div className="bg-green-50 border border-green-200 rounded px-2 py-1.5 text-xs flex justify-between"><span className="text-green-700 font-bold">{sp.spec} · {sp.phase==="1ph"?"1-Phase":"3-Phase"}</span><span className="font-black text-green-800">₹{sp.price.toLocaleString("en-IN")}</span></div>):null;})()}
+                </>) : solarPlantType==="vfd_offgrid" ? (<>
+                  <Label className="text-[10px] text-gray-500">VFD Off-Grid Capacity — ₹2,500/HP</Label>
+                  <Select value={`VFD-OG-${solarVfdHp}HP`} onValueChange={v=>{
+                    const opt=VFD_OFFGRID_OPTIONS.find(o=>o.model===v);
+                    if(opt){setSolarVfdHp(opt.hp);setSolarInverterModel(v);setSolarCosts(prev=>({...prev,inverter:opt.price}));setSolarRatesEdited(true);}
+                  }}>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent className="max-h-72 overflow-y-auto">
+                      {VFD_OFFGRID_OPTIONS.map(o=><SelectItem key={o.model} value={o.model}>{o.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <div className="bg-blue-50 border border-blue-200 rounded px-2 py-1.5 text-xs flex justify-between">
+                    <span className="text-blue-700 font-bold">{solarVfdHp} HP VFD Off-Grid</span>
+                    <span className="font-black text-green-800">₹{(solarVfdHp*4000).toLocaleString("en-IN")}</span>
+                  </div>
+                </>) : solarPlantType==="vfd_autogrid" ? (<>
+                  <Label className="text-[10px] text-gray-500">VFD Auto-Grid Capacity — ₹3,000/HP</Label>
+                  <Select value={`VFD-AG-${solarVfdHp}HP`} onValueChange={v=>{
+                    const opt=VFD_AUTOGRID_OPTIONS.find(o=>o.model===v);
+                    if(opt){setSolarVfdHp(opt.hp);setSolarInverterModel(v);setSolarCosts(prev=>({...prev,inverter:opt.price}));setSolarRatesEdited(true);}
+                  }}>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent className="max-h-72 overflow-y-auto">
+                      {VFD_AUTOGRID_OPTIONS.map(o=><SelectItem key={o.model} value={o.model}>{o.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <div className="bg-purple-50 border border-purple-200 rounded px-2 py-1.5 text-xs flex justify-between">
+                    <span className="text-purple-700 font-bold">{solarVfdHp} HP VFD Auto-Grid</span>
+                    <span className="font-black text-green-800">₹{(solarVfdHp*6000).toLocaleString("en-IN")}</span>
+                  </div>
+                </>) : (<>
+                  <Select value={solarInverterSpec} onValueChange={v=>{
+                    setSolarInverterSpec(v); setSolarInverterModel(v);
+                    const sp=INVERTER_SPECS.find(i=>i.model===v);
+                    if(sp&&sp.price>0){setSolarCosts(prev=>({...prev,inverter:sp.price}));setSolarRatesEdited(true);}
+                  }}>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select inverter spec..." /></SelectTrigger>
+                    <SelectContent className="max-h-72 overflow-y-auto">
+                      {INVERTER_SPECS.map(i=><SelectItem key={i.model} value={i.model}>{i.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  {(()=>{const sp=INVERTER_SPECS.find(i=>i.model===solarInverterSpec);return sp&&sp.price>0?(<div className="bg-orange-50 border border-orange-200 rounded px-2 py-1 text-xs flex justify-between"><span className="text-orange-700 font-semibold">{sp.spec}</span><span className="font-bold text-green-700">₹{sp.price.toLocaleString("en-IN")}</span></div>):null;})()}
+                  {solarInverterSpec==="INV-CUSTOM"&&(<div className="flex items-center gap-2"><Label className="text-xs whitespace-nowrap">Price (₹):</Label><Input type="number" min={0} placeholder="Enter price" onChange={e=>{setSolarCosts(prev=>({...prev,inverter:Number(e.target.value)}));setSolarRatesEdited(true);}} className="h-7 text-xs border-orange-300" /></div>)}
+                </>)}
+              </div>
+              <div>
+                <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">📅 Quotation Date</Label>
+                <input type="date" value={solarQuotationDate}
+                  onChange={e => setSolarQuotationDate(e.target.value)}
+                  className="w-full h-9 text-sm font-bold border-2 border-blue-300 rounded-lg px-3 bg-white focus:border-blue-500 outline-none text-blue-900" />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Consumer No. (DISCOM)</Label>
+                <Input value={solarConsumerNo} onChange={e => setSolarConsumerNo(e.target.value)} placeholder="e.g. 146311947516" className="h-8 text-xs" />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Site Address</Label>
+                <Input value={solarSiteAddress} onChange={e => setSolarSiteAddress(e.target.value)} placeholder="Installation site address" className="h-8 text-xs" />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Structure Make</Label>
+                <Select value={solarStructType} onValueChange={setSolarStructType}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sunrack">SUNRACK - Magnelis Steel + Al T6-6063</SelectItem>
+                    <SelectItem value="apollo">Apollo - Galvanized Iron (GI)</SelectItem>
+                    <SelectItem value="zam">Structure Wala - ZAM Coated Steel</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Cable Make (FR)</Label>
+                <Select value={solarCableMake} onValueChange={setSolarCableMake}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>{["Polycab","KEI","Finolex","Havells"].map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">DC Cable (sq mm)</Label>
+                <Select value={solarDcSize} onValueChange={setSolarDcSize}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>{["2.5","4","6","10"].map(m => <SelectItem key={m} value={m}>{m} sq mm</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">AC Cable (sq mm)</Label>
+                <Select value={solarAcSize} onValueChange={setSolarAcSize}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>{["2.5","4","6","10","16","25"].map(m => <SelectItem key={m} value={m}>{m} sq mm</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-100">
+            <div>
+              <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">District Partner Name</Label>
+              <Input value={solarPartnerName} onChange={e => setSolarPartnerName(e.target.value)} placeholder="Enter district partner name" className="h-8 text-sm" />
+            </div>
+            <div>
+              <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Partner Mobile Number</Label>
+              <Input value={solarPartnerMobile} onChange={e => setSolarPartnerMobile(e.target.value)} placeholder="10-digit mobile number" className="h-8 text-sm" />
+            </div>
+            <div>
+              <Label className="text-[10px] text-gray-500">LOCAL CONTACT PERSON NAME</Label>
+              <Input value={solarLocalName} onChange={e => setSolarLocalName(e.target.value)} placeholder="Enter local contact person name" className="h-8 text-sm" />
+            </div>
+            <div>
+              <Label className="text-[10px] text-gray-500">LOCAL CONTACT MOBILE NUMBER</Label>
+              <Input value={solarLocalMobile} onChange={e => setSolarLocalMobile(e.target.value)} placeholder="10-digit mobile number" className="h-8 text-sm" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-0 pt-4 px-5">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-bold text-gray-700 uppercase tracking-wide">Itemized Cost Breakdown — Inclusive of GST</CardTitle>
+            <div className="flex gap-2">
+              {solarPlantType!=="offgrid" && (
+                <Button size="sm" variant={solarNetMeterOn?"default":"outline"} className={`h-7 text-xs px-3 ${solarNetMeterOn?"bg-green-600 hover:bg-green-700":""}`} onClick={() => setSolarNetMeterOn(!solarNetMeterOn)}>
+                  Net Meter: {solarNetMeterOn?"ON":"OFF"}
+                </Button>
+              )}
+              <Button size="sm" variant="outline" className="h-7 text-xs px-3" onClick={() => { setSolarRatesEdited(false); setSolarCosts(prev => ({...solarDefaultCosts(solarPlantType, solarCapacityKw, solarPhase, solarPanelQty, SOLAR_PANEL_OPTIONS.find(pp=>pp.model===solarPanelModel)?.wattage||580), inverter: prev.inverter, battery: prev.battery})); }}>Reset to Default</Button>
+              {solarRatesEdited && <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-xs">Rates Applied</Badge>}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="px-3 pb-3">
+          <div className="mb-3 p-3 bg-gray-50 border border-gray-200 rounded-xl">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-gray-600 uppercase tracking-wide">👁 Show / Hide Items in Quotation</span>
+              <button type="button" onClick={() => setSolarHiddenRows(new Set())} className="text-[10px] text-blue-600 font-semibold hover:underline">Show All</button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {COST_ROWS.map(row => {
+                const hidden = solarHiddenRows.has(row.key);
+                return (
+                  <button key={row.key} type="button"
+                    onClick={() => setSolarHiddenRows(prev => { const n=new Set(prev); hidden?n.delete(row.key):n.add(row.key); return n; })}
+                    className={`px-2 py-1 rounded-full text-[11px] font-semibold border transition-all ${hidden?"bg-gray-200 text-gray-400 border-gray-300 line-through":"bg-white text-gray-700 border-gray-300 hover:border-red-400 hover:text-red-600"}`}>
+                    {hidden?"✕ ":"✓ "}{row.label}
+                  </button>
+                );
+              })}
+              <button type="button" onClick={() => setSolarHideDownPayment(p=>!p)}
+                className={`px-2 py-1 rounded-full text-[11px] font-semibold border transition-all ${solarHideDownPayment?"bg-gray-200 text-gray-400 border-gray-300 line-through":"bg-amber-50 text-amber-700 border-amber-300 hover:border-red-400"}`}>
+                {solarHideDownPayment?"✕ ":"✓ "}Down Payment
+              </button>
+            </div>
+            {solarHiddenRows.size>0 && <p className="text-[10px] text-orange-600 mt-1 font-medium">⚠️ {solarHiddenRows.size} item(s) hidden from quotation</p>}
+          </div>
+          {/* Mobile-first cost breakdown cards */}
+          <div className="space-y-2">
+            {COST_ROWS.map((row, i) => { if(solarHiddenRows.has(row.key)) return null;
+              const val = (activeCosts[row.key] as number)||0;
+              const { base, gst } = gstSplit(val, row.gst);
+              const ratePerKw = Math.round(Math.round((solarCosts[row.key] as number) / (1 + row.gst / 100)) / solarCapacityKw);
+              return (
+                <div key={row.key} className={`rounded-xl border-2 ${i%2===0?"bg-white border-gray-100":"bg-slate-50 border-slate-100"} overflow-hidden`}>
+                  {/* Row header */}
+                  <div className={`flex items-center justify-between px-3 py-2 ${row.gst===5?"bg-green-600":"bg-blue-700"}`}>
+                    <span className="text-white font-bold text-sm">{row.label}</span>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${row.gst===5?"bg-green-400 text-green-900":"bg-blue-400 text-blue-900"}`}>GST {row.gst}%</span>
+                  </div>
+                  {/* Row body */}
+                  <div className="px-3 py-2 grid grid-cols-2 gap-2">
+                    {/* Left: base + gst */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-500">Base Amt</span>
+                        <span className="text-sm font-semibold text-gray-800">₹{base.toLocaleString("en-IN")}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-500">GST Amt</span>
+                        <span className="text-sm text-orange-600 font-medium">₹{gst.toLocaleString("en-IN")}</span>
+                      </div>
+                    </div>
+                    {/* Right: rate/kw input + total */}
+                    <div className="space-y-1">
+                      <div>
+                        <div className="text-[10px] text-gray-400 mb-0.5 text-right">Rate/KW (editable)</div>
+                        <input
+                          type="number"
+                          value={ratePerKw}
+                          onChange={e => {
+                            setSolarRatesEdited(true);
+                            const rpk = Number(e.target.value);
+                            const b = rpk * solarCapacityKw;
+                            const incl = Math.round(b * (1 + row.gst / 100));
+                            setSolarCosts((prev: SolarCosts) => ({ ...prev, [row.key]: incl }));
+                          }}
+                          className="w-full h-9 text-right text-sm font-bold border-2 border-orange-300 rounded-lg px-2 focus:border-orange-500 outline-none bg-orange-50 text-orange-800"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-2 py-1.5">
+                        <span className="text-[10px] text-green-600 font-medium">Incl. GST</span>
+                        <span className="text-sm font-black text-green-800">₹{val.toLocaleString("en-IN")}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Total bar */}
+          <div className="mt-3 rounded-xl bg-blue-900 text-white px-4 py-3 flex items-center justify-between">
+            <div>
+              <div className="text-xs text-blue-300">Total GST</div>
+              <div className="text-sm font-semibold">₹{visibleRows.reduce((s,r)=>s+gstSplit((activeCosts[r.key] as number)||0,r.gst).gst,0).toLocaleString("en-IN")}</div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-blue-300">Grand Total (Incl. GST)</div>
+              <div className="text-2xl font-black">₹{total.toLocaleString("en-IN")}</div>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground italic px-1 pt-2">Panels / Inverters / Batteries @ 5% GST · Structure / Cables / Accessories / Service / Contractor @ 18% GST</p>
+        </CardContent>
+      </Card>
+
+      {!solarHideDownPayment && <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5">
+        <span className="text-sm font-semibold text-gray-700">Down Payment:</span>
+        <div className="flex items-center gap-2">
+          <input
+            type="number" min={5} max={100} step={5}
+            value={solarDownPct}
+            onChange={e => setSolarDownPct(Math.min(100, Math.max(1, Number(e.target.value))))}
+            className="w-16 h-8 text-center text-sm font-bold border-2 border-amber-400 rounded focus:border-amber-600 outline-none bg-white"
+          />
+          <span className="text-sm font-semibold text-gray-600">%</span>
+        </div>
+        <div className="flex gap-2 ml-2">
+          {[10,15,20,25,30,40,50].map(p => (
+            <button key={p} type="button"
+              onClick={() => setSolarDownPct(p)}
+              className={`px-2 py-1 text-xs rounded font-semibold transition-all ${solarDownPct===p?"bg-amber-500 text-white":"bg-white border border-amber-300 text-amber-700 hover:bg-amber-100"}`}>
+              {p}%
+            </button>
+          ))}
+        </div>
+        <span className="ml-auto text-sm font-bold text-amber-700">= ₹{downPmt.toLocaleString("en-IN")}</span>
+      </div>}
+
+      <div className="grid grid-cols-3 gap-4">
+        {[{label:"PLANT COST",sub:"incl. all GST",val:total,bg:"from-blue-700 to-blue-900"},...(!solarHideDownPayment?[{label:`DOWN PAYMENT (${solarDownPct}%)`,sub:"advance payment",val:downPmt,bg:"from-orange-500 to-orange-700"},{label:"LOAN AMOUNT",sub:"EMI financing",val:loan,bg:"from-green-600 to-green-800"}]:[])].map(c => (
+          <div key={c.label} className={`bg-gradient-to-br ${c.bg} rounded-xl p-4 text-white shadow`}>
+            <p className="text-xs font-bold uppercase tracking-wide text-white/70 mb-1">{c.label}</p>
+            <p className="text-2xl font-black">₹{c.val.toLocaleString("en-IN")}</p>
+            <p className="text-xs text-white/50 mt-1">{c.sub}</p>
+          </div>
+        ))}
+      </div>
+
+      <Card>
+        <CardHeader className="pb-2 pt-4 cursor-pointer" onClick={() => setSolarShowBom(!solarShowBom)}>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-bold text-gray-700 uppercase tracking-wide">📋 Bill of Materials — {bomRows.length} items</CardTitle>
+            {solarShowBom ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+          </div>
+        </CardHeader>
+        {solarShowBom && (
+          <CardContent className="px-0 pb-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-blue-900 text-white">
+                    <th className="py-2 px-3 text-left w-8">#</th><th className="py-2 px-2 text-left w-44">Model / Code</th>
+                    <th className="py-2 px-2 text-left">Specification</th><th className="py-2 px-2 text-left w-24">Category</th>
+                    <th className="py-2 px-2 text-center w-20">Qty</th><th className="py-2 px-3 text-left w-28">Brand</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bomRows.map((row, i) => (
+                    <tr key={i} className={`border-b hover:bg-accent/20 ${i%2===0?"":"bg-muted/30"}`}>
+                      <td className="py-2 px-3 text-muted-foreground">{i+1}</td>
+                      <td className="py-2 px-2 font-mono text-blue-700 font-semibold text-xs">{row.model}</td>
+                      <td className="py-2 px-2 text-gray-600 leading-snug">{row.spec}</td>
+                      <td className="py-2 px-2"><Badge variant="secondary" className="text-xs">{row.cat}</Badge></td>
+                      <td className="py-2 px-2 text-center font-semibold">{row.qty}</td>
+                      <td className="py-2 px-3 text-muted-foreground">{row.brand}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+
+export default function QuotationForm() {
+  const { toast } = useToast();
+
+  // ── State ──────────────────────────────────────────────────
+  const [companyId, setCompanyId] = useState("1");
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [segments, setSegments] = useState<Record<string, Product[]>>({});
+  const [expandedSegments, setExpandedSegments] = useState<Set<string>>(new Set());
+  const [expandedSubSegments, setExpandedSubSegments] = useState<Set<string>>(new Set());
+  const [expandedKits, setExpandedKits] = useState<Set<number>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  // Customer
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [customerResults, setCustomerResults] = useState<Customer[]>([]);
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [customerMode, setCustomerMode] = useState<"search" | "new">("search");
+  const [customerForm, setCustomerForm] = useState({
+    name: "", phone: "", email: "", gstin: "",
+    address: "", city: "", state: "Bihar", state_code: "10", pin: "",
+    consumer_number: "", plant_capacity: "", plant_type: ""
+  });
+
+  // Line items
+  const [lineItems, setLineItems] = useState<LineItem[]>([]);
+
+  // Quotation meta
+  const [notes, setNotes] = useState("");
+  const [validDays, setValidDays] = useState("15");
+  const [savedQuotationId, setSavedQuotationId] = useState<number | null>(null);
+  const [savedQuotationNo, setSavedQuotationNo] = useState<string>("");
+
+  // ── Solar Quotation state ────────────────────────────────────────────────
+  const [solarEnabled, setSolarEnabled] = useState(false);
+  const [solarPlantType, setSolarPlantType] = useState<"hybrid"|"offgrid"|"ongrid"|"vfd_offgrid"|"vfd_autogrid">("hybrid");
+  const [solarPhase, setSolarPhase] = useState<"1ph"|"3ph">("1ph");
+  const [solarInstallType, setSolarInstallType] = useState<"residential"|"commercial"|"industrial">("residential");
+  const [solarUnitName, setSolarUnitName] = useState("");
+  const [solarCapacityKw, setSolarCapacityKw] = useState(3);
+  const [extraCharges, setExtraCharges] = useState<number>(0);
+  const [solarPanelModel, setSolarPanelModel] = useState("LGTPV580WBNTOPDCR");
+  const [solarPanelQty, setSolarPanelQty] = useState(6);
+  const [solarInverterModel, setSolarInverterModel] = useState("NOVARALG5648GIH");
+  const [perWattRate, setPerWattRate] = useState(30);
+  const [panelDcr, setPanelDcr] = useState<"dcr"|"nondcr">("dcr");
+  const [solarInverterSpec, setSolarInverterSpec] = useState("INV-5K-IP65-1PH");
+  const [solarVfdHp, setSolarVfdHp] = useState(10);
+  const [solarBatteryModel, setSolarBatteryModel] = useState("LGMSFI22572PTT");
+  const [solarBatterySpec, setSolarBatterySpec] = useState("BAT-LA-200AH");
+  const [solarBatteryType, setSolarBatteryType] = useState<"lead_acid"|"lithium">("lead_acid");
+  const [solarBatteryQty, setSolarBatteryQty] = useState(4);
+  const [solarPowerLoad, setSolarPowerLoad] = useState(0);
+  const [solarBackupHours, setSolarBackupHours] = useState(0);
+  const [solarDownPct, setSolarDownPct] = useState(25);
+  const [solarHiddenRows, setSolarHiddenRows] = useState<Set<string>>(new Set());
+  const [solarHideDownPayment, setSolarHideDownPayment] = useState(false);
+  const [solarNetMeterOn, setSolarNetMeterOn] = useState(true);
+  const [solarCosts, setSolarCosts] = useState<SolarCosts>(() => solarDefaultCosts("hybrid", 3, "1ph", 6, 580));
+  const [solarRatesEdited, setSolarRatesEdited] = useState(false);
+  const [solarShowBom, setSolarShowBom] = useState(false);
+  const [solarConsumerNo, setSolarConsumerNo] = useState("");
+  const [solarQuotationDate, setSolarQuotationDate] = useState(new Date().toISOString().split("T")[0]);
+  const [solarSiteAddress, setSolarSiteAddress] = useState("");
+  const [solarPanelMake, setSolarPanelMake] = useState("Livguard Solar");
+  const [solarStructType, setSolarStructType] = useState("sunrack");
+  const [solarCableMake, setSolarCableMake] = useState("Polycab");
+  const [solarDcSize, setSolarDcSize] = useState("4");
+  const [solarAcSize, setSolarAcSize] = useState("4");
+  const [solarPartnerName, setSolarPartnerName] = useState("");
+  const [solarPartnerMobile, setSolarPartnerMobile] = useState("");
+  const [solarLocalName, setSolarLocalName] = useState("");
+  const [solarLocalMobile, setSolarLocalMobile] = useState("");
+  const [solarPdfLoading, setSolarPdfLoading] = useState(false);
+
+  // PDF opens in new tab, no loading state needed
+
+  const searchTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  // ── Load data ──────────────────────────────────────────────
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/billing/products/segments").then(r => r.json()),
+      fetch("/api/billing/companies").then(r => r.json()),
+    ]).then(([prodData, compData]) => {
+      setSegments(prodData.segments || {});
+      setCompanies(compData.companies || compData || []);
+      setLoading(false);
+    }).catch(err => {
+      console.error(err);
+      toast({ title: "Error", description: "Failed to load products", variant: "destructive" });
+      setLoading(false);
+    });
+  }, []);
+  // ── Load existing quotation when editing (?edit=<id>) ────────────────────
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const editId = params.get("edit");
+    if (!editId) return;
+    fetch(`/api/billing/invoices/${editId}`).then(r => r.json()).then(data => {
+      if (!data || data.error) {
+        toast({ title: "Error", description: "Could not load quotation for editing", variant: "destructive" });
+        return;
+      }
+      setSavedQuotationId(data.id);
+        if (customerForm.plant_type) fetch(`/api/billing/invoices/${data.id}/plant-type`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plant_type: customerForm.plant_type }) }).catch(() => {});
+      setSavedQuotationNo(data.invoice_no || "");
+      setCompanyId(String(data.company_id || "1"));
+      setCustomerForm((f: any) => ({
+        ...f,
+        name: data.customer_name || "",
+        phone: data.customer_phone || "",
+        email: data.customer_email || "",
+        gstin: data.customer_gstin || "",
+        address: data.customer_address || "",
+        city: data.customer_city || "",
+        state: data.customer_state || "",
+        state_code: data.customer_state_code || "",
+        pin: data.customer_pin || "",
+      }));
+      if (data.customer_id) {
+        setSelectedCustomer({
+          id: data.customer_id, name: data.customer_name || "", phone: data.customer_phone || "",
+          email: data.customer_email || "", gstin: data.customer_gstin || "", address: data.customer_address || "",
+          city: data.customer_city || "", state: data.customer_state || "", state_code: data.customer_state_code || "",
+          pin: data.customer_pin || "",
+        } as any);
+      }
+      setNotes(data.notes || "");
+      if (Array.isArray(data.items) && data.items.length > 0) {
+        setLineItems(data.items.map((it: any) => ({
+          key: Math.random().toString(36).slice(2),
+          product_id: it.product_id ?? null,
+          product_name: it.description || it.product_name || "",
+          hsn_code: it.hsn_code || "",
+          quantity: Number(it.quantity) || 1,
+          unit: it.unit || "Nos",
+          unit_price: Number(it.rate) || 0,
+          markup_percent: 0,
+          discount_percent: Number(it.discount_percent) || 0,
+          gst_rate: Number(it.gst_rate) || 0,
+        })));
+      }
+      toast({ title: "Quotation loaded", description: data.invoice_no || "Ready to edit" });
+    }).catch(err => {
+      console.error(err);
+      toast({ title: "Error", description: "Failed to load quotation", variant: "destructive" });
+    });
+  }, []);
+
+  // ── Customer search with debounce ──────────────────────────
+  useEffect(() => {
+    if (false) { // allow empty search
+      setCustomerResults([]);
+      setShowCustomerDropdown(false);
+      return;
+    }
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/billing/customers/search?q=${encodeURIComponent(customerSearch)}`);
+        const data = await res.json();
+        setCustomerResults(data.customers || []);
+        setShowCustomerDropdown(true);
+      } catch (err) {
+        console.error(err);
+      }
+    }, 300);
+  }, [customerSearch]);
+
+  // ── Select customer from dropdown ──────────────────────────
+  function selectCustomer(cust: Customer) {
+    setSelectedCustomer(cust);
+    setCustomerForm({
+      name: cust.name || "",
+      phone: cust.phone || "",
+      email: cust.email || "",
+      gstin: cust.gstin || "",
+      address: cust.address || "",
+      city: cust.city || cust.district || "",
+      state: cust.state || "Bihar",
+      state_code: cust.state_code || "10",
+      pin: cust.pin || "",
+      consumer_number: (cust as any).consumer_number || "",
+      plant_capacity: (cust as any).plant_capacity || "",
+      plant_type: (cust as any).plant_type || "",
+    });
+    setCustomerSearch(cust.name);
+    setShowCustomerDropdown(false);
+  }
+
+  // ── Line item helpers ──────────────────────────────────────
+  function createEmptyLine(): LineItem {
+    return {
+      key: Math.random().toString(36).slice(2),
+      product_id: null, product_name: "", hsn_code: "",
+      quantity: 1, unit: "Pcs", unit_price: 0,
+      markup_percent: 0, discount_percent: 0, gst_rate: 12, km: 0,
+    };
+  }
+
+  function addProductToQuotation(product: Product) {
+    const existing = lineItems.find(li => li.product_id === product.id);
+    if (existing) {
+      setLineItems(prev => prev.map(li =>
+        li.product_id === product.id ? { ...li, quantity: li.quantity + 1 } : li
+      ));
+      toast({ title: "Quantity Updated", description: `${product.name} qty +1` });
+      return;
+    }
+    const newLine: LineItem = {
+      key: Math.random().toString(36).slice(2),
+      product_id: product.id, product_name: product.name,
+      hsn_code: product.hsn_code, quantity: 1,
+      unit: product.unit || "Pcs", unit_price: product.price,
+      markup_percent: 0, discount_percent: 0, gst_rate: product.gst_rate || 12,
+      segment: product.segment,
+    };
+    setLineItems(prev => [...prev, newLine]);
+    toast({ title: "Added", description: product.name });
+  }
+
+  function updateLineItem(key: string, field: keyof LineItem, value: any) {
+    setLineItems(prev => prev.map(li => li.key === key ? { ...li, [field]: value } : li));
+  }
+
+  function removeLine(key: string) {
+    setLineItems(prev => {
+      const filtered = prev.filter(li => li.key !== key);
+      return filtered.length === 0 ? [createEmptyLine()] : filtered;
+    });
+  }
+  function moveLineItem(key: string, direction: "up" | "down") {
+    setLineItems(prev => {
+      const idx = prev.findIndex(li => li.key === key);
+      if (idx === -1) return prev;
+      const swapWith = direction === "up" ? idx - 1 : idx + 1;
+      if (swapWith < 0 || swapWith >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[swapWith]] = [next[swapWith], next[idx]];
+      return next;
+    });
+  }
+
+  // ── Calculations ───────────────────────────────────────────
+  const companyState = companies.find(c => c.id === Number(companyId))?.state_code || "10";
+  const isIntraState = companyState === customerForm.state_code;
+
+  const SPECIAL_CHARGE_IDS = { transport: 2452, loanProcessing: 2453, loanInsurance: 2454 };
+  const baseTaxableForCharges = lineItems
+    .filter(li => ![SPECIAL_CHARGE_IDS.transport, SPECIAL_CHARGE_IDS.loanProcessing, SPECIAL_CHARGE_IDS.loanInsurance].includes(li.product_id || 0))
+    .reduce((sum, li) => {
+      const effectivePrice = Math.round(li.unit_price * (1 + (li.markup_percent||0)/100));
+      return sum + li.quantity * effectivePrice;
+    }, 0);
+  const calculations = lineItems.map(li => {
+    let amount: number;
+    if (li.product_id === SPECIAL_CHARGE_IDS.transport) {
+      amount = 5000 + 40 * (Number(li.km) || 0);
+    } else if (li.product_id === SPECIAL_CHARGE_IDS.loanProcessing) {
+      amount = Math.round(baseTaxableForCharges * 0.03);
+    } else if (li.product_id === SPECIAL_CHARGE_IDS.loanInsurance) {
+      amount = Math.round(baseTaxableForCharges * 0.01);
+    } else {
+      const effectivePrice = Math.round(li.unit_price * (1 + (li.markup_percent||0)/100));
+      amount = li.quantity * effectivePrice;
+    }
+    const discountAmt = 0; // discount internal only
+    const taxable = amount;
+    const gstAmt = taxable * li.gst_rate / 100;
+    const cgst = isIntraState ? gstAmt / 2 : 0;
+    const sgst = isIntraState ? gstAmt / 2 : 0;
+    const igst = isIntraState ? 0 : gstAmt;
+    return { amount, discountAmt, taxable, cgst, sgst, igst, total: taxable + gstAmt };
+  });
+
+  const totals = calculations.reduce((acc, c) => ({
+    subtotal: acc.subtotal + c.taxable,
+    cgst: acc.cgst + c.cgst,
+    sgst: acc.sgst + c.sgst,
+    igst: acc.igst + c.igst,
+    grand: acc.grand + c.total,
+  }), { subtotal: 0, cgst: 0, sgst: 0, igst: 0, grand: 0 });
+  totals.grand += Number(extraCharges) || 0;
+
+  function toggleSegment(seg: string) {
+    setExpandedSegments(prev => {
+      const next = new Set(prev);
+      next.has(seg) ? next.delete(seg) : next.add(seg);
+      return next;
+    });
+  }
+  function toggleSubSegment(key: string) {
+    setExpandedSubSegments(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  }
+
+  // ── Save quotation ────────────────────────────────────────
+  async function saveQuotation() {
+    if (!customerForm.name) {
+      toast({ title: "Error", description: "Customer name is required", variant: "destructive" });
+      return;
+    }
+    if (!solarEnabled && (lineItems.length === 0 || lineItems.every(li => !li.product_name && !li.product_id))) {
+      toast({ title: "Error", description: "Add at least one product", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = {
+        company_id: Number(companyId),
+        invoice_type: "quotation",
+        customer_id: selectedCustomer?.id || null,
+        customer_name: customerForm.name,
+        buyer_gstin: customerForm.gstin,
+        buyer_address: customerForm.address,
+        buyer_city: customerForm.city,
+        buyer_state: customerForm.state,
+        buyer_state_code: customerForm.state_code,
+        buyer_pin: customerForm.pin,
+        buyer_phone: customerForm.phone,
+        buyer_email: customerForm.email,
+        due_date: new Date(Date.now() + Number(validDays) * 86400000).toISOString().split("T")[0],
+        notes,
+        solar_system_specs: solarEnabled ? {
+          plantType: solarPlantType, capacityKw: solarCapacityKw,
+          moduleCount: solarPanelQty, modulePower: SOLAR_PANEL_OPTIONS.find(p=>p.model===solarPanelModel)?.wattage??580,
+          panelModel: solarPanelModel, panelType: SOLAR_PANEL_OPTIONS.find(p=>p.model===solarPanelModel)?.panelType??"",
+          inverterModel: solarInverterModel,
+          inverterCapacity: (() => { const vfd=[...VFD_OFFGRID_OPTIONS,...VFD_AUTOGRID_OPTIONS].find((i:any)=>i.model===solarInverterModel); if(vfd) return `${vfd.hp} HP ${String(solarPlantType)==="vfd_offgrid"?"VFD Off-Grid":"VFD Auto-Grid"}`; const sp=INVERTER_SPECS?.find((i:any)=>i.model===solarInverterModel); if(sp) return sp.spec; const og=ONGRID_INVERTER_SPECS?.find((i:any)=>i.model===solarInverterModel); if(og) return og.spec; const invList=SOLAR_INVERTER_OPTIONS[solarPlantType]??SOLAR_INVERTER_OPTIONS["hybrid"]; return invList.find((i:any)=>i.model===solarInverterModel)?.capacity??solarInverterModel; })(),
+          batteryModel: solarBatterySpec || solarBatteryModel,
+          batterySpec: (() => { const bs=BATTERY_SPECS.find((b:any)=>b.model===solarBatterySpec); return bs?`${bs.ah}Ah/${bs.volt}V`:SOLAR_BATTERY_OPTIONS.find(b=>b.model===solarBatteryModel)?.spec??""; })(),
+          batteryType: (() => { const bs=BATTERY_SPECS.find((b:any)=>b.model===solarBatterySpec); return bs?bs.type:"lead_acid"; })(),
+          batteryQty: solarPlantType==="ongrid"?0:solarBatteryQty,
+          phase: solarPhase, installType: solarInstallType, unitName: solarUnitName,
+          cableMake: solarCableMake, dcSize: solarDcSize, acSize: solarAcSize,
+          structureType: solarStructType, panelBrand: panelBrandOf(solarPanelModel),
+        } : null,
+        items: [
+          ...lineItems
+            .map((li, idx) => ({ li, calc: calculations[idx] }))
+            .filter(({ li }) => li.product_name || li.product_id)
+            .map(({ li, calc }) => {
+              const isSpecialCharge = [2452, 2453, 2454].includes(li.product_id || 0);
+              const effectivePrice = isSpecialCharge
+                ? Math.round((calc?.amount || 0) / (li.quantity || 1))
+                : Math.round(li.unit_price * (1 + (li.markup_percent||0)/100));
+              return {
+                product_id: li.product_id,
+                description: li.product_name,
+                product_name: li.product_name,
+                hsn_code: li.hsn_code,
+                quantity: li.quantity,
+                unit: li.unit,
+                unit_price: effectivePrice,
+                markup_percent: isSpecialCharge ? 0 : (li.markup_percent||0),
+                discount_percent: 0,
+                gst_rate: li.gst_rate,
+              };
+            }),
+          ...(Number(extraCharges) > 0 ? [{
+            product_id: null,
+            description: "Additional Charges",
+            product_name: "Additional Charges",
+            hsn_code: "",
+            quantity: 1,
+            unit: "Nos",
+            unit_price: Number(extraCharges),
+            markup_percent: 0,
+            discount_percent: 0,
+            gst_rate: 0,
+          }] : []),
+        ],
+      };
+
+      const res = await fetch("/api/billing/invoices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save");
+
+      const id = data.invoice?.id || data.id;
+      const no = data.invoice?.invoice_no || data.invoice_no || "";
+      setSavedQuotationId(id);
+        if (customerForm.plant_type) fetch(`/api/billing/invoices/${id}/plant-type`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plant_type: customerForm.plant_type }) }).catch(() => {});
+      setSavedQuotationNo(no);
+      toast({ title: "✅ Quotation Saved!", description: no || "Saved successfully" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+
+  // ── Solar config auto-update ─────────────────────────────────────────────
+  useEffect(() => {
+    if (!solarRatesEdited) setSolarCosts(prev => ({...solarDefaultCosts(solarPlantType, solarCapacityKw, solarPhase, solarPanelQty, SOLAR_PANEL_OPTIONS.find(pp=>pp.model===solarPanelModel)?.wattage||580), inverter: prev.inverter, battery: prev.battery}));
+    if (!String(solarPlantType).startsWith("vfd")) {
+      const invList = SOLAR_INVERTER_OPTIONS[solarPlantType] ?? SOLAR_INVERTER_OPTIONS["hybrid"];
+      if (invList.length && !invList.find((i: any) => i.model === solarInverterModel))
+        setSolarInverterModel(invList[0].model);
+    }
+    // Auto-select correct ongrid inverter based on capacity and phase
+    if (solarPlantType === "ongrid") {
+      const targetPhase = solarPhase === "3ph" ? "3ph" : "1ph";
+      const bestOngrid = ONGRID_INVERTER_SPECS.find(i => i.kw >= solarCapacityKw && i.phase === targetPhase)
+        || ONGRID_INVERTER_SPECS.filter(i => i.phase === targetPhase).slice(-1)[0]
+        || ONGRID_INVERTER_SPECS[ONGRID_INVERTER_SPECS.length - 1];
+      if (bestOngrid) { setSolarInverterModel(bestOngrid.model); setSolarInverterSpec(bestOngrid.model); if(!solarRatesEdited) setSolarCosts(prev=>({...prev,inverter:bestOngrid.price})); }
+    }
+    const watt = SOLAR_PANEL_OPTIONS.find(p => p.model === solarPanelModel)?.wattage ?? 580;
+    setSolarPanelQty(SOLAR_DEFAULT_PANEL_QTY[watt]?.[solarCapacityKw] ?? Math.ceil((solarCapacityKw * 1000) / watt));
+    if (solarPlantType === "offgrid" || solarPlantType === "vfd_offgrid") setSolarNetMeterOn(false); else setSolarNetMeterOn(true);
+  }, [solarPlantType, solarCapacityKw, solarPanelModel, solarPhase]);
+
+  // Ongrid inverter auto-select
+  useEffect(() => {
+    if (solarPlantType !== "ongrid") return;
+    const tph = solarPhase === "3ph" ? "3ph" : "1ph";
+    const best = ONGRID_INVERTER_SPECS.find((i:any) => i.kw >= solarCapacityKw && i.phase === tph)
+      || ONGRID_INVERTER_SPECS.filter((i:any) => i.phase === tph).slice(-1)[0];
+    if (best) {
+      setSolarInverterModel(best.model);
+      setSolarInverterSpec(best.model);
+      setSolarCosts((prev:any) => ({...prev, inverter: best.price}));
+    }
+  }, [solarPlantType, solarCapacityKw, solarPhase]);
+
+  // ── PDF / Email / WhatsApp ─────────────────────────────────
+  function getPdfUrl(): string {
+    return `${window.location.origin}/api/billing/invoices/${savedQuotationId}/pdf`;
+  }
+
+  function downloadPDF() {
+    if (solarEnabled) {
+      setSolarPdfLoading(true);
+      const panel   = SOLAR_PANEL_OPTIONS.find(p => p.model === solarPanelModel);
+      const invList = SOLAR_INVERTER_OPTIONS[solarPlantType] ?? SOLAR_INVERTER_OPTIONS["hybrid"];
+      const inv     = invList.find((i: any) => i.model === solarInverterModel);
+      const bat     = SOLAR_BATTERY_OPTIONS.find(b => b.model === solarBatteryModel);
+      const activeCosts = { ...solarCosts,
+        netMeter: solarNetMeterOn && solarPlantType !== "offgrid" ? solarCosts.netMeter : 0,
+        battery:  solarPlantType === "ongrid" ? 0 : solarCosts.battery };
+      [...solarHiddenRows].forEach(k => { (activeCosts as any)[k] = 0; });
+      fetch("/api/billing/quotations/solar-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          quotationId: savedQuotationId, companyId,
+          downPaymentPct: solarDownPct,
+          hiddenRows: [...solarHiddenRows],
+          hideDownPayment: solarHideDownPayment,
+          quotationDate: solarQuotationDate,
+          customer: selectedCustomer ?? customerForm,
+          consumerNo: solarConsumerNo, siteAddress: solarSiteAddress,
+          partnerName: solarPartnerName, partnerMobile: solarPartnerMobile,
+          localContactName: solarLocalName, localContactMobile: solarLocalMobile,
+          system: {
+            plantType: solarPlantType, phase: solarPhase, installType: solarInstallType, unitName: solarUnitName, capacityKw: solarCapacityKw,
+            moduleCount: solarPanelQty, modulePower: panel?.wattage ?? 580,
+            panelModel: solarPanelModel, panelType: panel?.panelType ?? "",
+            inverterModel: solarInverterModel,
+            inverterCapacity: (() => {
+              const invSpec = INVERTER_SPECS?.find((i:any)=>i.model===solarInverterModel);
+              if(invSpec) return invSpec.spec;
+              const ongridSpec = ONGRID_INVERTER_SPECS?.find((i:any)=>i.model===solarInverterModel);
+              if(ongridSpec) return ongridSpec.spec;
+              return inv?.capacity ?? solarInverterModel;
+            })(),
+            batteryModel: solarBatterySpec || solarBatteryModel,
+            batterySpec: (() => { const bs = BATTERY_SPECS?.find((b:any)=>b.model===solarBatterySpec); return bs ? `${bs.ah}Ah/${bs.volt}V` : bat?.spec ?? ""; })(),
+            batteryType: (() => { const bs = BATTERY_SPECS.find((b:any)=>b.model===solarBatterySpec); console.log("BATTERY CHECK spec=",solarBatterySpec,"found=",bs,"type=",bs?.type); return bs ? bs.type : (solarBatteryType||"lead_acid"); })(),
+            batteryQty: solarPlantType === "ongrid" ? 0 : solarBatteryQty,
+            cableMake: solarCableMake, dcSize: solarDcSize, acSize: solarAcSize,
+            structureType: solarStructType, panelBrand: panelBrandOf(solarPanelModel),
+          },
+          costs: activeCosts,
+        }),
+      })
+      .then(r => { if (!r.ok) throw new Error("PDF failed"); return r.blob(); })
+      .then(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Quotation_${(selectedCustomer?.name ?? customerForm.name).replace(/\s+/g,"_")}_${solarCapacityKw}KW.pdf`;
+        a.click(); URL.revokeObjectURL(url);
+        toast({ title: "✅ PDF Downloaded" });
+      })
+      .catch(() => toast({ title: "Error", description: "PDF generation failed", variant: "destructive" }))
+      .finally(() => setSolarPdfLoading(false));
+    } else {
+      if (!savedQuotationId) {
+        toast({ title: "Save first", description: "Please save the quotation before downloading PDF", variant: "destructive" });
+        return;
+      }
+      window.open(`/api/billing/invoices/${savedQuotationId}/pdf`, "_blank");
+      toast({ title: "✅ PDF Opened", description: "Use Ctrl+P to save as PDF" });
+    }
+  }
+
+  async function sendEmail() {
+    if (!savedQuotationId) {
+      toast({ title: "Save first", description: "Please save the quotation first", variant: "destructive" });
+      return;
+    }
+    const email = customerForm.email;
+    if (!email) {
+      toast({ title: "No email", description: "Please enter customer email address", variant: "destructive" });
+      return;
+    }
+    try {
+      const res = await fetch(`/api/billing/invoices/${savedQuotationId}/send-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({ title: "✅ Email Sent!", description: `Quotation sent to ${email}` });
+      } else {
+        toast({ title: "Email Failed", description: data.error || "Could not send email", variant: "destructive" });
+      }
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Error", description: "Failed to send email", variant: "destructive" });
+    }
+  }
+
+  function sendWhatsApp() {
+    if (!savedQuotationId) {
+      toast({ title: "Save first", description: "Please save the quotation first", variant: "destructive" });
+      return;
+    }
+    const phone = customerForm.phone;
+    if (!phone) {
+      toast({ title: "No phone", description: "Please enter customer WhatsApp number", variant: "destructive" });
+      return;
+    }
+    const clean = phone.replace(/[^0-9]/g, "");
+    const wa = clean.startsWith("91") ? clean : "91" + clean;
+    const pdfUrl = getPdfUrl();
+
+    // Build item summary (max 5 items shown)
+    const itemLines = lineItems
+      .filter(li => li.product_name)
+      .slice(0, 5)
+      .map((li, i) => `${i + 1}. ${li.product_name} × ${li.quantity} = ₹${(li.quantity * li.unit_price).toLocaleString('en-IN')}`)
+      .join("\n");
+    const moreItems = lineItems.filter(li => li.product_name).length > 5
+      ? `\n... and ${lineItems.filter(li => li.product_name).length - 5} more items`
+      : "";
+
+    const msg = encodeURIComponent(
+      `*Quotation ${savedQuotationNo} — Divyanshi Solar* ☀️\n\n` +
+      `Dear ${customerForm.name},\n\n` +
+      `${itemLines}${moreItems}\n\n` +
+      `*Total: ₹${totals.grand.toLocaleString('en-IN', { minimumFractionDigits: 2 })}*\n` +
+      `Valid for: ${validDays} days\n\n` +
+      `📄 PDF: ${pdfUrl}\n\n` +
+      `Thank you!\n_Divyanshi Solar_ | 📞 9801005212`
+    );
+    window.open(`https://wa.me/${wa}?text=${msg}`, "_blank");
+    toast({ title: "✅ WhatsApp", description: "Opening WhatsApp..." });
+  }
+
+  // ── Render ─────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <span className="ml-3 text-lg">Loading product catalog...</span>
+      </div>
+    );
+  }
+
+  const orderedSegments = SEGMENT_ORDER.filter(s => segments[s]?.length > 0);
+  Object.keys(segments).forEach(s => {
+    if (!orderedSegments.includes(s) && segments[s]?.length > 0) orderedSegments.push(s);
+  });
+
+  return (
+    <div className="p-4 md:p-6 max-w-[1400px] mx-auto">
+      {/* ── Header ──────────────────────────────────────────── */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => window.history.back()}>
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-primary">Create Quotation</h1>
+            <p className="text-sm text-muted-foreground">Select products by segment, auto-fill customer</p>
+          </div>
+        </div>
+        {savedQuotationId && (
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={downloadPDF} >
+              <Download className="w-4 h-4 mr-2" /> PDF
+            </Button>
+            <Button variant="outline" onClick={sendEmail}
+              className="text-blue-600 border-blue-300 hover:bg-blue-50">
+              <Mail className="w-4 h-4 mr-2" /> Email
+            </Button>
+            <Button variant="outline" onClick={sendWhatsApp}
+              className="text-green-600 border-green-300 hover:bg-green-50">
+              <Phone className="w-4 h-4 mr-2" /> WhatsApp
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* ═══ LEFT: Product Catalog by Segment ═══ */}
+        <div className="lg:col-span-1 space-y-2 max-h-[85vh] overflow-y-auto pr-2">
+          <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider mb-3">
+            📦 Product Catalog
+          </h3>
+          {orderedSegments.map(segName => {
+            const meta = SEGMENT_META[segName] || { icon: "📦", color: "#6b7280" };
+            const products = segments[segName] || [];
+            const isOpen = expandedSegments.has(segName);
+            return (
+              <div key={segName} className="border rounded-lg overflow-hidden">
+                <button
+                  onClick={() => toggleSegment(segName)}
+                  className="w-full flex items-center justify-between p-3 hover:bg-accent/50 transition-colors"
+                  style={{ borderLeft: `4px solid ${meta.color}` }}
+                >
+                  <span className="flex items-center gap-2 font-medium text-sm">
+                    <span>{meta.icon}</span>
+                    {segName}
+                    <Badge variant="secondary" className="text-xs">{products.length}</Badge>
+                  </span>
+                  {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                </button>
+                {isOpen && (
+                  <div className="border-t divide-y">
+                    {(() => {
+                      const renderProductRow = (prod: Product) => {
+                      const isKitOpen = expandedKits.has(prod.id);
+                      const KIT_SEGMENTS = ["Lead-Acid Hybrid Solar Kit","Lithium Hybrid Solar Kit","Off-Grid Solar Kit","On-Grid Solar System","Solar EPC Power Project"];
+                      const isKit     = prod.is_combo || KIT_SEGMENTS.includes(prod.segment);
+                      const kitSpecs: any = null;
+
+                      // ── Kit / Combo product ──────────────────────────────
+                      if (isKit) return (
+                        <div key={prod.id} className="border-b last:border-0">
+                          {/* Kit header row */}
+                          <div className="flex items-center justify-between p-2 px-3 hover:bg-accent/30 group text-sm">
+                            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => addProductToQuotation(prod)}>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-semibold text-blue-800 leading-tight">{prod.name}</span>
+                                <Badge className="text-[9px] py-0 px-1 bg-blue-700 text-white">KIT</Badge>
+                                {prod.sub_segment && (
+                                  <Badge variant="outline" className="text-[9px] py-0 px-1">{prod.sub_segment}</Badge>
+                                )}
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-0.5">
+                                HSN: {prod.hsn_code} | GST: {prod.gst_rate}%
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 ml-2 shrink-0">
+                              <span className="font-bold text-primary whitespace-nowrap text-sm">
+                                ₹{prod.price.toLocaleString('en-IN')}
+                              </span>
+                              {/* Expand specs button */}
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setExpandedKits(prev => { const n = new Set(prev); n.has(prod.id) ? n.delete(prod.id) : n.add(prod.id); return n; }); }}
+                                className={`p-1 rounded transition-colors ${isKitOpen ? "bg-blue-100 text-blue-700" : "hover:bg-accent text-muted-foreground"}`}
+                                title="View specifications"
+                              >
+                                {isKitOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => addProductToQuotation(prod)}
+                                className="p-1 rounded hover:bg-green-100 text-green-600 transition-colors"
+                                title="Add to quotation"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Expandable spec panel */}
+                          {isKitOpen && (
+                            <div className="bg-blue-50 dark:bg-blue-950/40 border-t border-blue-100 dark:border-blue-900 px-3 py-2.5 space-y-2">
+                              {/* Full item description */}
+                              {prod.description && (
+                                <div className="text-xs text-gray-700 dark:text-gray-200 bg-white/70 dark:bg-black/20 rounded p-2 border border-blue-100 dark:border-blue-900">
+                                  <span className="font-semibold text-blue-700 dark:text-blue-300">Description: </span>{prod.description}
+                                </div>
+                              )}
+                              {/* Spec grid */}
+                              {kitSpecs && Object.keys(kitSpecs).length > 0 ? (
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                                  {Object.entries(kitSpecs).map(([k, v]) => (
+                                    <div key={k} className="text-xs">
+                                      <span className="text-muted-foreground">{k}: </span>
+                                      <span className="font-semibold text-gray-800">{String(v)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                /* Parse from product name dynamically */
+                                <div className="text-xs text-muted-foreground italic">Expand to see specifications from product name</div>
+                              )}
+
+                              {/* Fixed BOM items always shown for solar kits */}
+                              <div className="pt-1.5 border-t border-blue-200">
+                                <p className="text-[10px] font-semibold text-blue-700 uppercase tracking-wide mb-1">Includes in BOM</p>
+                                <div className="grid grid-cols-1 gap-0.5">
+                                  {[
+                                    { icon:"🏗️", text:"G.I. Pipe Mounting Structure (60×40×2mm) — HINDUSTAR" },
+                                    { icon:"⚡", text:"ACDB / DCDB — MCB & SPD — L&T / Havells" },
+                                    { icon:"🌱", text:"Earthing & Lightning Arrestor — Copper / Reputed" },
+                                    { icon:"🔌", text:"DC + AC + LT Cables — Polycab" },
+                                    { icon:"🔧", text:"Conduit, Lugs, MC4 Connectors, Saddles — Reputed" },
+                                    ...(!prod.segment?.toLowerCase().includes("off") ? [{ icon:"📟", text:"Net Energy Meter — SECURE" }] : []),
+                                  ].map((item, i) => (
+                                    <div key={i} className="flex items-start gap-1 text-[10px] text-gray-600">
+                                      <span>{item.icon}</span>
+                                      <span>{item.text}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Add button */}
+                              <button
+                                type="button"
+                                onClick={() => addProductToQuotation(prod)}
+                                className="w-full mt-1 py-1.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1"
+                              >
+                                <Plus className="w-3 h-3" /> Add to Quotation
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+
+                      // ── Regular (non-kit) product ────────────────────────
+                      return (
+                        <div key={prod.id} className="border-b last:border-0">
+                          <div
+                            className="flex items-center justify-between p-2 px-3 hover:bg-accent/30 cursor-pointer group text-sm"
+                            onClick={() => addProductToQuotation(prod)}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium leading-snug text-foreground">{prod.name}</div>
+                              <div className="text-xs text-muted-foreground">
+                                HSN: {prod.hsn_code} | GST: {prod.gst_rate}%
+                                {prod.model_code && <span> | Model: {prod.model_code}</span>}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 ml-2 shrink-0">
+                              <span className="font-semibold text-primary whitespace-nowrap">
+                                ₹{prod.price.toLocaleString('en-IN')}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setExpandedKits(prev => { const n = new Set(prev); n.has(prod.id) ? n.delete(prod.id) : n.add(prod.id); return n; }); }}
+                                className={`p-1 rounded transition-colors ${isKitOpen ? "bg-blue-100 text-blue-700" : "hover:bg-accent text-muted-foreground"}`}
+                                title="View full details"
+                              >
+                                {isKitOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                              </button>
+                              <Plus className="w-4 h-4 opacity-0 group-hover:opacity-100 text-green-600 transition-opacity" />
+                            </div>
+                          </div>
+                          {isKitOpen && (
+                            <div className="bg-blue-50 dark:bg-blue-950/40 border-t border-blue-100 dark:border-blue-900 px-3 py-2 space-y-1 text-xs text-gray-700 dark:text-gray-200">
+                              {prod.description && (
+                                <div><span className="font-semibold text-blue-700 dark:text-blue-300">Description: </span>{prod.description}</div>
+                              )}
+                              {prod.model_code && (
+                                <div><span className="font-semibold text-blue-700 dark:text-blue-300">Model Code: </span>{prod.model_code}</div>
+                              )}
+                              {prod.subcategory && (
+                                <div><span className="font-semibold text-blue-700 dark:text-blue-300">Category: </span>{prod.subcategory}</div>
+                              )}
+                              {prod.warranty && (
+                                <div><span className="font-semibold text-blue-700 dark:text-blue-300">Warranty: </span>{prod.warranty}</div>
+                              )}
+                              {!!prod.mrp && prod.mrp > 0 && (
+                                <div><span className="font-semibold text-blue-700 dark:text-blue-300">MRP: </span>₹{prod.mrp.toLocaleString('en-IN')}</div>
+                              )}
+                              {!prod.description && !prod.model_code && !prod.warranty && (!prod.mrp || prod.mrp <= 0) && (
+                                <div className="italic text-gray-400 dark:text-gray-500">No additional details available</div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                      };
+
+                      // Group products by sub_segment (if present)
+                      const subGroups: Record<string, Product[]> = {};
+                      let hasSubSegments = false;
+                      products.forEach((p) => {
+                        const key = p.sub_segment || "_none";
+                        if (p.sub_segment) hasSubSegments = true;
+                        if (!subGroups[key]) subGroups[key] = [];
+                        subGroups[key].push(p);
+                      });
+
+                      if (!hasSubSegments) {
+                        return products.map((prod: Product) => renderProductRow(prod));
+                      }
+
+                      return Object.entries(subGroups).map(([subName, subProducts]) => {
+                        const subKey = `${segName}::${subName}`;
+                        const subOpen = expandedSubSegments.has(subKey);
+                        return (
+                          <div key={subKey}>
+                            <button
+                              type="button"
+                              onClick={() => toggleSubSegment(subKey)}
+                              className="w-full flex items-center justify-between p-2 px-4 pl-6 hover:bg-accent/40 transition-colors bg-muted/30 border-b"
+                            >
+                              <span className="flex items-center gap-2 font-medium text-xs uppercase tracking-wide text-muted-foreground">
+                                🔹 {subName === "_none" ? "Other" : subName}
+                                <Badge variant="outline" className="text-[10px]">{subProducts.length}</Badge>
+                              </span>
+                              {subOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                            </button>
+                            {subOpen && (
+                              <div className="divide-y">
+                                {subProducts.map((prod: Product) => renderProductRow(prod))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* ═══ RIGHT: Quotation Form ═══ */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* ── Company & Customer ─────────────────────────── */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Building2 className="w-4 h-4" /> Billing Company
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Select value={companyId} onValueChange={setCompanyId}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {companies.map((c: any) => (
+                      <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <User className="w-4 h-4" /> Customer
+                </CardTitle>
+                <div className="flex mt-2 rounded-lg border overflow-hidden text-xs font-medium">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomerMode("search");
+                      setCustomerSearch("");
+                      setSelectedCustomer(null);
+                      setCustomerForm({ name: "", phone: "", email: "", gstin: "", address: "", city: "", state: "", state_code: "" });
+                    }}
+                    className={`flex-1 px-3 py-1.5 transition-colors ${customerMode === "search" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-accent"}`}
+                  >
+                    🔍 Search Existing
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomerMode("new");
+                      setCustomerSearch("");
+                      setSelectedCustomer(null);
+                      setShowCustomerDropdown(false);
+                      setCustomerForm({ name: "", phone: "", email: "", gstin: "", address: "", city: "", state: "", state_code: "" });
+                    }}
+                    className={`flex-1 px-3 py-1.5 transition-colors ${customerMode === "new" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-accent"}`}
+                  >
+                    + New Customer
+                  </button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {customerMode === "search" && (
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search name, phone, email, GSTIN..."
+                      value={customerSearch}
+                      onChange={(e) => {
+                        setCustomerSearch(e.target.value);
+                        setSelectedCustomer(null);
+                      }}
+                      className="pl-9"
+                    />
+                    {showCustomerDropdown && customerResults.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        {customerResults.map(cust => (
+                          <div
+                            key={cust.id}
+                            className="p-2 px-3 hover:bg-accent cursor-pointer border-b last:border-0"
+                            onClick={() => selectCustomer(cust)}
+                          >
+                            <div className="font-medium text-sm">{cust.name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              📞 {cust.phone} {cust.email && `| ✉️ ${cust.email}`}
+                              {cust.gstin && ` | GST: ${cust.gstin}`}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {selectedCustomer && (
+                      <p className="text-xs text-green-600 mt-1">✅ Auto-filled from: {selectedCustomer.name}</p>
+                    )}
+                  </div>
+                )}
+                {customerMode === "new" && (
+                  <p className="text-xs text-muted-foreground">Fill in customer details below ↓</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* ── Customer details ──────────────────────────── */}
+          <Card>
+            <CardContent className="pt-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div>
+                  <Label className="text-xs">Customer Name *</Label>
+                  <Input value={customerForm.name} onChange={e => setCustomerForm(f => ({ ...f, name: e.target.value }))} />
+                </div>
+                <div>
+                  <Label className="text-xs">Phone</Label>
+                  <Input value={customerForm.phone} onChange={e => setCustomerForm(f => ({ ...f, phone: e.target.value }))} />
+                </div>
+                <div>
+                  <Label className="text-xs">Email</Label>
+                  <Input value={customerForm.email} onChange={e => setCustomerForm(f => ({ ...f, email: e.target.value }))} />
+                </div>
+                <div>
+                  <Label className="text-xs">GSTIN</Label>
+                  <Input value={customerForm.gstin} onChange={e => setCustomerForm(f => ({ ...f, gstin: e.target.value }))} placeholder="Optional" />
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-xs">Address</Label>
+                  <Input value={customerForm.address} onChange={e => setCustomerForm(f => ({ ...f, address: e.target.value }))} />
+                </div>
+                <div>
+                  <Label className="text-xs">City</Label>
+                  <Input value={customerForm.city} onChange={e => setCustomerForm(f => ({ ...f, city: e.target.value }))} />
+                </div>
+                <div>
+                  <Label className="text-xs">Consumer Number</Label>
+                  <Input value={customerForm.consumer_number} onChange={e => setCustomerForm(f => ({ ...f, consumer_number: e.target.value }))} />
+                </div>
+                <div>
+                  <Label className="text-xs">Plant Capacity (kW)</Label>
+                  <Input value={customerForm.plant_capacity} onChange={e => setCustomerForm(f => ({ ...f, plant_capacity: e.target.value }))} />
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-xs">Plant Type</Label>
+                  <Select value={customerForm.plant_type || undefined}
+                    onValueChange={v => { setCustomerForm(f => ({ ...f, plant_type: v })); const _cid = (selectedCustomer as any)?.id; if (_cid) fetch(`/api/billing/customers/${_cid}/plant-type`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plant_type: v }) }).catch(() => {}); }}>
+                    <SelectTrigger><SelectValue placeholder="Select plant type" /></SelectTrigger>
+                    <SelectContent className="max-h-72">
+                      {PLANT_TYPES.map(pt => (
+                        <SelectItem key={pt} value={pt}><span className="text-xs">{pt}</span></SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">State</Label>
+                  <Select value={customerForm.state_code} onValueChange={v => {
+                    const st = INDIAN_STATES.find(s => s.code === v);
+                    setCustomerForm(f => ({ ...f, state: st?.name || "", state_code: v }));
+                  }}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {INDIAN_STATES.map(s => (
+                        <SelectItem key={s.code} value={s.code}>{s.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* ── Line Items Table ──────────────────────────── */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <Package className="w-4 h-4" /> Line Items
+                </span>
+                <Button size="sm" variant="outline" onClick={() => setLineItems(prev => [...prev, createEmptyLine()])}>
+                  <Plus className="w-3 h-3 mr-1" /> Add Row
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm" style={{minWidth:"860px"}}>
+                  <thead>
+                    <tr className="bg-primary/5 text-left">
+                      <th className="p-2 w-8">#</th>
+                      <th className="p-2">Product</th>
+                      <th className="p-2 w-16">HSN</th>
+                      <th className="p-2 w-16">Qty</th>
+                      <th className="p-2 w-16 text-blue-600 bg-blue-50 font-bold">KM</th>
+                      <th className="p-2 w-24">Rate (₹)</th>
+                      <th className="p-2 w-20 text-amber-600 bg-amber-50 font-bold">Markup%</th>
+                      <th className="p-2 w-24 text-green-700 bg-green-50 font-bold">Eff. Rate</th>
+                      <th className="p-2 w-16">Disc%</th>
+                      <th className="p-2 w-16">GST%</th>
+                      <th className="p-2 w-24 text-right">Amount</th>
+                      <th className="p-2 w-8"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lineItems.map((li, idx) => {
+                      const calc = calculations[idx];
+                      return (
+                        <tr key={li.key} className="border-b hover:bg-accent/20">
+                          <td className="p-2 text-center text-muted-foreground">{idx + 1}</td>
+                          <td className="p-2">
+                            <Input
+                              value={li.product_name}
+                              onChange={e => updateLineItem(li.key, "product_name", e.target.value)}
+                              placeholder="Product name or custom description"
+                              className="h-8 text-sm"
+                            />
+                            {li.segment && (
+                              <span className="text-[10px] text-muted-foreground">{li.segment}</span>
+                            )}
+                          </td>
+                          <td className="p-2">
+                            <Input value={li.hsn_code} onChange={e => updateLineItem(li.key, "hsn_code", e.target.value)} className="h-8 text-sm w-16" />
+                          </td>
+                          <td className="p-2">
+                            <Input type="number" value={li.quantity} min={1}
+                              onChange={e => updateLineItem(li.key, "quantity", Number(e.target.value))} className="h-8 text-sm w-16" />
+                          </td>
+                          <td className="p-2">
+                            {li.product_id === 2452 ? (
+                              <Input type="number" value={li.km || ""} min={0}
+                                onChange={e => updateLineItem(li.key, "km", Number(e.target.value) || 0)}
+                                placeholder="0" className="h-8 text-sm w-16 border-blue-400 bg-blue-50" />
+                            ) : (
+                              <span className="text-muted-foreground text-xs px-2">—</span>
+                            )}
+                          </td>
+                          <td className="p-2">
+                            {/* Base Rate — auto-computed & locked for special charge lines */}
+                            {[2452,2453,2454].includes(li.product_id || 0) ? (
+                              <div className="h-8 flex items-center justify-end px-2 rounded text-sm font-bold w-24 bg-blue-50 text-blue-700 border border-blue-300">
+                                ₹{Math.round(calc?.amount || 0).toLocaleString("en-IN")}
+                              </div>
+                            ) : (
+                              <Input type="number" value={li.unit_price} min={0}
+                                onChange={e => updateLineItem(li.key, "unit_price", Number(e.target.value))}
+                                className="h-8 text-sm w-24" />
+                            )}
+                          </td>
+                          <td className="p-2">
+                            {/* Markup % */}
+                            <Input type="number" value={li.markup_percent||0} min={0} max={500}
+                              onChange={e => updateLineItem(li.key, "markup_percent", Number(e.target.value))}
+                              className="h-8 text-sm w-16 border-amber-400 focus:border-amber-600 bg-amber-50 text-center font-bold text-amber-800"
+                              disabled={[2452,2453,2454].includes(li.product_id || 0)} />
+                          </td>
+                          <td className="p-2">
+                            {/* Effective Rate — base × (1 + markup%), or auto-computed amount for special charges */}
+                            <div className={`h-8 flex items-center justify-end px-2 rounded text-sm font-bold w-24 ${(li.markup_percent||0)>0?"bg-green-50 text-green-700 border border-green-300":"bg-gray-50 text-gray-600 border border-gray-200"}`}>
+                              ₹{[2452,2453,2454].includes(li.product_id || 0)
+                                ? Math.round(calc?.amount || 0).toLocaleString("en-IN")
+                                : Math.round(li.unit_price*(1+(li.markup_percent||0)/100)).toLocaleString("en-IN")}
+                            </div>
+                          </td>
+                          <td className="p-2">
+                            <Input type="number" value={li.discount_percent} min={0} max={100}
+                              onChange={e => updateLineItem(li.key, "discount_percent", Number(e.target.value))} className="h-8 text-sm w-16" />
+                          </td>
+                          <td className="p-2">
+                            <Select value={String(li.gst_rate)} onValueChange={v => updateLineItem(li.key, "gst_rate", Number(v))}>
+                              <SelectTrigger className="h-8 text-sm w-16"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {GST_RATES.map(r => <SelectItem key={r} value={r}>{r}%</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          <td className="p-2 text-right font-medium">
+                            ₹{(calc?.total || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}{(li.markup_percent||0)>0 && <span className='block text-[10px] text-amber-500'>+{li.markup_percent}%</span>}
+                          </td>
+                          <td className="p-2">
+                            <div className="flex items-center gap-0.5">
+                              <Button variant="ghost" size="sm" onClick={() => moveLineItem(li.key, "up")}
+                                disabled={idx === 0}
+                                className="h-7 w-7 p-0 disabled:opacity-30">
+                                <ArrowUp className="w-3 h-3" />
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => moveLineItem(li.key, "down")}
+                                disabled={idx === lineItems.length - 1}
+                                className="h-7 w-7 p-0 disabled:opacity-30">
+                                <ArrowDown className="w-3 h-3" />
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => removeLine(li.key)}
+                                className="h-7 w-7 p-0 text-destructive hover:text-destructive">
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* ── Totals ────────────────────────────────── */}
+              <div className="flex justify-between mt-4">
+                <div className="space-y-2 w-64">
+                  <div>
+                    <Label className="text-xs">Notes</Label>
+                    <Textarea value={notes} onChange={e => setNotes(e.target.value)}
+                      placeholder="Additional notes..." rows={3} className="text-sm" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Valid for (days)</Label>
+                    <Input type="number" value={validDays} onChange={e => setValidDays(e.target.value)}
+                      className="w-24 h-8 text-sm" />
+                  </div>
+                </div>
+
+                <div className="w-72 space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span>Subtotal</span>
+                    <span className="font-medium">₹{totals.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  {isIntraState ? (
+                    <>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>CGST</span><span>₹{totals.cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>SGST</span><span>₹{totals.sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>IGST</span><span>₹{totals.igst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center gap-2">
+                    <Label className="text-xs whitespace-nowrap">Additional Charges</Label>
+                    <Input type="number" value={extraCharges || ""}
+                      onChange={e => setExtraCharges(Number(e.target.value) || 0)}
+                      placeholder="0" className="w-28 h-7 text-sm text-right" />
+                  </div>
+                  <div className="flex justify-between pt-2 border-t-2 border-primary font-bold text-lg text-primary">
+                    <span>Grand Total</span>
+                    <span>₹{totals.grand.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {isIntraState ? "Intra-State (CGST + SGST)" : "Inter-State (IGST)"}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+                    <SolarQuotationSection
+            solarEnabled={solarEnabled} setSolarEnabled={setSolarEnabled}
+            solarPlantType={solarPlantType} setSolarPlantType={setSolarPlantType}
+            solarCapacityKw={solarCapacityKw} setSolarCapacityKw={setSolarCapacityKw}
+            solarPanelModel={solarPanelModel} setSolarPanelModel={setSolarPanelModel}
+            solarPanelQty={solarPanelQty} setSolarPanelQty={setSolarPanelQty}
+            solarInverterModel={solarInverterModel} setSolarInverterModel={setSolarInverterModel}
+            solarBatteryModel={solarBatteryModel} setSolarBatteryModel={setSolarBatteryModel}
+            solarBatteryQty={solarBatteryQty} setSolarBatteryQty={setSolarBatteryQty}
+            solarPowerLoad={solarPowerLoad} setSolarPowerLoad={setSolarPowerLoad}
+            solarBackupHours={solarBackupHours} setSolarBackupHours={setSolarBackupHours}
+            solarNetMeterOn={solarNetMeterOn} setSolarNetMeterOn={setSolarNetMeterOn}
+            solarCosts={solarCosts} setSolarCosts={setSolarCosts}
+            solarRatesEdited={solarRatesEdited} setSolarRatesEdited={setSolarRatesEdited}
+            solarShowBom={solarShowBom} setSolarShowBom={setSolarShowBom}
+            solarConsumerNo={solarConsumerNo} setSolarConsumerNo={setSolarConsumerNo}
+            solarQuotationDate={solarQuotationDate} setSolarQuotationDate={setSolarQuotationDate}
+            solarSiteAddress={solarSiteAddress} setSolarSiteAddress={setSolarSiteAddress}
+            solarPanelMake={solarPanelMake} setSolarPanelMake={setSolarPanelMake}
+            solarStructType={solarStructType} setSolarStructType={setSolarStructType}
+            solarCableMake={solarCableMake} setSolarCableMake={setSolarCableMake}
+            solarDcSize={solarDcSize} setSolarDcSize={setSolarDcSize}
+            solarAcSize={solarAcSize} setSolarAcSize={setSolarAcSize}
+            solarPartnerName={solarPartnerName} setSolarPartnerName={setSolarPartnerName}
+            solarPartnerMobile={solarPartnerMobile} setSolarPartnerMobile={setSolarPartnerMobile}
+            solarLocalName={solarLocalName} setSolarLocalName={setSolarLocalName}
+            solarLocalMobile={solarLocalMobile} setSolarLocalMobile={setSolarLocalMobile}
+            solarDownPct={solarDownPct} setSolarDownPct={setSolarDownPct}
+            solarHiddenRows={solarHiddenRows} setSolarHiddenRows={setSolarHiddenRows}
+            solarHideDownPayment={solarHideDownPayment} setSolarHideDownPayment={setSolarHideDownPayment}
+            solarPhase={solarPhase} setSolarPhase={setSolarPhase}
+            solarInstallType={solarInstallType} setSolarInstallType={setSolarInstallType}
+            solarUnitName={solarUnitName} setSolarUnitName={setSolarUnitName}
+            solarInverterSpec={solarInverterSpec} setSolarInverterSpec={setSolarInverterSpec}
+            perWattRate={perWattRate} setPerWattRate={setPerWattRate}
+            panelDcr={panelDcr} setPanelDcr={setPanelDcr}
+            solarVfdHp={solarVfdHp} setSolarVfdHp={setSolarVfdHp}
+            solarBatterySpec={solarBatterySpec} setSolarBatterySpec={setSolarBatterySpec}
+            solarBatteryType={solarBatteryType} setSolarBatteryType={setSolarBatteryType}
+            companies={companies} companyId={companyId} setCompanyId={setCompanyId}
+          />
+          {/* ── Action Buttons ────────────────────────────── */}
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => window.history.back()}>Cancel</Button>
+            <Button onClick={saveQuotation} disabled={saving} className="min-w-[160px]">
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />}
+              {savedQuotationId ? "Update Quotation" : "Save Quotation"}
+            </Button>
+          </div>
+
+          {/* ── Post-save share actions ───────────────────── */}
+          {savedQuotationId && (
+            <Card className="border-green-300 bg-green-50/50">
+              <CardContent className="pt-4">
+                <p className="text-sm font-medium text-green-800 mb-3">
+                  ✅ Quotation {savedQuotationNo} saved! Share with customer:
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                  <div>
+                    <Label className="text-xs">Customer Email</Label>
+                    <Input value={customerForm.email}
+                      onChange={e => setCustomerForm(f => ({ ...f, email: e.target.value }))}
+                      placeholder="customer@email.com" className="h-8 text-sm" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Customer WhatsApp No.</Label>
+                    <Input value={customerForm.phone}
+                      onChange={e => setCustomerForm(f => ({ ...f, phone: e.target.value }))}
+                      placeholder="9876543210" className="h-8 text-sm" />
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" onClick={downloadPDF} 
+                    className="bg-amber-500 hover:bg-amber-600">
+                    <Download className="w-4 h-4 mr-2" />
+                    Download PDF
+                  </Button>
+                  <Button size="sm" onClick={sendEmail} className="bg-blue-500 hover:bg-blue-600">
+                    <Mail className="w-4 h-4 mr-2" /> Send via Email
+                  </Button>
+                  <Button size="sm" onClick={sendWhatsApp} className="bg-green-600 hover:bg-green-700">
+                    <Send className="w-4 h-4 mr-2" /> Send via WhatsApp
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

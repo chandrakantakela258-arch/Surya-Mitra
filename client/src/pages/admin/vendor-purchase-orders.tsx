@@ -677,7 +677,7 @@ export default function AdminVendorPurchaseOrders() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="On-grid">On-grid</SelectItem>
-                      <SelectItem value="Hybrid 3-in-1">Hybrid 3-in-1</SelectItem>
+                      <SelectItem value="Livguard Hybrid">Livguard Hybrid</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1008,7 +1008,7 @@ export default function AdminVendorPurchaseOrders() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="On-grid">On-grid</SelectItem>
-                      <SelectItem value="Hybrid 3-in-1">Hybrid 3-in-1</SelectItem>
+                      <SelectItem value="Livguard Hybrid">Livguard Hybrid</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

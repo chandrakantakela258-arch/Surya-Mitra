@@ -1,0 +1,341 @@
+import { useState } from "react";
+import { useLocation, Link } from "wouter";
+import { useAuth } from "@/lib/auth";
+import { 
+  LayoutDashboard, 
+  Users, 
+  Wallet, 
+  ShoppingCart,
+  UserPlus,
+  FileText,
+  Trophy,
+  Wrench,
+  User,
+  GitBranch,
+  Receipt,
+  Calculator,
+  Menu,
+  LogOut,
+  X,
+  UserCheck,
+  CreditCard,
+  Wrench,
+  MessageSquare,
+  Truck,
+  ClipboardCheck,
+  MessagesSquare,
+  Share2,
+  Megaphone
+} from "lucide-react";
+import { SiFacebook, SiX, SiWhatsapp } from "react-icons/si";
+import { cn } from "@/lib/utils";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
+
+const WEBSITE_URL = "https://divyanshisolar.in/";
+const HASHTAGS = "#DivyanshiSolar #PMSuryaGhar #SolarEnergy #RooftopSolar #GreenEnergy #MakeInIndia";
+
+interface NavItem {
+  icon: any;
+  label: string;
+  href: string;
+}
+
+const ddpNavItems: NavItem[] = [
+  { icon: LayoutDashboard, label: "Home", href: "/ddp/bot-leads" },
+  { icon: Users, label: "Customers", href: "/ddp/customers" },
+  { icon: Calculator, label: "Calculator", href: "/calculator" },
+  { icon: Wallet, label: "Earnings", href: "/ddp/earnings" },
+];
+
+const ddpMenuItems: NavItem[] = [
+  { icon: LayoutDashboard, label: "Home", href: "/ddp/bot-leads" },
+  { icon: MessageSquare, label: "Chat Bot Leads", href: "/ddp/bot-leads" },
+  { icon: Users, label: "Customers", href: "/ddp/customers" },
+  { icon: UserPlus, label: "Add Customer", href: "/ddp/customers/new" },
+  { icon: FileText, label: "Applications", href: "/ddp/applications" },
+  { icon: ShoppingCart, label: "Store", href: "/ddp/store" },
+  { icon: Wallet, label: "Earnings", href: "/ddp/earnings" },
+  { icon: Wrench, label: "Service Requests", href: "/ddp/service-requests" },
+  { icon: Users, label: "WhatsApp Contacts", href: "/ddp/whatsapp-contacts" },
+  { icon: Trophy, label: "Leaderboard", href: "/leaderboard" },
+  { icon: User, label: "My Profile", href: "/profile" },
+  { icon: Calculator, label: "Calculator", href: "/calculator" },
+  { icon: Share2, label: "Share Customer Link", href: "/ddp/share-customer" },
+];
+
+const sdpNavItems: NavItem[] = [
+  { icon: LayoutDashboard, label: "Home", href: "/sdp/dashboard" },
+  { icon: Users, label: "Customers", href: "/sdp/customers" },
+  { icon: Calculator, label: "Calculator", href: "/calculator" },
+  { icon: Wallet, label: "Earnings", href: "/sdp/earnings" },
+];
+const sdpMenuItems: NavItem[] = [
+  { icon: LayoutDashboard, label: "Home", href: "/sdp/dashboard" },
+  { icon: MessageSquare, label: "Chat Bot Leads", href: "/sdp/bot-leads" },
+  { icon: Users, label: "District Partners", href: "/sdp/partners" },
+  { icon: UserPlus, label: "Add District Partner", href: "/sdp/partners/new" },
+  { icon: Share2, label: "Share Partner Link", href: "/sdp/share-link" },
+  { icon: Users, label: "Customers", href: "/sdp/customers" },
+  { icon: UserPlus, label: "Add Customer", href: "/sdp/customers/new" },
+  { icon: Wallet, label: "Earnings", href: "/sdp/earnings" },
+  { icon: Share2, label: "Share Customer Link", href: "/sdp/share-customer" },
+  { icon: User, label: "My Profile", href: "/profile" },
+  { icon: Calculator, label: "Calculator", href: "/calculator" },
+  { icon: GitBranch, label: "Partner Hierarchy", href: "/sdp/partner-hierarchy" },
+];
+// Bottom bar items for BDP (first 4 shown in bottom nav)
+const bdpBottomNavItems: NavItem[] = [
+  { icon: LayoutDashboard, label: "Home", href: "/bdp/bot-leads" },
+  { icon: Users, label: "All Customers", href: "/bdp/customers" },
+  { icon: Wallet, label: "Wallet", href: "/bdp/wallet" },
+  { icon: ShoppingCart, label: "Store", href: "/bdp/store" },
+];
+
+// Additional menu items for BDP (shown in More menu)
+const bdpMenuItems: NavItem[] = [
+  { icon: LayoutDashboard, label: "Home", href: "/bdp/bot-leads" },
+  { icon: Users, label: "Customers", href: "/bdp/customers" },
+  { icon: Wallet, label: "Wallet", href: "/bdp/wallet" },
+  { icon: ShoppingCart, label: "Store", href: "/bdp/store" },
+  { icon: Calculator, label: "Calculator", href: "/calculator" },
+  { icon: User, label: "Profile", href: "/profile" },
+  { icon: Users, label: "District Partners", href: "/bdp/partners" },
+  { icon: MessageSquare, label: "Chat Bot Leads", href: "/bdp/bot-leads" },
+  { icon: Users, label: "WhatsApp Contacts", href: "/bdp/whatsapp-contacts" },
+  { icon: Users, label: "Add State Partner", href: "/bdp/add-sdp" },
+  { icon: Users, label: "Share Partner Link", href: "/bdp/share-link" },
+  { icon: GitBranch, label: "Partner Hierarchy", href: "/bdp/partner-hierarchy" },
+];
+
+// Bottom bar items for admin (first 4 shown in bottom nav)
+const adminBottomNavItems: NavItem[] = [
+  { icon: LayoutDashboard, label: "Home", href: "/admin/dashboard" },
+  { icon: Users, label: "Partners", href: "/admin/partners" },
+  { icon: FileText, label: "Journey", href: "/admin/customer-journey" },
+  { icon: Receipt, label: "Expenses", href: "/admin/site-expenses" },
+];
+
+// Additional menu items for admin (shown in More menu only)
+const adminMenuItems: NavItem[] = [
+  { icon: UserCheck, label: "Partner Approvals", href: "/admin/partners" },
+  { icon: GitBranch, label: "Partner Hierarchy", href: "/admin/partner-hierarchy" },
+  { icon: Users, label: "All Customers", href: "/admin/customers" },
+  { icon: User, label: "Independent Customers", href: "/admin/independent-customers" },
+  { icon: FileText, label: "Customer Leads", href: "/admin/customer-journey" },
+  { icon: MessageSquare, label: "SOLAR BOT LEAD", href: "/admin/solar-bot-leads" },
+  { icon: MessageSquare, label: "Partner Chat Bot Leads", href: "/admin/partner-bot-leads" },
+  { icon: MessageSquare, label: "WhatsApp Dashboard", href: "/admin/whatsapp-dashboard" },
+  { icon: Users, label: "WhatsApp Contacts", href: "/admin/whatsapp-contacts" },
+  { icon: MessageSquare, label: "WhatsApp Settings", href: "/admin/whatsapp-settings" },
+  { icon: MessagesSquare, label: "Chatbot Settings", href: "/admin/chatbot-settings" },
+  { icon: ShoppingCart, label: "Products", href: "/admin/products" },
+  { icon: Receipt, label: "Orders", href: "/admin/orders" },
+  { icon: CreditCard, label: "Commission Payouts", href: "/admin/payouts" },
+  { icon: Wrench, label: "Site Expenses Tools", href: "/admin/site-expenses" },
+  { icon: FileText, label: "Documents", href: "/admin/documents" },
+  { icon: MessagesSquare, label: "User Feedback", href: "/admin/feedback" },
+  { icon: ClipboardCheck, label: "Service Requests", href: "/admin/service-requests" },
+  { icon: MessageSquare, label: "Testimonials", href: "/admin/testimonials" },
+  { icon: ClipboardCheck, label: "Vendor Approvals", href: "/admin/vendors" },
+  { icon: Truck, label: "Vendor Payments", href: "/admin/vendor-payments" },
+  { icon: Megaphone, label: "Broadcast", href: "/admin/notifications" },
+  { icon: Wrench, label: "Equipment Settings", href: "/admin/equipment-settings" },
+  { icon: Calculator, label: "Subsidy Calculator", href: "/admin/subsidy-calculator" },
+  { icon: Share2, label: "Notifications", href: "/admin/push-notifications" },
+  { icon: MessagesSquare, label: "Help Assistant", href: "/admin/help" },
+];
+
+const customerPartnerNavItems: NavItem[] = [
+  { icon: LayoutDashboard, label: "Home", href: "/customer-partner/dashboard" },
+  { icon: UserPlus, label: "Refer", href: "/customer-registration" },
+  { icon: Users, label: "Referrals", href: "/customer-partner/referrals" },
+  { icon: Wallet, label: "Earnings", href: "/customer-partner/earnings" },
+  { icon: User, label: "Profile", href: "/customer-partner/profile" },
+];
+
+export function MobileNav() {
+  const [location, setLocation] = useLocation();
+  const { user, logout } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { toast } = useToast();
+
+  if (!user) return null;
+
+  const shareText = `Join Prayga India Private Limited - India's trusted partner for PM Surya Ghar Yojana! Get FREE rooftop solar installation with government subsidy.\n\nVisit: ${WEBSITE_URL}\n\n${HASHTAGS}`;
+  const encodedText = encodeURIComponent(shareText);
+
+  const shareToFacebook = () => {
+    const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(WEBSITE_URL)}&quote=${encodedText}`;
+    window.open(fbUrl, "_blank", "width=600,height=400");
+  };
+
+  const shareToTwitter = () => {
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodedText}`;
+    window.open(twitterUrl, "_blank", "width=600,height=400");
+  };
+
+  const shareToWhatsApp = () => {
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodedText}`;
+    window.open(whatsappUrl, "_blank");
+  };
+
+
+  // Bottom nav items (first 4 shown)
+  const navItems = user.role === "admin" 
+    ? adminBottomNavItems 
+    : user.role === "bdp" 
+      ? bdpBottomNavItems 
+      : user.role === "sdp"
+        ? sdpNavItems
+        : user.role === "customer_partner"
+        ? customerPartnerNavItems
+        : ddpMenuItems;
+
+  // Menu items for More section (admin gets separate menu items, others get full list)
+  const menuItems = user.role === "admin" 
+    ? adminMenuItems 
+    : user.role === "bdp" 
+      ? bdpMenuItems 
+      : user.role === "sdp"
+        ? sdpMenuItems
+        : user.role === "customer_partner"
+        ? customerPartnerNavItems
+        : ddpMenuItems;
+
+  const handleSignOut = async () => {
+    setMenuOpen(false);
+    await logout();
+    setLocation("/");
+  };
+
+  return (
+    <nav 
+      className="fixed bottom-0 left-0 right-0 z-40 bg-background border-t md:hidden safe-area-bottom"
+      data-testid="nav-mobile-bottom"
+    >
+      <div className="flex items-center justify-evenly h-16 w-full px-1">
+        {navItems.slice(0, 4).map((item) => {
+          const isActive = location === item.href || location.startsWith(item.href + "/");
+          const Icon = item.icon;
+          
+          return (
+            <Link key={item.href} href={item.href}>
+              <div
+                className={cn(
+                  "flex flex-col items-center justify-center min-w-[52px] flex-1 h-full gap-0.5 transition-colors",
+                  isActive 
+                    ? "text-primary" 
+                    : "text-muted-foreground"
+                )}
+                data-testid={`nav-mobile-${item.label.toLowerCase()}`}
+              >
+                <Icon className={cn("h-5 w-5", isActive && "stroke-[2.5px]")} />
+                <span className="text-[10px] font-medium truncate max-w-[52px]">{item.label}</span>
+              </div>
+            </Link>
+          );
+        })}
+        
+        <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+          <SheetTrigger asChild>
+            <button
+              className="flex flex-col items-center justify-center min-w-[52px] flex-1 h-full gap-0.5 text-muted-foreground"
+              data-testid="nav-mobile-menu"
+            >
+              <Menu className="h-5 w-5" />
+              <span className="text-[10px] font-medium">More</span>
+            </button>
+          </SheetTrigger>
+          <SheetContent side="right" className="w-[280px] sm:w-[320px] overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle className="text-left">Menu</SheetTitle>
+            </SheetHeader>
+            <div className="mt-6 space-y-1 pr-1 pb-20">
+              {menuItems.map((item) => {
+                const isActive = location === item.href || location.startsWith(item.href + "/");
+                const Icon = item.icon;
+                
+                return (
+                  <Link key={item.href} href={item.href}>
+                    <div
+                      onClick={() => setMenuOpen(false)}
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-3 rounded-md transition-colors hover-elevate",
+                        isActive 
+                          ? "bg-primary/10 text-primary" 
+                          : "text-foreground"
+                      )}
+                      data-testid={`nav-menu-${item.label.toLowerCase()}`}
+                    >
+                      <Icon className="h-5 w-5" />
+                      <span className="font-medium">{item.label}</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+            {user.role !== "admin" && (
+              <>
+                <Separator className="my-4" />
+                <div className="px-3 mb-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Share & Connect</p>
+                </div>
+                <div className="space-y-1">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-3 px-3"
+                    onClick={shareToWhatsApp}
+                    data-testid="button-mobile-share-whatsapp"
+                  >
+                    <SiWhatsapp className="h-5 w-5 text-green-500" />
+                    <span className="font-medium">Share on WhatsApp</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-3 px-3"
+                    onClick={shareToFacebook}
+                    data-testid="button-mobile-share-facebook"
+                  >
+                    <SiFacebook className="h-5 w-5 text-blue-600" />
+                    <span className="font-medium">Share on Facebook</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-3 px-3"
+                    onClick={shareToTwitter}
+                    data-testid="button-mobile-share-twitter"
+                  >
+                    <SiX className="h-5 w-5" />
+                    <span className="font-medium">Share on X (Twitter)</span>
+                  </Button>
+                </div>
+              </>
+            )}
+            <Separator className="my-4" />
+            <div className="space-y-1">
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3 px-3 text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={handleSignOut}
+                data-testid="button-mobile-signout"
+              >
+                <LogOut className="h-5 w-5" />
+                <span className="font-medium">Sign Out</span>
+              </Button>
+            </div>
+            <div className="mt-6 px-3">
+              <div className="text-sm text-muted-foreground">
+                Signed in as
+              </div>
+              <div className="font-medium truncate">{user.name}</div>
+              <div className="text-sm text-muted-foreground capitalize">{user.role.replace("_", " ")}</div>
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+    </nav>
+  );
+}

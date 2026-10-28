@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Settings, Zap, Sun, X, Building2 } from "lucide-react";
+import { Plus, Trash2, Settings, Zap, Sun, X, Building2, BatteryCharging } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
 interface EquipmentMake {
@@ -19,6 +19,7 @@ interface EquipmentMake {
 interface EquipmentOptions {
   moduleMakes: EquipmentMake[];
   inverterMakes: EquipmentMake[];
+  batteryMakes: EquipmentMake[];
 }
 
 interface Vendor {
@@ -29,8 +30,33 @@ interface Vendor {
 
 export default function EquipmentSettings() {
   const { toast } = useToast();
+  const [warrantyInputs, setWarrantyInputs] = useState<Record<string,string>>({});
+  const [savingWarranty, setSavingWarranty] = useState<string>("");
+
+  const { data: warrantyData, refetch: refetchWarranty } = useQuery<any>({
+    queryKey: ["/api/admin/equipment-warranty"],
+  });
+
+  const getWarranty = (type: string, make: string, model: string): string => {
+    const key = `equipment_warranty_${type}_${make}`;
+    return warrantyData?.[key]?.[model] || "";
+  };
+
+  const saveWarranty = async (type: string, make: string, model: string, value: string) => {
+    const key = `equipment_warranty_${type}_${make}`;
+    const existing = warrantyData?.[key] || {};
+    const updated = { ...existing, [model]: value };
+    setSavingWarranty(`${type}_${make}_${model}`);
+    try {
+      await apiRequest("POST", "/api/admin/equipment-warranty", { key, data: updated });
+      refetchWarranty();
+      toast({ title: "Warranty saved" });
+    } catch(e:any) { toast({ title: "Failed", description: e.message, variant: "destructive" }); }
+    finally { setSavingWarranty(""); }
+  };
   const [newModuleMake, setNewModuleMake] = useState("");
   const [newInverterMake, setNewInverterMake] = useState("");
+  const [newBatteryMake, setNewBatteryMake] = useState("");
   const [modelInputs, setModelInputs] = useState<Record<string, string>>({});
   const [newVendorName, setNewVendorName] = useState("");
   const [newVendorAddress, setNewVendorAddress] = useState("");
@@ -97,11 +123,11 @@ export default function EquipmentSettings() {
     },
   });
 
-  const handleAddMake = (type: "module" | "inverter") => {
-    const make = type === "module" ? newModuleMake.trim() : newInverterMake.trim();
+  const handleAddMake = (type: "module" | "inverter" | "battery") => {
+    const make = type === "module" ? newModuleMake.trim() : type === "inverter" ? newInverterMake.trim() : newBatteryMake.trim();
     if (!make) return;
 
-    const existing = type === "module" ? options?.moduleMakes : options?.inverterMakes;
+    const existing = type === "module" ? options?.moduleMakes : type === "inverter" ? options?.inverterMakes : options?.batteryMakes;
     if (existing?.some(e => e.make.toLowerCase() === make.toLowerCase())) {
       toast({ title: "Already exists", description: `${make} already exists.`, variant: "destructive" });
       return;
@@ -109,17 +135,18 @@ export default function EquipmentSettings() {
 
     saveMutation.mutate({ type, make, models: [] });
     if (type === "module") setNewModuleMake("");
-    else setNewInverterMake("");
+    else if (type === "inverter") setNewInverterMake("");
+    else setNewBatteryMake("");
   };
 
   const getModelInputKey = (type: string, make: string) => `${type}_${make}`;
 
-  const handleAddModel = (type: "module" | "inverter", make: string) => {
+  const handleAddModel = (type: "module" | "inverter" | "battery", make: string) => {
     const key = getModelInputKey(type, make);
     const model = (modelInputs[key] || "").trim();
     if (!model) return;
 
-    const existing = type === "module" ? options?.moduleMakes : options?.inverterMakes;
+    const existing = type === "module" ? options?.moduleMakes : type === "inverter" ? options?.inverterMakes : options?.batteryMakes;
     const entry = existing?.find(e => e.make === make);
     const currentModels = entry?.models || [];
 
@@ -132,15 +159,15 @@ export default function EquipmentSettings() {
     setModelInputs(prev => ({ ...prev, [key]: "" }));
   };
 
-  const handleRemoveModel = (type: "module" | "inverter", make: string, model: string) => {
-    const existing = type === "module" ? options?.moduleMakes : options?.inverterMakes;
+  const handleRemoveModel = (type: "module" | "inverter" | "battery", make: string, model: string) => {
+    const existing = type === "module" ? options?.moduleMakes : type === "inverter" ? options?.inverterMakes : options?.batteryMakes;
     const entry = existing?.find(e => e.make === make);
     const updatedModels = (entry?.models || []).filter(m => m !== model);
     saveMutation.mutate({ type, make, models: updatedModels });
   };
 
   const renderEquipmentSection = (
-    type: "module" | "inverter",
+    type: "module" | "inverter" | "battery",
     title: string,
     icon: ReactNode,
     makes: EquipmentMake[],
@@ -164,7 +191,7 @@ export default function EquipmentSettings() {
             <Input
               value={newMake}
               onChange={(e) => setNewMake(e.target.value)}
-              placeholder={`e.g., ${type === "module" ? "IB Solar, Tata Power Solar" : "SunPunch, Growatt"}`}
+              placeholder={`e.g., ${type === "module" ? "IB Solar, Tata Power Solar" : type === "inverter" ? "Livguard, Growatt" : "Luminous, Exide, Amaron"}`}
               onKeyDown={(e) => e.key === "Enter" && handleAddMake(type)}
               data-testid={`input-new-${type}-make`}
             />
@@ -180,7 +207,7 @@ export default function EquipmentSettings() {
 
         {makes.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-4">
-            No {type === "module" ? "solar module" : "inverter"} makes added yet. Add a make above to get started.
+            No {type === "module" ? "solar module" : type === "inverter" ? "inverter" : "battery"} makes added yet. Add a make above to get started.
           </p>
         )}
 
@@ -208,26 +235,40 @@ export default function EquipmentSettings() {
               <div>
                 <Label className="text-xs font-medium mb-1.5 block">Models ({entry.models.length} added)</Label>
                 {entry.models.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {entry.models.map((model) => (
-                      <Badge key={model} variant="secondary" className="gap-1 py-1.5 px-3 text-sm" data-testid={`badge-${type}-model-${model}`}>
-                        {model}
-                        <button
-                          onClick={() => handleRemoveModel(type, entry.make, model)}
-                          className="ml-1 rounded-full hover:bg-muted-foreground/20 p-0.5"
-                          data-testid={`button-remove-${type}-model-${model}`}
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </Badge>
-                    ))}
+                  <div className="space-y-2 mb-3">
+                    {entry.models.map((model) => {
+                      const wKey = `${type}_${entry.make}_${model}`;
+                      const curWarranty = warrantyInputs[wKey] ?? getWarranty(type, entry.make, model);
+                      return (
+                        <div key={model} className="flex items-center gap-2 bg-muted/30 rounded p-2">
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm font-medium truncate block" title={model}>{model}</span>
+                          </div>
+                          <Input
+                            className="w-32 h-7 text-xs"
+                            value={curWarranty}
+                            onChange={e => setWarrantyInputs(prev => ({...prev,[wKey]:e.target.value}))}
+                            onBlur={e => { if(e.target.value !== getWarranty(type,entry.make,model)) saveWarranty(type,entry.make,model,e.target.value); }}
+                            placeholder="Warranty"
+                            title="Enter warranty (e.g. 25 Years)"
+                          />
+                          <button
+                            onClick={() => handleRemoveModel(type, entry.make, model)}
+                            className="rounded-full hover:bg-red-100 p-1 text-red-500 flex-shrink-0"
+                            data-testid={`button-remove-${type}-model-${model}`}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
                 <div className="flex gap-2">
                   <Input
                     value={modelInputValue}
                     onChange={(e) => setModelInputs(prev => ({ ...prev, [inputKey]: e.target.value }))}
-                    placeholder={`Enter ${type === "module" ? "module" : "inverter"} model name for ${entry.make}`}
+                    placeholder={`Enter ${type === "module" ? "module" : type === "inverter" ? "inverter" : "battery"} model name for ${entry.make}`}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") handleAddModel(type, entry.make);
                     }}
@@ -270,7 +311,7 @@ export default function EquipmentSettings() {
           Solar Equipment Settings
         </h1>
         <p className="text-muted-foreground mt-1">
-          Configure solar module and inverter options. Add makes and models here - they will appear as dropdown selections in the MOA agreement form.
+          Configure solar module, inverter, and battery options. Add company/make first, then add models under each. These appear as dropdown selections in forms.
         </p>
       </div>
 
@@ -294,6 +335,15 @@ export default function EquipmentSettings() {
         setNewInverterMake
       )}
 
+      {renderEquipmentSection(
+        "battery",
+        "Battery Makes & Models",
+        <BatteryCharging className="w-5 h-5 text-amber-500" />,
+        options?.batteryMakes || [],
+        newBatteryMake,
+        setNewBatteryMake
+      )}
+
       <Separator />
 
       <Card>
@@ -313,7 +363,7 @@ export default function EquipmentSettings() {
               <Input
                 value={newVendorName}
                 onChange={(e) => setNewVendorName(e.target.value)}
-                placeholder="e.g., Hewtech System Pvt. Ltd."
+                placeholder="e.g., Divyanshi Digital Services Pvt Ltd"
                 data-testid="input-new-moa-vendor-name"
               />
             </div>
@@ -322,7 +372,7 @@ export default function EquipmentSettings() {
               <Textarea
                 value={newVendorAddress}
                 onChange={(e) => setNewVendorAddress(e.target.value)}
-                placeholder="e.g., Golu Babu Market, Ashiyana Digha Road, Rajiv Nagar, Patna -25"
+                placeholder="e.g., Plot No. C-3/258, Shreyansh Apartment, Chitrakoot Scheme, Vaishali Nagar, Jaipur, Rajasthan 302021"
                 rows={2}
                 data-testid="input-new-moa-vendor-address"
               />

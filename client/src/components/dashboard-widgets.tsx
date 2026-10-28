@@ -28,6 +28,7 @@ export interface DashboardWidget {
 interface DashboardWidgetConfig {
   bdp: DashboardWidget[];
   ddp: DashboardWidget[];
+  sdp: DashboardWidget[];
 }
 
 const defaultWidgets: DashboardWidgetConfig = {
@@ -45,9 +46,14 @@ const defaultWidgets: DashboardWidgetConfig = {
     { id: "commissions", title: "Commission Summary", visible: true, order: 3 },
     { id: "quick-actions", title: "Quick Actions", visible: true, order: 4 },
   ],
+  sdp: [
+    { id: "stats", title: "Statistics Overview", visible: true, order: 0 },
+    { id: "recent-customers", title: "Recent Customers", visible: true, order: 1 },
+    { id: "quick-actions", title: "Quick Actions", visible: true, order: 2 },
+  ],
 };
 
-export function useDashboardWidgets(role: "bdp" | "ddp") {
+export function useDashboardWidgets(role: "bdp" | "ddp" | "sdp") {
   const { data: preferences } = useQuery<UserPreferences>({
     queryKey: ["/api/preferences"],
   });

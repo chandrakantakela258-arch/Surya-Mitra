@@ -569,7 +569,7 @@ export default function AdminGoodsDeliveries() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ongrid">On-Grid Inverter</SelectItem>
-                <SelectItem value="hybrid_3in1">3-in-1 Hybrid Inverter</SelectItem>
+                <SelectItem value="hybrid_3in1">Livguard Hybrid Inverter</SelectItem>
               </SelectContent>
             </Select>
           </div>
